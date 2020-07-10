@@ -1,0 +1,106 @@
+---
+title: "Trajectories of Abandonment and Biodiversity, start document"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+Repository for work to investigate the trajectories of abandoned agricultural land, and implications for biodiversity
+
+```{r initialize}
+source("scripts/0_start.R")
+
+```
+
+```{r}
+# Land use class codes:
+#       1. Non-vegetated area (e.g. water, urban, barren land)
+#       2. Woody vegetation
+#       3. Cropland 
+#       4. Herbaceous land (e.g. grassland)
+
+belarus_1987 <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_1987.tif")
+
+belarus_1988 <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_1988.tif")
+
+extent(belarus_1987)
+extent(belarus_1988)
+ncell(belarus_1987)
+ncell(belarus_1988)
+
+b_1987 <- as.data.table.raster(belarus_1987)
+b_1988 <- as.data.table.raster(belarus_1988)
+object_size(b_1987, b_1988)
+b <- merge(b_1987, b_1988, by = c("x","y"), sort = FALSE)
+
+object_size(b)
+object_size(bs)
+
+bs <- b[belarus_1987 > 0]
+
+bs[, sum := (belarus_1987 + belarus_1988)]
+
+
+names(b)[3] <- "y1988"
+
+object_size(belarus_1988)
+
+plot(belarus_1988, main = "Belarus 1988")
+
+hist(belarus_1988, main = "Belarus 1988 distribution of values")
+cellStats(belarus_1988, stat = "min") # 1
+cellStats(belarus_1988, stat = "max") # 4
+
+
+belarus_1988
+
+b[, .N]
+b[y1988 == 2, ][, .(value = 2, count = .N)]
+b[y1988 == 2, ][, sum(y1988)]
+b[, sum(y1988)]
+
+hist(b[, 3])
+
+b_counts <- b[, .(count = .N), by = y1988]
+
+barplot(data = b_counts, count ~ y1988)
+```
+
+```{r dt-testing}
+library(data.table)
+set.seed(1L)
+test
+## Create a data table
+DT <- data.table(V1 = rep(c(1L, 2L), 5)[-10],
+                V2 = 1:9,
+                V3 = c(0.5, 1.0, 1.5),
+                V4 = rep(LETTERS[1:3], 3))
+
+class(DT)
+DT
+
+DT[V1 == 1]
+
+DT[, sum(V1)]
+```
+
+
+
+```{r animate}
+# https://www.rdocumentation.org/packages/raster/versions/3.1-5/topics/animate
+
+brick_r <- brick(belarus_1988,)
+
+animate(x, pause=0.25, main, zlim, maxpixels=50000, n=10, ...)
+
+```
+
+
+```{python}
+x = 'hello, python world!'
+print(x.split(' '))
+
+# DJ uses iPython
+
+```
+
+
