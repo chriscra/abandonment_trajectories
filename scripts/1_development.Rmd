@@ -18,19 +18,25 @@ source("scripts/0_start.R")
 #       3. Cropland 
 #       4. Herbaceous land (e.g. grassland)
 
-belarus_1987 <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_1987.tif")
+bsmall <- brick(paste0(p_dat, "/Abandonment/belarus_small.tif"))
+plot(bsmall)
+dt_bsmall <- as.data.table.raster(bsmall)
+object_size(dt_bsmall)
 
-belarus_1988 <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_1988.tif")
+b87_r <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_1987.tif")
 
-extent(belarus_1987)
-extent(belarus_1988)
-ncell(belarus_1987)
-ncell(belarus_1988)
+b88_r <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_1988.tif")
 
-b_1987 <- as.data.table.raster(belarus_1987)
-b_1988 <- as.data.table.raster(belarus_1988)
-object_size(b_1987, b_1988)
-b <- merge(b_1987, b_1988, by = c("x","y"), sort = FALSE)
+extent(b87_r)
+extent(b88_r)
+ncell(b87_r)
+ncell(b88_r)
+
+dt_b87 <- as.data.table.raster(b87_r)
+dt_b88 <- as.data.table.raster(b88_r)
+object_size(dt_b87)
+object_size(dt_b88)
+b <- merge(dt_b87, dt_b88, by = c("x","y"), sort = FALSE)
 
 object_size(b)
 object_size(bs)
@@ -88,9 +94,9 @@ DT[, sum(V1)]
 ```{r animate}
 # https://www.rdocumentation.org/packages/raster/versions/3.1-5/topics/animate
 
-brick_r <- brick(belarus_1988,)
+bsmall
 
-animate(x, pause=0.25, main, zlim, maxpixels=50000, n=10, ...)
+animate(bsmall, pause=0.25, main = "smolensk", zlim = c(1, 4), maxpixels=5000, n=2)
 
 ```
 
