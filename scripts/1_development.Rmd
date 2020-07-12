@@ -11,7 +11,7 @@ source("scripts/0_start.R")
 
 ```
 
-```{r}
+```{r load-rasters}
 # Land use class codes:
 #       1. Non-vegetated area (e.g. water, urban, barren land)
 #       2. Woody vegetation
@@ -39,7 +39,8 @@ object_size(dt_b88)
 b <- merge(dt_b87, dt_b88, by = c("x","y"), sort = FALSE)
 
 object_size(b)
-object_size(bs)
+((object_size(bs) - object_size(dt_b88))/2)*30
+
 
 bs <- b[belarus_1987 > 0]
 
@@ -70,6 +71,67 @@ b_counts <- b[, .(count = .N), by = y1988]
 
 barplot(data = b_counts, count ~ y1988)
 ```
+
+```{r plot-trajectory-per-pixel}
+plot(dt_bsmall[1, ])
+
+dt_bsmall[1, -c(1,2)] %>% as.data.frame() %>% plot()
+year <- c(1987:2017)
+dt_bsmall[1:5, -c(1,2)]
+dt_bsmall[1, -c(1,2)] %>% as.matrix()
+sub <- dt_bsmall[1:10, -c(1,2)]
+names(sub) <- gsub("smolensk", "", names(sub))
+ 
+sub <- sub[, pixel := c(1:10)]
+
+sub_melt <- melt(sub, id.vars = "pixel", variable.name = "year", value.name = "land_use", na.rm = TRUE)
+
+ggplot(data = sub_melt) +
+  theme_classic() + 
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  geom_line(mapping = aes(x = year, y = land_use, group = pixel, color = land_use), 
+            size = 2) +
+  facet_grid(rows = vars(pixel), scales = "free_x", switch = "x") + 
+  ylim(1, 4)
+
+#       1. Non-vegetated area (e.g. water, urban, barren land)
+#       2. Woody vegetation
+#       3. Cropland 
+#       4. Herbaceous land (e.g. grassland)
+
+
+
+plot(as.matrix(dt_bsmall[1:5, -c(1,2)]))
+as.matrix(dt_bsmall[1:5, -c(1,2)])
+
+
+
+test <- as.matrix(dt_bsmall[1:5, -c(1,2)])
+dat <- t(test)
+
+as.matrix(dt_bsmall[1, -c(1,2)])[1:31]
+df <- data.frame(
+  year = year,
+  "land_use" = as.matrix(dt_bsmall[1, -c(1,2)])[1:31]
+)
+
+
+ggplot(data = dat) +
+  geom_line(mapping = aes(x = facet, y = mean_jac_w, color = weight))
+
+colnames(test) <- 1987:2017
+
+plot(df)
+t(test)
+```
+
+
+```{r time-series}
+bsmall
+dt_bsmall
+
+```
+
 
 ```{r dt-testing}
 library(data.table)
