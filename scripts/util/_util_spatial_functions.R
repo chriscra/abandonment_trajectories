@@ -1,4 +1,8 @@
-### Functions used for abandonment trajectories and PREDICTS project
+# ---------------------------------------------------------------
+#
+# Spatial Functions: 
+# 
+# ---------------------------------------------------------------
 
 invert = function(x){
   return(1-x)}
