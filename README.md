@@ -13,3 +13,5 @@ This repository houses data and scripts for:
 ## Components of this repository
 
 Tbd...
+
+Testing changes, local vs. remote directory.
