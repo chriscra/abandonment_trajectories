@@ -90,6 +90,7 @@ plot(predicts$Predominant_land_use, las = 2, main = "Predominant land use")#, xl
 levels(predicts$UN_subregion)
 levels(predicts$Site_name) # not useful
 levels(drop.levels(predicts$Ecoregion)) # there are 814 levels, for all 814 ecoregions, but according to the article (Hudson et al. 2017), only 281 have data.
+
 levels(drop.levels(predicts$Hotspot))
 levels(predicts$Realm)
 levels(predicts$Class)
@@ -751,15 +752,22 @@ names(predicts)
 
 ecoregions_wwf <- st_read("/Users/christophercrawford/Google Drive/_Projects/data/Habitats/TEOW/wwf_terr_ecos.shp")
 
-ecoregions <- st_read("/Users/christophercrawford/Google Drive/_Projects/data/Habitats/terr-ecoregions-TNC/tnc_terr_ecoregions.shp")
+tic()
+ecoregions <- st_read("/Users/christophercrawford/Google Drive/_Projects/data/Habitats/terr-ecoregions-TNC/tnc_terr_ecoregions.shp") %>%
+  st_make_valid()
+toc() # 44.88
 
-
+tic()
 ecoregions <- st_make_valid(ecoregions) # very fast.
-
+toc()
 
 names(ecoregions)
-levels(as.factor(ecoregions$ECO_NAME)) # 827 ecoregions. 
+names(ecoregions_wwf)
+levels(as.factor(ecoregions_wwf$ECO_NAME)) # 827 ecoregions. (this is the WWF file)
+length(as.factor(ecoregions$ECO_NAME)) # 814 ecoregions. (this is the TNC file)
 levels(as.factor(ecoregions$WWF_MHTNAM)) # 16 biomes, but without "rock and ice" and "inland water," it's 14 like Hudson et al. 2014 states.
+# MHT stands for Major Habitat Types
+
 mapView(ecoregions)
 plot(ecoregions["WWF_MHTNAM"])
 
