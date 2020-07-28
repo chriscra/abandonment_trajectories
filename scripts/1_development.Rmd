@@ -11,42 +11,63 @@ source("scripts/0_start.R")
 ```
 
 ```{r load-rasters}
+
 # Land use class codes:
 #       1. Non-vegetated area (e.g. water, urban, barren land)
 #       2. Woody vegetation
 #       3. Cropland 
 #       4. Herbaceous land (e.g. grassland)
 
-bsmall <- brick(paste0(p_dat, "/Abandonment/belarus_small.tif"))
-plot(bsmall)
-dt_bsmall <- as.data.table.raster(bsmall)
-object_size(dt_bsmall)
+bs <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
+plot(bs)
+plot(bs$smolensk1987)
+dt_bs <- as.data.table.raster(bs)
 
+
+# update column names
+names(dt_bs) <- gsub("smolensk", "y", names(dt_bs))
+dt_bs
+
+object_size(dt_bs)
+nlayers(bs) # 31 years in the time series
+ncol(dt_bs) # 31 years, plus x and y = 33.
+
+
+# full landsat scene, but just for individual years
 b87_r <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_1987.tif")
-
 b88_r <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_1988.tif")
 
+plot(b87_r)
+plot(b88_r)
 extent(b87_r)
 extent(b88_r)
 ncell(b87_r)
 ncell(b88_r)
 
+# as data.tables
 dt_b87 <- as.data.table.raster(b87_r)
 dt_b88 <- as.data.table.raster(b88_r)
 object_size(dt_b87)
+object_size(dt_b87[, .(x, y)])
+object_size(dt_b87[, .(belarus_1987)]) # 378 MB approximately for each year.
+object_size(dt_b87) + object_size(dt_b87[, .(belarus_1987)])*30 # this is an approximation of how large the full data.table of the full scene, as a data.table, would be. 
+# 13.2 GB. This is huge. I'll have to come up with some better way to do this... 
+# perhaps start by figuring this out in R, then transfer it to python, and then google earth. 
+
 object_size(dt_b88)
-b <- merge(dt_b87, dt_b88, by = c("x","y"), sort = FALSE)
-
-object_size(b)
-((object_size(bs) - object_size(dt_b88))/2)*30
 
 
-bs <- b[belarus_1987 > 0]
+dt_b87_88 <- merge(dt_b87, dt_b88, by = c("x","y"), sort = FALSE)
+object_size(dt_b87_88)
+object_size(dt_b87_88[, .(belarus_1987, belarus_1988)])
 
-bs[, sum := (belarus_1987 + belarus_1988)]
+
+dt_b87_88_sub <- dt_b87_88[belarus_1987 > 0]
+
+dt_b87_88_sub[, sum := (belarus_1987 + belarus_1988)]
 
 
-names(b)[3] <- "y1988"
+names(dt_b87_88)[3] <- "y1988"
 
 object_size(belarus_1988)
 
@@ -59,85 +80,35 @@ cellStats(belarus_1988, stat = "max") # 4
 
 belarus_1988
 
-b[, .N]
-b[y1988 == 2, ][, .(value = 2, count = .N)]
-b[y1988 == 2, ][, sum(y1988)]
-b[, sum(y1988)]
+dt_b87_88[, .N]
+dt_b87_88[y1988 == 2, ][, .(value = 2, count = .N)]
+dt_b87_88[y1988 == 2, ][, sum(y1988)]
+dt_b87_88[, sum(y1988)]
 
-hist(b[, 3])
+hist(dt_b87_88[, 3])
 
-b_counts <- b[, .(count = .N), by = y1988]
+dt_b87_88_counts <- dt_b87_88[, .(count = .N), by = y1988]
 
-barplot(data = b_counts, count ~ y1988)
+barplot(data = dt_b87_88_counts, count ~ y1988)
 ```
 
-```{r plot-trajectory-per-pixel}
-plot(dt_bsmall[1, ])
-
-dt_bsmall[1, -c(1,2)] %>% as.data.frame() %>% plot()
-year <- c(1987:2017)
-dt_bsmall[1:5, -c(1,2)]
-dt_bsmall[1, -c(1,2)] %>% as.matrix()
-sub <- dt_bsmall[1:10, -c(1,2)]
-names(sub) <- gsub("smolensk", "", names(sub))
- 
-sub <- sub[, pixel := c(1:10)]
-
-sub_melt <- melt(sub, id.vars = "pixel", variable.name = "year", value.name = "land_use", na.rm = TRUE)
-
-ggplot(data = sub_melt) +
-  theme_classic() + 
-  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
-  geom_line(mapping = aes(x = year, y = land_use, group = pixel, color = land_use), 
-            size = 2) +
-  facet_grid(rows = vars(pixel), scales = "free_x", switch = "x") + 
-  ylim(1, 4)
-
-#       1. Non-vegetated area (e.g. water, urban, barren land)
-#       2. Woody vegetation
-#       3. Cropland 
-#       4. Herbaceous land (e.g. grassland)
-
-
-
-plot(as.matrix(dt_bsmall[1:5, -c(1,2)]))
-as.matrix(dt_bsmall[1:5, -c(1,2)])
-
-
-
-test <- as.matrix(dt_bsmall[1:5, -c(1,2)])
-dat <- t(test)
-
-as.matrix(dt_bsmall[1, -c(1,2)])[1:31]
-df <- data.frame(
-  year = year,
-  "land_use" = as.matrix(dt_bsmall[1, -c(1,2)])[1:31]
-)
-
-
-ggplot(data = dat) +
-  geom_line(mapping = aes(x = facet, y = mean_jac_w, color = weight))
-
-colnames(test) <- 1987:2017
-
-plot(df)
-t(test)
-```
-
-```{r rs-timeseries}
+```{r rebecca-senior-time-series}
 library(raster)
 
-# Create test matrices with value of 1 for agriculture and 2 for non-agriculture
+# Create test matrices with value of:
+# 1 for agriculture and 
+# 2 for non-agriculture
 mat1 <- matrix(rep(1, 9), nrow = 3, ncol = 3)
 mat2 <- matrix(c(rep(1, 3), 2, 2, 1), nrow = 3, ncol = 3)
-mat3 <- matrix(c(rep(1, 3), 2, 1, 1), nrow = 3, ncol = 3)
+mat3 <- matrix(c(rep(1, 3), rep(c(2, 1, 1), 2)), nrow = 3, ncol = 3)
 
-# Create raster stack, with one raster for each year
+# Create raster stack, with one raster for each year (randomly)
 rastStack <- stack(raster(mat1),
-                   raster(mat2),raster(mat2),
+                   raster(mat2), raster(mat2),
                    raster(mat1),
                    raster(mat2), raster(mat3), 
                    raster(mat1))
+
 # Name the years
 yrs <- 1:nlayers(rastStack)
 names(rastStack) <- paste("yr", yrs, sep = "")
@@ -149,29 +120,56 @@ names(rastStack) <- paste("yr", yrs, sep = "")
 # yr6 -> one of the two cells changes back to agriculture
 # yr7 -> the other cell also changes back to agriculture
 plot(rastStack)
+plot(rastStack, breaks = c(-1, 0, 1, 2), col = c("gray", "yellow", "green"))
+
+plot(rastStack, breaks = c(-1, 0, 1, 2), col = rev(terrain.colors(3)))
+# 1 = brown, agriculture
+# 2 = green, non-agriculture
+
 
 # Sequential difference between years
-# value of 0 = no difference compared to previous year
-# value of 1 = change from agriculture to non-agriculture
-# value of -1 = change from non-agriculture to agriculture
+# value of 0 = no difference compared to previous year (brown)
+# value of 1 = change from agriculture to non-agriculture (green)
+# value of -1 = change from non-agriculture to agriculture (gray)
 running_diff <- calc(rastStack, fun = diff)
+plot(rastStack, breaks = c(-1, 0, 1, 2), col = rev(terrain.colors(3)))
+plot(running_diff, breaks = c(-2, -1, 0, 1), col = c("#ECB176FF", # brown
+                                                     "#F2F2F2FF", # gray
+                                                     "#00A600FF" # green
+                                                     ))
 
-# Multiply by the year to record the year in which change took place
-running_diff2 <- running_diff * yrs[-1]
+# FYI: base::diff() # calculates the differences between each entry in a vector, or in this case, differences between cells across multiple years: i.e. 1987 - 1988, 1989 - 1988, 1990 - 1989, 1991 - 1990, etc.
+
+# Multiply by the year to record the year in which change took place (and whether it was ag -> non-ag [positive], or non-ag -> ag [negative])
+running_diff2 <- running_diff * yrs[-1] 
+plot(running_diff2)
 
 # Identify years with zero change
-minVals <- minValue(running_diff2)
-maxVals <- maxValue(running_diff2)
-nochange <- running_diff2[[which(maxVals == 0 & minVals == 0)]]
+minVals <- minValue(running_diff2) # this is the years in which at least one pixel changed from noncrop (2) to crop (1), therefore yielding a negative value. 
+minVals
 
-# For each cell, we now know the year in which it changed from agriculture to 
-# non-agriculture and (potentially) back to agriculture, from which we can calculate
+maxVals <- maxValue(running_diff2) # this simply tells you years in which at least one pixel changed from ag to non-ag.
+maxVals
+# note, this can capture years in which both types of transitions took place (year 6)
+nochange <- running_diff2[[which(maxVals == 0 & minVals == 0)]] # which index is 0 in both maxVals and minVals? Subset the stack by that index
+plot(nochange)
+ 
+plot(running_diff2) # tells you the year (the absolute value of the cell), and the transition type (negative means non-ag to ag, positive means ag to non-ag) 
+
+# For each cell, we now know the year in which it changed from agriculture to non-agriculture
+# and (potentially) back to agriculture (from running_diff2), from which we can calculate
 # the number of non-agriculture periods and total time as non-agriculture
 
-# Number non-agriculture periods = number years (bands) where cell value is positive
+# count the number of "transitions", i.e. number of times the cell switched from crop to noncrop
+# Number non-agriculture transitions = number years (bands) where cell value is positive
 noncrop_count <- sum(running_diff2 > 0)
 # Number agriculture reversions = number years (bands) where cell value is negative
 crop_count <- sum(running_diff2 < 0)
+
+plot(running_diff2)
+plot(noncrop_count)
+plot(crop_count)
+
 
 # Convert original stack to binary -> 1 if non-agriculture, 0 if agriculture
 rastStack_bi <- rastStack
@@ -179,6 +177,8 @@ rastStack_bi[rastStack_bi == 1] <- 0
 rastStack_bi[rastStack_bi == 2] <- 1
 # Total time as non-agriculture = sum across years
 noncrop_duration <- calc(rastStack_bi, fun = sum)
+plot(noncrop_duration)
+plot(calc(rastStack, fun = sum))
 
 # Average length of time as non-agriculture = total duration / N non-crop periods
 noncrop_duration_avg <- noncrop_duration / noncrop_count
@@ -194,10 +194,65 @@ plot(noncrop_duration_avg)
 
 ```
 
+```{r plot-trajectory-per-pixel}
 
-```{r time-series}
-bsmall
-dt_bsmall
+# subset the data.table, for plotting
+sub <- dt_bs[1:10, -c(1,2)]
+names(sub) <- gsub("y", "", names(sub))
+sub[, pixel := c(1:10)]
+sub
+
+sub_melt <- melt(sub, id.vars = "pixel", 
+                 variable.name = "year", 
+                 value.name = "land_use", na.rm = TRUE)
+
+sub_melt$year <- gsub("y", "", sub_melt$year)
+
+str(sub_melt)
+sub_melt <- as_tibble(sub_melt) %>%
+  mutate(land_use = as_factor(land_use))
+
+sub_melt
+# this plot shows the land-use trajectories of 10 individual pixels.
+gg_10_px_traj <- ggplot(data = sub_melt, 
+                        mapping = aes(x = year, y = land_use, group = pixel)) +
+  theme_classic() + 
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  geom_line(mapping = aes(color = factor(land_use)), size = 2) +
+  facet_grid(rows = vars(pixel), scales = "free_x", switch = "x") + 
+  # scale_fill_gradient(low="red", high="yellow") +
+  ylim(1, 4)
+
+gg_10_px_traj
+#       1. Non-vegetated area (e.g. water, urban, barren land)
+#       2. Woody vegetation
+#       3. Cropland 
+#       4. Herbaceous land (e.g. grassland)
+
+gg_10_px_traj + scale_colour_manual(values = c("orange", "red", "blue", "green"))
+lc_cols <- c("dark")
+terrain.colors(4)
+show_col(terrain.colors(9))
+terrain.colors(9)[5]
+
+gg_10_px_traj + lc_cols
+lc_cols <- scale_color_manual(name = "Land Cover Classes",
+                     labels = c("1" = "1. Non-veg",
+                                "2" = "2. Woody veg",
+                                "3" = "3. Crop",
+                                "4" = "4. Grassland"),
+                     values = c("1" = "gray80",
+                                "2" = terrain.colors(9)[1], # dark green
+                                "3" = terrain.colors(9)[5], # gold
+                                "4" = terrain.colors(9)[3] # light green
+                                )
+                     ) 
+```
+
+```{r data.table-time-series}
+dt_bs
+
+gg_10_px_traj
 
 ```
 
@@ -225,19 +280,11 @@ DT[, sum(V1)]
 ```{r animate}
 # https://www.rdocumentation.org/packages/raster/versions/3.1-5/topics/animate
 
-bsmall
+bs
 
-animate(bsmall, pause=0.25, main = "smolensk", zlim = c(1, 4), maxpixels=5000, n=2)
-
-```
-
-
-```{python}
-x = 'hello, python world!'
-print(x.split(' '))
-
-# DJ uses iPython
+animate(bs, pause = 1, main = "smolensk", zlim = c(1, 4), maxpixels=5000, n=2)
 
 ```
+
 
 
