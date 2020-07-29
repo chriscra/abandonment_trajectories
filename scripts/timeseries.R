@@ -1,3 +1,4 @@
+# Author: Rebecca Senior, Princeton University, May 2020
 
 library(raster)
 

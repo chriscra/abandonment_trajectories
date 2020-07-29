@@ -92,6 +92,105 @@ dt_b87_88_counts <- dt_b87_88[, .(count = .N), by = y1988]
 barplot(data = dt_b87_88_counts, count ~ y1988)
 ```
 
+```{r colors}
+# define color palette for plotting:
+# 1. Non-veg
+# 2. Woody veg
+# 3. Crop
+# 4. Grassland
+plot_cols <- c("gray80", # gray, 1. Non-veg
+               terrain.colors(9)[1], # dark green, 2. Woody veg
+               terrain.colors(9)[5], # gold, 3. Crop
+               terrain.colors(9)[3] # light green, 4. Grassland
+               )
+plot_cols_new <- c("gray80", # gray, 1. Non-veg
+               terrain.colors(9)[5], # gold, 2 (formerly 3) Crop
+               terrain.colors(9)[3], # light green, 3 (formerly 4) Grassland
+               terrain.colors(9)[1]  # dark green, 4 (formerly 2) Woody veg
+               )
+
+plot_breaks <- c(0, 1, 2, 3, 4)
+
+
+show_col(plot_cols)
+show_col(plot_cols[c(1, 3, 2)])
+```
+
+```{r simple-plots}
+show_col(plot_cols) # (topleft = 1, topright = 2, bottomleft = 3, bottomright = 4)
+# gray,         1. Non-veg
+# dark green,   2. Woody veg
+# gold,         3. Crop
+# light green,  4. Grassland
+
+plot(b87_r, main = "Belarus 1987", breaks = plot_breaks, col = plot_cols)
+plot(bs$smolensk1987, add = T, legend = F, col = "blue")
+plot(bt$smolensk1987, add = T, legend = F, col = "red")
+
+
+plot(bs$smolensk1987, main = "Subset: Belarus 1987", 
+     breaks = plot_breaks, col = plot_cols)
+
+plot(bt$smolensk1987, main = "Subset Subset: Belarus 1987", 
+     breaks = plot_breaks, col = plot_cols)
+
+
+# --------------
+# animate
+# --------------
+# https://www.rdocumentation.org/packages/raster/versions/3.1-5/topics/animate
+
+animate(bt, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
+        breaks = plot_breaks, col = plot_cols)
+
+```
+
+```{r subset-for-testing}
+plot(bs$smolensk1987)
+mapView(bs$smolensk1987)
+ext <- drawExtent(show = TRUE, col = "red")
+
+bt <- crop(bs, ext)
+plot(bt$smolensk1987)
+
+object_size(bt)
+
+
+# --------------
+# update values
+# --------------
+
+test <- bt$smolensk1987
+test[test == 2] <- 7 # take, woody veg (2), set to 7
+test[test == 3] <- 2 # take cropland (3), set to 2
+test[test == 4] <- 3 # take grassland (4), set to 3
+test[test == 7] <- 4 # take 7 (woody veg), set to 4
+
+plot(test)
+plot(bt$smolensk1987, breaks = plot_breaks, col = plot_cols)
+plot(test, breaks = plot_breaks, col = plot_cols_new)
+
+# --------------
+# update to simple, 1 = cropland, 2 = noncropland
+# --------------
+btb <- bt
+plot(btb[[1]], breaks = plot_breaks, col = plot_cols) # 1 = nonveg, 2 = woody, 3 = crop, 4 = grassland
+btb[btb == 1] <- NA
+btb[btb == 3] <- 1 # crop
+btb[btb %in% c(2, 4)] <- 2 # noncrop
+
+
+plot(bt[[1]], breaks = plot_breaks, col = plot_cols) # 1 = nonveg, 2 = woody, 3 = crop, 4 = grassland
+
+plot(btb[[1]], breaks = c(-1, 0, 1, 2), col = plot_cols[c(1, 3, 2)])
+# 1 = brown, agriculture
+# 2 = green, non-agriculture
+
+animate(btb, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
+        breaks = c(-1, 0, 1, 2), col = plot_cols[c(1, 3, 2)])
+```
+
+
 ```{r rebecca-senior-time-series}
 library(raster)
 
@@ -119,6 +218,7 @@ names(rastStack) <- paste("yr", yrs, sep = "")
 # yr5 -> the same two cells change to non-agriculture
 # yr6 -> one of the two cells changes back to agriculture
 # yr7 -> the other cell also changes back to agriculture
+
 plot(rastStack)
 plot(rastStack, breaks = c(-1, 0, 1, 2), col = c("gray", "yellow", "green"))
 
@@ -194,13 +294,141 @@ plot(noncrop_duration_avg)
 
 ```
 
-```{r plot-trajectory-per-pixel}
+```{r test-RS-TS}
+animate(btb, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
+        breaks = c(-1, 0, 1, 2), col = plot_cols[c(1, 3, 2)])
 
+plot(bt$smolensk1987)
+
+plot(bs$smolensk1987, breaks = plot_breaks, col = plot_cols)
+plot(btb, breaks = plot_breaks, col = plot_cols)
+
+
+# Name the years
+yrs <- as.numeric(gsub("smolensk", "", names(btb)))
+yrs <- 0:30
+plot(btb$smolensk1987)
+
+
+# Sequential difference between years
+# value of 0 = no difference compared to previous year (brown)
+# value of 1 = change from agriculture to non-agriculture (green)
+# value of -1 = change from non-agriculture to agriculture (gray)
+running_diff <- calc(btb, fun = diff)
+
+show_col(plot_cols[c(1, 3, 2)])
+plot(btb[[1:16]], breaks = c(-1, 0, 1, 2), col = plot_cols[c(1, 3, 2)])
+# 1 = brown, crop | 2 = green, noncrop
+
+plot(running_diff[[1:16]], breaks = c(-2, -1, 0, 1), col = plot_cols[c(3, 1, 2)]) # brown (transition noncrop to crop), gray (no trans), green (transition crop to noncrop)
+show_col(plot_cols[c(3, 1, 2)])
+                                                
+
+# Multiply by the year to record the year in which change took place (and whether it was ag -> non-ag [positive], or non-ag -> ag [negative])
+running_diff2 <- running_diff * yrs[-1]
+plot(running_diff2)
+
+# identify years with at least one change... (this isn't all that useful, since there is a transition in each year.)
+minVals <- minValue(running_diff2) #  years with > 1 transition noncrop (2) to crop (1)
+maxVals <- maxValue(running_diff2) # years with > 1 transition crop (1) to noncrop (2)
+nochange <- running_diff2[[which(maxVals == 0 & minVals == 0)]] # no changes
+ 
+plot(running_diff2) # tells you the year (the absolute value of the cell), and the transition type (negative means non-ag to ag, positive means ag to non-ag) 
+
+# count the number of "transitions":
+noncrop_count <- sum(running_diff2 > 0) # Number transitions to noncrop (# years with positive value)
+crop_count <- sum(running_diff2 < 0) # Number transitions to crop (# years with negative value)
+
+plot(noncrop_count)
+plot(crop_count)
+
+
+
+# Convert original stack to binary -> 1 if non-agriculture, 0 if agriculture
+btb_bi <- btb
+btb_bi[btb_bi == 1] <- 0
+btb_bi[btb_bi == 2] <- 1
+# Total time as non-agriculture = sum across years
+noncrop_duration <- calc(btb_bi, fun = sum)
+plot(noncrop_duration)
+
+# Average length of time as non-agriculture = total duration / N non-crop periods
+noncrop_duration_avg <- noncrop_duration / noncrop_count
+plot(noncrop_duration_avg)
+
+```
+
+
+```{r data.table-time-series}
+bdt <- as.data.table.raster(bt)
+names(bdt) <- gsub("smolensk", "y", names(bdt))
+bdt[, c("x", "y") := NULL]
+
+DT <- bdt[1:15, 1:14]
+
+# replace values (not sure if there is a faster way to do this, but it works, for now)
+tic()
+bdt[bdt == 1] <- NULL # nonveg
+bdt[bdt == 3] <- 1 # crop
+bdt[bdt == 4] <- 2 # noncrop
+toc()
+
+DT <- bdt[1:15, 1:14]
+tic()
+# can also do this, and loop through all the columns
+# note, changing the nonveg to NA may prove problematic later
+for (x in names(DT)) {set(DT, which(DT[[x]] == 1), x, NA)} # nonveg
+for (x in names(DT)) {set(DT, which(DT[[x]] == 3), x, 1)} # crop
+for (x in names(DT)) {set(DT, which(DT[[x]] %in% c(2, 4)), x, 2)} # noncrop
+toc() # a bit faster.
+
+test <- DT - 1
+# 2 for noncrop
+# 1 for crop
+
+diff_dt <- diff(DT)
+
+diff()
+
+
+# row sums... there isn't anything more efficient than rowSums()
+test[, sum := rowSums(.SD, na.rm = TRUE)][] 
+# note that you can also do this over a subset of columns, by selecting columns with .SDcols, like so:
+test[, sum2 := rowSums(.SD, na.rm = TRUE), .SDcols = grep("8", names(test))][] 
+test[1, y1987:y2000] %>% length()
+
+
+# --------------
+# diff with data.table...
+# --------------
+
+# first test with data.frame
+test_df <- as.data.frame(test)
+test_diff <- t(apply(test_df, 1, diff))
+
+t(apply(test, 1, diff))
+
+
+
+
+gg_10_px_traj
+
+
+
+
+```
+
+
+
+
+```{r plot-trajectory-per-pixel}
+ncell(bt)
 # subset the data.table, for plotting
 sub <- dt_bs[1:10, -c(1,2)]
 names(sub) <- gsub("y", "", names(sub))
 sub[, pixel := c(1:10)]
 sub
+
 
 sub_melt <- melt(sub, id.vars = "pixel", 
                  variable.name = "year", 
@@ -209,34 +437,11 @@ sub_melt <- melt(sub, id.vars = "pixel",
 sub_melt$year <- gsub("y", "", sub_melt$year)
 
 str(sub_melt)
-sub_melt <- as_tibble(sub_melt) %>%
-  mutate(land_use = as_factor(land_use))
 
-sub_melt
-# this plot shows the land-use trajectories of 10 individual pixels.
-gg_10_px_traj <- ggplot(data = sub_melt, 
-                        mapping = aes(x = year, y = land_use, group = pixel)) +
-  theme_classic() + 
-  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
-  geom_line(mapping = aes(color = factor(land_use)), size = 2) +
-  facet_grid(rows = vars(pixel), scales = "free_x", switch = "x") + 
-  # scale_fill_gradient(low="red", high="yellow") +
-  ylim(1, 4)
-
-gg_10_px_traj
-#       1. Non-vegetated area (e.g. water, urban, barren land)
-#       2. Woody vegetation
-#       3. Cropland 
-#       4. Herbaceous land (e.g. grassland)
-
-gg_10_px_traj + scale_colour_manual(values = c("orange", "red", "blue", "green"))
-lc_cols <- c("dark")
-terrain.colors(4)
+# set colors for plotting
 show_col(terrain.colors(9))
-terrain.colors(9)[5]
 
-gg_10_px_traj + lc_cols
-lc_cols <- scale_color_manual(name = "Land Cover Classes",
+lc_cols <- scale_color_manual(name = "Land Cover",
                      labels = c("1" = "1. Non-veg",
                                 "2" = "2. Woody veg",
                                 "3" = "3. Crop",
@@ -247,14 +452,29 @@ lc_cols <- scale_color_manual(name = "Land Cover Classes",
                                 "4" = terrain.colors(9)[3] # light green
                                 )
                      ) 
-```
 
-```{r data.table-time-series}
-dt_bs
+# this plot shows the land-use trajectories of 10 individual pixels.
+gg_10_px_traj <- ggplot(data = sub_melt, 
+                        mapping = aes(x = year, y = land_use, group = pixel)) +
+  theme_classic() + 
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  geom_line(mapping = aes(color = factor(land_use)), size = 2) +
+  facet_grid(rows = vars(pixel), scales = "free_x", switch = "x") + 
+  ylim(1, 4) + lc_cols
 
 gg_10_px_traj
+#       1. Non-vegetated area (e.g. water, urban, barren land)
+#       2. Woody vegetation
+#       3. Cropland 
+#       4. Herbaceous land (e.g. grassland)
+
 
 ```
+Here's the game plan:
+With RS' code, I have the following:
+- the year of changes, and 
+
+
 
 
 ```{r dt-testing}
@@ -277,14 +497,7 @@ DT[, sum(V1)]
 
 
 
-```{r animate}
-# https://www.rdocumentation.org/packages/raster/versions/3.1-5/topics/animate
 
-bs
-
-animate(bs, pause = 1, main = "smolensk", zlim = c(1, 4), maxpixels=5000, n=2)
-
-```
 
 
 
