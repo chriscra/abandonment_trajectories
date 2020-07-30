@@ -45,7 +45,10 @@ ncell(b87_r)
 ncell(b88_r)
 
 # as data.tables
+tic()
 dt_b87 <- as.data.table.raster(b87_r)
+toc()
+
 dt_b88 <- as.data.table.raster(b88_r)
 object_size(dt_b87)
 object_size(dt_b87[, .(x, y)])
@@ -126,14 +129,14 @@ show_col(plot_cols) # (topleft = 1, topright = 2, bottomleft = 3, bottomright = 
 plot(b87_r, main = "Belarus 1987", breaks = plot_breaks, col = plot_cols)
 plot(bs$smolensk1987, add = T, legend = F, col = "blue")
 plot(bt$smolensk1987, add = T, legend = F, col = "red")
-
+bs
 
 plot(bs$smolensk1987, main = "Subset: Belarus 1987", 
      breaks = plot_breaks, col = plot_cols)
 
 plot(bt$smolensk1987, main = "Subset Subset: Belarus 1987", 
      breaks = plot_breaks, col = plot_cols)
-
+bin
 
 # --------------
 # animate
@@ -314,7 +317,25 @@ plot(btb$smolensk1987)
 # value of 0 = no difference compared to previous year (brown)
 # value of 1 = change from agriculture to non-agriculture (green)
 # value of -1 = change from non-agriculture to agriculture (gray)
+tic()
 running_diff <- calc(btb, fun = diff)
+toc()
+
+tic()
+bs_diff <- calc(bs, fun = diff)
+toc()
+
+ncell(btb)
+ncell(bs)
+ncell(b87_r)
+
+plot(b87_r)
+plot(bs$smolensk1987, add = T, col = "red")
+
+plot(bs$smolensk1987)
+plot(btb$smolensk1987, add = T, col = "red")
+
+
 
 show_col(plot_cols[c(1, 3, 2)])
 plot(btb[[1:16]], breaks = c(-1, 0, 1, 2), col = plot_cols[c(1, 3, 2)])
@@ -339,8 +360,10 @@ plot(running_diff2) # tells you the year (the absolute value of the cell), and t
 noncrop_count <- sum(running_diff2 > 0) # Number transitions to noncrop (# years with positive value)
 crop_count <- sum(running_diff2 < 0) # Number transitions to crop (# years with negative value)
 
-plot(noncrop_count)
-plot(crop_count)
+plot(noncrop_count, main = "# transitions crop -> noncrop")
+plot(crop_count, main = "# transitions noncrop -> crop")
+
+object_size(running_diff2)
 
 
 
@@ -363,15 +386,21 @@ plot(noncrop_duration_avg)
 bdt <- as.data.table.raster(bt)
 names(bdt) <- gsub("smolensk", "y", names(bdt))
 bdt[, c("x", "y") := NULL]
+bdt
 
-DT <- bdt[1:15, 1:14]
+# update options for printing (it defaults to 100)
+# options(datatable.print.nrows = 20)
+# print(bdt, nrows=20)
 
+# -------------------
 # replace values (not sure if there is a faster way to do this, but it works, for now)
 tic()
 bdt[bdt == 1] <- NULL # nonveg
 bdt[bdt == 3] <- 1 # crop
 bdt[bdt == 4] <- 2 # noncrop
 toc()
+
+dt_b87 %>% object_size()
 
 DT <- bdt[1:15, 1:14]
 tic()
@@ -380,41 +409,171 @@ tic()
 for (x in names(DT)) {set(DT, which(DT[[x]] == 1), x, NA)} # nonveg
 for (x in names(DT)) {set(DT, which(DT[[x]] == 3), x, 1)} # crop
 for (x in names(DT)) {set(DT, which(DT[[x]] %in% c(2, 4)), x, 2)} # noncrop
-toc() # a bit faster.
+toc() # a bit faster. It's about 24 seconds on the big file
 
-test <- DT - 1
-# 2 for noncrop
-# 1 for crop
+DT
 
-diff_dt <- diff(DT)
-
-diff()
-
+bin <- DT - 1
+# 1 for noncrop
+# 0 for crop
 
 # row sums... there isn't anything more efficient than rowSums()
-test[, sum := rowSums(.SD, na.rm = TRUE)][] 
+bin[, sum := rowSums(.SD, na.rm = TRUE)][] 
 # note that you can also do this over a subset of columns, by selecting columns with .SDcols, like so:
-test[, sum2 := rowSums(.SD, na.rm = TRUE), .SDcols = grep("8", names(test))][] 
-test[1, y1987:y2000] %>% length()
+bin[, sum2 := rowSums(.SD, na.rm = TRUE), .SDcols = grep("8", names(bin))][] 
+bin[1, y1987:y2000] %>% length()
 
 
 # --------------
 # diff with data.table...
 # --------------
+# first, copy the data.table, then remove the first column, add a NA column at the end.
+# then simply subtract the two DT
+DT_lead <- copy(DT)
+DT_lead[, y1987 := NULL][, end := NA]
 
-# first test with data.frame
-test_df <- as.data.frame(test)
-test_diff <- t(apply(test_df, 1, diff))
+DT_diff <- DT_lead - DT # this works just the same.
+DT_diff[, end := NULL]
 
-t(apply(test, 1, diff))
+# using apply works too, but it's slow with big data.tables
+# this works on either data.frames or data.tables, but it's really slow with big data.tables, since it has to transpose all the rows. 
+tic(); t(apply(as.data.frame(DT), 1, diff)); toc()
+tic(); t(apply(DT, 1, diff)); toc()
+
+diff2 <- copy(DT)
+diff2[, sum3 := sum(.SD, na.rm = TRUE), by = seq_len(nrow(DT_diff))]
+
+dt_b87[, ':='(v1 = 1, v2 = 2, v3 = 3)]
+big_df <- as.data.frame(dt_b87)
+head(big_df)
+tic()
+diffbig <- t(apply(dt_b87, 1, diff)) %>% data.table()
+toc() # this didn't even finish after nearly 2 hours.
+
+# testing the simple method with a big file. I'll probably run out of memory on my computer, and will have to do this on a cluster.
+tic()
+DT_big <- copy(dt_b87)
+toc() # 4.5 sec
+
+DT_big[, x := NULL][, end := NA]
+
+tic()
+DT_bigdiff <- DT_big - dt_b87 # this works just the same.
+DT_bigdiff[, end := NULL]
+toc() # 12.71 seconds
+
+
+
+# ---------------------------------------------------------------------------
+# performing functions on individual rows
+# ---------------------------------------------------------------------------
+# one way is by using by = 1:nrow
+
+DT
+DT_diff # 1 means change from crop (1) to non crop (2), i.e. abandonment
+# -1 means change from noncrop (2) back to crop (1), i.e. recultivation
+backup_diff <- copy(DT_diff)
+DT_diff <- copy(backup_diff)
+
+DT
+dt_b87 # 94 million rows.
+
+rowSums(DT_diff)
 
 
 
 
+
+# -------------------
+# this works for rowSums
+DT_diff[, sum := rowSums(.SD, na.rm = TRUE)]
+ncol(DT_diff)
+DT_diff[, sum2 := rowSums(.SD, na.rm = TRUE), .SDcols = 1:13] # select columns
+tic(); dt_b87[, sum2 := rowSums(.SD, na.rm = TRUE), .SDcols = 4:6]; toc() # 5.5 seconds
+dt_b87[, sum2 := NULL]
+
+DT_diff
+
+# this works to apply functions to each individual row: the same as by = 1:nrow(DT)
+DT_diff[, sum3 := sum(.SD, na.rm = TRUE), by = seq_len(nrow(DT_diff)), .SDcols = 1:13]
+DT_diff[, sum4 := sum(.SD, na.rm = TRUE), by = 1:nrow(DT_diff), .SDcols = 1:13]
+# the .SD in the j part of the data.table should refer to the subset of DT calculated by by
+# which means..... I shouldn't have to subset it further. .SD > 0 should work as a logical statement
+DT_diff[, sum4:=NULL][, sum3:=NULL]
+
+# doesn't work
+# DT_diff[, sum4 := sum(.SD, na.rm = TRUE), .SDcols = .SD > 0, by = seq_len(nrow(DT_diff))]
+# DT_diff[, sum4 := sum(.SD[.SD > 0], na.rm = TRUE), by = seq_len(nrow(DT_diff))]
+DT_test <- DT_diff[, .SD > 0][] %>% data.table()
+DT_test[, positive := rowSums(.SD, na.rm = TRUE)][]
+```
+
+
+```{r age-per-pixel}
+# Filtering steps:
+# 1. Must have crop at some point in the time series.
+# 2. Must have crop specifically before noncrop transition. 
+
+
+# ------------------------------------------------------------------
+# trying to calculate length of time, or age, of each pixel
+tt <- copy(DT_diff)
+
+DT # 2 = noncrop, 1 = crop
+bin # 1 = noncrop, 0 = crop
+tt # differences: 1 = transition to noncrop, -1 transition to crop
 gg_10_px_traj
 
+age <- copy(bin)
+
+# start by playing with one row:
+age[1] %>% length
+for (i in names(age)) {
+  if (age[1, ..i] > 0) {
+    age[1, ..i] <- age[1, ..(i-1)] + 1
+  }
+}
+age[1]
+i <- 1
+
+if (age[1, "y1988"] > 0) {
+    age[1, "y1988"] <- age[1, "y1987"] + 1
+}
 
 
+# this is just one row/pixel:
+for (i in 1:(ncol(age) - 1)) {
+  if (age[1][[names(age)[i + 1]]] > 0) {
+    age[1][[names(age)[i + 1]]] <- age[1][[names(age)[i]]] + 1
+}
+}
+
+DT_diff
+DT_diff[, sum3 := sum(.SD, na.rm = TRUE), by = seq_len(nrow(DT_diff)), .SDcols = 1:13]
+
+
+age[1]
+bin[1]
+# turn this into a function, then send this across all rows of the data.table using the by = 1:nrow()
+
+DT_diff[, sum4 := sum(.SD, na.rm = TRUE), by = 1:nrow(DT_diff), .SDcols = 1:13]
+
+
+DT_diff
+
+age[1, ..nms] # returns the whole vector
+
+age[1][["y1987"]]
+# both of these work
+age[1, nms[1], with = FALSE]
+age[1][[names(age)[1]]]
+
+df <- as.data.frame(age)
+df
+
+df[1, ]
+
+age[, sum := sum(.SD, na.rm = TRUE), by = 1:nrow(DT_diff), .SDcols = 1:13]
 
 ```
 

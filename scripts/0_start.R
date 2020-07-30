@@ -18,7 +18,8 @@ needed_packages <- c("raster", "rgdal", "sp", "sf", "mapview", "gdalUtils", "gda
           "maps", "forcats", "rangeBuilder", "rnaturalearth", "spatialEco", "smoothr", "parallel",
           "ggnewscale", "reshape2", "data.table", "knitr", "rredlist",
           "dtraster",
-          "scales")
+          "scales",
+          "patchwork")
 
 
 install_missing_packages(needed_packages)
