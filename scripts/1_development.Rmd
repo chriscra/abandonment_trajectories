@@ -151,9 +151,9 @@ animate(bt, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
 ```{r subset-for-testing}
 plot(bs$smolensk1987)
 mapView(bs$smolensk1987)
-ext <- drawExtent(show = TRUE, col = "red")
+ext_bt <- drawExtent(show = TRUE, col = "red")
 
-bt <- crop(bs, ext)
+bt <- crop(bs, ext_bt)
 plot(bt$smolensk1987)
 
 object_size(bt)
@@ -181,6 +181,8 @@ plot(btb[[1]], breaks = plot_breaks, col = plot_cols) # 1 = nonveg, 2 = woody, 3
 btb[btb == 1] <- NA
 btb[btb == 3] <- 1 # crop
 btb[btb %in% c(2, 4)] <- 2 # noncrop
+
+# to make it binary, just subtract 1.
 
 
 plot(bt[[1]], breaks = plot_breaks, col = plot_cols) # 1 = nonveg, 2 = woody, 3 = crop, 4 = grassland
@@ -301,10 +303,10 @@ plot(noncrop_duration_avg)
 animate(btb, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
         breaks = c(-1, 0, 1, 2), col = plot_cols[c(1, 3, 2)])
 
-plot(bt$smolensk1987)
-
 plot(bs$smolensk1987, breaks = plot_breaks, col = plot_cols)
-plot(btb, breaks = plot_breaks, col = plot_cols)
+plot(bt$smolensk1987, add = T)
+
+plot(btb, breaks = plot_breaks, col = plot_cols) # binary version of bt
 
 
 # Name the years
@@ -382,7 +384,7 @@ plot(noncrop_duration_avg)
 ```
 
 
-```{r data.table-time-series}
+```{r prep_data.table}
 bdt <- as.data.table.raster(bt)
 names(bdt) <- gsub("smolensk", "y", names(bdt))
 bdt[, c("x", "y") := NULL]
@@ -406,8 +408,8 @@ DT <- bdt[1:15, 1:14]
 tic()
 # can also do this, and loop through all the columns
 # note, changing the nonveg to NA may prove problematic later
-for (x in names(DT)) {set(DT, which(DT[[x]] == 1), x, NA)} # nonveg
-for (x in names(DT)) {set(DT, which(DT[[x]] == 3), x, 1)} # crop
+for (x in names(DT)) {set(DT, which(DT[[x]] == 1), x, NA)}        # nonveg (urban, water, etc.)
+for (x in names(DT)) {set(DT, which(DT[[x]] == 3), x, 1)}         # crop
 for (x in names(DT)) {set(DT, which(DT[[x]] %in% c(2, 4)), x, 2)} # noncrop
 toc() # a bit faster. It's about 24 seconds on the big file
 
@@ -513,138 +515,43 @@ DT_test[, positive := rowSums(.SD, na.rm = TRUE)][]
 # Filtering steps:
 # 1. Must have crop at some point in the time series.
 # 2. Must have crop specifically before noncrop transition. 
-age <- copy(bin)
-
-# make age big:
-for (i in 1:10) {
-  age <- rbind(age, age)
-}
-
-
-
-
-# ------------------------------------------------------------------
-# trying to calculate length of time, or age, of each pixel
-tt <- copy(DT_diff)
-
-DT # 2 = noncrop, 1 = crop
-bin # 1 = noncrop, 0 = crop
-tt # differences: 1 = transition to noncrop, -1 transition to crop
-gg_10_px_traj
 
 age <- copy(bin)
 
-# start by playing with one row:
-age[1] %>% length
-for (i in names(age)) {
-  if (age[1, ..i] > 0) {
-    age[1, ..i] <- age[1, ..(i-1)] + 1
-  }
-}
-age[1]
-i <- 1
+# or make your own
+set.seed(34L)
+age <- matrix(round(runif(15*15)), nrow = 15, ncol = 15) %>%
+  as.data.frame()
+setDT(age)
+# age <- as.data.table(age) # also works, but is less efficient because it creates a copy in memory. Not a big deal either way though.
 
-if (age[1, "y1988"] > 0) {
-    age[1, "y1988"] <- age[1, "y1987"] + 1
-}
-
-age[1, "y1988"]
-nms <- names(age)
-nms[1]
-age[1, ..nms] # this works, but how does one subset?
-
-nms_1 <- nms[1] # you can either subset like this, but it would require assigning in each iteration
-age[1, ..nms_1]
-age[1][[names(age)[i + 1]]]
-age[1, names(age)[i + 1], with = F] # returns a data.table
-age[1][[names(age)[i + 1]]] # returns a vector
-
-
-# this is just one row/pixel:
-bin
 age
-for (i in 2:ncol(age)) {
-  if (age[1][[names(age)[i]]] > 0) {
-    age[1][[names(age)[i]]] <- age[1][[names(age)[i - 1]]] + 1
-}
-}
 
 
-# nested loop to do all rows:
+# update the names
+names(age) <- paste0("y", 1:ncol(age))
 
+# ---------------------------------------------------------------------------
+# calculate age of each pixel, for just one column
+# ---------------------------------------------------------------------------
+age[y2 > 0, y2 := y1 + 1][]
 
-tic()
-for (i in 1:nrow(age)) {
-  for (j in 2:ncol(age)) {
-  if (age[i][[names(age)[j]]] > 0) {
-    age[i][[names(age)[j]]] <- age[i][[names(age)[j - 1]]] + 1
-    }
-  }
-}
-toc() # 0.131 sec for just 15 rows
-# for 15,000 rows, it should be 1000x longer, 0.131 * 1000 = 131 seconds
-# 254.958 sec.
+# this code does the following:
+# take age, subset rows where y2 > 0, and 
+# then set those equal to the value in column y1 for that row + 1.
+# Note: the [] at the end prints the result.
 
-(94000000/15 * 0.131) / 60 / 60 # jeeeeez 228 hours
-
-
-
-# trying it now in the data.table syntax:
-dt <- age
-
-# first, write a function:
-calculate_age <- function(dt) {
-  # dt must be a 1 row dt
-  for (j in 2:ncol(dt)) {
-    if (dt[1][[names(dt)[j]]] > 0) {
-      dt[1][[names(dt)[j]]] <- dt[1][[names(dt)[j - 1]]] + 1
-    }
-  }
-  return(dt)
-}
-dt[1]
-calculate_age(dt[1])
-
-
-tic()
-for (i in 1:15) {
-  calculate_age(dt = dt, row_num = i)
-}
-toc()
-
-vec <- unlist(dt[1], use.names = FALSE)
-vec[1]
-for (i in 2:length(vec)) {
-  if (vec[i] > 0) {vec[i] <- vec[i - 1] + 1}
-}
-
-
-dt
-dt[, sum := sum(.SD, na.rm = TRUE), by = seq_len(nrow(dt))]
-dt[, rowsum := rowSums(.SD, na.rm = TRUE), .SDcols = 1:14]
-dt[, sum := NULL][, rowsum := NULL]
-dt
-paste0("v", 1:14)
-dt[, c("v1", "v2", "v3", "v4", "v5" , "v6",  "v7" , "v8" , "v9" , "v10", "v11", "v12", "v13", "v14") := calculate_age(dt = .SD), by = seq_len(nrow(dt))]
-new_col_names <- paste0("v", 1:14)
-
-
-
-# this finally works!
-# a single line, looped over the columns
-age <- copy(bin)
-age[1988 > 0, y1988 := y1987 + 1][] # simple
-age[get(names(age)[2]) > 0, c(names(age)[2]) := get(names(age)[1]) + 1] # coded to accept names with indices to be looped over
+# in order to loop over the columns, the code needs some massaging to get it to accept
+# character vectors, which can be referenced with indices to be looped over
+age[get(names(age)[2]) > 0, c(names(age)[2]) := get(names(age)[1]) + 1][]
 
 
 # --------------------------------------------
 # full implementation with a for loop - the final code
 # --------------------------------------------
-age <- copy(bin)
-for (i in 2:ncol(age)) {
-  age[get(names(age)[i]) > 0, # subset rows that are greater than 0 (i.e. 1, for noncrop), and
-      c(names(age)[i]) := get(names(age)[i-1]) + 1] # set them equal to the previous column's value in that row, plus 1.
-}
+for (i in 2:ncol(age)) { # start with the second column
+  age[get(names(age)[i]) > 0, c(names(age)[i]) := get(names(age)[i-1]) + 1]
+  }
 print(age)
 
 
@@ -668,9 +575,17 @@ toc() # 2.6 seconds on 491,520 rows
 
 
 
-# --------------------------------------------
+
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# old, unused, test code
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 # trying it with set
-# so, this worked too, but it's a bit slower
+# -------------------------------
 tic()
 for (x in 2:ncol(age)) {
   set(age, 
@@ -678,10 +593,36 @@ for (x in 2:ncol(age)) {
       j = names(age)[x], 
       value = age[get(names(age)[x]) > 0, get(names(age)[x-1])] + 1)
 }
-toc() # 94.22 seconds for 64 million rows, so I'll use the other since it's simpler, and keep this in the back pocket until then. 
+toc() # 94.22 seconds for 64 million rows
+# this worked too, but it's a bit slower. I'll use the other since it's simpler, and keep this in the back pocket until then. 
 
 
+# original code
+# -------------------------------
+# You'll note that this code works on each column. My previous code worked on individual values in each row individually, then looping over the columns, then over all the rows. This ultimately ended up being much, much slower. I realized that data.tables could be subset up front based on values in a column, and then those values could be easily manipulated. It turns out it's much easier to iterate over columns than over rows, especially when we have something like 90 million rows!
 
+# the old code looked like this:
+for (i in 1:nrow(dt)) {
+  for (j in 2:ncol(dt)) {
+    if (dt[i][[names(dt)[j]]] > 0) {
+      dt[i][[names(dt)[j]]] <- dt[i][[names(dt)[j - 1]]] + 1
+    }
+  }
+}
+# 0.131 sec for just 15 rows
+# 254.958 sec for 15,000 rows
+# so, estimating what it would take to do 94 million rows.
+(94000000/15000 * 254) / 60 / 60 # jeeeeez 442 hours. That's untenable.
+
+
+# potentially useful things:
+# ------------------------------
+vec <- unlist(dt[1], use.names = FALSE) # extract a row as a vector
+
+
+# data.table syntax
+dt[, sum := sum(.SD, na.rm = TRUE), by = seq_len(nrow(dt))]
+dt[, rowsum := rowSums(.SD, na.rm = TRUE), .SDcols = 1:14]
 
 
 ```
