@@ -10,7 +10,7 @@ Repository for work to investigate the trajectories of abandoned agricultural la
 source("scripts/0_start.R")
 ```
 
-```{r load-rasters}
+```{r load-data}
 
 # Land use class codes:
 #       1. Non-vegetated area (e.g. water, urban, barren land)
@@ -20,17 +20,17 @@ source("scripts/0_start.R")
 
 bs <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
 plot(bs)
-plot(bs$smolensk1987)
-dt_bs <- as.data.table.raster(bs)
-
-
-# update column names
-names(dt_bs) <- gsub("smolensk", "y", names(dt_bs))
-dt_bs
-
-object_size(dt_bs)
 nlayers(bs) # 31 years in the time series
-ncol(dt_bs) # 31 years, plus x and y = 33.
+plot(bs$smolensk1987)
+
+
+# load as a data.table
+bs_dt <- as.data.table.raster(bs)
+
+
+ncol(bs_dt) # 31 years, plus x and y = 33.
+object_size(bs_dt)
+
 
 
 # full landsat scene, but just for individual years
@@ -47,9 +47,9 @@ ncell(b88_r)
 # as data.tables
 tic()
 dt_b87 <- as.data.table.raster(b87_r)
+dt_b88 <- as.data.table.raster(b88_r)
 toc()
 
-dt_b88 <- as.data.table.raster(b88_r)
 object_size(dt_b87)
 object_size(dt_b87[, .(x, y)])
 object_size(dt_b87[, .(belarus_1987)]) # 378 MB approximately for each year.
@@ -59,40 +59,36 @@ object_size(dt_b87) + object_size(dt_b87[, .(belarus_1987)])*30 # this is an app
 
 object_size(dt_b88)
 
-
-dt_b87_88 <- merge(dt_b87, dt_b88, by = c("x","y"), sort = FALSE)
-object_size(dt_b87_88)
-object_size(dt_b87_88[, .(belarus_1987, belarus_1988)])
+dt_merge <- merge(dt_b87, dt_b88, by = c("x","y"), sort = FALSE)
 
 
-dt_b87_88_sub <- dt_b87_88[belarus_1987 > 0]
+# write data.tables to files, for easier reading in:
+fwrite(dt_b87, file = paste0(p_dat, "Abandonment/belarus_1987_dt.csv"))
+fwrite(dt_b88, file = paste0(p_dat, "Abandonment/belarus_1988_dt.csv"))
+fwrite(dt_merge, file = paste0(p_dat, "Abandonment/belarus_1987-88_dt.csv"))
 
-dt_b87_88_sub[, sum := (belarus_1987 + belarus_1988)]
+rm(dt_b87, dt_b88, dt_merge)
 
-
-names(dt_b87_88)[3] <- "y1988"
-
-object_size(belarus_1988)
-
-plot(belarus_1988, main = "Belarus 1988")
-
-hist(belarus_1988, main = "Belarus 1988 distribution of values")
-cellStats(belarus_1988, stat = "min") # 1
-cellStats(belarus_1988, stat = "max") # 4
+# load data.tables
+dt_b87 <- fread(file = paste0(p_dat, "Abandonment/belarus_1987_dt.csv"))
+dt_b88 <- fread(file = paste0(p_dat, "Abandonment/belarus_1988_dt.csv"))
+dt_merge <- fread(file = paste0(p_dat, "Abandonment/belarus_1987-88_dt.csv"))
 
 
-belarus_1988
+object_size(dt_merge) # 2.27
+object_size(dt_merge[, .(x, y)]) # 1.51 GB
+object_size(dt_merge[, .(belarus_1987, belarus_1988)]) # 755 MB
 
-dt_b87_88[, .N]
-dt_b87_88[y1988 == 2, ][, .(value = 2, count = .N)]
-dt_b87_88[y1988 == 2, ][, sum(y1988)]
-dt_b87_88[, sum(y1988)]
+object_size(dt_merge[, .(x, y)]) + # 1.51 GB
+object_size(dt_merge[, .(belarus_1987, belarus_1988)]) * 31 / 2 # amount per year
+# estimate of about 13.2 GB for the whole time series. Probably too big, so I'll have to explore another option. 
 
-hist(dt_b87_88[, 3])
+dt_merge[belarus_1988 == 2, ][, sum(belarus_1988)]
+dt_merge[, sum(belarus_1988)]
 
-dt_b87_88_counts <- dt_b87_88[, .(count = .N), by = y1988]
-
-barplot(data = dt_b87_88_counts, count ~ y1988)
+hist(dt_merge[, 3])
+dt_merge_counts <- dt_merge[, .(count = .N), by = belarus_1988]
+barplot(data = dt_merge_counts, count ~ belarus_1988)
 ```
 
 ```{r colors}
@@ -136,7 +132,7 @@ plot(bs$smolensk1987, main = "Subset: Belarus 1987",
 
 plot(bt$smolensk1987, main = "Subset Subset: Belarus 1987", 
      breaks = plot_breaks, col = plot_cols)
-bin
+
 
 # --------------
 # animate
@@ -148,7 +144,7 @@ animate(bt, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
 
 ```
 
-```{r subset-for-testing}
+```{r subset-rasters}
 plot(bs$smolensk1987)
 mapView(bs$smolensk1987)
 ext_bt <- drawExtent(show = TRUE, col = "red")
@@ -156,47 +152,512 @@ ext_bt <- drawExtent(show = TRUE, col = "red")
 bt <- crop(bs, ext_bt)
 plot(bt$smolensk1987)
 
-object_size(bt)
-
 
 # --------------
 # update values
 # --------------
 
-test <- bt$smolensk1987
-test[test == 2] <- 7 # take, woody veg (2), set to 7
-test[test == 3] <- 2 # take cropland (3), set to 2
-test[test == 4] <- 3 # take grassland (4), set to 3
-test[test == 7] <- 4 # take 7 (woody veg), set to 4
+r <- bt$smolensk1987
+r[r == 2] <- 5 # take, woody veg (2), set to 5
+# you can leave it at that, or you can re-order:
+r[r == 3] <- 2 # take cropland (3), set to 2
+r[r == 4] <- 3 # take grassland (4), set to 3
+r[r == 5] <- 4 # take 5 (woody veg), set to 4
 
-plot(test)
-plot(bt$smolensk1987, breaks = plot_breaks, col = plot_cols)
-plot(test, breaks = plot_breaks, col = plot_cols_new)
+plot(r)
+plot(bt$smolensk1987, breaks = plot_breaks, col = plot_cols)  # 1 = nonveg, 2 = woody, 3 = crop, 4 = grassland
+plot(r, breaks = plot_breaks, col = plot_cols_new)
 
 # --------------
 # update to simple, 1 = cropland, 2 = noncropland
 # --------------
 btb <- bt
-plot(btb[[1]], breaks = plot_breaks, col = plot_cols) # 1 = nonveg, 2 = woody, 3 = crop, 4 = grassland
 btb[btb == 1] <- NA
 btb[btb == 3] <- 1 # crop
 btb[btb %in% c(2, 4)] <- 2 # noncrop
 
+plot(btb[[1]]) # 1 = crop, 2 = noncrop (woody + grassland)
 # to make it binary, just subtract 1.
+plot(btb[[1]] - 1) # 0 = crop, 1 = noncrop (woody + grassland)
 
 
-plot(bt[[1]], breaks = plot_breaks, col = plot_cols) # 1 = nonveg, 2 = woody, 3 = crop, 4 = grassland
 
 plot(btb[[1]], breaks = c(-1, 0, 1, 2), col = plot_cols[c(1, 3, 2)])
+plot(btb[[1]], col = plot_cols[c(3, 2)]) # same, just simpler
+
 # 1 = brown, agriculture
 # 2 = green, non-agriculture
+
 
 animate(btb, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
         breaks = c(-1, 0, 1, 2), col = plot_cols[c(1, 3, 2)])
 ```
 
+```{r 0-values}
+# --------------------------
+# note: not yet sure what to do with these 0s. Looks like there is some padding around the edges
+nrow(dt_merge) # 94403140
+dt_merge[belarus_1987 > 0, nrow(.SD)] # 92323484
+dt_merge[belarus_1988 > 0, nrow(.SD)] # 94216056
 
-```{r rebecca-senior-time-series}
+nrow(dt_merge[belarus_1987 == 0,]) # 92323484
+nrow(dt_merge[belarus_1988 == 0,]) # 94216056
+
+dt_merge[, .(sum87 = nrow(.SD)), by = "belarus_1987"]
+dt_merge[, .(sum88 = nrow(.SD)), by = "belarus_1988"]
+
+dt_merge[, .N, by = belarus_1987]
+dt_merge[, .N, by = belarus_1988]
+
+# number of observations across all combinations
+dt_merge[, .N, keyby = .(belarus_1987, belarus_1988)]
+
+dt_0 <- dt_merge[belarus_1987 == 0, ]
+dt_0[belarus_1987 == 0, belarus_1987 := 7]
+dt_0[belarus_1988 == 0, belarus_1988 := 8]
+dt_merge
+dt_0
+r_0 <- dt_to_raster(dt_0, crs(bs))
+
+plot(b87_r, col = plot_cols)
+plot(r_0$belarus_1987, col = "red", add = T)
+plot(r_0$belarus_1987)
+
+test_ext <- drawExtent(show=T, col="red")
+plot(r_0$belarus_1987, ext = test_ext)
+
+
+dt_merge[, summary(y)]
+dt_0[, summary(y)]
+mapView(r_0)
+ncell(r_0)
+
+
+cellStats(b87_r, "summary")
+ncell(b87_r)
+summary(b87_r)
+test <- b87_r
+test[test == 0] <- 8
+plot(test, col = plot_cols)
+
+(187084 / 94403140) * 100
+
+freq(b87_r)
+#      value    count
+# [1,]     0   187084
+# [2,]     1  1892572
+# [3,]     2 32779466
+# [4,]     3 26552258
+# [5,]     4 32991760
+
+freq(r_0)
+
+```
+
+
+```{r prep_data.table}
+# load as a data.table
+bs_dt <- as.data.table.raster(bs)
+
+# update column names
+names(bs_dt) <- gsub("smolensk", "y", names(bs_dt))
+bs_dt
+object_size(bs_dt)
+
+# count all cells in each column in each class
+
+bs_dt[, .N, by = .(y1987)] # one year
+bs_dt[, .N]
+
+bs_dt[, .(y1987)]
+bs_dt[, c("y1987")]
+bs_dt[, names(bs_dt)[3], with = FALSE]
+
+
+freq()
+
+
+
+
+# update cell values:
+tic()
+for (x in names(bs_dt[, !c("x", "y")])) {
+  set(bs_dt, which(bs_dt[[x]] == 1), x, NA)   # set nonveg (urban, water, etc.) to NA
+  }        
+# note, changing the nonveg to NA may prove problematic later
+
+for (x in names(bs_dt[, !c("x", "y")])) {
+  set(bs_dt, which(bs_dt[[x]] == 3), x, 1)    # set crop from 3 to 1
+  }
+
+for (x in names(bs_dt[, !c("x", "y")])) {
+  set(bs_dt, which(bs_dt[[x]] == 4), x, 2)    # combine 4 (grassland) and 2 (woody)
+                                              # into a single noncrop layer (2)
+  }
+toc() # 0.035 seconds for the bs subset
+
+
+# to make it binary, just subtract 1.
+tic()
+bs_dt_bin <- bs_dt[, !c("x", "y")] - 1
+toc()
+# 1 for noncrop
+# 0 for crop
+
+
+
+# testing it on a large file:
+object_size(dt_merge); nrow(dt_merge)
+
+# update cell values:
+tic()
+for (x in names(dt_merge[, !c("x", "y")])) {
+  set(dt_merge, which(dt_merge[[x]] == 1), x, NA)   # set nonveg (urban, water, etc.) to NA
+  }        
+for (x in names(dt_merge[, !c("x", "y")])) {
+  set(dt_merge, which(dt_merge[[x]] == 3), x, 1)    # set crop from 3 to 1
+  }
+for (x in names(dt_merge[, !c("x", "y")])) {
+  set(dt_merge, which(dt_merge[[x]] == 4), x, 2)    # combine 4 (grassland) and 2 (woody)
+                                              # into a single noncrop layer (2)
+  }
+toc() # 4.51 seconds for the full dataset for 1987 and 1988
+
+bi <- dt_merge - 1
+# 1 for noncrop
+# 0 for crop
+
+
+# older code:
+
+# just the subset of the subset
+bdt <- as.data.table.raster(bt)
+names(bdt) <- gsub("smolensk", "y", names(bdt))
+bdt[, c("x", "y") := NULL]
+bdt
+
+# update options for printing (it defaults to 100)
+# options(datatable.print.nrows = 20)
+# print(bdt, nrows=20)
+
+# -------------------
+# can also use this, but I think it's slower
+tic()
+bdt[bdt == 1] <- NULL # nonveg
+bdt[bdt == 3] <- 1 # crop
+bdt[bdt == 4] <- 2 # noncrop
+toc()
+
+
+```
+
+```{r calc-diff}
+# --------------
+# diff with data.table...
+# --------------
+# first, copy the data.table, then remove the first column, add a NA column at the end.
+# then simply subtract the two DT
+DT_lead <- copy(DT)
+DT_lead[, y1987 := NULL][, end := NA]
+
+DT_diff <- DT_lead - DT # this works just the same.
+DT_diff[, end := NULL]
+
+# using apply works too, but it's slow with big data.tables
+# this works on either data.frames or data.tables, but it's really slow with big data.tables, since it has to transpose all the rows. 
+tic(); t(apply(as.data.frame(DT), 1, diff)); toc()
+tic(); t(apply(DT, 1, diff)); toc()
+
+diff2 <- copy(DT)
+diff2[, sum3 := sum(.SD, na.rm = TRUE), by = seq_len(nrow(DT_diff))]
+
+dt_b87[, ':='(v1 = 1, v2 = 2, v3 = 3)]
+big_df <- as.data.frame(dt_b87)
+head(big_df)
+tic()
+diffbig <- t(apply(dt_b87, 1, diff)) %>% data.table()
+toc() # this didn't even finish after nearly 2 hours.
+
+# testing the simple method with a big file. I'll probably run out of memory on my computer, and will have to do this on a cluster.
+tic()
+DT_big <- copy(dt_b87)
+toc() # 4.5 sec
+
+DT_big[, x := NULL][, end := NA]
+
+tic()
+DT_bigdiff <- DT_big - dt_b87 # this works just the same.
+DT_bigdiff[, end := NULL]
+toc() # 12.71 seconds
+
+
+
+# ---------------------------------------------------------------------------
+# performing functions on individual rows
+# ---------------------------------------------------------------------------
+# one way is by using by = 1:nrow
+
+DT
+DT_diff # 1 means change from crop (1) to non crop (2), i.e. abandonment
+# -1 means change from noncrop (2) back to crop (1), i.e. recultivation
+backup_diff <- copy(DT_diff)
+DT_diff <- copy(backup_diff)
+
+DT
+dt_b87 # 94 million rows.
+
+rowSums(DT_diff)
+
+
+
+
+
+# -------------------
+# this works for rowSums
+DT_diff[, sum := rowSums(.SD, na.rm = TRUE)]
+ncol(DT_diff)
+DT_diff[, sum2 := rowSums(.SD, na.rm = TRUE), .SDcols = 1:13] # select columns
+tic(); dt_b87[, sum2 := rowSums(.SD, na.rm = TRUE), .SDcols = 4:6]; toc() # 5.5 seconds
+dt_b87[, sum2 := NULL]
+
+DT_diff
+
+# this works to apply functions to each individual row: the same as by = 1:nrow(DT)
+DT_diff[, sum3 := sum(.SD, na.rm = TRUE), by = seq_len(nrow(DT_diff)), .SDcols = 1:13]
+DT_diff[, sum4 := sum(.SD, na.rm = TRUE), by = 1:nrow(DT_diff), .SDcols = 1:13]
+# the .SD in the j part of the data.table should refer to the subset of DT calculated by by
+# which means..... I shouldn't have to subset it further. .SD > 0 should work as a logical statement
+DT_diff[, sum4:=NULL][, sum3:=NULL]
+
+# doesn't work
+# DT_diff[, sum4 := sum(.SD, na.rm = TRUE), .SDcols = .SD > 0, by = seq_len(nrow(DT_diff))]
+# DT_diff[, sum4 := sum(.SD[.SD > 0], na.rm = TRUE), by = seq_len(nrow(DT_diff))]
+DT_test <- DT_diff[, .SD > 0][] %>% data.table()
+DT_test[, positive := rowSums(.SD, na.rm = TRUE)][]
+```
+
+
+```{r age-per-pixel}
+# Filtering steps:
+# 1. Must have crop at some point in the time series.
+# 2. Must have crop specifically before noncrop transition. 
+
+age <- copy(bin)
+
+# or make your own
+set.seed(34L)
+age <- matrix(round(runif(15*15)), nrow = 15, ncol = 15) %>%
+  as.data.frame()
+setDT(age)
+# age <- as.data.table(age) # also works, but is less efficient because it creates a copy in memory. Not a big deal either way though.
+
+age
+
+
+# update the names
+names(age) <- paste0("y", 1:ncol(age))
+
+# ---------------------------------------------------------------------------
+# calculate age of each pixel, for just one column
+# ---------------------------------------------------------------------------
+age[y2 > 0, y2 := y1 + 1][]
+
+# this code does the following:
+# take age, subset rows where y2 > 0, and 
+# then set those equal to the value in column y1 for that row + 1.
+# Note: the [] at the end prints the result.
+
+# in order to loop over the columns, the code needs some massaging to get it to accept
+# character vectors, which can be referenced with indices to be looped over.
+# get() is a base command that searches by name for the object. This allows the data.table to treat it like a variable name, without the quotes. The name of the column being updated can be in quotes, because the LHS := RHS form can be:
+# DT[, c("colA", "colB", ...) := list(valA, valB, ...)]
+age[get(names(age)[2]) > 0, names(age)[2] := get(names(age)[1]) + 1][]
+
+age[, print(y1987)]
+age[, y1987]
+
+age
+
+# --------------------------------------------
+# full implementation with a for loop - the final code
+# --------------------------------------------
+for (i in 2:ncol(age)) { # start with the second column
+  age[get(names(age)[i]) > 0, names(age)[i] := get(names(age)[i-1]) + 1]
+  }
+print(age)
+
+age[get(names(age)[i]) > 0, names(age) := lapply(.SD, FUN = function(x) {
+  x + 1
+}), .SDcols = shift(names(age), type = "lead")]
+
+shift(names(age), type = "lead")
+# --------------------------------------------
+# try it with a bigger data.table
+age <- copy(bin)
+# make age big:
+for (i in 1:22) {
+  age <- rbind(age, age)
+}
+age <- cbind(age, age[, 1:5])
+object_size(age); nrow(age)
+names(age) <- paste0("y", 1:ncol(age))
+
+tic()
+for (i in 2:ncol(age)) {
+  age[get(names(age)[i]) > 0, c(names(age)[i]) := get(names(age)[i-1]) + 1 ]
+}
+toc() # 2.6 seconds on 491,520 rows
+# 81.829 seconds for 62,914,560 rows. Wow! This should work fine, as long as I can figure out a good way to load in all that data. 
+
+
+
+
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# old, unused, test code
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
+# trying it with set
+# -------------------------------
+tic()
+for (x in 2:ncol(age)) {
+  set(age, 
+      which(age[[names(age)[x]]] > 0), 
+      j = names(age)[x], 
+      value = age[get(names(age)[x]) > 0, get(names(age)[x-1])] + 1)
+}
+toc() # 94.22 seconds for 64 million rows
+# this worked too, but it's a bit slower. I'll use the other since it's simpler, and keep this in the back pocket until then. 
+
+
+# original code
+# -------------------------------
+# You'll note that this code works on each column. My previous code worked on individual values in each row individually, then looping over the columns, then over all the rows. This ultimately ended up being much, much slower. I realized that data.tables could be subset up front based on values in a column, and then those values could be easily manipulated. It turns out it's much easier to iterate over columns than over rows, especially when we have something like 90 million rows!
+
+# the old code looked like this:
+for (i in 1:nrow(dt)) {
+  for (j in 2:ncol(dt)) {
+    if (dt[i][[names(dt)[j]]] > 0) {
+      dt[i][[names(dt)[j]]] <- dt[i][[names(dt)[j - 1]]] + 1
+    }
+  }
+}
+# 0.131 sec for just 15 rows
+# 254.958 sec for 15,000 rows
+# so, estimating what it would take to do 94 million rows.
+(94000000/15000 * 254) / 60 / 60 # jeeeeez 442 hours. That's untenable.
+
+
+
+
+
+```
+
+
+
+
+```{r plot-trajectory-per-pixel}
+ncell(bt)
+# subset the data.table, for plotting
+sub <- bs_dt[1:10, -c(1,2)]
+names(sub) <- gsub("y", "", names(sub))
+sub[, pixel := c(1:10)]
+sub
+
+
+sub_melt <- melt(sub, id.vars = "pixel", 
+                 variable.name = "year", 
+                 value.name = "land_use", na.rm = TRUE)
+
+sub_melt$year <- gsub("y", "", sub_melt$year)
+
+str(sub_melt)
+
+# set colors for plotting
+show_col(terrain.colors(9))
+
+lc_cols <- scale_color_manual(name = "Land Cover",
+                     labels = c("1" = "1. Non-veg",
+                                "2" = "2. Woody veg",
+                                "3" = "3. Crop",
+                                "4" = "4. Grassland"),
+                     values = c("1" = "gray80",
+                                "2" = terrain.colors(9)[1], # dark green
+                                "3" = terrain.colors(9)[5], # gold
+                                "4" = terrain.colors(9)[3] # light green
+                                )
+                     ) 
+
+# this plot shows the land-use trajectories of 10 individual pixels.
+gg_10_px_traj <- ggplot(data = sub_melt, 
+                        mapping = aes(x = year, y = land_use, group = pixel)) +
+  theme_classic() + 
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  geom_line(mapping = aes(color = factor(land_use)), size = 2) +
+  facet_grid(rows = vars(pixel), scales = "free_x", switch = "x") + 
+  ylim(1, 4) + lc_cols
+
+gg_10_px_traj
+#       1. Non-vegetated area (e.g. water, urban, barren land)
+#       2. Woody vegetation
+#       3. Cropland 
+#       4. Herbaceous land (e.g. grassland)
+
+
+```
+Here's the game plan:
+With RS' code, I have the following:
+- the year of changes, and 
+
+
+
+
+```{r data.table-tips}
+library(data.table)
+
+## Create a data table
+set.seed(87L)
+# DT <- data.table(V1 = rep(c(1L, 2L), 5)[-10],
+#                 V2 = 1:9,
+#                 V3 = c(0.5, 1.0, 1.5),
+#                 V4 = rep(LETTERS[1:3], 3))
+
+DT <- matrix(round(runif(15*15)), nrow = 15, ncol = 15) %>%
+  as.data.frame()
+setDT(DT)
+names(DT) <- paste0("V", 1:ncol(DT))
+
+DT[, sum(V1)]
+DT[, lapply(.SD, mean),
+     .SDcols = c("V1", "V2")]
+
+
+# potentially useful things:
+# ------------------------------
+vec <- unlist(DT[1], use.names = FALSE) # extract a row as a vector
+
+
+# data.table syntax
+DT[, sum := sum(.SD, na.rm = TRUE), by = seq_len(nrow(DT))]
+DT[, rowsum := rowSums(.SD, na.rm = TRUE), .SDcols = 1:14]
+
+# row sums... there isn't anything more efficient than rowSums(). See https://stackoverflow.com/questions/15905257/getting-rowsums-in-a-data-table-in-r?lq=1
+
+# note that you can also do this over a subset of columns, by selecting columns with .SDcols, like so:
+DT[, sum2 := rowSums(.SD, na.rm = TRUE), .SDcols = grep("8", names(DT))][] 
+
+```
+
+
+
+
+
+Time-series with Raster
+
+```{r RS-raster-time-series}
 library(raster)
 
 # Create test matrices with value of:
@@ -382,331 +843,6 @@ noncrop_duration_avg <- noncrop_duration / noncrop_count
 plot(noncrop_duration_avg)
 
 ```
-
-
-```{r prep_data.table}
-bdt <- as.data.table.raster(bt)
-names(bdt) <- gsub("smolensk", "y", names(bdt))
-bdt[, c("x", "y") := NULL]
-bdt
-
-# update options for printing (it defaults to 100)
-# options(datatable.print.nrows = 20)
-# print(bdt, nrows=20)
-
-# -------------------
-# replace values (not sure if there is a faster way to do this, but it works, for now)
-tic()
-bdt[bdt == 1] <- NULL # nonveg
-bdt[bdt == 3] <- 1 # crop
-bdt[bdt == 4] <- 2 # noncrop
-toc()
-
-dt_b87 %>% object_size()
-
-DT <- bdt[1:15, 1:14]
-tic()
-# can also do this, and loop through all the columns
-# note, changing the nonveg to NA may prove problematic later
-for (x in names(DT)) {set(DT, which(DT[[x]] == 1), x, NA)}        # nonveg (urban, water, etc.)
-for (x in names(DT)) {set(DT, which(DT[[x]] == 3), x, 1)}         # crop
-for (x in names(DT)) {set(DT, which(DT[[x]] %in% c(2, 4)), x, 2)} # noncrop
-toc() # a bit faster. It's about 24 seconds on the big file
-
-DT
-
-bin <- DT - 1
-# 1 for noncrop
-# 0 for crop
-
-# row sums... there isn't anything more efficient than rowSums()
-bin[, sum := rowSums(.SD, na.rm = TRUE)][] 
-# note that you can also do this over a subset of columns, by selecting columns with .SDcols, like so:
-bin[, sum2 := rowSums(.SD, na.rm = TRUE), .SDcols = grep("8", names(bin))][] 
-bin[1, y1987:y2000] %>% length()
-
-
-# --------------
-# diff with data.table...
-# --------------
-# first, copy the data.table, then remove the first column, add a NA column at the end.
-# then simply subtract the two DT
-DT_lead <- copy(DT)
-DT_lead[, y1987 := NULL][, end := NA]
-
-DT_diff <- DT_lead - DT # this works just the same.
-DT_diff[, end := NULL]
-
-# using apply works too, but it's slow with big data.tables
-# this works on either data.frames or data.tables, but it's really slow with big data.tables, since it has to transpose all the rows. 
-tic(); t(apply(as.data.frame(DT), 1, diff)); toc()
-tic(); t(apply(DT, 1, diff)); toc()
-
-diff2 <- copy(DT)
-diff2[, sum3 := sum(.SD, na.rm = TRUE), by = seq_len(nrow(DT_diff))]
-
-dt_b87[, ':='(v1 = 1, v2 = 2, v3 = 3)]
-big_df <- as.data.frame(dt_b87)
-head(big_df)
-tic()
-diffbig <- t(apply(dt_b87, 1, diff)) %>% data.table()
-toc() # this didn't even finish after nearly 2 hours.
-
-# testing the simple method with a big file. I'll probably run out of memory on my computer, and will have to do this on a cluster.
-tic()
-DT_big <- copy(dt_b87)
-toc() # 4.5 sec
-
-DT_big[, x := NULL][, end := NA]
-
-tic()
-DT_bigdiff <- DT_big - dt_b87 # this works just the same.
-DT_bigdiff[, end := NULL]
-toc() # 12.71 seconds
-
-
-
-# ---------------------------------------------------------------------------
-# performing functions on individual rows
-# ---------------------------------------------------------------------------
-# one way is by using by = 1:nrow
-
-DT
-DT_diff # 1 means change from crop (1) to non crop (2), i.e. abandonment
-# -1 means change from noncrop (2) back to crop (1), i.e. recultivation
-backup_diff <- copy(DT_diff)
-DT_diff <- copy(backup_diff)
-
-DT
-dt_b87 # 94 million rows.
-
-rowSums(DT_diff)
-
-
-
-
-
-# -------------------
-# this works for rowSums
-DT_diff[, sum := rowSums(.SD, na.rm = TRUE)]
-ncol(DT_diff)
-DT_diff[, sum2 := rowSums(.SD, na.rm = TRUE), .SDcols = 1:13] # select columns
-tic(); dt_b87[, sum2 := rowSums(.SD, na.rm = TRUE), .SDcols = 4:6]; toc() # 5.5 seconds
-dt_b87[, sum2 := NULL]
-
-DT_diff
-
-# this works to apply functions to each individual row: the same as by = 1:nrow(DT)
-DT_diff[, sum3 := sum(.SD, na.rm = TRUE), by = seq_len(nrow(DT_diff)), .SDcols = 1:13]
-DT_diff[, sum4 := sum(.SD, na.rm = TRUE), by = 1:nrow(DT_diff), .SDcols = 1:13]
-# the .SD in the j part of the data.table should refer to the subset of DT calculated by by
-# which means..... I shouldn't have to subset it further. .SD > 0 should work as a logical statement
-DT_diff[, sum4:=NULL][, sum3:=NULL]
-
-# doesn't work
-# DT_diff[, sum4 := sum(.SD, na.rm = TRUE), .SDcols = .SD > 0, by = seq_len(nrow(DT_diff))]
-# DT_diff[, sum4 := sum(.SD[.SD > 0], na.rm = TRUE), by = seq_len(nrow(DT_diff))]
-DT_test <- DT_diff[, .SD > 0][] %>% data.table()
-DT_test[, positive := rowSums(.SD, na.rm = TRUE)][]
-```
-
-
-```{r age-per-pixel}
-# Filtering steps:
-# 1. Must have crop at some point in the time series.
-# 2. Must have crop specifically before noncrop transition. 
-
-age <- copy(bin)
-
-# or make your own
-set.seed(34L)
-age <- matrix(round(runif(15*15)), nrow = 15, ncol = 15) %>%
-  as.data.frame()
-setDT(age)
-# age <- as.data.table(age) # also works, but is less efficient because it creates a copy in memory. Not a big deal either way though.
-
-age
-
-
-# update the names
-names(age) <- paste0("y", 1:ncol(age))
-
-# ---------------------------------------------------------------------------
-# calculate age of each pixel, for just one column
-# ---------------------------------------------------------------------------
-age[y2 > 0, y2 := y1 + 1][]
-
-# this code does the following:
-# take age, subset rows where y2 > 0, and 
-# then set those equal to the value in column y1 for that row + 1.
-# Note: the [] at the end prints the result.
-
-# in order to loop over the columns, the code needs some massaging to get it to accept
-# character vectors, which can be referenced with indices to be looped over
-age[get(names(age)[2]) > 0, c(names(age)[2]) := get(names(age)[1]) + 1][]
-
-
-# --------------------------------------------
-# full implementation with a for loop - the final code
-# --------------------------------------------
-for (i in 2:ncol(age)) { # start with the second column
-  age[get(names(age)[i]) > 0, c(names(age)[i]) := get(names(age)[i-1]) + 1]
-  }
-print(age)
-
-
-# --------------------------------------------
-# try it with a bigger data.table
-age <- copy(bin)
-# make age big:
-for (i in 1:22) {
-  age <- rbind(age, age)
-}
-age <- cbind(age, age[, 1:5])
-object_size(age); nrow(age)
-names(age) <- paste0("y", 1:ncol(age))
-
-tic()
-for (i in 2:ncol(age)) {
-  age[get(names(age)[i]) > 0, c(names(age)[i]) := get(names(age)[i-1]) + 1 ]
-}
-toc() # 2.6 seconds on 491,520 rows
-# 81.829 seconds for 62,914,560 rows. Wow! This should work fine, as long as I can figure out a good way to load in all that data. 
-
-
-
-
-# ---------------------------------------------------------------------------
-# ---------------------------------------------------------------------------
-# ---------------------------------------------------------------------------
-# old, unused, test code
-# ---------------------------------------------------------------------------
-# ---------------------------------------------------------------------------
-# ---------------------------------------------------------------------------
-
-# trying it with set
-# -------------------------------
-tic()
-for (x in 2:ncol(age)) {
-  set(age, 
-      which(age[[names(age)[x]]] > 0), 
-      j = names(age)[x], 
-      value = age[get(names(age)[x]) > 0, get(names(age)[x-1])] + 1)
-}
-toc() # 94.22 seconds for 64 million rows
-# this worked too, but it's a bit slower. I'll use the other since it's simpler, and keep this in the back pocket until then. 
-
-
-# original code
-# -------------------------------
-# You'll note that this code works on each column. My previous code worked on individual values in each row individually, then looping over the columns, then over all the rows. This ultimately ended up being much, much slower. I realized that data.tables could be subset up front based on values in a column, and then those values could be easily manipulated. It turns out it's much easier to iterate over columns than over rows, especially when we have something like 90 million rows!
-
-# the old code looked like this:
-for (i in 1:nrow(dt)) {
-  for (j in 2:ncol(dt)) {
-    if (dt[i][[names(dt)[j]]] > 0) {
-      dt[i][[names(dt)[j]]] <- dt[i][[names(dt)[j - 1]]] + 1
-    }
-  }
-}
-# 0.131 sec for just 15 rows
-# 254.958 sec for 15,000 rows
-# so, estimating what it would take to do 94 million rows.
-(94000000/15000 * 254) / 60 / 60 # jeeeeez 442 hours. That's untenable.
-
-
-# potentially useful things:
-# ------------------------------
-vec <- unlist(dt[1], use.names = FALSE) # extract a row as a vector
-
-
-# data.table syntax
-dt[, sum := sum(.SD, na.rm = TRUE), by = seq_len(nrow(dt))]
-dt[, rowsum := rowSums(.SD, na.rm = TRUE), .SDcols = 1:14]
-
-
-```
-
-
-
-
-```{r plot-trajectory-per-pixel}
-ncell(bt)
-# subset the data.table, for plotting
-sub <- dt_bs[1:10, -c(1,2)]
-names(sub) <- gsub("y", "", names(sub))
-sub[, pixel := c(1:10)]
-sub
-
-
-sub_melt <- melt(sub, id.vars = "pixel", 
-                 variable.name = "year", 
-                 value.name = "land_use", na.rm = TRUE)
-
-sub_melt$year <- gsub("y", "", sub_melt$year)
-
-str(sub_melt)
-
-# set colors for plotting
-show_col(terrain.colors(9))
-
-lc_cols <- scale_color_manual(name = "Land Cover",
-                     labels = c("1" = "1. Non-veg",
-                                "2" = "2. Woody veg",
-                                "3" = "3. Crop",
-                                "4" = "4. Grassland"),
-                     values = c("1" = "gray80",
-                                "2" = terrain.colors(9)[1], # dark green
-                                "3" = terrain.colors(9)[5], # gold
-                                "4" = terrain.colors(9)[3] # light green
-                                )
-                     ) 
-
-# this plot shows the land-use trajectories of 10 individual pixels.
-gg_10_px_traj <- ggplot(data = sub_melt, 
-                        mapping = aes(x = year, y = land_use, group = pixel)) +
-  theme_classic() + 
-  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
-  geom_line(mapping = aes(color = factor(land_use)), size = 2) +
-  facet_grid(rows = vars(pixel), scales = "free_x", switch = "x") + 
-  ylim(1, 4) + lc_cols
-
-gg_10_px_traj
-#       1. Non-vegetated area (e.g. water, urban, barren land)
-#       2. Woody vegetation
-#       3. Cropland 
-#       4. Herbaceous land (e.g. grassland)
-
-
-```
-Here's the game plan:
-With RS' code, I have the following:
-- the year of changes, and 
-
-
-
-
-```{r dt-testing}
-library(data.table)
-set.seed(1L)
-test
-## Create a data table
-DT <- data.table(V1 = rep(c(1L, 2L), 5)[-10],
-                V2 = 1:9,
-                V3 = c(0.5, 1.0, 1.5),
-                V4 = rep(LETTERS[1:3], 3))
-
-class(DT)
-DT
-
-DT[V1 == 1]
-
-DT[, sum(V1)]
-```
-
-
-
-
 
 
 
