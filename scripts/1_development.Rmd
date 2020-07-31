@@ -513,6 +513,14 @@ DT_test[, positive := rowSums(.SD, na.rm = TRUE)][]
 # Filtering steps:
 # 1. Must have crop at some point in the time series.
 # 2. Must have crop specifically before noncrop transition. 
+age <- copy(bin)
+
+# make age big:
+for (i in 1:10) {
+  age <- rbind(age, age)
+}
+
+
 
 
 # ------------------------------------------------------------------
@@ -540,40 +548,141 @@ if (age[1, "y1988"] > 0) {
     age[1, "y1988"] <- age[1, "y1987"] + 1
 }
 
+age[1, "y1988"]
+nms <- names(age)
+nms[1]
+age[1, ..nms] # this works, but how does one subset?
+
+nms_1 <- nms[1] # you can either subset like this, but it would require assigning in each iteration
+age[1, ..nms_1]
+age[1][[names(age)[i + 1]]]
+age[1, names(age)[i + 1], with = F] # returns a data.table
+age[1][[names(age)[i + 1]]] # returns a vector
+
 
 # this is just one row/pixel:
-for (i in 1:(ncol(age) - 1)) {
-  if (age[1][[names(age)[i + 1]]] > 0) {
-    age[1][[names(age)[i + 1]]] <- age[1][[names(age)[i]]] + 1
+bin
+age
+for (i in 2:ncol(age)) {
+  if (age[1][[names(age)[i]]] > 0) {
+    age[1][[names(age)[i]]] <- age[1][[names(age)[i - 1]]] + 1
 }
 }
 
-DT_diff
-DT_diff[, sum3 := sum(.SD, na.rm = TRUE), by = seq_len(nrow(DT_diff)), .SDcols = 1:13]
+
+# nested loop to do all rows:
 
 
-age[1]
-bin[1]
-# turn this into a function, then send this across all rows of the data.table using the by = 1:nrow()
+tic()
+for (i in 1:nrow(age)) {
+  for (j in 2:ncol(age)) {
+  if (age[i][[names(age)[j]]] > 0) {
+    age[i][[names(age)[j]]] <- age[i][[names(age)[j - 1]]] + 1
+    }
+  }
+}
+toc() # 0.131 sec for just 15 rows
+# for 15,000 rows, it should be 1000x longer, 0.131 * 1000 = 131 seconds
+# 254.958 sec.
 
-DT_diff[, sum4 := sum(.SD, na.rm = TRUE), by = 1:nrow(DT_diff), .SDcols = 1:13]
+(94000000/15 * 0.131) / 60 / 60 # jeeeeez 228 hours
 
 
-DT_diff
 
-age[1, ..nms] # returns the whole vector
+# trying it now in the data.table syntax:
+dt <- age
 
-age[1][["y1987"]]
-# both of these work
-age[1, nms[1], with = FALSE]
-age[1][[names(age)[1]]]
+# first, write a function:
+calculate_age <- function(dt) {
+  # dt must be a 1 row dt
+  for (j in 2:ncol(dt)) {
+    if (dt[1][[names(dt)[j]]] > 0) {
+      dt[1][[names(dt)[j]]] <- dt[1][[names(dt)[j - 1]]] + 1
+    }
+  }
+  return(dt)
+}
+dt[1]
+calculate_age(dt[1])
 
-df <- as.data.frame(age)
-df
 
-df[1, ]
+tic()
+for (i in 1:15) {
+  calculate_age(dt = dt, row_num = i)
+}
+toc()
 
-age[, sum := sum(.SD, na.rm = TRUE), by = 1:nrow(DT_diff), .SDcols = 1:13]
+vec <- unlist(dt[1], use.names = FALSE)
+vec[1]
+for (i in 2:length(vec)) {
+  if (vec[i] > 0) {vec[i] <- vec[i - 1] + 1}
+}
+
+
+dt
+dt[, sum := sum(.SD, na.rm = TRUE), by = seq_len(nrow(dt))]
+dt[, rowsum := rowSums(.SD, na.rm = TRUE), .SDcols = 1:14]
+dt[, sum := NULL][, rowsum := NULL]
+dt
+paste0("v", 1:14)
+dt[, c("v1", "v2", "v3", "v4", "v5" , "v6",  "v7" , "v8" , "v9" , "v10", "v11", "v12", "v13", "v14") := calculate_age(dt = .SD), by = seq_len(nrow(dt))]
+new_col_names <- paste0("v", 1:14)
+
+
+
+# this finally works!
+# a single line, looped over the columns
+age <- copy(bin)
+age[1988 > 0, y1988 := y1987 + 1][] # simple
+age[get(names(age)[2]) > 0, c(names(age)[2]) := get(names(age)[1]) + 1] # coded to accept names with indices to be looped over
+
+
+# --------------------------------------------
+# full implementation with a for loop - the final code
+# --------------------------------------------
+age <- copy(bin)
+for (i in 2:ncol(age)) {
+  age[get(names(age)[i]) > 0, # subset rows that are greater than 0 (i.e. 1, for noncrop), and
+      c(names(age)[i]) := get(names(age)[i-1]) + 1] # set them equal to the previous column's value in that row, plus 1.
+}
+print(age)
+
+
+# --------------------------------------------
+# try it with a bigger data.table
+age <- copy(bin)
+# make age big:
+for (i in 1:22) {
+  age <- rbind(age, age)
+}
+age <- cbind(age, age[, 1:5])
+object_size(age); nrow(age)
+names(age) <- paste0("y", 1:ncol(age))
+
+tic()
+for (i in 2:ncol(age)) {
+  age[get(names(age)[i]) > 0, c(names(age)[i]) := get(names(age)[i-1]) + 1 ]
+}
+toc() # 2.6 seconds on 491,520 rows
+# 81.829 seconds for 62,914,560 rows. Wow! This should work fine, as long as I can figure out a good way to load in all that data. 
+
+
+
+# --------------------------------------------
+# trying it with set
+# so, this worked too, but it's a bit slower
+tic()
+for (x in 2:ncol(age)) {
+  set(age, 
+      which(age[[names(age)[x]]] > 0), 
+      j = names(age)[x], 
+      value = age[get(names(age)[x]) > 0, get(names(age)[x-1])] + 1)
+}
+toc() # 94.22 seconds for 64 million rows, so I'll use the other since it's simpler, and keep this in the back pocket until then. 
+
+
+
+
 
 ```
 
