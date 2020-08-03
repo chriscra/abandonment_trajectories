@@ -477,6 +477,7 @@ age[, print(y1987)]
 age[, y1987]
 
 age
+env_size(ls())
 
 # --------------------------------------------
 # full implementation with a for loop - the final code
