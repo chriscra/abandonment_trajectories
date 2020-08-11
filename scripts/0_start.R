@@ -19,7 +19,8 @@ needed_packages <- c("raster", "rgdal", "sp", "sf", "mapview", "gdalUtils", "gda
           "ggnewscale", "reshape2", "data.table", "knitr", "rredlist",
           "dtraster",
           "scales",
-          "patchwork")
+          "patchwork",
+          "devtools", "Hmisc", "acepack")
 
 
 install_missing_packages(needed_packages)
@@ -28,5 +29,20 @@ install_missing_packages(needed_packages)
 # install <- lapply(needed_packages, library, character.only = TRUE) # load them
 #update.packages()
 
+
+
+# -------------------------
+# Lyndon's packages, which need to be installed with devtools:
+# -------------------------
+
+# # install using devtools
+# devtools::install_github("ldemaz/dtraster")
+# devtools::install_github("PrincetonUniversity/lmisc")
+# devtools::install_github("PrincetonUniversity/agroEcoTradeoff@devel")
+# 
+# 
+# # load
+# lyndon_pkgs <- c("dtraster", "lmisc", "agroEcoTradeoff")
+# lyndon_inst <- lapply(lyndon_pkgs, library, character.only = TRUE) # load them
 
 
