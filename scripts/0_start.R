@@ -39,10 +39,9 @@ install_missing_packages(needed_packages)
 # devtools::install_github("ldemaz/dtraster")
 # devtools::install_github("PrincetonUniversity/lmisc")
 # devtools::install_github("PrincetonUniversity/agroEcoTradeoff@devel")
-# 
-# 
-# # load
-# lyndon_pkgs <- c("dtraster", "lmisc", "agroEcoTradeoff")
-# lyndon_inst <- lapply(lyndon_pkgs, library, character.only = TRUE) # load them
+
+# load
+lyndon_pkgs <- c("dtraster", "lmisc", "agroEcoTradeoff")
+lyndon_inst <- lapply(lyndon_pkgs, library, character.only = TRUE) # load them
 
 

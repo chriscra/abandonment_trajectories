@@ -47,7 +47,7 @@ for (i in 2:ncol(dt)) {
   dt[get(names(dt)[i]) > 0, 
      
      # set them equal to the previous column's value in that row, plus 1.
-      c(names(dt)[i]) := get(names(dt)[i-1]) + 1] 
+      names(dt)[i] := get(names(dt)[i-1]) + 1] 
 }
 
 print(dt)

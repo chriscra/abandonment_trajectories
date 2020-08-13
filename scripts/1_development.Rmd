@@ -68,12 +68,19 @@ fwrite(dt_b88, file = paste0(p_dat, "Abandonment/belarus_1988_dt.csv"))
 fwrite(dt_merge, file = paste0(p_dat, "Abandonment/belarus_1987-88_dt.csv"))
 
 rm(dt_b87, dt_b88, dt_merge)
+rm(dt_b87)
 
 # load data.tables
 dt_b87 <- fread(file = paste0(p_dat, "Abandonment/belarus_1987_dt.csv"))
 dt_b88 <- fread(file = paste0(p_dat, "Abandonment/belarus_1988_dt.csv"))
 dt_merge <- fread(file = paste0(p_dat, "Abandonment/belarus_1987-88_dt.csv"))
 
+object_size(dt_merge)
+dt_merge[, c("x", "y") := NULL]
+
+# count occurence in each land use class
+dt_b87[, .N, by = .(belarus_1987)] # one year
+names(dt_b87)
 
 object_size(dt_merge) # 2.27
 object_size(dt_merge[, .(x, y)]) # 1.51 GB
@@ -274,54 +281,66 @@ bs_dt[, c("y1987")]
 bs_dt[, names(bs_dt)[3], with = FALSE]
 
 
-freq()
+# remove NA values
 
 
 
 
-# update cell values:
+# update cell values: see _util_dt_functions.R
 tic()
-for (x in names(bs_dt[, !c("x", "y")])) {
-  set(bs_dt, which(bs_dt[[x]] == 1), x, NA)   # set nonveg (urban, water, etc.) to NA
-  }        
-# note, changing the nonveg to NA may prove problematic later
-
-for (x in names(bs_dt[, !c("x", "y")])) {
-  set(bs_dt, which(bs_dt[[x]] == 3), x, 1)    # set crop from 3 to 1
-  }
-
-for (x in names(bs_dt[, !c("x", "y")])) {
-  set(bs_dt, which(bs_dt[[x]] == 4), x, 2)    # combine 4 (grassland) and 2 (woody)
-                                              # into a single noncrop layer (2)
-  }
+cc_update_lc(bs_dt)
 toc() # 0.035 seconds for the bs subset
 
 
-# to make it binary, just subtract 1.
+# to make it binary, just subtract 1, or use the function cc_make_binary(): see _util_dt_functions.R
 tic()
 bs_dt_bin <- bs_dt[, !c("x", "y")] - 1
 toc()
 # 1 for noncrop
 # 0 for crop
 
+# test it
+test_dt1 <- copy(bs_dt)
+test_dt2 <- copy(bs_dt)
+test_dt2[, c("x", "y") := NULL]
+
+tic(); cc_update_lc(test_dt1); toc()
+tic(); cc_update_lc(test_dt2); toc()
+identical(test_dt1[, !c("x", "y")], test_dt2)
+
+bin_test1 <- test_dt2 -1
+bin_test2 <- copy(test_dt2)
+
+# big file
+rm(dt_merge)
+dt_merge <- fread(file = paste0(p_dat, "Abandonment/belarus_1987-88_dt.csv"))
+dt_merge[, c("x", "y") := NULL]
+names(dt_merge) <- gsub("belarus_", "y", names(dt_merge))
+object_size(dt_merge)
+
+dt_merge[, c(paste0("y", 1989:2004)) := .(y1987, y1988, y1987, y1988, 
+                                          y1987, y1988, y1987, y1988, 
+                                          y1987, y1988, y1987, y1988, 
+                                          y1987, y1988, y1987, y1988
+)] # add more columns, if desired
+test <- na.omit(dt_merge[1:100000])
 
 
-# testing it on a large file:
-object_size(dt_merge); nrow(dt_merge)
+tic(); cc_update_lc(dt_merge); toc() # 46.621, nice, this seems to have worked.
+# to remove all rows with NA values
+dt_merge <- na.omit(dt_merge) # this removed about 2 million rows
+
+tic(); dt_merge <- dt_merge - 1; toc() # 6.8 GB, didn't work
+tic(); cc_make_binary(dt_merge); toc() # 6.8 GB,
+identical(bin_test1, bin_test2)
+dt_merge[, y1987 := y1987 -1]
+dt_merge[, y1988 := y1988 -1]
+
 
 # update cell values:
 tic()
-for (x in names(dt_merge[, !c("x", "y")])) {
-  set(dt_merge, which(dt_merge[[x]] == 1), x, NA)   # set nonveg (urban, water, etc.) to NA
-  }        
-for (x in names(dt_merge[, !c("x", "y")])) {
-  set(dt_merge, which(dt_merge[[x]] == 3), x, 1)    # set crop from 3 to 1
-  }
-for (x in names(dt_merge[, !c("x", "y")])) {
-  set(dt_merge, which(dt_merge[[x]] == 4), x, 2)    # combine 4 (grassland) and 2 (woody)
-                                              # into a single noncrop layer (2)
-  }
-toc() # 4.51 seconds for the full dataset for 1987 and 1988
+cc_update_lc(dt_merge)
+toc() # 4.51 seconds for the full dataset for 1987 and 1988. This will likely take more than a minute for the full raster brick.
 
 bi <- dt_merge - 1
 # 1 for noncrop
@@ -438,27 +457,21 @@ DT_test[, positive := rowSums(.SD, na.rm = TRUE)][]
 
 
 ```{r age-per-pixel}
-# Filtering steps:
-# 1. Must have crop at some point in the time series.
-# 2. Must have crop specifically before noncrop transition. 
-
-age <- copy(bin)
-
-# or make your own
+# make your own
 set.seed(34L)
 age <- matrix(round(runif(15*15)), nrow = 15, ncol = 15) %>%
   as.data.frame()
 setDT(age)
 # age <- as.data.table(age) # also works, but is less efficient because it creates a copy in memory. Not a big deal either way though.
 
-age
-
+# or just copy bin from above:
+age <- copy(bin)
 
 # update the names
 names(age) <- paste0("y", 1:ncol(age))
 
 # ---------------------------------------------------------------------------
-# calculate age of each pixel, for just one column
+# calculate age of each pixel since, for just one column
 # ---------------------------------------------------------------------------
 age[y2 > 0, y2 := y1 + 1][]
 
@@ -479,36 +492,46 @@ age[, y1987]
 age
 env_size(ls())
 
-# --------------------------------------------
+# ---------------------------------------------------------------------------
 # full implementation with a for loop - the final code
-# --------------------------------------------
-for (i in 2:ncol(age)) { # start with the second column
-  age[get(names(age)[i]) > 0, names(age)[i] := get(names(age)[i-1]) + 1]
-  }
+# ---------------------------------------------------------------------------
+
+# check _util_dt_functions.R for function to calculate age
+
+calc_age(age)
 print(age)
 
-age[get(names(age)[i]) > 0, names(age) := lapply(.SD, FUN = function(x) {
-  x + 1
-}), .SDcols = shift(names(age), type = "lead")]
 
-shift(names(age), type = "lead")
+
+
+# ----------------
+# ----------------
 # --------------------------------------------
 # try it with a bigger data.table
-age <- copy(bin)
+
+# make your own
+set.seed(39)
+age <- matrix(round(runif(30*30)), nrow = 30, ncol = 30) %>%
+  as.data.frame()
+setDT(age)
+# or 
+big <- copy(bin)
+
 # make age big:
 for (i in 1:22) {
-  age <- rbind(age, age)
+  big <- rbind(big, big)
 }
-age <- cbind(age, age[, 1:5])
-object_size(age); nrow(age)
-names(age) <- paste0("y", 1:ncol(age))
+
+big[, c(paste0("y", 2001:2005)) := .(y1987, y1988, y1989, y1990, y1991)] # add more columns, if desired
+
+ncol(big)
+object_size(big); nrow(big)
+names(big) <- paste0("y", 1:ncol(big))
 
 tic()
-for (i in 2:ncol(age)) {
-  age[get(names(age)[i]) > 0, c(names(age)[i]) := get(names(age)[i-1]) + 1 ]
-}
+calc_age(big)
 toc() # 2.6 seconds on 491,520 rows
-# 81.829 seconds for 62,914,560 rows. Wow! This should work fine, as long as I can figure out a good way to load in all that data. 
+# 93.915 seconds for 62,914,560 rows, 14 columns. Wow! This should work fine, as long as I can figure out a good way to load in all that data. 
 
 
 
@@ -523,15 +546,36 @@ toc() # 2.6 seconds on 491,520 rows
 
 # trying it with set
 # -------------------------------
-tic()
-for (x in 2:ncol(age)) {
-  set(age, 
-      which(age[[names(age)[x]]] > 0), 
-      j = names(age)[x], 
-      value = age[get(names(age)[x]) > 0, get(names(age)[x-1])] + 1)
+calc_age_set <- function(dt) {
+  for (x in 2:ncol(dt)) {
+    set(dt, 
+        which(dt[[names(dt)[x]]] > 0), 
+        j = names(dt)[x], 
+        value = dt[get(names(dt)[x]) > 0, get(names(dt)[x-1])] + 1)
+  }
 }
-toc() # 94.22 seconds for 64 million rows
-# this worked too, but it's a bit slower. I'll use the other since it's simpler, and keep this in the back pocket until then. 
+
+calc_age_set_ind <- function(dt) {
+  for (x in 2:ncol(dt)) {
+    set(dt, 
+        which(dt[[x]] > 0), 
+        j = x, 
+        value = dt[get(names(dt)[x]) > 0, get(names(dt)[x-1])] + 1)
+  }
+}
+
+big <- copy(bin)
+for (i in 1:22) {big <- rbind(big, big)} # make age big:
+object_size(big); nrow(big); ncol(big)
+names(big) <- paste0("y", 1:ncol(big))
+
+# benchmarking
+tic(); calc_age(big); toc() # 88.971 seconds for 62.9 million rows, 14 col
+tic(); calc_age_set(big); toc() # 104.153 seconds for 62.9 million rows, 14 col
+tic(); calc_age_set_ind(big); toc() # 101.752 seconds for 62.9 million rows, 14 col
+
+# set (and set_ind) worked too, but it's a bit slower. I'll use the other since it's simpler, and keep this in the back pocket until then.
+
 
 
 # original code
@@ -557,6 +601,139 @@ for (i in 1:nrow(dt)) {
 
 ```
 
+
+Filter out cells t
+```{r filter-age-for-abandonment}
+# At this stage, the "age" data.table captures the length of time a given pixel has been in noncrop (grassland or woody vegetation) since the start of the time period. However, we need to filter our land was already in noncrop at the start of the time-series, and never was in agriculture. Essentially, we need to select only those periods that come after a 0, signifying a period of cropland.
+
+
+# Some filtering steps:
+# 1. Must have crop (0) at some point in the time series. But... what about pixels that start in noncrop and transition to crop?
+# 2. Must have crop specifically before noncrop transition. 
+
+# We could start by simply removing pixels with an age in the final year equal to the number of years in the time-series.
+# 3. 
+
+# testing grounds
+
+age <- copy(bin)
+names(age) <- paste0("V", 1:ncol(age))
+calc_age(age)
+print(age)
+
+dt <- copy(age)
+row1 <- unlist(dt[1,]) %T>% print()
+row1
+
+which(row1 == 0)[1] # this is the index of the first column with a zero. This is where the periods start to refer to abandonment age.
+which(dt[5,] == 0)[1]
+
+1:(which(dt[V1 > 0][5, ] == 0)[1] - 1) # columns
+
+dt
+
+# -------------------------------
+# set rows with no 0s to NA (i.e. consistently non-crop)
+# -------------------------------
+names(dt)[ncol(dt)]
+set(dt, i = which(dt[["V14"]] == 14), j = 1:ncol(dt), value = NA) # first code.
+set(dt, i = which(dt[[length(dt)]] == length(dt)), j = 1:length(dt), value = NA) # to work with any number of columns. lenght() works just the same as ncol() but apparently is a bit faster
+
+dt
+
+# -------------------------------
+# filter out rows that are consistently crop, (have a row sum of 0, so no years with noncrop)
+# -------------------------------
+# calculate rowsum
+dt # can be age, or binary 0 or 1
+dt[, rowsum := rowSums(.SD)][rowsum == 0] # can also include .SDcols = 1:14
+
+dt[, rowSums(.SD) > 0] # you can have an expression in j, which returns logical vector
+
+dt[dt[, rowSums(.SD) > 0]]
+
+
+# -------------------------------
+# select only cells that are noncrop in first year: dt[V1 > 0]
+# -------------------------------
+dt[V1 > 0]
+
+which(dt_diff[[1]] == -1)
+
+dt
+# -------------------------------
+# diff
+# -------------------------------
+# what's the best way to identify where the first transition happens?
+
+# first, copy the data.table, then remove the first column, add a NA column at the end.
+# then simply subtract the two DT
+dt <- copy(bin)
+names(dt) <- paste0("V", 1:ncol(dt))
+dt
+dt_lead <- copy(dt)
+dt_lead[, V1 := NULL][, end := NA]
+
+dt_diff <- dt_lead - dt # this works just the same.
+dt_diff[, end := NULL]
+dt_diff
+
+for (i in 1:nrow(dt[V1 > 0])){
+  set(dt[V1 > 0], # select only those rows that are not 0 in the first year
+      i, # row
+      1:(which(dt[V1 > 0][i, ] == 0)[1] - 1), # columns
+      value = NA
+      )
+}
+
+dt <- cc_create_dt()
+for (i in 2:ncol(dt)) { 
+  dt[get(names(dt)[i]) > 0, 
+     names(dt)[i] := get(names(dt)[i-1]) + 1]
+  }
+print(dt)
+
+# by columns... how do I select 0
+dt <- cc_create_dt()
+dt[V1 > 0, V1 := if(V2 == 0) {NA} else {V1}]
+# select all positive values and make them NA, until you reach a cell whose value to the right is 0
+
+
+
+filter_abn <- function(dt) {
+  for (x in 2:ncol(dt)) {
+    set(dt, 
+        which(dt[[x]] > 0), 
+        j = x, 
+        value = dt[get(names(dt)[x]) > 0, get(names(dt)[x-1])] + 1)
+  }
+}
+
+
+
+# extract periods from each pixel:
+dt[]
+
+# code with set
+for (x in 2:ncol(age)) {
+  set(age, 
+      which(age[[names(age)[x]]] > 0),  # the dt[[colname]] returns the column as a vector. nice!
+      j = names(age)[x], 
+      value = age[get(names(age)[x]) > 0, get(names(age)[x-1])] + 1)
+}
+print(age)
+
+# old code, row by row - VERY SLOW
+for (i in 1:nrow(dt)) {
+  for (j in 2:ncol(dt)) {
+    if (dt[i][[names(dt)[j]]] > 0) {
+      dt[i][[names(dt)[j]]] <- dt[i][[names(dt)[j - 1]]] + 1
+    }
+  }
+}
+
+
+```
 
 
 
@@ -845,5 +1022,20 @@ plot(noncrop_duration_avg)
 
 ```
 
+
+```{r install-OpenMP}
+remove.packages("data.table")
+install.packages("data.table", type = "source",
+    repos = "https://Rdatatable.gitlab.io/data.table")
+
+# cran version:
+remove.packages("data.table")
+install.packages("data.table")
+
+# load
+library(data.table)
+getDTthreads()
+
+```
 
 

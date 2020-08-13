@@ -36,3 +36,13 @@ env_size <- function(workspace = ls()) {
   }
   message("total workspace is ", appendLF = F); print(size, units='auto')
 }
+
+# -------------------------
+# calculate a dummy data.table
+# -------------------------
+cc_create_dt <- function(numrow = 15, numcol = 15, seed = 34L) {
+  set.seed(seed)
+  dt <- matrix(round(runif(numrow*numcol)), nrow = numrow, ncol = numcol)
+  dt <- as.data.frame(dt)
+  setDT(dt)
+}
