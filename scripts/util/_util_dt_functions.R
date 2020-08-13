@@ -4,10 +4,7 @@
 # 
 # ---------------------------------------------------------------
 
-
-# -------------------------
-# Update land cover classes values
-# -------------------------
+# ---------------- Update land cover classes values -------------------------
 
 cc_update_lc <- function(dt, make_binary = FALSE) {
   
@@ -70,61 +67,66 @@ cc_update_lc <- function(dt, make_binary = FALSE) {
 
 
 
-# 
+# ---------------- Make data.table binary ------------------
 cc_make_binary <- function(dt) {
+  
+  if (length(grep("^[xy]$", names(dt))) > 0) {
+    
+    if (!identical(names(dt)[1:2], c("x", "y"))) {
+      stop("x and y must be the first two columns in the data.table")
+    }
+    
+    for (i in 3:length(dt)) {
+      dt[, c(names(dt)[i]) := get(names(dt)[i]) - 1] 
+    
+    }
+  }
+  
+    else {
     for (i in seq_len(length(dt))) {
       dt[, c(names(dt)[i]) := get(names(dt)[i]) - 1] 
     }
-  }
+    }
+}
+# alternatively: dt <- dt - 1
 
 
+# ---------------- Filter out all crop or all noncrop pixels -------------------------
+cc_remove_nonabn <- function(dt) {
+  dt[dt[, rowSums(.SD) > 0 & rowSums(.SD) < length(.SD)], ] # this is inefficient with memory, but since I'll be in adroit anyways, it'll probably be fine.
+}
 
+# ---------------- Calculate age of each noncrop cell -------------------------
 
-# -------------------------
-# Calculate age of each noncrop cell
-# -------------------------
-# write function
-calc_age <- function(dt) {
+cc_calc_age <- function(dt) {
   for (i in 2:ncol(dt)) {
     
     # subset rows that are greater than 0 (i.e. 1, for noncrop), and
     dt[get(names(dt)[i]) > 0, 
        
        # set them equal to the previous column's value in that row, plus 1.
-       c(names(dt)[i]) := get(names(dt)[i-1]) + 1] 
+       names(dt)[i] := get(names(dt)[i-1]) + 1] 
   }
 }
 
 
 
+# ---------------- Erase noncrop non-abn periods -----------------------------
 
+# set any value that is equal to the column number to 0.
+cc_erase_nonabn_periods <- function(dt) {
+  
+  # iterate across column indices
+  for (i in seq_len(length(dt))) {
+    dt[get(names(dt)[i]) == i,  # filter rows with values equal to column number
+       names(dt)[i] := 0] # set value to 0
+  }
+  
+}
 
-# -------------------------
-# 
-# -------------------------
+# f_dowle2 = function(DT) {
+#   for (i in names(DT))
+#     DT[is.na(get(i)), (i):=0]
+# }
 
-
-
-
-
-
-# -------------------------
-# 
-# -------------------------
-
-
-
-
-
-# -------------------------
-# 
-# -------------------------
-
-
-
-
-
-# -------------------------
-# 
-# -------------------------
 

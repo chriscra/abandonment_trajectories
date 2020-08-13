@@ -46,3 +46,11 @@ cc_create_dt <- function(numrow = 15, numcol = 15, seed = 34L) {
   dt <- as.data.frame(dt)
   setDT(dt)
 }
+
+cc_create_bin <- function(x) {
+  dt <- copy(bin)
+  names(dt) <- paste0("V", 1:ncol(dt))
+  dt[12] <- 0
+  dt
+}
+

@@ -261,6 +261,52 @@ freq(r_0)
 
 ```
 
+```{r big}
+# how do I deal with such a large data.table?
+
+# two real options: 
+# 1. load the data onto adroit and run the codes there, or
+# 2. break the raster brick into chunks, maybe four or 9. 
+
+# test it
+test_dt1 <- copy(bs_dt)
+test_dt2 <- copy(bs_dt)
+test_dt2[, c("x", "y") := NULL]
+
+tic(); cc_update_lc(test_dt1); toc()
+tic(); cc_update_lc(test_dt2); toc()
+identical(test_dt1[, !c("x", "y")], test_dt2)
+
+bin_test1 <- test_dt2 -1
+bin_test2 <- copy(test_dt2)
+
+# big file
+rm(dt_merge)
+dt_merge <- fread(file = paste0(p_dat, "Abandonment/belarus_1987-88_dt.csv"))
+dt_merge[, c("x", "y") := NULL]
+names(dt_merge) <- gsub("belarus_", "y", names(dt_merge))
+object_size(dt_merge)
+
+# add more columns, if desired
+dt_merge[, c(paste0("y", 1989:2004)) := .(y1987, y1988, y1987, y1988, 
+                                          y1987, y1988, y1987, y1988, 
+                                          y1987, y1988, y1987, y1988, 
+                                          y1987, y1988, y1987, y1988)] 
+
+fwrite(dt_merge, file = paste0(p_dat, "Abandonment/test_big_dt_merge.csv"))
+rm(dt_merge)
+dt_merge <- fread(file = paste0(p_dat, "Abandonment/test_big_dt_merge.csv"))
+env_size(ls())
+
+
+# alternatively
+big <- cc_create_dt(numrow = 5*1e7, numcol = 15)
+big
+
+object_size(big)
+
+
+```
 
 ```{r prep_data.table}
 # load as a data.table
@@ -282,7 +328,8 @@ bs_dt[, names(bs_dt)[3], with = FALSE]
 
 
 # remove NA values
-
+# to remove all rows with NA values
+na.omit(dt) 
 
 
 
@@ -294,44 +341,22 @@ toc() # 0.035 seconds for the bs subset
 
 # to make it binary, just subtract 1, or use the function cc_make_binary(): see _util_dt_functions.R
 tic()
-bs_dt_bin <- bs_dt[, !c("x", "y")] - 1
+cc_make_binary(dt)
 toc()
 # 1 for noncrop
 # 0 for crop
 
-# test it
-test_dt1 <- copy(bs_dt)
-test_dt2 <- copy(bs_dt)
-test_dt2[, c("x", "y") := NULL]
-
-tic(); cc_update_lc(test_dt1); toc()
-tic(); cc_update_lc(test_dt2); toc()
-identical(test_dt1[, !c("x", "y")], test_dt2)
-
-bin_test1 <- test_dt2 -1
-bin_test2 <- copy(test_dt2)
-
-# big file
-rm(dt_merge)
-dt_merge <- fread(file = paste0(p_dat, "Abandonment/belarus_1987-88_dt.csv"))
-dt_merge[, c("x", "y") := NULL]
-names(dt_merge) <- gsub("belarus_", "y", names(dt_merge))
-object_size(dt_merge)
-
-dt_merge[, c(paste0("y", 1989:2004)) := .(y1987, y1988, y1987, y1988, 
-                                          y1987, y1988, y1987, y1988, 
-                                          y1987, y1988, y1987, y1988, 
-                                          y1987, y1988, y1987, y1988
-)] # add more columns, if desired
-test <- na.omit(dt_merge[1:100000])
 
 
+# update classes
 tic(); cc_update_lc(dt_merge); toc() # 46.621, nice, this seems to have worked.
-# to remove all rows with NA values
-dt_merge <- na.omit(dt_merge) # this removed about 2 million rows
 
-tic(); dt_merge <- dt_merge - 1; toc() # 6.8 GB, didn't work
-tic(); cc_make_binary(dt_merge); toc() # 6.8 GB,
+# remove NAs
+tic()
+na.omit(dt)
+toc()
+
+tic(); cc_make_binary(dt_merge); toc() # 6.8 GB, 13.43 seconds 
 identical(bin_test1, bin_test2)
 dt_merge[, y1987 := y1987 -1]
 dt_merge[, y1988 := y1988 -1]
@@ -498,7 +523,7 @@ env_size(ls())
 
 # check _util_dt_functions.R for function to calculate age
 
-calc_age(age)
+cc_calc_age(age)
 print(age)
 
 
@@ -529,7 +554,7 @@ object_size(big); nrow(big)
 names(big) <- paste0("y", 1:ncol(big))
 
 tic()
-calc_age(big)
+cc_calc_age(big)
 toc() # 2.6 seconds on 491,520 rows
 # 93.915 seconds for 62,914,560 rows, 14 columns. Wow! This should work fine, as long as I can figure out a good way to load in all that data. 
 
@@ -570,7 +595,7 @@ object_size(big); nrow(big); ncol(big)
 names(big) <- paste0("y", 1:ncol(big))
 
 # benchmarking
-tic(); calc_age(big); toc() # 88.971 seconds for 62.9 million rows, 14 col
+tic(); cc_calc_age(big); toc() # 88.971 seconds for 62.9 million rows, 14 col
 tic(); calc_age_set(big); toc() # 104.153 seconds for 62.9 million rows, 14 col
 tic(); calc_age_set_ind(big); toc() # 101.752 seconds for 62.9 million rows, 14 col
 
@@ -602,7 +627,7 @@ for (i in 1:nrow(dt)) {
 ```
 
 
-Filter out cells t
+
 ```{r filter-age-for-abandonment}
 # At this stage, the "age" data.table captures the length of time a given pixel has been in noncrop (grassland or woody vegetation) since the start of the time period. However, we need to filter our land was already in noncrop at the start of the time-series, and never was in agriculture. Essentially, we need to select only those periods that come after a 0, signifying a period of cropland.
 
@@ -611,107 +636,212 @@ Filter out cells t
 # 1. Must have crop (0) at some point in the time series. But... what about pixels that start in noncrop and transition to crop?
 # 2. Must have crop specifically before noncrop transition. 
 
-# We could start by simply removing pixels with an age in the final year equal to the number of years in the time-series.
-# 3. 
 
-# testing grounds
 
+# -------------------------------
+# create test dt
+# -------------------------------
 age <- copy(bin)
 names(age) <- paste0("V", 1:ncol(age))
-calc_age(age)
+cc_calc_age(age)
 print(age)
 
 dt <- copy(age)
-row1 <- unlist(dt[1,]) %T>% print()
-row1
 
-which(row1 == 0)[1] # this is the index of the first column with a zero. This is where the periods start to refer to abandonment age.
-which(dt[5,] == 0)[1]
+# or just bin, with a new row full of only 0s
+dt <- copy(bin)
+names(dt) <- paste0("V", 1:ncol(dt))
+dt[12] <- 0
 
-1:(which(dt[V1 > 0][5, ] == 0)[1] - 1) # columns
-
-dt
-
+dt <- cc_create_bin()
+dt <- cc_create_dt(numrow = 100000)
 # -------------------------------
-# set rows with no 0s to NA (i.e. consistently non-crop)
+# 1. Start by filtering out those pixels that are definitely out of scope: either all noncrop or all crop: 
 # -------------------------------
-names(dt)[ncol(dt)]
-set(dt, i = which(dt[["V14"]] == 14), j = 1:ncol(dt), value = NA) # first code.
-set(dt, i = which(dt[[length(dt)]] == length(dt)), j = 1:length(dt), value = NA) # to work with any number of columns. lenght() works just the same as ncol() but apparently is a bit faster
+# First, filter out pixels that are either always crop or always non-crop. To do this, set rows with no 0s to NA (always non-crop, or 1) and rows with no 1s to NA (always crop). Then, remove those NA rows with na.omit().
+# Or, this could be done first with the binary data.table, by selecting out rows with a rowSum > 0 but < 14. This is nice and simple.
+# alternatively, use set(), but it still requires overwriting
+# Alternatively, can use the age data.table, and select out rows with a value in the last column equal to the number of years in the time-series (14 in this example)
 
-dt
+# ----------
+# final code:
+# no need to define rowsums as its own column first. 
+dt <- dt[dt[, rowSums(.SD) > 0 & rowSums(.SD) < length(.SD)], ] # this is inefficient with memory, but since I'll be in adroit anyways, it'll probably be fine.
 
-# -------------------------------
-# filter out rows that are consistently crop, (have a row sum of 0, so no years with noncrop)
-# -------------------------------
-# calculate rowsum
-dt # can be age, or binary 0 or 1
+# as a function:
+dt <- cc_filter_nonabn(dt)
+
+
+# ----------
+# unused options below
+
+# binary first
+# a. calculate rowsum
 dt[, rowsum := rowSums(.SD)][rowsum == 0] # can also include .SDcols = 1:14
 
-dt[, rowSums(.SD) > 0] # you can have an expression in j, which returns logical vector
+dt[between(rowsum, lower = 0, upper = length(dt) - 1, incbounds = FALSE), ]
+# or 
+dt <- dt[rowsum > 0][rowsum < 14] # this way of assigning is inefficient with memory, but since I'll be in adroit anyways, it'll probably be fine.
 
-dt[dt[, rowSums(.SD) > 0]]
+# b. with set() - probably much less efficient, and I still have to assign it at the end, so it doesn't help me there. Might as well just stick with the simple above.
 
+set(dt, 
+    i = dt[, which(rowSums(.SD) == 0 | rowSums(.SD) == 14)], # indices to change
+    j = 1:length(dt), 
+    value = NA)
+
+dt <- na.omit(dt)
+
+
+# c. with age
+set(dt, i = which(dt[[length(dt)]] == length(dt)), j = 1:length(dt), value = NA) # to work with any number of columns. length() works just the same as ncol() but apparently is a bit faster
 
 # -------------------------------
-# select only cells that are noncrop in first year: dt[V1 > 0]
+# 2. Then, calculate the age of pixels
 # -------------------------------
+dt <- cc_create_bin()
+dt <- cc_filter_nonabn(dt)
+cc_calc_age(dt)
+dt[]
+
+# -------------------------------
+# 3. Then, filter out the first period of noncrop prior to abandonment
+# -------------------------------
+
+# ----------
+# a. select only cells that are noncrop in first year: dt[V1 > 0]
 dt[V1 > 0]
 
 which(dt_diff[[1]] == -1)
+dt
+
+row1 <- unlist(dt[1,]) %T>% print()
+row1
 
 dt
-# -------------------------------
-# diff
-# -------------------------------
-# what's the best way to identify where the first transition happens?
+which(dt[1,] == 0)[1] # this is the index of the first column with a zero. This is where the periods start to refer to abandonment age.
+dt[V1 > 0][1, ][]
+which(dt[V1 > 0][1,] == 0)[1]
+seq_len(which(dt[V1 > 0][1,] == 0)[1])
 
-# first, copy the data.table, then remove the first column, add a NA column at the end.
-# then simply subtract the two DT
-dt <- copy(bin)
-names(dt) <- paste0("V", 1:ncol(dt))
+set(dt[V1 > 0], 
+    i = 1L,
+    j = seq_len(which(dt[V1 > 0][1,] == 0)[1]),
+    value = -7)
+# shoot, this doesn't work with the subsetting of the data.table in set. 
+# I can either subset and assign prior to going through set, and then merge back together with the rows that start with 0, or figure out another way with DT[] syntax.
+1:(which(dt[V1 > 0][5, ] == 0)[1] - 1) # columns
+
+dt[V1 > 0, 
+   ][V2 > 0
+     ][V3 > 0
+       ][V4 > 0
+         ][V5 > 0
+           ][V6 > 0
+             ][V7 > 0, V7 := 0][]
+# this illuminated that the periods that begin the time series in noncrop will always have an age in each year that is equal to the year, or the column index
+
+
+# set any value that is equal to the index of the column to 0.
+cc_erase_nonabn_periods(dt)
+
+
+
+
+
+
+
+
+# -----------
+# benchmark set() vs. dt[] with big file 
+
+# alternatively, with set(), though this is slower, so I'm not using it:
+cc_erase_nonabn_periods2 <- function(dt) {
+  for (colindex in seq_len(length(dt))) {
+    set(dt, 
+        i = which(dt[[colindex]] == colindex),
+        j = colindex,
+        value = 0)
+}
+}
+
+big <- cc_create_dt(numrow = 1e7, numcol = 15)
+
+tic("full filtering")
+
+tic("filter non abandonment pixels")
+big <- cc_filter_nonabn(big)
+toc()  # 42.141 sec
+
+tic("calculate age")
+cc_calc_age(big) 
+toc() # 51.443
+
+# start test
+big1 <- copy(big)
+big2 <- copy(big)
+identical(big1, big2)
+
+tic("erase non abandonment periods, 1, non set")
+cc_erase_nonabn_periods(big1)
+toc() # 4.294
+nrow(big1) # 9999374
+
+tic("erase non abandonment periods, 2, with set")
+cc_erase_nonabn_periods2(big2)
+toc() # 2.976
+nrow(big2) # 3671767
+
+identical(big1, big2)
+
+toc()
+
+
+```
+
+```{r extract-age}
+# -------------------------------
+# 4. Extract periods from each pixel:
+# -------------------------------
 dt
+
+# I want the values of cells that are immediately followed by a 0, or in the last column
+dt[9, max(.SD)]
+row9 <- unlist(dt[9, ], use.names = FALSE)
+row9 %>% length
+diff(row9) %>% length()
+which(diff(row9) < 0)
+row9[which(diff(row9) < 0)]
+
+# make diff
 dt_lead <- copy(dt)
-dt_lead[, V1 := NULL][, end := NA]
+dt_lead[, V1 := NULL][, end := 0]
 
 dt_diff <- dt_lead - dt # this works just the same.
-dt_diff[, end := NULL]
 dt_diff
 
-for (i in 1:nrow(dt[V1 > 0])){
-  set(dt[V1 > 0], # select only those rows that are not 0 in the first year
-      i, # row
-      1:(which(dt[V1 > 0][i, ] == 0)[1] - 1), # columns
-      value = NA
-      )
+length(dt_diff)
+dt_diff[V2 > 0, V2]
+dt_diff[get(names(dt_diff)[14]) < 0, get(names(dt_diff)[14])]
+
+extract_lengths <- function(dt) {
+  abn_lengths <- vector(mode = "numeric")
+  for(i in seq_len(length(dt))) {
+    abn_lengths <- c(abn_lengths, 
+                     dt[get(names(dt)[i]) < 0,
+                        get(names(dt)[i])])
+  }
+  abn_lengths
 }
 
-dt <- cc_create_dt()
-for (i in 2:ncol(dt)) { 
-  dt[get(names(dt)[i]) > 0, 
-     names(dt)[i] := get(names(dt)[i-1]) + 1]
-  }
-print(dt)
+lengths <- extract_lengths(dt_diff)
 
-# by columns... how do I select 0
-dt <- cc_create_dt()
-dt[V1 > 0, V1 := if(V2 == 0) {NA} else {V1}]
-# select all positive values and make them NA, until you reach a cell whose value to the right is 0
+length(dt)
+length(dt_diff)
+
+dt[V14 > 0, V14] # periods from the last column
 
 
-
-filter_abn <- function(dt) {
-  for (x in 2:ncol(dt)) {
-    set(dt, 
-        which(dt[[x]] > 0), 
-        j = x, 
-        value = dt[get(names(dt)[x]) > 0, get(names(dt)[x-1])] + 1)
-  }
-}
-
-
-
-# extract periods from each pixel:
 dt[]
 
 # code with set
@@ -735,6 +865,14 @@ for (i in 1:nrow(dt)) {
 
 ```
 
+
+```{r filtering-workflow}
+dt <- cc_create_bin()
+dt <- cc_filter_nonabn(dt)
+cc_calc_age(dt) 
+cc_erase_nonabn_periods(dt)
+
+```
 
 
 ```{r plot-trajectory-per-pixel}
