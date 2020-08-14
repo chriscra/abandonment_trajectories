@@ -407,6 +407,12 @@ DT_lead[, y1987 := NULL][, end := NA]
 DT_diff <- DT_lead - DT # this works just the same.
 DT_diff[, end := NULL]
 
+
+# simplified, as a function (note, that it sets end to 0 and doesn't remove end as the last step)
+dt
+dt_diff2 <- cc_make_diff(dt)
+
+
 # using apply works too, but it's slow with big data.tables
 # this works on either data.frames or data.tables, but it's really slow with big data.tables, since it has to transpose all the rows. 
 tic(); t(apply(as.data.frame(DT), 1, diff)); toc()
@@ -705,7 +711,7 @@ cc_calc_age(dt)
 dt[]
 
 # -------------------------------
-# 3. Then, filter out the first period of noncrop prior to abandonment
+# 3. Then, erase the first period of noncrop prior to abandonment
 # -------------------------------
 
 # ----------
@@ -742,11 +748,9 @@ dt[V1 > 0,
 # this illuminated that the periods that begin the time series in noncrop will always have an age in each year that is equal to the year, or the column index
 
 
+# final codes:
 # set any value that is equal to the index of the column to 0.
 cc_erase_nonabn_periods(dt)
-
-
-
 
 
 
@@ -817,51 +821,70 @@ row9[which(diff(row9) < 0)]
 dt_lead <- copy(dt)
 dt_lead[, V1 := NULL][, end := 0]
 
+dt_lead[, names(dt_lead)[1] := NULL][, end := 0]
 dt_diff <- dt_lead - dt # this works just the same.
 dt_diff
+
+# as a function
+cc_make_diff <- function(dt){
+  dt_lead <- copy(dt)
+  dt_lead[, names(dt_lead)[1] := NULL][, end := 0]
+  dt_diff <- dt_lead - dt
+}
+
+dt
+dt_diff2 <- cc_make_diff(dt)
+identical(dt_diff, dt_diff2)
 
 length(dt_diff)
 dt_diff[V2 > 0, V2]
 dt_diff[get(names(dt_diff)[14]) < 0, get(names(dt_diff)[14])]
 
-extract_lengths <- function(dt) {
-  abn_lengths <- vector(mode = "numeric")
-  for(i in seq_len(length(dt))) {
-    abn_lengths <- c(abn_lengths, 
-                     dt[get(names(dt)[i]) < 0,
-                        get(names(dt)[i])])
-  }
-  abn_lengths
-}
+# extract lengths
 
-lengths <- extract_lengths(dt_diff)
-
-length(dt)
-length(dt_diff)
-
-dt[V14 > 0, V14] # periods from the last column
+lengths <- cc_extract_lengths(dt_diff)
 
 
-dt[]
+# try with a big file:
 
-# code with set
-for (x in 2:ncol(age)) {
-  set(age, 
-      which(age[[names(age)[x]]] > 0),  # the dt[[colname]] returns the column as a vector. nice!
-      j = names(age)[x], 
-      value = age[get(names(age)[x]) > 0, get(names(age)[x-1])] + 1)
-}
-print(age)
+big <- cc_create_dt(numrow = 2e7, numcol = 15)
+object_size(big)
 
-# old code, row by row - VERY SLOW
-for (i in 1:nrow(dt)) {
-  for (j in 2:ncol(dt)) {
-    if (dt[i][[names(dt)[j]]] > 0) {
-      dt[i][[names(dt)[j]]] <- dt[i][[names(dt)[j - 1]]] + 1
-    }
-  }
-}
+tic("filter non abandonment pixels")
+big <- cc_filter_nonabn(big)
+toc()  # 42.141 sec
 
+tic("calculate age")
+cc_calc_age(big) 
+toc() # 51.443
+
+tic("erase non abandonment periods")
+cc_erase_nonabn_periods(big)
+toc() # 4.294
+
+
+tic("make diff")
+big_diff <- cc_make_diff(big)
+toc() # 7.656 s for 20 M rows
+object_size(big_diff) # 2.4 GB
+env_size(ls())
+
+
+tic("extract lengths")
+big_lengths <- cc_extract_lengths(big_diff)
+toc() # 15 sec for 20 M rows
+
+object_size(big_lengths)
+length(big_lengths)
+big_lengths[big_lengths > 1] %>% length
+table(big_lengths)
+
+dt_lengths <- data.table(length = big_lengths)
+dt_lengths[, .N, by = length]
+
+identical(big1, big2)
+
+toc()
 
 ```
 
@@ -871,7 +894,10 @@ dt <- cc_create_bin()
 dt <- cc_filter_nonabn(dt)
 cc_calc_age(dt) 
 cc_erase_nonabn_periods(dt)
+lengths <- cc_extract_lengths(dt_diff)
 
+mean(lengths)
+abs(lengths)
 ```
 
 
