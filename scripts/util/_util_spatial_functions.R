@@ -11,6 +11,11 @@ normalize <- function(x) {
   (x - cellStats(x,"min")) / (cellStats(x,"max") - cellStats(x,"min"))
 }
 
+# --------------- gdal_polygonizeR function -----------------
+
+# Originally written by Lyndon Estes (Clark University), and 
+# expanded upon by John Baumgartner:
+# https://johnbaumgartner.wordpress.com/2012/07/26/getting-rasters-into-shape-from-r/
 
 gdal_polygonizeR <- function(x, outshape=NULL, gdalformat = 'ESRI Shapefile',
                              pypath=NULL, readpoly=TRUE, quiet=TRUE) {

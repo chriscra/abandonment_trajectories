@@ -339,9 +339,9 @@ cc_update_lc(bs_dt)
 toc() # 0.035 seconds for the bs subset
 
 
-# to make it binary, just subtract 1, or use the function cc_make_binary(): see _util_dt_functions.R
+# to make it binary, just subtract 1, or use the function cc_make_dt_binary(): see _util_dt_functions.R
 tic()
-cc_make_binary(dt)
+cc_make_dt_binary(dt)
 toc()
 # 1 for noncrop
 # 0 for crop
@@ -356,7 +356,7 @@ tic()
 na.omit(dt)
 toc()
 
-tic(); cc_make_binary(dt_merge); toc() # 6.8 GB, 13.43 seconds 
+tic(); cc_make_dt_binary(dt_merge); toc() # 6.8 GB, 13.43 seconds 
 identical(bin_test1, bin_test2)
 dt_merge[, y1987 := y1987 -1]
 dt_merge[, y1988 := y1988 -1]
@@ -410,7 +410,7 @@ DT_diff[, end := NULL]
 
 # simplified, as a function (note, that it sets end to 0 and doesn't remove end as the last step)
 dt
-dt_diff2 <- cc_make_diff(dt)
+dt_diff2 <- cc_diff_dt(dt)
 
 
 # using apply works too, but it's slow with big data.tables
@@ -826,14 +826,14 @@ dt_diff <- dt_lead - dt # this works just the same.
 dt_diff
 
 # as a function
-cc_make_diff <- function(dt){
+cc_diff_dt <- function(dt){
   dt_lead <- copy(dt)
   dt_lead[, names(dt_lead)[1] := NULL][, end := 0]
   dt_diff <- dt_lead - dt
 }
 
 dt
-dt_diff2 <- cc_make_diff(dt)
+dt_diff2 <- cc_diff_dt(dt)
 identical(dt_diff, dt_diff2)
 
 length(dt_diff)
@@ -864,7 +864,7 @@ toc() # 4.294
 
 
 tic("make diff")
-big_diff <- cc_make_diff(big)
+big_diff <- cc_diff_dt(big)
 toc() # 7.656 s for 20 M rows
 object_size(big_diff) # 2.4 GB
 env_size(ls())
@@ -881,6 +881,10 @@ table(big_lengths)
 
 dt_lengths <- data.table(length = big_lengths)
 dt_lengths[, .N, by = length]
+
+dt_lengths[, mean(length)] # mean of 1.86 years if using no threshold
+dt_lengths[length >= 3, mean(length)] # mean of 3.83 years if using 3 year threshold
+# but remember, this is with the dummy data.
 
 identical(big1, big2)
 
