@@ -329,7 +329,7 @@ bs_dt[, names(bs_dt)[3], with = FALSE]
 
 # remove NA values
 # to remove all rows with NA values
-na.omit(dt) 
+dt <- na.omit(dt) 
 
 
 
@@ -353,7 +353,7 @@ tic(); cc_update_lc(dt_merge); toc() # 46.621, nice, this seems to have worked.
 
 # remove NAs
 tic()
-na.omit(dt)
+dt <- na.omit(dt)
 toc()
 
 tic(); cc_make_dt_binary(dt_merge); toc() # 6.8 GB, 13.43 seconds 
@@ -675,7 +675,7 @@ dt <- cc_create_dt(numrow = 100000)
 dt <- dt[dt[, rowSums(.SD) > 0 & rowSums(.SD) < length(.SD)], ] # this is inefficient with memory, but since I'll be in adroit anyways, it'll probably be fine.
 
 # as a function:
-dt <- cc_filter_nonabn(dt)
+dt <- cc_remove_non_abn(dt)
 
 
 # ----------
@@ -706,7 +706,7 @@ set(dt, i = which(dt[[length(dt)]] == length(dt)), j = 1:length(dt), value = NA)
 # 2. Then, calculate the age of pixels
 # -------------------------------
 dt <- cc_create_bin()
-dt <- cc_filter_nonabn(dt)
+dt <- cc_remove_non_abn(dt)
 cc_calc_age(dt)
 dt[]
 
@@ -750,7 +750,7 @@ dt[V1 > 0,
 
 # final codes:
 # set any value that is equal to the index of the column to 0.
-cc_erase_nonabn_periods(dt)
+cc_erase_non_abn_periods(dt)
 
 
 
@@ -774,7 +774,7 @@ big <- cc_create_dt(numrow = 1e7, numcol = 15)
 tic("full filtering")
 
 tic("filter non abandonment pixels")
-big <- cc_filter_nonabn(big)
+big <- cc_remove_non_abn(big)
 toc()  # 42.141 sec
 
 tic("calculate age")
@@ -787,7 +787,7 @@ big2 <- copy(big)
 identical(big1, big2)
 
 tic("erase non abandonment periods, 1, non set")
-cc_erase_nonabn_periods(big1)
+cc_erase_non_abn_periods(big1)
 toc() # 4.294
 nrow(big1) # 9999374
 
@@ -842,7 +842,7 @@ dt_diff[get(names(dt_diff)[14]) < 0, get(names(dt_diff)[14])]
 
 # extract lengths
 
-lengths <- cc_extract_lengths(dt_diff)
+lengths <- cc_extract_length(dt_diff)
 
 
 # try with a big file:
@@ -851,7 +851,7 @@ big <- cc_create_dt(numrow = 2e7, numcol = 15)
 object_size(big)
 
 tic("filter non abandonment pixels")
-big <- cc_filter_nonabn(big)
+big <- cc_remove_non_abn(big)
 toc()  # 42.141 sec
 
 tic("calculate age")
@@ -859,7 +859,7 @@ cc_calc_age(big)
 toc() # 51.443
 
 tic("erase non abandonment periods")
-cc_erase_nonabn_periods(big)
+cc_erase_non_abn_periods(big)
 toc() # 4.294
 
 
@@ -870,20 +870,20 @@ object_size(big_diff) # 2.4 GB
 env_size(ls())
 
 
-tic("extract lengths")
-big_lengths <- cc_extract_lengths(big_diff)
+tic("extract length")
+big_length <- cc_extract_length(big_diff)
 toc() # 15 sec for 20 M rows
 
-object_size(big_lengths)
-length(big_lengths)
-big_lengths[big_lengths > 1] %>% length
-table(big_lengths)
+object_size(big_length)
+length(big_length)
+big_length[big_length > 1] %>% length
+table(big_length)
 
-dt_lengths <- data.table(length = big_lengths)
-dt_lengths[, .N, by = length]
+dt_length <- data.table(length = big_length)
+dt_length[, .N, by = length]
 
-dt_lengths[, mean(length)] # mean of 1.86 years if using no threshold
-dt_lengths[length >= 3, mean(length)] # mean of 3.83 years if using 3 year threshold
+dt_length[, mean(length)] # mean of 1.86 years if using no threshold
+dt_length[length >= 3, mean(length)] # mean of 3.83 years if using 3 year threshold
 # but remember, this is with the dummy data.
 
 identical(big1, big2)
@@ -893,12 +893,91 @@ toc()
 ```
 
 
-```{r filtering-workflow}
-dt <- cc_create_bin()
-dt <- cc_filter_nonabn(dt)
-cc_calc_age(dt) 
-cc_erase_nonabn_periods(dt)
-lengths <- cc_extract_lengths(dt_diff)
+```{r filtering-workflow-adroit-script}
+tic("Full script")
+
+tic("load libraries")
+library(raster)
+library(data.table)
+library(devtools)
+library(tictoc)
+
+# devtools::install_github("ldemaz/dtraster")
+library(dtraster)
+
+toc()
+
+# load custom filtering functions
+source("scripts/util/_util_dt_filter_functions.R")
+
+
+tic("load raster")
+r <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
+nlayers(r) # 31 years in the time series
+names(r) <- paste0("y", 1:nlayers(r))
+toc()
+
+# load as a data.table
+tic("load data.table")
+dt <- as.data.table.raster(r)
+toc()
+
+
+tic("update land cover classes")
+cc_update_lc(dt, crop_code = 0, noncrop_code = 1)
+toc()
+
+tic ("remove NAs")
+dt <- na.omit(dt)
+toc()
+
+tic("filter non abandonment pixels")
+dt <- cc_remove_non_abn(dt)
+toc()
+
+
+tic("calculate age")
+cc_calc_age(dt)
+toc()
+
+
+tic("erase non abandonment periods")
+cc_erase_non_abn_periods(dt)
+toc() 
+
+
+dt1 <- copy(dt)
+dt1[, c("x", "y") := NULL]
+identical(dt[, -c("x", "y")], dt1)
+
+tic("write out cleaned abandonment age data.table")
+fwrite(dt, file = paste0(p_dat_derived, "age.csv"))
+toc()
+
+
+tic("make diff")
+dt_diff <- cc_diff_dt(dt)
+toc()
+
+
+
+tic("extract length")
+length <- cc_extract_length(dt_diff)
+toc() 
+
+# write out length vector
+fwrite(length, file = paste0(p_dat_derived, "length.csv"))
+
+dt_length <- data.table(length = length)
+dt_length[, .N, by = lengths]
+
+dt_length[, mean(length)] # mean of 1.86 years if using no threshold
+dt_length[length >= 3, mean(length)] # mean of 3.83 years if using 3 year threshold
+# but remember, this is with the dummy data.
+
+
+# final toc()
+toc()
 
 mean(lengths)
 abs(lengths)

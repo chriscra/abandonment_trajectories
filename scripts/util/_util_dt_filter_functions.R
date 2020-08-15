@@ -6,7 +6,7 @@
 
 # ---------------- Update land cover classes values -------------------------
 
-cc_update_lc <- function(dt) {
+cc_update_lc <- function(dt, crop_code = 0, noncrop_code = 1) {
   
   # Original Land-use class codes:
   #       1. Non-vegetated area (e.g. water, urban, barren land)
@@ -25,41 +25,62 @@ cc_update_lc <- function(dt) {
       } 
     
     for (x in names(dt[, 3:length(dt)])) {    # can also use names(dt[, !c("x", "y")])
-      set(dt, which(dt[[x]] == 0), x, NA)     # set 0 values to NA, to be later removed with na.omit()
-    } 
-    
-    for (x in names(dt[, 3:length(dt)])) {
-      set(dt, which(dt[[x]] == 1), x, NA)     # set nonveg (urban, water, etc.) to NA
+      set(dt, i = which(dt[[x]] == 0), j = x, value = NA)       
+      # set 0 values to NA
       } 
     
     for (x in names(dt[, 3:length(dt)])) {
-      set(dt, which(dt[[x]] == 3), x, 1)      # set crop from 3 to 1
+      set(dt, i = which(dt[[x]] == 1), j = x, value = NA)       
+      # set nonveg (urban, water, etc.) to NA
       } 
     
     for (x in names(dt[, 3:length(dt)])) {
-      set(dt, which(dt[[x]] == 4), x, 2)      # combine 4 (grassland) and 2 (woody)
-                                              # into a single noncrop layer (2)
+      set(dt, i = which(dt[[x]] == 2), j = x, value = noncrop_code)      
+      # set 2 (woody) to noncrop_code
+      # combining into a single noncrop layer
       }
+    
+    for (x in names(dt[, 3:length(dt)])) {
+      set(dt, i = which(dt[[x]] == 3), j = x, value = crop_code)      
+      # set crop from 3 to crop_code
+      } 
+    
+    for (x in names(dt[, 3:length(dt)])) {
+      set(dt, i = which(dt[[x]] == 4), j = x, value = noncrop_code)      
+      # set 4 (grassland) to noncrop_code
+      # combining into a single noncrop layer
+      }
+    
     } else { 
       # If the data.table doesn't have x y coordinates, use the following:
       # might be slightly faster if x and y are removed first, allowing the following
       
       for (x in seq_len(length(dt))) {
-        set(dt, which(dt[[x]] == 0), x, NA)   # set 0 values to NA
+        set(dt, i = which(dt[[x]] == 0), j = x, value = NA)   
+        # set 0 values to NA
         }     
       
       for (x in seq_len(length(dt))) {
-        set(dt, which(dt[[x]] == 1), x, NA)   # set nonveg (urban, water, etc.) to NA
+        set(dt, i = which(dt[[x]] == 1), j = x, value = NA)   
+        # set nonveg (urban, water, etc.) to NA
         }
       
       for (x in seq_len(length(dt))) {
-        set(dt, which(dt[[x]] == 3), x, 1)    # set crop from 3 to 1
+        set(dt, i = which(dt[[x]] == 2), j = x, value = noncrop_code)    
+        # set 2 (woody) to noncrop_code
+        # combining into a single noncrop layer
         }
       
       for (x in seq_len(length(dt))) {
-        set(dt, which(dt[[x]] == 4), x, 2)    # combine 4 (grassland) and 2 (woody)
-                                              # into a single noncrop layer (2)
-      }
+        set(dt, i = which(dt[[x]] == 3), j = x, value = crop_code)    
+        # set crop from 3 to crop_code
+        }
+      
+      for (x in seq_len(length(dt))) {
+        set(dt, i = which(dt[[x]] == 4), j = x, value = noncrop_code)    
+        # set 4 (grassland) to noncrop_code
+        # combining into a single noncrop layer
+        }
     }
 }
 
@@ -97,11 +118,12 @@ cc_make_dt_binary <- function(dt) {
 
 # ---------------- Filter out pixels that are either all crop or all noncrop -------------------------
 cc_remove_non_abn <- function(dt) {
+  dt[dt[, rowSums(.SD) > 0 & rowSums(.SD) < length(.SD), .SDcols = !c("x", "y")], ] 
+  
   # must be used in the format:
   # dt <- cc_remove_non_abn(dt) 
-  
-  dt[dt[, rowSums(.SD) > 0 & rowSums(.SD) < length(.SD)], ] 
   # this is inefficient with memory, but since I'll be in adroit anyways, it'll probably be fine.
+  
   # all crop row sums = 0
   # all noncrop row sums = length(dt) (i.e. the number of columns)
 }
@@ -112,7 +134,17 @@ cc_remove_non_abn <- function(dt) {
 # ---------------- Calculate age of each noncrop cell -------------------------
 
 cc_calc_age <- function(dt) {
-  for (i in 2:ncol(dt)) {
+  
+  if (length(grep("[xy]$", names(dt))) > 0) {
+    if (!identical(names(dt)[1:2], c("x", "y"))) {
+      stop("x and y must be the first two columns in the data.table")
+    }
+    start <- 4
+  } else {
+    start <- 2
+  }
+  
+  for (i in start:ncol(dt)) {
     
     # subset rows that are greater than 0 (i.e. 1, for noncrop), and
     dt[get(names(dt)[i]) > 0, 
@@ -131,7 +163,7 @@ cc_calc_age <- function(dt) {
 # This removes age values for noncrop vegetation that start time-series as noncrop - 
 # this can't be classified as abandonment, since we don't know what came before the time-series.
 
-cc_erase_nonabn_periods <- function(dt) {
+cc_erase_non_abn_periods <- function(dt) {
   
   # iterate across columns
   for (i in seq_len(length(dt))) {
@@ -155,16 +187,16 @@ cc_diff_dt <- function(dt){
 
 # ---------------- Extract lengths of all abandonment periods -----------------------------
 
-cc_extract_lengths <- function(dt_diff) {
+cc_extract_length <- function(dt_diff) {
   # note: this function only works with diff'd data.table, so that 
   # negative values mark years of recultivation (or the end of the time-series)
-  abn_lengths <- vector(mode = "numeric")
+  abn_length <- vector(mode = "numeric")
   for(i in seq_len(length(dt_diff))) {
-    abn_lengths <- c(abn_lengths, 
+    abn_length <- c(abn_length, 
                      dt_diff[get(names(dt_diff)[i]) < 0,
                              get(names(dt_diff)[i])])
   }
-  abs(abn_lengths)
+  abs(abn_length)
 }
 
 
