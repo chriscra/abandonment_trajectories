@@ -45,3 +45,12 @@ lyndon_pkgs <- c("dtraster", "lmisc", "agroEcoTradeoff")
 lyndon_inst <- lapply(lyndon_pkgs, library, character.only = TRUE) # load them
 
 
+# -------------------------
+# Additional dev packages:
+# -------------------------
+
+devtools::install_github("ropensci/rnaturalearthdata")
+devtools::install_github("ropensci/rnaturalearthhires")
+
+
+
