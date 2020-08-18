@@ -12,16 +12,26 @@ source("scripts/util/_util_pathnames.R")
 # list the needed packages and load the libraries
 # -------------------------
 
-needed_packages <- c("raster", "rgdal", "sp", "sf", "mapview", "gdalUtils", "gdata", "GISTools",
-          "rgeos", "rasterVis", "RColorBrewer", "ggplot2", "tidyr", "tidyverse",
-          "tictoc", "fasterize", "viridis", "lwgeom", "stringr", "magrittr", "pryr",
-          "maps", "forcats", "rangeBuilder", "rnaturalearth", "spatialEco", "smoothr", "parallel",
-          "ggnewscale", "reshape2", "data.table", "knitr", "rredlist",
-          "dtraster",
-          "scales",
-          "patchwork",
-          "devtools", "Hmisc", "acepack")
+needed_packages <- c(
+  "data.table", "raster", "rgdal", "sp", "sf", "mapview", 
+  "gdalUtils", "gdata", "GISTools", "rgeos", "lwgeom", "fasterize",
+  
+  "tidyverse", "lobstr", "pryr", "reshape2",
+  # tidyverse includes ggplot2, dplyr, tidyr, readr, purrr, tibble, stringr, and forcats
+  
+  # visualization:
+  "rasterVis", "RColorBrewer", "viridis",
+  "patchwork", "cowplot", # for combining multiple plots
+  
+  "tictoc",  "magrittr", "parallel", "knitr", 
+  "rredlist",
+  
+  # spatial packages, extra:
+  "rnaturalearth", "smoothr", "spatialEco", "maps", "rangeBuilder",
+  "devtools", "Hmisc", "acepack")
 
+# nice to have, but not needed:
+# c("ggnewscale", "scales",)
 
 install_missing_packages(needed_packages)
 
@@ -32,25 +42,28 @@ install_missing_packages(needed_packages)
 
 
 # -------------------------
-# Lyndon's packages, which need to be installed with devtools:
+# Additional development packages, to be installed with devtools:
 # -------------------------
 
-# # install using devtools
+# ----
+# Lyndon's packages
+
 # devtools::install_github("ldemaz/dtraster")
 # devtools::install_github("PrincetonUniversity/lmisc")
 # devtools::install_github("PrincetonUniversity/agroEcoTradeoff@devel")
 
+# ----
+# rnaturalearth extras
+
+# devtools::install_github("ropensci/rnaturalearthdata")
+# devtools::install_github("ropensci/rnaturalearthhires")
+
+
+# ----
 # load
-lyndon_pkgs <- c("dtraster", "lmisc", "agroEcoTradeoff")
-lyndon_inst <- lapply(lyndon_pkgs, library, character.only = TRUE) # load them
+github_packages <- c(
+  "dtraster", "lmisc", "agroEcoTradeoff",
+  "rnaturalearthdata", "rnaturalearthhires")
 
-
-# -------------------------
-# Additional dev packages:
-# -------------------------
-
-devtools::install_github("ropensci/rnaturalearthdata")
-devtools::install_github("ropensci/rnaturalearthhires")
-
-
+github_packages_inst <- sapply(github_packages, library, character.only = TRUE) # load them
 
