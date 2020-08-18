@@ -118,7 +118,8 @@ cc_make_dt_binary <- function(dt) {
 
 # ---------------- Filter out pixels that are either all crop or all noncrop -------------------------
 cc_remove_non_abn <- function(dt) {
-  dt[dt[, rowSums(.SD) > 0 & rowSums(.SD) < length(.SD), .SDcols = !c("x", "y")], ] 
+  dt[dt[, rowSums(.SD) > 0 & rowSums(.SD) < length(.SD), 
+        .SDcols = grep("[xy]$", names(dt), invert = TRUE)], ] 
   
   # must be used in the format:
   # dt <- cc_remove_non_abn(dt) 
@@ -165,22 +166,40 @@ cc_calc_age <- function(dt) {
 
 cc_erase_non_abn_periods <- function(dt) {
   
+  if (length(grep("[xy]$", names(dt))) > 0) {
+    if (!identical(names(dt)[1:2], c("x", "y"))) {
+      stop("x and y must be the first two columns in the data.table")
+    }
+    adjustment <- 2
+  } else {
+    adjustment <- 0
+  }
+  
   # iterate across columns
-  for (i in seq_len(length(dt))) {
-    dt[get(names(dt)[i]) == i,  # filter rows with values equal to column number
-       names(dt)[i] := 0] # set value to 0
+  for (i in seq_len(length(dt) - adjustment)) {
+    dt[get(names(dt)[i + adjustment]) == i,  # filter rows with values equal to column number
+       names(dt)[i + adjustment] := 0] # set value to 0
   }
   
 }
-
 
 # ---------------- Make diff -------------------------
 
 cc_diff_dt <- function(dt){
   # produces a data.table with year-to-year lagged differences (much like base::diff())
-  dt_lead <- copy(dt)
-  dt_lead[, names(dt_lead)[1] := NULL][, end := 0]
-  dt_diff <- dt_lead - dt
+  
+  if (length(grep("[xy]$", names(dt))) > 0) {
+    if (!identical(names(dt)[1:2], c("x", "y"))) {
+      stop("x and y must be the first two columns in the data.table")
+    }
+    dt_lead <- copy(dt[, -c("x", "y")])
+    dt_lead[, names(dt_lead)[1] := NULL][, end := 0]
+    dt_lead - dt[, -c("x", "y")]
+  } else {
+    dt_lead <- copy(dt)
+    dt_lead[, names(dt_lead)[1] := NULL][, end := 0]
+    dt_lead - dt
+  }
 }
 
 
@@ -188,7 +207,7 @@ cc_diff_dt <- function(dt){
 # ---------------- Extract lengths of all abandonment periods -----------------------------
 
 cc_extract_length <- function(dt_diff) {
-  # note: this function only works with diff'd data.table, so that 
+  # note: this function only works with a diff'd data.table, so that 
   # negative values mark years of recultivation (or the end of the time-series)
   abn_length <- vector(mode = "numeric")
   for(i in seq_len(length(dt_diff))) {

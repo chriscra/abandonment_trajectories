@@ -13,7 +13,7 @@ install_missing_packages <- function(list_of_packages) {
   if(length(new_packages)) {
     install.packages(new_packages, repo = 'https://cloud.r-project.org/')
   } 
-  sapply(list_of_packages, require, character.only = TRUE)
+  sapply(list_of_packages, library, character.only = TRUE)
 }
 
 
@@ -48,9 +48,12 @@ cc_create_dt <- function(numrow = 15, numcol = 15, seed = 34L) {
 }
 
 cc_create_bin <- function(x) {
-  dt <- copy(bin)
-  names(dt) <- paste0("V", 1:ncol(dt))
+  dt <- cc_create_dt()
+  dt[3] <- 1
+  dt[13] <- 1
   dt[12] <- 0
+  dt[4, 1:4] <- 1
+  dt[14, 1] <- 1
   dt
 }
 
