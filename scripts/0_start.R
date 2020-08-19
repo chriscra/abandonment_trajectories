@@ -20,7 +20,7 @@ needed_packages <- c(
   # tidyverse includes ggplot2, dplyr, tidyr, readr, purrr, tibble, stringr, and forcats
   
   # visualization:
-  "rasterVis", "RColorBrewer", "viridis",
+  "rasterVis", "RColorBrewer", "viridis", "scales",
   "patchwork", "cowplot", # for combining multiple plots
   
   "tictoc",  "magrittr", "parallel", "knitr", 
@@ -31,7 +31,7 @@ needed_packages <- c(
   "devtools", "Hmisc", "acepack")
 
 # nice to have, but not needed:
-# c("ggnewscale", "scales",)
+# c("ggnewscale",)
 
 install_missing_packages(needed_packages)
 

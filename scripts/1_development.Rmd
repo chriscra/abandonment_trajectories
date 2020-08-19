@@ -98,6 +98,71 @@ dt_merge_counts <- dt_merge[, .(count = .N), by = belarus_1988]
 barplot(data = dt_merge_counts, count ~ belarus_1988)
 ```
 
+```{r load-GEE}
+p_eefull <- "/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/eefull/"
+b_files <- list.files(p_eefull) %>%
+  grep("belarus", ., value = TRUE)
+
+b1 <- brick(paste0(p_eefull, b_files[1]))
+s <- brick(paste0(p_eefull, b_files[7]))
+s
+plot(s[[1]])
+ncell(b1)
+ncell(s)
+res(s)
+res(b1)
+nlayers(b1)
+nlayers(s)
+raster::area(s[[1]])
+22592862 * res(s)[1] * res(s)[2]
+34668544 * res(b1)[1] * res(b1)[2]
+
+
+res(b1)[1] * 110 * 1000 # about 30 m checks out
+res(s)[1] * 110 * 1000 # about 30 m checks out
+b
+
+plot(s[[1]], main = "Shaanxi 1987", breaks = plot_breaks, col = plot_cols)
+
+b <- lapply(1:6, function(i) {
+    brick(paste0(p_eefull, b_files[i]))})
+names(b) <- b_files[1:6]
+
+
+# Shaanxi is much much smaller than Belarus
+ncell(s) # 94.4 M
+ncell(b87_r) # 22.59 M
+# they have the same resolution
+res(s)
+res(b)
+
+# my sense is that the size difference just comes down to differences in the Landsat images that are used. Ask He about this. 
+
+
+# full landsat scene, but just for individual years
+b87_r <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_1987.tif")
+b88_r <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_1988.tif")
+
+# simple plots
+plot(b87_r, main = "Belarus 1987", breaks = plot_breaks, col = plot_cols)
+plot(b$`belarus-0000000000-0000000000.tif`[[1]], main = "Belarus 1987", col = "red", add = TRUE)
+plot(b[[1]][[1]], main = "Belarus 1987, 1", col = "gray", alpha = 0.5)
+
+
+plot()
+
+
+# as data.tables
+
+dt_s <- as.data.table.raster(s)
+object_size(dt_s)
+dt <- dt_s
+names(dt) <- gsub("andcover", "y", names(dt))
+ncol(dt)
+dt[, .N, by = .(y1987)] # one year
+
+```
+
 ```{r colors}
 # define color palette for plotting:
 # 1. Non-veg
@@ -117,6 +182,9 @@ plot_cols_new <- c("gray80", # gray, 1. Non-veg
 
 plot_breaks <- c(0, 1, 2, 3, 4)
 
+show_col(terrain.colors(20))
+show_col(topo.colors(20))
+show_col(cm.colors(20))
 
 show_col(plot_cols)
 show_col(plot_cols[c(1, 3, 2)])
@@ -954,9 +1022,7 @@ dt_diff2 <- cc_diff_dt(dt2)
 
 
 ```{r filtering-workflow-adroit-script}
-tic("Full script")
 
-tic("load libraries")
 library(raster)
 library(data.table)
 library(devtools)
@@ -965,7 +1031,9 @@ library(tictoc)
 # devtools::install_github("ldemaz/dtraster")
 library(dtraster)
 
-toc()
+
+
+tic("Full script")
 
 # load custom filtering functions
 source("scripts/util/_util_dt_filter_functions.R")
@@ -977,6 +1045,8 @@ r <- brick("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/b
 nlayers(r) # 31 years in the time series
 names(r) <- paste0("y", 1:nlayers(r))
 toc()
+
+
 
 # load as a data.table
 tic("load data.table")
@@ -1008,7 +1078,7 @@ toc()
 
 
 tic("write out cleaned abandonment age data.table")
-fwrite(dt, file = "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/age.csv")
+fwrite(dt, file = "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/age_s.csv")
 toc()
 
 
@@ -1024,7 +1094,7 @@ toc()
 
 # write out length
 length <- data.table(length = length)
-fwrite(length, file = "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/length.csv")
+fwrite(length, file = "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/length_s.csv")
 
 # explore some stats:
 length[, .N, by = length]
