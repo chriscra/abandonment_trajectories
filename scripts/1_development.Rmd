@@ -154,12 +154,15 @@ plot()
 
 # as data.tables
 
-dt_s <- as.data.table.raster(s)
-object_size(dt_s)
+dt <- as.data.table.raster(s)
+object_size(dt)
 dt <- dt_s
 names(dt) <- gsub("andcover", "y", names(dt))
 ncol(dt)
 dt[, .N, by = .(y1987)] # one year
+
+
+fwrite(dt, file = paste0(p_dat_derived, "shaanxi.csv"))
 
 ```
 
@@ -1078,7 +1081,7 @@ toc()
 
 
 tic("write out cleaned abandonment age data.table")
-fwrite(dt, file = "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/age_s.csv")
+fwrite(dt, file = "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/shaanxi_age.csv")
 toc()
 
 
@@ -1094,16 +1097,54 @@ toc()
 
 # write out length
 length <- data.table(length = length)
-fwrite(length, file = "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/length_s.csv")
+fwrite(length, file = "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/shaanxi_length.csv")
 
 # explore some stats:
 length[, .N, by = length]
 length[, mean(length)] # mean time abandoned if using no threshold
-length[length >= 3, mean(length)] # mean time abandoned, if using 3 year abandonment definition threshold
+length[length >= 5, mean(length)] # mean time abandoned, if using 3 year abandonment definition threshold
 
 
 # final toc()
 toc()
+```
+
+```{r plot-results}
+
+length
+dt[, .N, by = andcover1987]
+# out of 
+11550730 + # 1 (grassland or woody vegetation)
+  8135598 # 0 (crop) 
+19686328 # 19 M cells (19,686,328)
+dt # 8,290,074 of them were abandoned at some point (even just fallowed)
+nrow(dt)/19686328 * 100 # 42.11 %
+
+summary(length[[1]])
+  #  Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  # 1.000   2.000   4.000   6.617  10.000  30.000
+
+length[length >= 3, summary(length)]
+  #  Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  # 3.000   4.000   7.000   9.596  14.000  30.000 
+
+length[length >= 5, summary(length)]
+   # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   # 5.00    6.00   10.00   12.01   15.00   30.00
+
+object_size(length)
+object_size(dt)
+object_size(dt_diff)
+object_size(dt_s)
+
+hist(length[[1]], main = "Histogram of Length of Time Abandoned \n Shaanxi/Shanxi Provinces, China", xlab = "Time (years)")
+
+
+plot(s[[1]], main = "Shaanxi 1987", breaks = plot_breaks, col = plot_cols)
+
+plot(s[[31]], main = "Shaanxi 2017", breaks = plot_breaks, col = plot_cols)
+
+
 ```
 
 
@@ -1111,9 +1152,14 @@ toc()
 ncell(bt)
 # subset the data.table, for plotting
 sub <- bs_dt[1:10, -c(1,2)]
+sub[, pixel := c(1:10)]
+
+sub <- dt[1:10, -c(1,2)]
+sub
+
 names(sub) <- gsub("y", "", names(sub))
 sub[, pixel := c(1:10)]
-sub
+
 
 
 sub_melt <- melt(sub, id.vars = "pixel", 
