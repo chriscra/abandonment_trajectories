@@ -1,0 +1,486 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options:
+  chunk_output_type: console
+bibliography: /Users/christophercrawford/Google Drive/Library/library.bib
+---
+R notebook for loading and processing the land cover time-series raster data from @Yin2020.
+
+
+```{r initialize}
+source("scripts/0_start.R")
+
+# define color palette for plotting:
+# 1. Non-veg
+# 2. Woody veg
+# 3. Crop
+# 4. Grassland
+plot_cols <- c("gray80", # gray, 1. Non-veg
+               terrain.colors(9)[1], # dark green, 2. Woody veg
+               terrain.colors(9)[5], # gold, 3. Crop
+               terrain.colors(9)[3] # light green, 4. Grassland
+               )
+plot_cols_new <- c("gray80", # gray, 1. Non-veg
+               terrain.colors(9)[5], # gold, 2 (formerly 3) Crop
+               terrain.colors(9)[3], # light green, 3 (formerly 4) Grassland
+               terrain.colors(9)[1]  # dark green, 4 (formerly 2) Woody veg
+               )
+
+plot_breaks <- c(0, 1, 2, 3, 4)
+
+# show_col(terrain.colors(20))
+# show_col(topo.colors(20))
+# show_col(cm.colors(20))
+# 
+# show_col(plot_cols)
+# show_col(plot_cols[c(1, 3, 2)])
+```
+
+```{r load-data}
+# Land use class codes:
+#       1. Non-vegetated area (e.g. water, urban, barren land)
+#       2. Woody vegetation
+#       3. Cropland 
+#       4. Herbaceous land (e.g. grassland)
+
+bs <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
+bs_dt <- as.data.table.raster(bs)
+
+
+# GEE
+p_eefull <- "/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/eefull/"
+ee_files <- list.files(p_eefull)
+
+b1 <- brick(paste0(p_eefull, ee_files[1]))
+s <- brick(paste0(p_eefull, ee_files[7]))
+s
+plot(s[[1]])
+ncell(b1)
+ncell(s)
+res(s)
+res(b1)
+nlayers(b1)
+nlayers(s)
+raster::area(s[[1]])
+22592862 * res(s)[1] * res(s)[2]
+34668544 * res(b1)[1] * res(b1)[2]
+
+
+res(b1)[1] * 110 * 1000 # about 30 m checks out
+res(s)[1] * 110 * 1000 # about 30 m checks out
+b
+
+plot(s[[1]], main = "Shaanxi 1987", breaks = plot_breaks, col = plot_cols)
+
+# just belarus files, but not necessary
+# b_files <- list.files(p_eefull) %>%
+#   grep("belarus", ., value = TRUE)
+
+
+b <- lapply(1:6, function(i) {
+    brick(paste0(p_eefull, ee_files[i]))})
+names(b) <- ee_files[1:6]
+
+# Shaanxi is much much smaller than Belarus
+ncell(s) # 94.4 M
+ncell(b87_r) # 22.59 M
+# they have the same resolution
+res(s)
+res(b)
+
+
+
+
+# as data.tables
+dt <- as.data.table.raster(s)
+object_size(dt)
+dt <- dt_s
+names(dt) <- gsub("andcover", "y", names(dt))
+ncol(dt)
+dt[, .N, by = .(y1987)] # one year
+
+
+fwrite(dt, file = paste0(p_dat_derived, "shaanxi.csv"))
+dt <- fread(input = paste0(p_dat_derived, "shaanxi.csv"))
+```
+
+
+
+```{r simple-plots}
+show_col(plot_cols) # (topleft = 1, topright = 2, bottomleft = 3, bottomright = 4)
+# gray,         1. Non-veg
+# dark green,   2. Woody veg
+# gold,         3. Crop
+# light green,  4. Grassland
+
+plot(b87_r, main = "Belarus 1987", breaks = plot_breaks, col = plot_cols)
+plot(bs$smolensk1987, add = T, legend = F, col = "blue")
+plot(bt$smolensk1987, add = T, legend = F, col = "red")
+bs
+
+plot(bs$smolensk1987, main = "Subset: Belarus 1987", 
+     breaks = plot_breaks, col = plot_cols)
+
+plot(bt$smolensk1987, main = "Subset Subset: Belarus 1987", 
+     breaks = plot_breaks, col = plot_cols)
+
+
+# --------------
+# animate
+# --------------
+# https://www.rdocumentation.org/packages/raster/versions/3.1-5/topics/animate
+
+animate(bt, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
+        breaks = plot_breaks, col = plot_cols)
+
+```
+
+
+```{r final-processing-workflow-w-tictoc}
+# script for computing cluster
+
+library(raster)
+library(data.table)
+library(devtools)
+library(tictoc)
+
+# devtools::install_github("ldemaz/dtraster")
+library(dtraster)
+
+tic("Full script")
+
+file <- "/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_small.tif"
+name <- "shaanxi"
+path <- p_dat_derived
+
+# load custom filtering functions
+source("scripts/util/_util_dt_filter_functions.R")
+
+
+tic("load raster")
+r <- brick(file)
+
+nlayers(r) # 31 years in the time series
+names(r) <- paste0("y", 1:nlayers(r))
+toc()
+
+
+
+# load as a data.table
+tic("load data.table")
+dt <- as.data.table.raster(r)
+toc()
+
+# update names of data.table, if not already updated
+names(dt) <- gsub("andcover", "y", names(dt))
+
+# write out data.table as a csv
+fwrite(dt, file = paste0(path, name, ".csv"))
+
+
+# ----------------------
+# start heavy processing
+
+tic("update land cover classes")
+cc_update_lc(dt, crop_code = 0, noncrop_code = 1)
+toc()
+
+tic ("remove NAs")
+dt <- na.omit(dt)
+toc()
+
+tic("filter non abandonment pixels")
+dt <- cc_remove_non_abn(dt)
+toc()
+
+
+tic("calculate age")
+cc_calc_age(dt)
+toc()
+
+
+tic("erase non abandonment periods")
+cc_erase_non_abn_periods(dt)
+toc()
+
+
+tic("write out cleaned abandonment age data.table")
+fwrite(dt, file = paste0(path, name, "_age.csv"))
+toc()
+path
+
+tic("make diff")
+dt_diff <- cc_diff_dt(dt)
+toc()
+
+# write out dt_diff
+tic("write out dt_diff")
+fwrite(dt_diff, file = paste0(path, name, "_diff.csv"))
+toc()
+
+
+tic("extract length")
+length <- cc_extract_length(dt_diff)
+toc()
+
+
+# write out length
+length <- data.table(length = length)
+fwrite(length, file = paste0(path, name, "_length.csv"))
+
+# write out 
+
+# explore some stats:
+length[, .N, by = length]
+length[, mean(length)] # mean time abandoned if using no threshold
+length[length >= 5, mean(length)] # mean time abandoned, if using 3 year abandonment definition threshold
+
+
+# final toc()
+toc()
+```
+
+```{r shaanxi-processing}
+# script for computing cluster
+
+library(raster)
+library(data.table)
+library(devtools)
+library(tictoc)
+
+# devtools::install_github("ldemaz/dtraster")
+library(dtraster)
+path_in <- "/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/eefull/"
+path_out <- p_dat_derived
+
+# shaanxi run
+# name <- "shaanxi"
+# file <- paste0(path_in, name, ".tif")
+
+# belarus runs
+run <- 1 # change this for each belarus run
+name <- paste0("belarus", run)
+file <- paste0(path_in, list.files(path_in)[run])
+
+# load custom filtering functions
+source("scripts/util/_util_dt_filter_functions.R")
+
+# load raster
+r <- brick(file)
+
+nlayers(r) # 31 years in the time series
+names(r) <- gsub("andcover", "y", names(r))
+# names(r) <- paste0("y", 1986 + 1:nlayers(r))
+
+
+# load as a data.table
+dt <- as.data.table.raster(r)
+
+# write out data.table as a csv
+fwrite(dt, file = paste0(path_out, name, ".csv"))
+
+
+# # read in data.table directly
+# dt <- fread(file = paste0(path_out, name, ".csv"))
+# nrow(dt) # pre processing 22,592,862
+# nrow(dt) # 8,290,074 # post processing
+# 
+# # update names of data.table, if not already updated
+# names(dt) <- gsub("andcover", "y", names(dt))
+
+
+# ----------------------
+# start heavy processing 
+
+tic()
+# update land cover classes
+cc_update_lc(dt, crop_code = 0, noncrop_code = 1)
+
+# remove NAs
+dt <- na.omit(dt)
+
+# filter non abandonment pixels
+dt <- cc_remove_non_abn(dt)
+
+# calculate age
+cc_calc_age(dt)
+
+# erase non abandonment periods
+cc_erase_non_abn_periods(dt)
+
+# write out cleaned abandonment age data.table
+fwrite(dt, file = paste0(path_out, name, "_age.csv"))
+
+# make diff
+dt_diff <- cc_diff_dt(dt)
+
+# write out dt_diff
+fwrite(dt_diff, file = paste0(path_out, name, "_diff.csv"))
+
+# extract length
+length <- cc_extract_length(dt_diff)
+
+# write out length
+length <- data.table(length = length)
+fwrite(length, file = paste0(path_out, name, "_length.csv"))
+
+
+
+# explore some stats:
+length[, .N, by = length]
+length[, mean(length)] # mean time abandoned if using no threshold
+length[length >= 5, mean(length)] # mean time abandoned, if using 3 year abandonment definition threshold
+
+toc()
+```
+
+```{r plot-results}
+length
+dt[, .N, by = andcover1987]
+# out of 
+11550730 + # 1 (grassland or woody vegetation)
+  8135598 # 0 (crop) 
+19686328 # 19 M cells (19,686,328)
+dt # 8,290,074 of them were abandoned at some point (even just fallowed)
+nrow(dt)/19686328 * 100 # 42.11 %
+
+summary(length[[1]])
+  #  Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  # 1.000   2.000   4.000   6.617  10.000  30.000
+
+length[length >= 3, summary(length)]
+  #  Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  # 3.000   4.000   7.000   9.596  14.000  30.000 
+
+length[length >= 5, summary(length)]
+   # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   # 5.00    6.00   10.00   12.01   15.00   30.00
+
+object_size(length)
+object_size(dt)
+object_size(dt_diff)
+
+hist(length[[1]], main = "Histogram of Length of Time Abandoned \n Shaanxi/Shanxi Provinces, China", xlab = "Time (years)")
+
+
+# rasters:
+plot(s[[1]], main = "Shaanxi 1987", breaks = plot_breaks, col = plot_cols)
+plot(s[[31]], main = "Shaanxi 2017", breaks = plot_breaks, col = plot_cols)
+
+
+```
+
+```{r age-rasters}
+dt
+crs(s) %>% class()
+s2017 <- dt[, .(x, y, y2017)]
+
+# convert age dt to raster
+age_r <- dt_to_raster(dt, crs(s))
+
+plot(age_r$y2017, main = "Age of Abandonment, 2017")
+rasterVis::levelplot(age_r$y2017)
+# animate
+names(age_r)
+animate(age_r, pause = 0.3, main = paste0("Abandonment Age, ", 1987:2017), maxpixels = 500000, n = 1)
+
+names(age_r)
+# write raster
+writeRaster(age_r, 
+            filename = paste0(p_dat_derived, name, "_age.tif"))
+
+# just 2017
+age_2017_r <- dt_to_raster(dt[, .(x, y, y2017)], crs(s), filename = paste0(p_dat_derived, name, "_age_2017.tif"))
+
+
+age_r
+age_r <- dt_to_raster(s2017, crs(s))
+object_size(age_r)*31 # 90.2 MB * 31 years = 2.8 GB
+
+
+
+nlayers(age_r)
+names(age_r)
+
+plot(age_r$y2017, main = "Age of abandonment in 2017")
+
+
+```
+
+
+```{r animation}
+
+# with animate package
+install.packages("animation")
+library(animation)
+saveGIF(animate(age_r, main = paste0("Abandonment Age, ", 1987:2017), maxpixels = 500000, n = 1),
+        movie.name = paste0(p_dat_derived, name, "_age_animation.gif"))
+
+
+# with magick
+library(magick)
+
+age_gif <- image_read(paste0(p_dat_derived, name, "_age_animation.gif"))
+age_gif2 <- image_animate(age_gif)
+image_write(age_gif2, paste0(p_dat_derived, name, "_age_animation2.gif"))
+
+
+
+```
+
+
+```{r plot-trajectory-per-pixel}
+ncell(bt)
+# subset the data.table, for plotting
+sub <- bs_dt[1:10, -c(1,2)]
+sub[, pixel := c(1:10)]
+
+sub <- dt[1:10, -c(1,2)]
+sub
+
+names(sub) <- gsub("y", "", names(sub))
+sub[, pixel := c(1:10)]
+
+
+
+sub_melt <- melt(sub, id.vars = "pixel", 
+                 variable.name = "year", 
+                 value.name = "land_use", na.rm = TRUE)
+
+sub_melt$year <- gsub("y", "", sub_melt$year)
+
+str(sub_melt)
+
+# set colors for plotting
+show_col(terrain.colors(9))
+
+lc_cols <- scale_color_manual(name = "Land Cover",
+                     labels = c("1" = "1. Non-veg",
+                                "2" = "2. Woody veg",
+                                "3" = "3. Crop",
+                                "4" = "4. Grassland"),
+                     values = c("1" = "gray80",
+                                "2" = terrain.colors(9)[1], # dark green
+                                "3" = terrain.colors(9)[5], # gold
+                                "4" = terrain.colors(9)[3] # light green
+                                )
+                     ) 
+
+# this plot shows the land-use trajectories of 10 individual pixels.
+gg_10_px_traj <- ggplot(data = sub_melt, 
+                        mapping = aes(x = year, y = land_use, group = pixel)) +
+  theme_classic() + 
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  geom_line(mapping = aes(color = factor(land_use)), size = 2) +
+  facet_grid(rows = vars(pixel), scales = "free_x", switch = "x") + 
+  ylim(1, 4) + lc_cols
+
+gg_10_px_traj
+#       1. Non-vegetated area (e.g. water, urban, barren land)
+#       2. Woody vegetation
+#       3. Cropland 
+#       4. Herbaceous land (e.g. grassland)
+
+
+```

@@ -22,6 +22,7 @@ needed_packages <- c(
   # visualization:
   "rasterVis", "RColorBrewer", "viridis", "scales",
   "patchwork", "cowplot", # for combining multiple plots
+  "animation", "magick",
   
   "tictoc",  "magrittr", "parallel", "knitr", 
   "rredlist",
@@ -58,12 +59,16 @@ install_missing_packages(needed_packages)
 # devtools::install_github("ropensci/rnaturalearthdata")
 # devtools::install_github("ropensci/rnaturalearthhires")
 
+# ----
+# others
+# devtools::install_github('BigelowLab/dismotools')
 
 # ----
 # load
 github_packages <- c(
   "dtraster", "lmisc", "agroEcoTradeoff",
-  "rnaturalearthdata", "rnaturalearthhires")
+  "rnaturalearthdata", "rnaturalearthhires",
+  "dismotools")
 
 github_packages_inst <- sapply(github_packages, library, character.only = TRUE) # load them
 

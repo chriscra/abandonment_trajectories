@@ -3,15 +3,45 @@ title: "Trajectories of Abandonment and Biodiversity, start document"
 output: html_notebook
 editor_options: 
   chunk_output_type: console
+bibliography: /Users/christophercrawford/Google Drive/Library/library.bib
 ---
-Repository for work to investigate the trajectories of abandoned agricultural land, and implications for biodiversity
+Notebook for initial development work related to the Abandonment Trajectories project, Summery 2020. 
+
+Abandonment Trajectories investigates the trajectories of abandoned agricultural land and their implications for biodiversity. See https://github.com/chriscra/abandonment_trajectories
+
 
 ```{r initialize}
 source("scripts/0_start.R")
 ```
 
-```{r load-data}
+```{r colors}
+# define color palette for plotting:
+# 1. Non-veg
+# 2. Woody veg
+# 3. Crop
+# 4. Grassland
+plot_cols <- c("gray80", # gray, 1. Non-veg
+               terrain.colors(9)[1], # dark green, 2. Woody veg
+               terrain.colors(9)[5], # gold, 3. Crop
+               terrain.colors(9)[3] # light green, 4. Grassland
+               )
+plot_cols_new <- c("gray80", # gray, 1. Non-veg
+               terrain.colors(9)[5], # gold, 2 (formerly 3) Crop
+               terrain.colors(9)[3], # light green, 3 (formerly 4) Grassland
+               terrain.colors(9)[1]  # dark green, 4 (formerly 2) Woody veg
+               )
 
+plot_breaks <- c(0, 1, 2, 3, 4)
+
+show_col(terrain.colors(20))
+show_col(topo.colors(20))
+show_col(cm.colors(20))
+
+show_col(plot_cols)
+show_col(plot_cols[c(1, 3, 2)])
+```
+
+```{r load-data}
 # Land use class codes:
 #       1. Non-vegetated area (e.g. water, urban, barren land)
 #       2. Woody vegetation
@@ -163,35 +193,64 @@ dt[, .N, by = .(y1987)] # one year
 
 
 fwrite(dt, file = paste0(p_dat_derived, "shaanxi.csv"))
-
+dt <- fread(input = paste0(p_dat_derived, "shaanxi.csv"))
 ```
 
-```{r colors}
-# define color palette for plotting:
-# 1. Non-veg
-# 2. Woody veg
-# 3. Crop
-# 4. Grassland
-plot_cols <- c("gray80", # gray, 1. Non-veg
-               terrain.colors(9)[1], # dark green, 2. Woody veg
-               terrain.colors(9)[5], # gold, 3. Crop
-               terrain.colors(9)[3] # light green, 4. Grassland
-               )
-plot_cols_new <- c("gray80", # gray, 1. Non-veg
-               terrain.colors(9)[5], # gold, 2 (formerly 3) Crop
-               terrain.colors(9)[3], # light green, 3 (formerly 4) Grassland
-               terrain.colors(9)[1]  # dark green, 4 (formerly 2) Woody veg
-               )
+```{r check-GEE-export}
+# my sense is that the size difference just comes down to differences in the Landsat images that are used. Ask He about this. 
 
-plot_breaks <- c(0, 1, 2, 3, 4)
+# full landsat scene, but just for individual years
+b87_r <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_1987.tif")
+b88_r <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_1988.tif")
 
-show_col(terrain.colors(20))
-show_col(topo.colors(20))
-show_col(cm.colors(20))
+# simple plots, to check the coverage of the raster bricks
+dev.off()
+plot(b87_r, main = "Belarus 1987", breaks = plot_breaks, col = plot_cols)
+extent(b87_r)
+plot(b[[1]][[1]], col = "red", add = TRUE)
+plot(b[[2]][[1]], col = "blue", add = TRUE)
+plot(b[[3]][[1]], col = "green", add = TRUE)
+plot(b[[4]][[1]], col = "orange", add = TRUE)
+plot(b[[5]][[1]], col = "purple", add = TRUE)
+plot(b[[6]][[1]], col = "pink", add = TRUE)
 
-show_col(plot_cols)
-show_col(plot_cols[c(1, 3, 2)])
+b1 <- b[[1]][[1]]
+b2 <- b[[2]][[1]]
+b3 <- b[[3]][[1]]
+b4 <- b[[4]][[1]]
+b5 <- b[[5]][[1]]
+b6 <- b[[6]][[1]]
+par(mfrow = c(3,3))
+plot(b87_r, main = "Belarus 1987", breaks = plot_breaks, col = plot_cols)
+plot(b1, breaks = plot_breaks, col = plot_cols)
+plot(b2, breaks = plot_breaks, col = plot_cols)
+plot(b3, breaks = plot_breaks, col = plot_cols)
+plot(b4, breaks = plot_breaks, col = plot_cols)
+plot(b5, breaks = plot_breaks, col = plot_cols)
+plot(b6, breaks = plot_breaks, col = plot_cols)
+
+# do the extents match? yes
+extent(b87_r)
+extent(b1)
+extent(b2)
+extent(b3)
+extent(b4)
+extent(b5)
+extent(b6)
+
+b_merge <- merge(b1, b2)
+b_merge <- merge(b_merge, b3)
+b_merge <- merge(b_merge, b4)
+b_merge <- merge(b_merge, b5)
+b_merge <- merge(b_merge, b6)
+plot(b_merge, breaks = plot_breaks, col = plot_cols)
+check <- b87_r - b_merge
+plot(check)
+cellStats(check, "sum") # 0 ... which means that the data should match up
 ```
+
+
+
 
 ```{r simple-plots}
 show_col(plot_cols) # (topleft = 1, topright = 2, bottomleft = 3, bottomright = 4)
@@ -221,6 +280,7 @@ animate(bt, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
         breaks = plot_breaks, col = plot_cols)
 
 ```
+
 
 ```{r create-tester}
 # tester
@@ -410,7 +470,6 @@ freq(r_0)
 
 ```
 
-
 ```{r prep_data.table}
 # load as a data.table
 bs_dt <- as.data.table.raster(bs)
@@ -589,7 +648,6 @@ DT_test <- DT_diff[, .SD > 0][] %>% data.table()
 DT_test[, positive := rowSums(.SD, na.rm = TRUE)][]
 ```
 
-
 ```{r age-per-pixel}
 # make your own
 set.seed(34L)
@@ -734,8 +792,6 @@ for (i in 1:nrow(dt)) {
 
 
 ```
-
-
 
 ```{r filter-age-for-abandonment}
 # At this stage, the "age" data.table captures the length of time a given pixel has been in noncrop (grassland or woody vegetation) since the start of the time period. However, we need to filter our land was already in noncrop at the start of the time-series, and never was in agriculture. Essentially, we need to select only those periods that come after a 0, signifying a period of cropland.
@@ -1024,8 +1080,7 @@ dt_diff2 <- cc_diff_dt(dt2)
 ```
 
 
-```{r filtering-workflow-adroit-script}
-
+```{r final-processing-workflow}
 library(raster)
 library(data.table)
 library(devtools)
