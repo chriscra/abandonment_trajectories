@@ -255,13 +255,8 @@ path_in <- "/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/e
 path_out <- p_dat_derived
 
 # shaanxi run
-# name <- "shaanxi"
-# file <- paste0(path_in, name, ".tif")
-
-# belarus runs
-run <- 1 # change this for each belarus run
-name <- paste0("belarus", run)
-file <- paste0(path_in, list.files(path_in)[run])
+name <- "shaanxi"
+file <- paste0(path_in, name, ".tif")
 
 # load custom filtering functions
 source("scripts/util/_util_dt_filter_functions.R")
@@ -335,7 +330,113 @@ length[length >= 5, mean(length)] # mean time abandoned, if using 3 year abandon
 toc()
 ```
 
-```{r plot-results}
+```{r belarus-processing}
+
+# belarus runs
+run <- 1 # change this for each belarus run
+
+cc_process_rasters(input_raster_file = paste0(p_eefull, list.files(p_eefull)[run]),
+                   name = paste0("belarus", run), 
+                   path_out = p_dat_derived,
+                   gsub_pattern = "smolensk")
+
+```
+
+
+```{r save-age-rasters}
+
+# as a function
+
+age_r <- cc_save_age_rasters(name = "shaanxi")
+names(age_r) <- paste0("y", 1987:2017)
+plot(age_r$y2017, main = "Age of abandonment in 2017")
+
+age_r1 <- brick("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/shaanxi_age_1.tif")
+identical(age_r, age_r1)
+
+cellStats(age_r[[31]] - age_r1[[31]], "sum")
+
+
+# -------------
+# development
+
+dt <- fread(file = paste0(path_out, name, "_age.csv"))
+
+s2017 <- dt[, .(x, y, y2017)]
+
+# convert age dt to raster
+age_r <- dt_to_raster(dt, crs(s))
+
+
+plot(age_r$y2017, main = "Age of Abandonment, 2017")
+rasterVis::levelplot(age_r$y2017)
+# animate
+names(age_r)
+animate(age_r, pause = 0.3, main = paste0("Abandonment Age, ", 1987:2017), maxpixels = 500000, n = 1)
+
+names(age_r)
+# write raster
+writeRaster(age_r, filename = paste0(p_dat_derived, name, "_age.tif"))
+names(age_r)
+
+# reload, and rename
+age_r <- brick(paste0(p_dat_derived, name, "_age.tif"))
+names(age_r) <- paste0("y", 1987:2017)
+
+# just 2017
+age_2017_r <- dt_to_raster(dt[, .(x, y, y2017)], crs(s), filename = paste0(p_dat_derived, name, "_age_2017.tif"))
+
+
+plot(age_r$y2017, main = "Age of abandonment in 2017")
+
+```
+
+```{r animation}
+
+# with animate package
+install.packages("animation")
+library(animation)
+saveGIF(animate(age_r, main = paste0("Abandonment Age, ", 1987:2017), maxpixels = 500000, n = 1), movie.name = paste0(p_dat_derived, name, "_age_animation.gif"))
+
+
+# with magick
+library(magick)
+
+age_gif <- image_read(paste0(p_dat_derived, name, "_age_animation.gif"))
+age_gif2 <- image_animate(age_gif)
+image_write(age_gif2, paste0(p_dat_derived, name, "_age_animation2.gif"))
+
+
+
+# try a simpler method, just magick
+
+# make it into a function:
+
+# take an animation made with raster::animate(), and save it as a GIF with animation::saveGIF()
+cc_save_gif <- function(raster, titles = names(raster), file_out, npixels = 5000,
+                        frames_per_second = 5) {
+  
+  # use animation::saveGIF() to save raster::animate()
+  saveGIF(animate(raster, main = titles, maxpixels = npixels, n = 1), 
+          movie.name = file_out)
+  
+  gif <- image_animate(image_read(file_out), fps = frames_per_second)
+  image_write(gif, file_out)
+}
+
+age_r
+paste0("Abandonment Age, ", 1987:2017) # titles, or names(age_r) by default
+paste0(p_dat_derived, name, "_age_animation.gif") # file_out
+
+
+cc_save_gif(age_r, npixels = 500000, paste0("Abandonment Age, ", 1987:2017),
+            frames_per_second = 5,
+            file_out = paste0(p_dat_derived, name, "_age_animation.gif"))
+
+
+```
+
+```{r plot-length}
 length
 dt[, .N, by = andcover1987]
 # out of 
@@ -370,66 +471,6 @@ plot(s[[31]], main = "Shaanxi 2017", breaks = plot_breaks, col = plot_cols)
 
 
 ```
-
-```{r age-rasters}
-dt
-crs(s) %>% class()
-s2017 <- dt[, .(x, y, y2017)]
-
-# convert age dt to raster
-age_r <- dt_to_raster(dt, crs(s))
-
-plot(age_r$y2017, main = "Age of Abandonment, 2017")
-rasterVis::levelplot(age_r$y2017)
-# animate
-names(age_r)
-animate(age_r, pause = 0.3, main = paste0("Abandonment Age, ", 1987:2017), maxpixels = 500000, n = 1)
-
-names(age_r)
-# write raster
-writeRaster(age_r, 
-            filename = paste0(p_dat_derived, name, "_age.tif"))
-
-# just 2017
-age_2017_r <- dt_to_raster(dt[, .(x, y, y2017)], crs(s), filename = paste0(p_dat_derived, name, "_age_2017.tif"))
-
-
-age_r
-age_r <- dt_to_raster(s2017, crs(s))
-object_size(age_r)*31 # 90.2 MB * 31 years = 2.8 GB
-
-
-
-nlayers(age_r)
-names(age_r)
-
-plot(age_r$y2017, main = "Age of abandonment in 2017")
-
-
-```
-
-
-```{r animation}
-
-# with animate package
-install.packages("animation")
-library(animation)
-saveGIF(animate(age_r, main = paste0("Abandonment Age, ", 1987:2017), maxpixels = 500000, n = 1),
-        movie.name = paste0(p_dat_derived, name, "_age_animation.gif"))
-
-
-# with magick
-library(magick)
-
-age_gif <- image_read(paste0(p_dat_derived, name, "_age_animation.gif"))
-age_gif2 <- image_animate(age_gif)
-image_write(age_gif2, paste0(p_dat_derived, name, "_age_animation2.gif"))
-
-
-
-```
-
-
 ```{r plot-trajectory-per-pixel}
 ncell(bt)
 # subset the data.table, for plotting

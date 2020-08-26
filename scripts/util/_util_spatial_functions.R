@@ -4,7 +4,7 @@
 # 
 # ---------------------------------------------------------------
 
-
+# Zambia functions
 invert = function(x){
   return(1-x)}
 
@@ -123,6 +123,11 @@ cc_write_bd_to_dt <- function(bd_input, input_key) {
                        input_key, .Platform$file.sep,
                        input_key, "-cons-priorities.csv"))
 }
+
+
+
+# ---------------------------------------------------------------
+
 
 
 

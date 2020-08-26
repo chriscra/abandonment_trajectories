@@ -226,4 +226,64 @@ cc_extract_length <- function(dt_diff) {
 # }
 
 
+cc_process_rasters <- function(input_raster_file, name, path_out = p_dat_derived,
+                               gsub_pattern = "andcover") {
+  # requires raster, data.table, devtools, tictoc, dtraster
+  
+  # load raster
+  r <- brick(file)
+  if (nlayers(r) != 31) {
+    stop("Raster does not have 31 layers.")
+  } 
+  
+  # update raster layer names
+  names(r) <- gsub(gsub_pattern, "y", names(r))
+  
+  # load as a data.table - warning, this is very slow
+  print("converting raster to data.table...")
+  dt <- as.data.table.raster(r)
+  print("done: data.table converted")
+  
+  # write out data.table as a csv
+  fwrite(dt, file = paste0(path_out, name, ".csv"))
+  
+  # start heavy processing
+  cc_update_lc(dt, crop_code = 0, noncrop_code = 1)  # update land cover classes
+  dt <- na.omit(dt)   # remove NAs
+  dt <- cc_remove_non_abn(dt)   # filter non abandonment pixels
+  cc_calc_age(dt)  # calculate age
+  cc_erase_non_abn_periods(dt)  # erase non abandonment periods
+  
+  # write out cleaned abandonment age data.table
+  fwrite(dt, file = paste0(path_out, name, "_age.csv"))
+  
+  # make diff
+  dt_diff <- cc_diff_dt(dt)
+  
+  # write out dt_diff
+  fwrite(dt_diff, file = paste0(path_out, name, "_diff.csv"))
+  
+  # extract length
+  length <- cc_extract_length(dt_diff)
+  
+  # write out length
+  length <- data.table(length = length)
+  fwrite(length, file = paste0(path_out, name, "_length.csv"))
+  
+}
+
+
+cc_save_age_rasters <- function(name, directory = p_dat_derived) {
+  # load dt
+  dt <- fread(file = paste0(directory, name, "_age.csv"))
+  
+  # convert age dt to raster
+  r <- dt_to_raster(dt, crs("+proj=longlat +datum=WGS84 +no_defs"))
+
+  # write raster
+  writeRaster(r, filename = paste0(directory, name, "_age.tif"))
+  
+  # reload, and assign
+  brick(paste0(directory, name, "_age.tif"))
+}
 
