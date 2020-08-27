@@ -1,13 +1,13 @@
-# ---------------------------------------------------------------
+# --------------------------------------------------------------- #
 #
 # Miscellaneous functions
 # 
-# ---------------------------------------------------------------
+# --------------------------------------------------------------- #
 
 
-# -------------------------
+# ------------------------- #
 # Install only missing packages
-# -------------------------
+# ------------------------- #
 install_missing_packages <- function(list_of_packages) {
   new_packages <- list_of_packages[!(list_of_packages %in% installed.packages()[ , "Package"])]
   if(length(new_packages)) {
@@ -17,16 +17,16 @@ install_missing_packages <- function(list_of_packages) {
 }
 
 
-# -------------------------
+# ------------------------- #
 # Update packages
-# -------------------------
+# ------------------------- #
 
 #update.packages()
 
 
-# -------------------------
+# ------------------------- #
 # calculate the sizes of items in the environment
-# -------------------------
+# ------------------------- #
 env_size <- function(workspace = ls()) {
   size = 0
   for (x in workspace){
@@ -37,9 +37,9 @@ env_size <- function(workspace = ls()) {
   message("total workspace is ", appendLF = F); print(size, units='auto')
 }
 
-# -------------------------
+# ------------------------- #
 # calculate a dummy data.table
-# -------------------------
+# ------------------------- #
 cc_create_dt <- function(numrow = 15, numcol = 15, seed = 34L) {
   set.seed(seed)
   dt <- matrix(round(runif(numrow*numcol)), nrow = numrow, ncol = numcol)
@@ -47,6 +47,9 @@ cc_create_dt <- function(numrow = 15, numcol = 15, seed = 34L) {
   setDT(dt)
 }
 
+# ------------------------- #
+#
+# ------------------------- #
 cc_create_bin <- function(x) {
   dt <- cc_create_dt()
   dt[3] <- 1

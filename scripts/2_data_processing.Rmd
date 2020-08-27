@@ -329,6 +329,7 @@ length[length >= 5, mean(length)] # mean time abandoned, if using 3 year abandon
 
 toc()
 ```
+
 ```{r save-age-rasters}
 
 # as a function
@@ -385,11 +386,13 @@ writeRaster(r, filename = paste0(directory, name, "_age.tif"))
 brick(paste0(directory, name, "_age.tif"))
 ```
 
+
 ```{r belarus-processing}
 
 # belarus runs, for loop
 run <- 1 # change this for each belarus run
 
+# initial test
 tic()
 cc_process_rasters(input_raster_file = paste0(p_eefull, list.files(p_eefull)[1]),
                      name = paste0("belarus", 1), 
@@ -398,7 +401,7 @@ cc_process_rasters(input_raster_file = paste0(p_eefull, list.files(p_eefull)[1])
 toc()
 
 tic()
-for(run in 2:6) {
+for(run in 1:6) {
   cc_process_rasters(input_raster_file = paste0(p_eefull, list.files(p_eefull)[run]),
                      name = paste0("belarus", run), 
                      path_out = p_dat_derived,
@@ -407,14 +410,75 @@ for(run in 2:6) {
 toc()
 
 
+
+
 # -------------------------------
 # load and check the belarus data
 b1_dt <- fread(input = paste0(p_dat_derived, "belarus1.csv"))
-b1_age <- fread(input = paste0(p_dat_derived, "belarus1_age.csv"))
 b1_diff <- fread(input = paste0(p_dat_derived, "belarus1_diff.csv"))
+
+b1_age <- fread(input = paste0(p_dat_derived, "belarus1_age.csv"))
+b2_age <- fread(input = paste0(p_dat_derived, "belarus2_age.csv"))
+b3_age <- fread(input = paste0(p_dat_derived, "belarus3_age.csv"))
+b4_age <- fread(input = paste0(p_dat_derived, "belarus4_age.csv"))
+b5_age <- fread(input = paste0(p_dat_derived, "belarus5_age.csv"))
+b6_age <- fread(input = paste0(p_dat_derived, "belarus6_age.csv"))
+
+
+# save rasters:
+cc_save_age_rasters(name = "belarus1") # not enough memory
+
+dt <- fread(file = paste0(p_dat_derived, "belarus1_age.csv"))
+shaanxi_age <- fread(file = paste0(p_dat_derived, "shaanxi_age.csv"))
+nrow(dt)
+nrow(shaanxi_age)
+r <- dt_to_raster(dt, crs("+proj=longlat +datum=WGS84 +no_defs"))
+writeRaster(r, filename = paste0(p_dat_derived, "belarus1_age.tif"))
+
+env_size(ls())
+plot(r)
+
+# ------------------------------
+# merge and save 2017 age layer as a raster
+# test merge
+b_age_2017 <- rbindlist(list(b1_age[, .(x, y, y2017)],
+                            b2_age[, .(x, y, y2017)],
+                            b3_age[, .(x, y, y2017)],
+                            b4_age[, .(x, y, y2017)],
+                            b5_age[, .(x, y, y2017)],
+                            b6_age[, .(x, y, y2017)])
+                       )
+
+fwrite(b_age_2017, file = paste0(p_dat_derived, "belarus_age_2017.csv"))
+
+b_age_2017_r <- dt_to_raster(b_age2017, crs("+proj=longlat +datum=WGS84 +no_defs"))
+plot(b_age_2017_r, main = "Belarus, 2017 - age of abandoned croplands")
+plot(extent(b[[1]]), add = T, col = "black")
+plot(extent(b[[2]]), add = T, col = "black")
+plot(extent(b[[3]]), add = T, col = "black")
+plot(extent(b[[4]]), add = T, col = "black")
+plot(extent(b[[5]]), add = T, col = "black")
+plot(extent(b[[6]]), add = T, col = "black")
+
+extent(b[[1]])
+
+writeRaster(b_age2017_r, filename = paste0(p_dat_derived, "belarus_age_2017.tif"))
+b_age2017_r <- raster(paste0(p_dat_derived, "belarus_age_2017.tif"))
+
+
+
 b1_length <- fread(input = paste0(p_dat_derived, "belarus1_length.csv"))
 
+b_length
 
+
+env_size(ls())
+
+
+
+```
+
+```{r merging-belarus-chunks}
 
 # -------------------------------
 # save Belarus 1 as a raster:
@@ -427,12 +491,6 @@ b1_age_r2 <- dt_to_raster(b1_age[2000001:4000000], crs("+proj=longlat +datum=WGS
 plot(b1_age_r1$y2017)
 plot(b1_age_r2$y2017, add = T)
 
-```
-
-```{r merging-belarus-chunks}
-
-
-
 # -------------------------------
 # test merging belarus chunks
 merge_test <- merge(b1_age_r1, b1_age_r2)
@@ -444,7 +502,6 @@ plot(extent(b1_age_r1), add = T, col = "black")
 plot(extent(b1_age_r2), add = T, col = "black")
 b1_age_r3 <- dt_to_raster(b1_age[1:4000000], crs("+proj=longlat +datum=WGS84 +no_defs"))
 cellStats(merge_test - b1_age_r3, "sum") # these are the same, and it looked like it worked just fine, subtracting sequentially.
-
 
 
 # try merging a full brick
@@ -465,7 +522,45 @@ plot(b1_age_r$y2017, main = "Age of abandonment in 2017")
 
 env_size(ls())
 
-# merge
+
+
+# -------------------------------
+# merge belarus length
+b1_length <- fread(input = paste0(p_dat_derived, "belarus1_length.csv"))
+
+b_length
+
+b <- lapply(1:6, function(i) {
+    brick(paste0(p_eefull, ee_files[i]))})
+
+
+# -------------------------------
+# merge belarus age
+
+
+# -------------------------------
+# merge original belarus rasters
+# 1:06
+belarus <- merge(b[[1]], 
+                 b[[2]],
+                 b[[3]],
+                 b[[4]],
+                 b[[5]],
+                 b[[6]])
+names(belarus) <- paste0("y", 1987:2017)
+tic()
+writeRaster(belarus, filename = paste0(p_dat_derived, "belarus.tif"))
+toc()
+plot(belarus$y1987, col = plot_cols, breaks = plot_breaks, main = "merged")
+plot(b87_r, col = plot_cols, breaks = plot_breaks, main = "1987 direct")
+plot(b87_r - belarus$y1987)
+
+cellStats(belarus$y1987 - b87_r, "sum")
+
+
+
+b[[1]]
+
 
 ```
 

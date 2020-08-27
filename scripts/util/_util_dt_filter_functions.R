@@ -1,11 +1,14 @@
-# ---------------------------------------------------------------
+# --------------------------------------------------------------- #
 #
 # abandonment data.table filtering functions
 # 
-# ---------------------------------------------------------------
+# --------------------------------------------------------------- #
 
-# ---------------- Update land cover classes values -------------------------
 
+
+# -------------------------------------------------------------------------- #
+# Update land cover classes values
+# -------------------------------------------------------------------------- #
 cc_update_lc <- function(dt, crop_code = 0, noncrop_code = 1) {
   
   # Original Land-use class codes:
@@ -87,8 +90,9 @@ cc_update_lc <- function(dt, crop_code = 0, noncrop_code = 1) {
 
 
 
-
-# ---------------- Make data.table binary ------------------
+# -------------------------------------------------------------------------- #
+# Make data.table binary 
+# -------------------------------------------------------------------------- #
 cc_make_dt_binary <- function(dt) {
   
   # this function takes a data.table with 1s and 2s and simply subtracts one, 
@@ -115,8 +119,9 @@ cc_make_dt_binary <- function(dt) {
 
 
 
-
-# ---------------- Filter out pixels that are either all crop or all noncrop -------------------------
+# -------------------------------------------------------------------------- #
+# Filter out pixels that are either all crop or all noncrop
+# -------------------------------------------------------------------------- #
 cc_remove_non_abn <- function(dt) {
   dt[dt[, rowSums(.SD) > 0 & rowSums(.SD) < length(.SD), 
         .SDcols = grep("[xy]$", names(dt), invert = TRUE)], ] 
@@ -131,9 +136,9 @@ cc_remove_non_abn <- function(dt) {
 
 
 
-
-# ---------------- Calculate age of each noncrop cell -------------------------
-
+# -------------------------------------------------------------------------- #
+# Calculate age of each noncrop cell
+# -------------------------------------------------------------------------- #
 cc_calc_age <- function(dt) {
   
   if (length(grep("[xy]$", names(dt))) > 0) {
@@ -157,9 +162,9 @@ cc_calc_age <- function(dt) {
 
 
 
-
-# ---------------- Erase noncrop non-abn periods -----------------------------
-
+# -------------------------------------------------------------------------- #
+# Erase noncrop non-abn periods
+# -------------------------------------------------------------------------- #
 # set any value that is equal to the column number to 0. 
 # This removes age values for noncrop vegetation that start time-series as noncrop - 
 # this can't be classified as abandonment, since we don't know what came before the time-series.
@@ -183,8 +188,10 @@ cc_erase_non_abn_periods <- function(dt) {
   
 }
 
-# ---------------- Make diff -------------------------
 
+# -------------------------------------------------------------------------- #
+#  Make diff
+# -------------------------------------------------------------------------- #
 cc_diff_dt <- function(dt){
   # produces a data.table with year-to-year lagged differences (much like base::diff())
   
@@ -203,8 +210,9 @@ cc_diff_dt <- function(dt){
 }
 
 
-
-# ---------------- Extract lengths of all abandonment periods -----------------------------
+# -------------------------------------------------------------------------- #
+# Extract lengths of all abandonment periods
+# -------------------------------------------------------------------------- #
 
 cc_extract_length <- function(dt_diff) {
   # note: this function only works with a diff'd data.table, so that 
@@ -226,61 +234,107 @@ cc_extract_length <- function(dt_diff) {
 # }
 
 
+# -------------------------------------------------------------------------- #
+# Extract lengths of all abandonment periods
+# -------------------------------------------------------------------------- #
+
 cc_process_rasters <- function(input_raster_file, name, path_out = p_dat_derived,
                                gsub_pattern = "andcover") {
   # requires raster, data.table, devtools, tictoc, dtraster
+  tic.clearlog()
   
+  tic("full script processing time")
   # load raster
+  tic("load raster")
   r <- brick(input_raster_file)
   if (nlayers(r) != 31) {
     stop("Raster does not have 31 layers.")
-  } 
+  }
+  toc(log = TRUE)
   
   # update raster layer names
+  tic("update raster layer names")
   names(r) <- gsub(gsub_pattern, "y", names(r))
+  toc(log = TRUE)
   
   # load as a data.table - warning, this is very slow
+  tic("load as a data.table")
   print("converting raster to data.table...")
   dt <- as.data.table.raster(r)
   print("done: data.table converted")
+  toc(log = TRUE)
   
   # write out data.table as a csv
+  tic("write out data.table as a csv")
   print("writing data.table to csv")
   fwrite(dt, file = paste0(path_out, name, ".csv"))
+  toc(log = TRUE)
   
   # start heavy processing
+  tic("update land cover classes")
   cc_update_lc(dt, crop_code = 0, noncrop_code = 1)  # update land cover classes
+  toc(log = TRUE)
+  
+  tic("remove NAs")
   dt <- na.omit(dt)   # remove NAs
+  toc(log = TRUE)
+  
+  tic("filter non abandonment pixels")
   dt <- cc_remove_non_abn(dt)   # filter non abandonment pixels
+  toc(log = TRUE)
+  
+  tic("calculate age")
   cc_calc_age(dt)  # calculate age
+  toc(log = TRUE)
+  
+  tic("erase non abandonment periods")
   cc_erase_non_abn_periods(dt)  # erase non abandonment periods
+  toc(log = TRUE)
   
   # write out cleaned abandonment age data.table
+  tic("write out cleaned abandonment age data.table")
   print("writing out cleaned abandonment age data.table")
   fwrite(dt, file = paste0(path_out, name, "_age.csv"))
+  toc(log = TRUE)
   
   # make diff
+  tic("make diff")
   dt_diff <- cc_diff_dt(dt)
+  toc(log = TRUE)
   
   # write out dt_diff
+  tic("write out dt_diff")
   print("writing out dt_diff")
   fwrite(dt_diff, file = paste0(path_out, name, "_diff.csv"))
+  toc(log = TRUE)
   
   # extract length
+  tic("extract length")
   length <- cc_extract_length(dt_diff)
+  toc(log = TRUE)
   
   # write out length
+  tic("write out length")
   length <- data.table(length = length)
+  toc(log = TRUE)
   
+  tic("write out length data.table")
   print("writing out length data.table")
   fwrite(length, file = paste0(path_out, name, "_length.csv"))
+  toc(log = TRUE)
   
-  print(paste0("Done: ", input_raster_file))
   
+  toc(log = TRUE) # final toc
+  
+  print(paste0("Done: ", name))
+  print(tic.log())
 }
 
 
 
+# -------------------------------------------------------------------------- #
+# save processed data.tables showing age of abandonment as rasters
+# -------------------------------------------------------------------------- #
 cc_save_age_rasters <- function(name, directory = p_dat_derived) {
   # load dt
   dt <- fread(file = paste0(directory, name, "_age.csv"))
@@ -296,6 +350,11 @@ cc_save_age_rasters <- function(name, directory = p_dat_derived) {
 }
 
 
+
+
+# -------------------------------------------------------------------------- #
+# calculate the maximum length of time abandoned (max age) for each pixel 
+# -------------------------------------------------------------------------- #
 cc_calc_max_age <- function(dt, directory = p_dat_derived, name) {
   
   dt[, max_length := max(.SD), .SDcols = -c("x", "y"), by = .(x, y)]

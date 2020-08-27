@@ -31,12 +31,21 @@ needed_packages <- c(
   "rnaturalearth", "smoothr", "spatialEco", "maps", "rangeBuilder",
   "devtools", "Hmisc", "acepack")
 
+
+# cluster_packages <- c(
+#   "data.table", "raster", "rgdal", "sp", "sf", 
+#   "gdalUtils", "gdata", "GISTools", "rgeos", "lwgeom", "fasterize",
+#   "tidyverse", "lobstr", "pryr", "reshape2",  # tidyverse includes ggplot2, dplyr, tidyr, readr, purrr, tibble, stringr, and forcats
+#   "tictoc",  "magrittr", "parallel",
+#   "devtools", "Hmisc"
+# )
+
 # nice to have, but not needed:
 # c("ggnewscale",)
 
 install_missing_packages(needed_packages)
 
-#install.packages(packages) # old method
+#install.packages(needed_packages) # old method
 # install <- lapply(needed_packages, library, character.only = TRUE) # load them
 #update.packages()
 
