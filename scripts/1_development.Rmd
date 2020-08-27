@@ -1501,11 +1501,11 @@ install.packages("data.table", type = "source",
 
 # cran version:
 remove.packages("data.table")
-install.packages("data.table")
+install.packages("data.table") # this still seems to have an issue with how many threads it's using
 
 # load
 library(data.table)
-getDTthreads()
+getDTthreads(verbose = TRUE)
 
 ```
 

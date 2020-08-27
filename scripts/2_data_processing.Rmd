@@ -329,20 +329,6 @@ length[length >= 5, mean(length)] # mean time abandoned, if using 3 year abandon
 
 toc()
 ```
-
-```{r belarus-processing}
-
-# belarus runs
-run <- 1 # change this for each belarus run
-
-cc_process_rasters(input_raster_file = paste0(p_eefull, list.files(p_eefull)[run]),
-                   name = paste0("belarus", run), 
-                   path_out = p_dat_derived,
-                   gsub_pattern = "smolensk")
-
-```
-
-
 ```{r save-age-rasters}
 
 # as a function
@@ -351,10 +337,13 @@ age_r <- cc_save_age_rasters(name = "shaanxi")
 names(age_r) <- paste0("y", 1987:2017)
 plot(age_r$y2017, main = "Age of abandonment in 2017")
 
-age_r1 <- brick("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/shaanxi_age_1.tif")
+age_r <- brick("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/shaanxi_age_1.tif")
 identical(age_r, age_r1)
 
 cellStats(age_r[[31]] - age_r1[[31]], "sum")
+
+
+# works fine for shaanxi, but running into issues with belarus... see below
 
 
 # -------------
@@ -389,7 +378,134 @@ age_2017_r <- dt_to_raster(dt[, .(x, y, y2017)], crs(s), filename = paste0(p_dat
 
 plot(age_r$y2017, main = "Age of abandonment in 2017")
 
+
+# final code
+r <- dt_to_raster(dt, crs("+proj=longlat +datum=WGS84 +no_defs"))
+writeRaster(r, filename = paste0(directory, name, "_age.tif"))
+brick(paste0(directory, name, "_age.tif"))
 ```
+
+```{r belarus-processing}
+
+# belarus runs, for loop
+run <- 1 # change this for each belarus run
+
+tic()
+cc_process_rasters(input_raster_file = paste0(p_eefull, list.files(p_eefull)[1]),
+                     name = paste0("belarus", 1), 
+                     path_out = p_dat_derived,
+                     gsub_pattern = "smolensk")
+toc()
+
+tic()
+for(run in 2:6) {
+  cc_process_rasters(input_raster_file = paste0(p_eefull, list.files(p_eefull)[run]),
+                     name = paste0("belarus", run), 
+                     path_out = p_dat_derived,
+                     gsub_pattern = "smolensk")
+}
+toc()
+
+
+# -------------------------------
+# load and check the belarus data
+b1_dt <- fread(input = paste0(p_dat_derived, "belarus1.csv"))
+b1_age <- fread(input = paste0(p_dat_derived, "belarus1_age.csv"))
+b1_diff <- fread(input = paste0(p_dat_derived, "belarus1_diff.csv"))
+b1_length <- fread(input = paste0(p_dat_derived, "belarus1_length.csv"))
+
+
+
+# -------------------------------
+# save Belarus 1 as a raster:
+# b1_age_r <- cc_save_age_rasters(name = "belarus1")  
+
+# manually
+b1_age_r1 <- dt_to_raster(b1_age[1:2000000], crs("+proj=longlat +datum=WGS84 +no_defs"))
+b1_age_r2 <- dt_to_raster(b1_age[2000001:4000000], crs("+proj=longlat +datum=WGS84 +no_defs"))
+
+plot(b1_age_r1$y2017)
+plot(b1_age_r2$y2017, add = T)
+
+```
+
+```{r merging-belarus-chunks}
+
+
+
+# -------------------------------
+# test merging belarus chunks
+merge_test <- merge(b1_age_r1, b1_age_r2)
+merge_test
+ncell(merge_test)
+ncell(b1_age_r1) + ncell(b1_age_r2)
+plot(merge_test$layer.31)
+plot(extent(b1_age_r1), add = T, col = "black")
+plot(extent(b1_age_r2), add = T, col = "black")
+b1_age_r3 <- dt_to_raster(b1_age[1:4000000], crs("+proj=longlat +datum=WGS84 +no_defs"))
+cellStats(merge_test - b1_age_r3, "sum") # these are the same, and it looked like it worked just fine, subtracting sequentially.
+
+
+
+# try merging a full brick
+b11 <- dt_to_raster(b1_age[1:100000][order(x),], crs("+proj=longlat +datum=WGS84 +no_defs"))
+b12 <- dt_to_raster(b1_age[100001:200000][order(x),], crs("+proj=longlat +datum=WGS84 +no_defs"))
+plot(b12$y2017)
+test <- dt_to_raster(b1_age[1:200][order(x),], crs("+proj=longlat +datum=WGS84 +no_defs"))
+
+writeRaster(b1_age_r, filename = paste0(directory, "belarus1", "_age.tif"))
+plot(b1_age_r$y2017)
+
+# reload, and assign names
+b1_age_r <- brick(paste0(directory, "belarus1", "_age.tif"))
+names(b1_age_r) <- paste0("y", 1987:2017)
+
+plot(b1_age_r$y2017, main = "Age of abandonment in 2017")
+
+
+env_size(ls())
+
+# merge
+
+```
+
+```{r calc-max-age}
+# calculate the maximum length of time abandoned for each pixel:
+# not sure this code works yet... try with a smaller dt first. 
+dt <- b1_age[1:100000]
+dt
+tic()
+dt[, max_length := max(.SD), .SDcols = -c("x", "y"), by = .(x, y)]
+toc() # 14.56 sec
+getDTthreads() # ? no speed up ?
+
+# testing function: it works!
+dt1 <- b1_age[1:100000]
+cc_calc_max_age(dt1, name = "belarus1")
+identical(dt[, .(x,y,max_length)], dt1)
+dt1 <- fread(input = paste0(p_dat_derived, "belarus1_max_length.csv"))
+
+286.417 * nrow(b1_age)/nrow(dt) / 60 # 41 minutes, 40 minutes for the full dataset
+
+max1 <- dt_to_raster(dt[, .(x, y, max_length)], crs("+proj=longlat +datum=WGS84 +no_defs"))
+
+# one can also directly calculate this using raster::calc(), which ends up being faster.
+tic()
+max <- calc(b1_age_r1, fun = function(r){max(r, na.rm = TRUE)})
+toc()
+plot(max) # 130.958 sec
+warnings()
+
+cellStats(max1 - max, "sum")
+plot(max1)
+plot(max)
+```
+
+
+```{r parallel-dt}
+
+```
+
 
 ```{r animation}
 

@@ -231,7 +231,7 @@ cc_process_rasters <- function(input_raster_file, name, path_out = p_dat_derived
   # requires raster, data.table, devtools, tictoc, dtraster
   
   # load raster
-  r <- brick(file)
+  r <- brick(input_raster_file)
   if (nlayers(r) != 31) {
     stop("Raster does not have 31 layers.")
   } 
@@ -245,6 +245,7 @@ cc_process_rasters <- function(input_raster_file, name, path_out = p_dat_derived
   print("done: data.table converted")
   
   # write out data.table as a csv
+  print("writing data.table to csv")
   fwrite(dt, file = paste0(path_out, name, ".csv"))
   
   # start heavy processing
@@ -255,12 +256,14 @@ cc_process_rasters <- function(input_raster_file, name, path_out = p_dat_derived
   cc_erase_non_abn_periods(dt)  # erase non abandonment periods
   
   # write out cleaned abandonment age data.table
+  print("writing out cleaned abandonment age data.table")
   fwrite(dt, file = paste0(path_out, name, "_age.csv"))
   
   # make diff
   dt_diff <- cc_diff_dt(dt)
   
   # write out dt_diff
+  print("writing out dt_diff")
   fwrite(dt_diff, file = paste0(path_out, name, "_diff.csv"))
   
   # extract length
@@ -268,9 +271,14 @@ cc_process_rasters <- function(input_raster_file, name, path_out = p_dat_derived
   
   # write out length
   length <- data.table(length = length)
+  
+  print("writing out length data.table")
   fwrite(length, file = paste0(path_out, name, "_length.csv"))
   
+  print(paste0("Done: ", input_raster_file))
+  
 }
+
 
 
 cc_save_age_rasters <- function(name, directory = p_dat_derived) {
@@ -284,6 +292,15 @@ cc_save_age_rasters <- function(name, directory = p_dat_derived) {
   writeRaster(r, filename = paste0(directory, name, "_age.tif"))
   
   # reload, and assign
-  brick(paste0(directory, name, "_age.tif"))
+  # brick(paste0(directory, name, "_age.tif"))
 }
 
+
+cc_calc_max_age <- function(dt, directory = p_dat_derived, name) {
+  
+  dt[, max_length := max(.SD), .SDcols = -c("x", "y"), by = .(x, y)]
+  
+  # write out just the max dt.
+  fwrite(dt[, .(x, y, max_length)], file = paste0(directory, name, "_max_length.csv"))
+  
+}
