@@ -386,6 +386,69 @@ writeRaster(r, filename = paste0(directory, name, "_age.tif"))
 brick(paste0(directory, name, "_age.tif"))
 ```
 
+```{r merging-belarus-chunks}
+# -------------------------------
+# merge original belarus rasters
+
+belarus <- merge(b[[1]], 
+                 b[[2]],
+                 b[[3]],
+                 b[[4]],
+                 b[[5]],
+                 b[[6]])
+names(belarus) <- paste0("y", 1987:2017)
+tic()
+writeRaster(belarus, filename = paste0(p_dat_derived, "belarus.tif"))
+toc()
+
+plot(belarus$y1987, col = plot_cols, breaks = plot_breaks, main = "merged")
+plot(b87_r, col = plot_cols, breaks = plot_breaks, main = "1987 direct")
+plot(b87_r - belarus$y1987)
+
+cellStats(belarus$y1987 - b87_r, "sum")
+
+
+
+# -------------------------------
+# save Belarus 1 as a raster:
+# b1_age_r <- cc_save_age_rasters(name = "belarus1")  
+
+# manually
+b1_age_r1 <- dt_to_raster(b1_age[1:2000000], crs("+proj=longlat +datum=WGS84 +no_defs"))
+b1_age_r2 <- dt_to_raster(b1_age[2000001:4000000], crs("+proj=longlat +datum=WGS84 +no_defs"))
+
+plot(b1_age_r1$y2017)
+plot(b1_age_r2$y2017, add = T)
+
+# -------------------------------
+# test merging belarus chunks
+merge_test <- merge(b1_age_r1, b1_age_r2)
+merge_test
+ncell(merge_test)
+ncell(b1_age_r1) + ncell(b1_age_r2)
+plot(merge_test$layer.31)
+plot(extent(b1_age_r1), add = T, col = "black")
+plot(extent(b1_age_r2), add = T, col = "black")
+b1_age_r3 <- dt_to_raster(b1_age[1:4000000], crs("+proj=longlat +datum=WGS84 +no_defs"))
+cellStats(merge_test - b1_age_r3, "sum") # these are the same, and it looked like it worked just fine, subtracting sequentially.
+
+
+# try merging a full brick
+b11 <- dt_to_raster(b1_age[1:100000][order(x),], crs("+proj=longlat +datum=WGS84 +no_defs"))
+b12 <- dt_to_raster(b1_age[100001:200000][order(x),], crs("+proj=longlat +datum=WGS84 +no_defs"))
+plot(b12$y2017)
+test <- dt_to_raster(b1_age[1:200][order(x),], crs("+proj=longlat +datum=WGS84 +no_defs"))
+
+writeRaster(b1_age_r, filename = paste0(directory, "belarus1", "_age.tif"))
+plot(b1_age_r$y2017)
+
+# reload, and assign names
+b1_age_r <- brick(paste0(directory, "belarus1", "_age.tif"))
+names(b1_age_r) <- paste0("y", 1987:2017)
+
+plot(b1_age_r$y2017, main = "Age of abandonment in 2017")
+
+```
 
 ```{r belarus-processing}
 
@@ -474,95 +537,112 @@ b_length
 
 env_size(ls())
 
+# ------------------------------- #
+# ultimately I processed the merged Belarus raster file in one go on adroit, using the script: 
+# /Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/cluster/process_calc_age_belarus.R
+# ------------------------------- #
 
 
 ```
 
-```{r merging-belarus-chunks}
+```{r inspect-adroit-belarus}
+# check cluster output to make sure it worked correctly
 
-# -------------------------------
-# save Belarus 1 as a raster:
-# b1_age_r <- cc_save_age_rasters(name = "belarus1")  
+# merge individual lengths
 
-# manually
-b1_age_r1 <- dt_to_raster(b1_age[1:2000000], crs("+proj=longlat +datum=WGS84 +no_defs"))
-b1_age_r2 <- dt_to_raster(b1_age[2000001:4000000], crs("+proj=longlat +datum=WGS84 +no_defs"))
-
-plot(b1_age_r1$y2017)
-plot(b1_age_r2$y2017, add = T)
-
-# -------------------------------
-# test merging belarus chunks
-merge_test <- merge(b1_age_r1, b1_age_r2)
-merge_test
-ncell(merge_test)
-ncell(b1_age_r1) + ncell(b1_age_r2)
-plot(merge_test$layer.31)
-plot(extent(b1_age_r1), add = T, col = "black")
-plot(extent(b1_age_r2), add = T, col = "black")
-b1_age_r3 <- dt_to_raster(b1_age[1:4000000], crs("+proj=longlat +datum=WGS84 +no_defs"))
-cellStats(merge_test - b1_age_r3, "sum") # these are the same, and it looked like it worked just fine, subtracting sequentially.
-
-
-# try merging a full brick
-b11 <- dt_to_raster(b1_age[1:100000][order(x),], crs("+proj=longlat +datum=WGS84 +no_defs"))
-b12 <- dt_to_raster(b1_age[100001:200000][order(x),], crs("+proj=longlat +datum=WGS84 +no_defs"))
-plot(b12$y2017)
-test <- dt_to_raster(b1_age[1:200][order(x),], crs("+proj=longlat +datum=WGS84 +no_defs"))
-
-writeRaster(b1_age_r, filename = paste0(directory, "belarus1", "_age.tif"))
-plot(b1_age_r$y2017)
-
-# reload, and assign names
-b1_age_r <- brick(paste0(directory, "belarus1", "_age.tif"))
-names(b1_age_r) <- paste0("y", 1987:2017)
-
-plot(b1_age_r$y2017, main = "Age of abandonment in 2017")
-
-
-env_size(ls())
-
-
-
-# -------------------------------
-# merge belarus length
 b1_length <- fread(input = paste0(p_dat_derived, "belarus1_length.csv"))
+b2_length <- fread(input = paste0(p_dat_derived, "belarus2_length.csv"))
+b3_length <- fread(input = paste0(p_dat_derived, "belarus3_length.csv"))
+b4_length <- fread(input = paste0(p_dat_derived, "belarus4_length.csv"))
+b5_length <- fread(input = paste0(p_dat_derived, "belarus5_length.csv"))
+b6_length <- fread(input = paste0(p_dat_derived, "belarus6_length.csv"))
 
+b_length_merge <- rbindlist(list(b1_length,
+                                 b2_length,
+                                 b3_length,
+                                 b4_length,
+                                 b5_length,
+                                 b6_length))
+# load the full belarus length file
+b_length <- fread(input = paste0(p_dat_derived, "belarus_length.csv"))
+# the order is off, because of the way the length extraction code works, extracting each year's column individually, and rbinding those.
+
+
+# check to see if they're identical
+identical(b_length[order(length)], b_length_merge[order(length)])
+
+
+# initial stats on length, Belarus
+
+
+# explore some stats:
+s_length <- fread(input = paste0(p_dat_derived, "shaanxi_length.csv"))
+s_length
 b_length
+s_length[, .N, by = length]
+b_length[, .N, by = length]
 
-b <- lapply(1:6, function(i) {
-    brick(paste0(p_eefull, ee_files[i]))})
+object_size(b_length)
+s_length[, site := "shaanxi"]
+b_length[, site := "belarus"]
 
+length_all <- rbindlist(list(s_length, b_length))
+object_size(length_all)
 
-# -------------------------------
-# merge belarus age
-
-
-# -------------------------------
-# merge original belarus rasters
-# 1:06
-belarus <- merge(b[[1]], 
-                 b[[2]],
-                 b[[3]],
-                 b[[4]],
-                 b[[5]],
-                 b[[6]])
-names(belarus) <- paste0("y", 1987:2017)
-tic()
-writeRaster(belarus, filename = paste0(p_dat_derived, "belarus.tif"))
-toc()
-plot(belarus$y1987, col = plot_cols, breaks = plot_breaks, main = "merged")
-plot(b87_r, col = plot_cols, breaks = plot_breaks, main = "1987 direct")
-plot(b87_r - belarus$y1987)
-
-cellStats(belarus$y1987 - b87_r, "sum")
+dat <- length_all[, .(mean_length = mean(length)), by = site]
+dat2 <- length_all[length >= 5, .(mean_length_thr5 = mean(length)), by = site]
+dat <- merge(dat, dat2, by = "site", sort = FALSE)
 
 
-
-b[[1]]
-
+dat[, mean_length2 := length_all[length >= 5, mean(length), by = site]]
+# mean time abandoned, if using 5 year abandonment definition threshold, following Yin et al. 2020
 
 ```
+
+```{r histograms}
+# plot histograms
+# beware... because of the way the bins are determined, the default histogram automatically lumps 1 and 2 together. better to first distill the data and use ggplot 
+hist(s_length[[1]], main = "Histogram of Length of Time Abandoned \n Shaanxi/Shanxi Provinces, China", xlab = "Time (years)")
+
+hist(b_length[[1]])
+
+hist(length_all[site == "shaanxi", length], main = "Histogram of Abandonment Period Lengths \n Shaanxi/Shanxi Provinces, China", xlab = "Time (years)")
+
+hist(length_all[site == "belarus", length], main = "Histogram of Abandonment Period Lengths \n Belarus/Russia", xlab = "Time (years)")
+
+hist(b_length[[1]], main = "Histogram of Abandonment Period Lengths \n Belarus/Russia", xlab = "Time (years)")
+toc()
+
+hist(b_length[[1]], main = "right = TRUE")
+hist(b_length[[1]], right = FALSE, main = "right = FALSE")
+
+
+# to use with ggplot, first distill the data
+
+b_distill <- b_length[, .(freq = .N), by = length]
+b_distill[, site := "belarus"]
+s_distill <- s_length[, .(freq = .N), by = length]
+s_distill[, site := "shaanxi"]
+
+distill <- rbind(b_distill, s_distill)
+
+# ggplots
+# both site histograms
+ggplot(data = distill) + 
+  geom_col(mapping = aes(x = length, y = freq), fill = "black") +
+  facet_grid(rows = vars(site), scales = "free") +
+  theme_classic()
+
+# just belarus
+ggplot(data = b_distill) + 
+  geom_col(mapping = aes(x = length, y = freq), fill = "black") +
+  theme_classic()
+
+ggplot(data = b_length, aes(length)) + 
+  geom_histogram() +
+  theme_classic() # took forever!! Beware...
+```
+
 
 ```{r calc-max-age}
 # calculate the maximum length of time abandoned for each pixel:
