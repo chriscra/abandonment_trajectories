@@ -683,28 +683,36 @@ plot(max)
 
 
 ```{r animation}
+name <- "shaanxi"
+age_r <- brick(paste0(p_dat_derived, name, "_age.tif"))
+names(age_r) <- paste0("y", 1987:2017)
+# plot(age_r$y2017)
 
-# with animate package
-install.packages("animation")
-library(animation)
-saveGIF(animate(age_r, main = paste0("Abandonment Age, ", 1987:2017), maxpixels = 500000, n = 1), movie.name = paste0(p_dat_derived, name, "_age_animation.gif"))
+# first, with animate package
+saveGIF(animate(age_r, 
+                main = paste0(
+                  "Abandonment Age, ", 
+                  capwords(name), " ", 
+                  1987:2017), 
+                maxpixels = 500000, 
+                n = 1), 
+        movie.name = paste0(
+          p_dat_derived, name, "_age_animation.gif")
+        )
 
+# now, with magick
+age_r_gif <- image_read(paste0(p_dat_derived, name, "_age_animation.gif"))
+age_r_gif <- image_animate(age_r_gif)
+image_write(shaanxi_age_gif, paste0(p_dat_derived, name, "_age_animation.gif"))
 
-# with magick
-library(magick)
-
-age_gif <- image_read(paste0(p_dat_derived, name, "_age_animation.gif"))
-age_gif2 <- image_animate(age_gif)
-image_write(age_gif2, paste0(p_dat_derived, name, "_age_animation2.gif"))
-
-
-
-# try a simpler method, just magick
 
 # make it into a function:
 
 # take an animation made with raster::animate(), and save it as a GIF with animation::saveGIF()
-cc_save_gif <- function(raster, titles = names(raster), file_out, npixels = 5000,
+cc_save_gif <- function(raster, 
+                        titles = names(raster), 
+                        file_out, 
+                        npixels = 5000,
                         frames_per_second = 5) {
   
   # use animation::saveGIF() to save raster::animate()
@@ -715,15 +723,23 @@ cc_save_gif <- function(raster, titles = names(raster), file_out, npixels = 5000
   image_write(gif, file_out)
 }
 
-age_r
-paste0("Abandonment Age, ", 1987:2017) # titles, or names(age_r) by default
-paste0(p_dat_derived, name, "_age_animation.gif") # file_out
 
+# run the function:
 
-cc_save_gif(age_r, npixels = 500000, paste0("Abandonment Age, ", 1987:2017),
+# name <- "shaanxi"
+name <- "belarus"
+age_r <- brick(paste0(p_dat_derived, name, "_age.tif"))
+names(age_r) <- paste0("y", 1987:2017)
+plot(age_r$y2017)
+
+tic()
+cc_save_gif(raster = age_r, 
+            npixels = 500000, 
+            titles = paste0("Abandonment Age, ", 
+                            capwords(name), " ", 1987:2017),
             frames_per_second = 5,
             file_out = paste0(p_dat_derived, name, "_age_animation.gif"))
-
+toc()
 
 ```
 
