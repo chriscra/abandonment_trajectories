@@ -11,6 +11,8 @@ source("scripts/0_start.R")
 
 ```{r pnv}
 # load PNV
+pnv <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Habitats/PNV/Hengl_2018_PNV/pnv_biome.type_biome00k_c_1km_s0..0cm_2000..2017_v0.1.tif")
+pnv
 
 # explore
 
@@ -19,11 +21,39 @@ source("scripts/0_start.R")
 plot(b_age_r$y2017, main = "Belarus, abn age, 2017")
 plot(s_age_r$y2017, main = "Shaanxi, abn age, 2017")
 
+```
 
+```{r basemaps}
 # plot world
+plot(world_sf$geometry)
 
-plot()
-plot(extent(b1_age_r1), add = T, col = "black")
+eastern_europe <- ne_countries(scale = 110, returnclass = "sf", continent = "europe")
+plot(eastern_europe$geometry)
+st_crs(eastern_europe$geometry)
+eastern_europe$geometry %>%
+  st_transform(., crs("+proj=longlat +ellps=WGS84 +lon_0=70")) %>%
+  plot(border = "red")
+
+crs(usa)
+
+china <- ne_countries(scale = 110, returnclass = "sf", country = "china")
+plot(china$geometry, graticule = TRUE, axes = TRUE)
+plot(usa$geometry, graticule = TRUE, axes = TRUE)
+
+l <- eastern_europe$geometry %>% st_wrap_dateline()
+l <- st_transform(eastern_europe$geometry, "+proj=laea +lon_0=30")
+l %>%
+  plot()
+
+plot(box$geometry)
+ecoregions
+
+r <- b_age_r$y2017
+r
+rt <- projectRaster(r, crs = "+proj=laea")
+plot(projectRaster(extent(b_age_r), crs = "+proj=laea"), add = T, col = "red")
+plot(extent(s_age_r), add = T, col = "red")
+
 
 
 ```

@@ -6,9 +6,11 @@ editor_options:
 ---
 
 ```{r initialize}
-getwd()
 source("scripts/0_start.R")
-env_size(ls())
+```
+
+```{r basemaps}
+source("")
 ```
 
 
