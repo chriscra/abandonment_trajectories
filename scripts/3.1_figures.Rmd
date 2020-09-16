@@ -21,32 +21,37 @@ env_size(ls())
 
 bs <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
 
-# rasters
+# -------------------------- rasters --------------------------- #
+# raw rasters
+s <- brick(paste0(p_dat, "Abandonment/shaanxi.tif"))
+b <- brick(paste0(p_dat_derived, "belarus.tif")) # merged version
+
+# update names
+
+# age
 s_age_r <- brick(paste0(p_dat_derived, "shaanxi_age.tif"))
 b_age_r <- brick(paste0(p_dat_derived, "belarus_age.tif"))
 
+# update year names 1987 - 2017
+names(s) <- paste0("y", 1987:2017)
+names(b) <- paste0("y", 1987:2017)
+names(s_age_r) <- paste0("y", 1987:2017)
+names(b_age_r) <- paste0("y", 1987:2017)
 
 # data.tables
 b_age <- fread(input = paste0(p_dat_derived, "belarus_age.csv"))
 s_age <- fread(input = paste0(p_dat_derived, "shaanxi_age.csv"))
 
-
 b_length <- fread(input = paste0(p_dat_derived, "belarus_length.csv"))
 s_length <- fread(input = paste0(p_dat_derived, "shaanxi_length.csv"))
 
-
 b_max_length <- fread(input = paste0(p_dat_derived, "belarus_max_length.csv"))
 s_max_length <- fread(input = paste0(p_dat_derived, "shaanxi_max_length.csv"))
-
-
-
 
 # original data
 s_dt <- fread(input = paste0(p_dat_derived, "shaanxi.csv"))
 b_dt <- fread(input = paste0(p_dat_derived, "belarus.csv")) # caution - huge file! 8.4 GB at least. 
 ```
-
-
 
 
 ```{r simple-plots}
@@ -82,20 +87,18 @@ show_col(plot_cols) # (topleft = 1, topright = 2, bottomleft = 3, bottomright = 
 # gold,         3. Crop
 # light green,  4. Grassland
 
-plot(b87_r, main = "Belarus 1987", breaks = plot_breaks, col = plot_cols)
-plot(bs$smolensk1987, add = T, legend = F, col = "blue")
-plot(bt$smolensk1987, add = T, legend = F, col = "red")
-bs
-
-plot(bs$smolensk1987, main = "Subset: Belarus 1987", 
-     breaks = plot_breaks, col = plot_cols)
-
-plot(bt$smolensk1987, main = "Subset Subset: Belarus 1987", 
-     breaks = plot_breaks, col = plot_cols)
 
 
-# --------------
-# animate
+# -------------------------- plot raw data --------------------------- #
+plot(b$y1987, main = "Belarus 1987", breaks = plot_breaks, col = plot_cols)
+
+# ---------------------- plot abandonment age ---------------------- #
+plot(b_age_r$y2017, main = "Belarus Age of Abandonment 2017")
+plot(b_age_r[[28:31]])
+
+
+
+# -------------------------- animate --------------------------- #
 # --------------
 # https://www.rdocumentation.org/packages/raster/versions/3.1-5/topics/animate
 
@@ -103,3 +106,105 @@ animate(bt, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
         breaks = plot_breaks, col = plot_cols)
 
 ```
+
+```{r exploratory-stats}
+# explore some stats:
+s_length
+b_length
+s_length[, .N, by = length]
+b_length[, .N, by = length]
+
+```
+
+
+```{r distill-data}
+s_length[, site := "shaanxi"]
+b_length[, site := "belarus"]
+
+length_all <- rbindlist(list(s_length, b_length))
+object_size(length_all)
+
+dat <- length_all[, .(mean_length = mean(length)), by = site]
+dat2 <- length_all[length >= 5, .(mean_length_thr5 = mean(length)), by = site]
+dat <- merge(dat, dat2, by = "site", sort = FALSE)
+dat
+
+
+# to use with ggplot, first distill the data
+
+b_distill <- b_length[, .(freq = .N), by = length]
+b_distill[, site := "belarus"]
+s_distill <- s_length[, .(freq = .N), by = length]
+s_distill[, site := "shaanxi"]
+
+distill <- rbind(b_distill, s_distill)
+
+b_max_distill <- b_max_length[, .(freq = .N), by = max_length]
+b_max_distill[, site := "belarus"]
+s_max_distill <- s_max_length[, .(freq = .N), by = max_length]
+s_max_distill[, site := "shaanxi"]
+max_distill <- rbind(b_max_distill, s_max_distill)
+
+
+```
+
+
+```{r histograms}
+# plot histograms
+# beware... because of the way the bins are determined, the default histogram automatically lumps 1 and 2 together. better to first distill the data and use ggplot 
+hist(s_length[[1]], main = "Histogram of Length of Time Abandoned \n Shaanxi/Shanxi Provinces, China", xlab = "Time (years)")
+
+hist(b_length[[1]])
+
+hist(length_all[site == "shaanxi", length], main = "Histogram of Abandonment Period Lengths \n Shaanxi/Shanxi Provinces, China", xlab = "Time (years)")
+
+hist(length_all[site == "belarus", length], main = "Histogram of Abandonment Period Lengths \n Belarus/Russia", xlab = "Time (years)")
+
+hist(b_length[[1]], main = "Histogram of Abandonment Period Lengths \n Belarus/Russia", xlab = "Time (years)")
+toc()
+
+hist(b_length[[1]], main = "right = TRUE")
+hist(b_length[[1]], right = FALSE, main = "right = FALSE")
+
+
+
+# ggplots
+# both site histograms
+dat
+length_plot <- ggplot(data = distill) + 
+  labs(title = "Histogram of all periods of abandonment") +
+  geom_col(mapping = aes(x = length, y = freq), fill = "gray50") +
+  facet_grid(rows = vars(site), scales = "free") +
+  geom_vline(xintercept=5, linetype="dashed", 
+             color = "red", size = 0.75) +
+  geom_vline(xintercept=20, linetype="dashed", color = "dark green", size = 0.75) +
+  theme_classic()
+
+# max_length
+max_length_plot <- ggplot(data = max_distill) + 
+  labs(title = "Histogram of max abandonment length per pixel") +
+  geom_col(mapping = aes(x = max_length, y = freq), fill = "gray50") +
+  facet_grid(rows = vars(site), scales = "free") +
+  geom_vline(xintercept=5, linetype="dashed", 
+             color = "red", size = 0.75) +
+  geom_vline(xintercept=20, linetype="dashed", color = "dark green", size = 0.75) +
+  theme_classic()
+
+
+length_plot
+max_length_plot
+dat
+
+
+
+
+# just belarus
+ggplot(data = b_distill) + 
+  geom_col(mapping = aes(x = length, y = freq), fill = "black") +
+  theme_classic()
+
+ggplot(data = b_length, aes(length)) + 
+  geom_histogram() +
+  theme_classic() # took forever!! Beware...
+```
+

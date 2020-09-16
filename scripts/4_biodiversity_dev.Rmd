@@ -10,6 +10,21 @@ source("scripts/0_start.R")
 ```
 
 ```{r pnv}
+# load PNV
+
+# explore
+
+# plot
+
+plot(b_age_r$y2017, main = "Belarus, abn age, 2017")
+plot(s_age_r$y2017, main = "Shaanxi, abn age, 2017")
+
+
+# plot world
+
+plot()
+plot(extent(b1_age_r1), add = T, col = "black")
+
 
 ```
 

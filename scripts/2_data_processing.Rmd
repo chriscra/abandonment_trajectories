@@ -49,11 +49,15 @@ bs_dt <- as.data.table.raster(bs)
 
 
 # GEE
-p_eefull <- "/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/eefull/"
-ee_files <- list.files(p_eefull)
+b_files <- list.files(paste0(p_dat, "Abandonment/belarus_tiles/"))
 
-b1 <- brick(paste0(p_eefull, ee_files[1]))
-s <- brick(paste0(p_eefull, ee_files[7]))
+# just belarus files, but not necessary
+# b_files <- list.files(paste0(p_dat, "Abandonment/belarus_tiles/")) %>%
+#   grep("belarus", ., value = TRUE)
+
+b1 <- brick(paste0(p_dat, "Abandonment/belarus_tiles/", b_files[1]))
+s <- brick(paste0(p_dat, "Abandonment/shaanxi.tif"))
+
 s
 plot(s[[1]])
 ncell(b1)
@@ -69,25 +73,20 @@ raster::area(s[[1]])
 
 res(b1)[1] * 110 * 1000 # about 30 m checks out
 res(s)[1] * 110 * 1000 # about 30 m checks out
-b
+b_tiles
 
 plot(s[[1]], main = "Shaanxi 1987", breaks = plot_breaks, col = plot_cols)
 
-# just belarus files, but not necessary
-# b_files <- list.files(p_eefull) %>%
-#   grep("belarus", ., value = TRUE)
-
-
-b <- lapply(1:6, function(i) {
-    brick(paste0(p_eefull, ee_files[i]))})
-names(b) <- ee_files[1:6]
+b_tiles <- lapply(1:6, function(i) {
+    brick(paste0(p_dat, "Abandonment/belarus_tiles/", b_files[i]))})
+names(b_tiles) <- b_files
 
 # Shaanxi is much much smaller than Belarus
 ncell(s) # 94.4 M
 ncell(b87_r) # 22.59 M
 # they have the same resolution
 res(s)
-res(b)
+res(b_tiles)
 
 
 
@@ -413,22 +412,22 @@ brick(paste0(directory, name, "_age.tif"))
 # -------------------------------
 # merge original belarus rasters
 
-belarus <- merge(b[[1]], 
-                 b[[2]],
-                 b[[3]],
-                 b[[4]],
-                 b[[5]],
-                 b[[6]])
-names(belarus) <- paste0("y", 1987:2017)
+b <- merge(b_tiles[[1]], 
+                 b_tiles[[2]],
+                 b_tiles[[3]],
+                 b_tiles[[4]],
+                 b_tiles[[5]],
+                 b_tiles[[6]])
+names(b) <- paste0("y", 1987:2017)
 tic()
-writeRaster(belarus, filename = paste0(p_dat_derived, "belarus.tif"))
+writeRaster(b, filename = paste0(p_dat_derived, "belarus.tif"))
 toc()
 
-plot(belarus$y1987, col = plot_cols, breaks = plot_breaks, main = "merged")
+plot(b$y1987, col = plot_cols, breaks = plot_breaks, main = "merged")
 plot(b87_r, col = plot_cols, breaks = plot_breaks, main = "1987 direct")
-plot(b87_r - belarus$y1987)
+plot(b87_r - b$y1987)
 
-cellStats(belarus$y1987 - b87_r, "sum")
+cellStats(b$y1987 - b87_r, "sum")
 
 
 
@@ -480,7 +479,7 @@ run <- 1 # change this for each belarus run
 
 # initial test
 tic()
-cc_process_rasters(input_raster_file = paste0(p_eefull, list.files(p_eefull)[1]),
+cc_process_rasters(input_raster_file = paste0(p_dat, "Abandonment/belarus_tiles/", b_files[1]),
                      name = paste0("belarus", 1), 
                      path_out = p_dat_derived,
                      gsub_pattern = "smolensk")
@@ -488,7 +487,7 @@ toc()
 
 tic()
 for(run in 1:6) {
-  cc_process_rasters(input_raster_file = paste0(p_eefull, list.files(p_eefull)[run]),
+  cc_process_rasters(input_raster_file = paste0(p_dat, "Abandonment/belarus_tiles/", b_files[run]),
                      name = paste0("belarus", run), 
                      path_out = p_dat_derived,
                      gsub_pattern = "smolensk")
@@ -539,14 +538,14 @@ fwrite(b_age_2017, file = paste0(p_dat_derived, "belarus_age_2017.csv"))
 
 b_age_2017_r <- dt_to_raster(b_age2017, crs("+proj=longlat +datum=WGS84 +no_defs"))
 plot(b_age_2017_r, main = "Belarus, 2017 - age of abandoned croplands")
-plot(extent(b[[1]]), add = T, col = "black")
-plot(extent(b[[2]]), add = T, col = "black")
-plot(extent(b[[3]]), add = T, col = "black")
-plot(extent(b[[4]]), add = T, col = "black")
-plot(extent(b[[5]]), add = T, col = "black")
-plot(extent(b[[6]]), add = T, col = "black")
+plot(extent(b_tiles[[1]]), add = T, col = "black")
+plot(extent(b_tiles[[2]]), add = T, col = "black")
+plot(extent(b_tiles[[3]]), add = T, col = "black")
+plot(extent(b_tiles[[4]]), add = T, col = "black")
+plot(extent(b_tiles[[5]]), add = T, col = "black")
+plot(extent(b_tiles[[6]]), add = T, col = "black")
 
-extent(b[[1]])
+extent(b_tiles[[1]])
 
 writeRaster(b_age2017_r, filename = paste0(p_dat_derived, "belarus_age_2017.tif"))
 b_age2017_r <- raster(paste0(p_dat_derived, "belarus_age_2017.tif"))
