@@ -11,8 +11,78 @@ source("scripts/0_start.R")
 
 ```{r pnv}
 # load PNV
-pnv <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Habitats/PNV/Hengl_2018_PNV/pnv_biome.type_biome00k_c_1km_s0..0cm_2000..2017_v0.1.tif")
-pnv
+pnv <- raster(paste0(p_dat, "/Habitats/PNV/Hengl_2018_PNV/1km/pnv_biome.type_biome00k_c_1km_s0..0cm_2000..2017_v0.1.tif"))
+
+# color palette information
+pnv_table <- read_csv(paste0(p_dat, "/Habitats/PNV/Hengl_2018_PNV/1km/pnv_biome.type_biome00k_c_1km_s0..0cm_2000..2017_v0.1.tif.csv"))
+pnv_col <- rgb(pnv_table$R, pnv_table$G, pnv_table$B, maxColorValue = 255)
+
+hist(pnv, maxpixels = 1000)
+extent(s$y2017)
+plot(extent(s$y2017))
+plot(pnv, maxpixels = 1000)
+
+# plot PNV map, with 
+plot(pnv, maxpixels = 100000,
+     main = "PNV, Hengl et al. 2018",
+     breaks = c(0, pnv_table$Number), # note, you need a 0 at the beginning of the breaks
+     col = pnv_col, legend = FALSE)
+legend("top", legend = pnv_table$New.global.consolidated.biome.scheme[1:10], 
+       fill = pnv_col[1:10], cex = 0.5, inset = 0)
+legend("bottom", legend = pnv_table$New.global.consolidated.biome.scheme[11:21], 
+       fill = pnv_col[11:21], cex = 0.5, inset = 0)
+
+# shaanxi
+plot(pnv, maxpixels = 100000,
+     ext = extent(s$y2017),
+     breaks = c(0, pnv_table$Number), # note, you need a 0 at the beginning of the breaks
+     col = pnv_col)
+
+# belarus
+plot(pnv, maxpixels = 100000,
+     ext = extent(b$y2017),
+     breaks = c(0, pnv_table$Number), # note, you need a 0 at the beginning of the breaks
+     col = pnv_col)
+
+
+# crop:
+tic()
+s_pnv <- crop(pnv, extent(s$y2017))
+toc()
+plot(s_pnv, breaks = c(0, pnv_table$Number), # note, you need a 0 at the beginning of the breaks
+     col = pnv_col)
+unique(values(s_pnv))
+filter(pnv_table, Number %in% unique(values(s_pnv)))
+
+
+plot(s_pnv, maxpixels = 100000,
+     breaks = c(0, filter(pnv_table, Number %in% unique(values(s_pnv)))$Number), # note, you need a 0 at the beginning of the breaks
+     col = rgb(filter(pnv_table, Number %in% unique(values(s_pnv)))$R, 
+               filter(pnv_table, Number %in% unique(values(s_pnv)))$G, 
+               filter(pnv_table, Number %in% unique(values(s_pnv)))$B, 
+               maxColorValue = 255)
+     )
+legend("bottom", 
+       legend = filter(pnv_table, Number %in% 
+                         unique(values(s_pnv)))$New.global.consolidated.biome.scheme, 
+       fill = rgb(filter(pnv_table, Number %in% unique(values(s_pnv)))$R, 
+               filter(pnv_table, Number %in% unique(values(s_pnv)))$G, 
+               filter(pnv_table, Number %in% unique(values(s_pnv)))$B, 
+               maxColorValue = 255),
+       cex = 0.5, inset = 0)
+legend("right", legend = ,
+       fill = )
+
+
+
+
+plot(pnv, maxpixels = 100000,
+     ext = extent(s$y2017))
+cellStats(pnv, ext = extent(s$y2017))
+
+# what habitat types are these?
+
+
 
 # explore
 
