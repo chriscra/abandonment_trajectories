@@ -13,6 +13,10 @@ source("scripts/0_start.R")
 # load PNV
 pnv <- raster(paste0(p_dat, "/Habitats/PNV/Hengl_2018_PNV/1km/pnv_biome.type_biome00k_c_1km_s0..0cm_2000..2017_v0.1.tif"))
 
+# Resolution
+res(pnv) * 110 # = 0.9167 km grid (~ 1 km)
+
+
 # color palette information
 pnv_table <- read_csv(paste0(p_dat, "/Habitats/PNV/Hengl_2018_PNV/1km/pnv_biome.type_biome00k_c_1km_s0..0cm_2000..2017_v0.1.tif.csv"))
 pnv_col <- rgb(pnv_table$R, pnv_table$G, pnv_table$B, maxColorValue = 255)
@@ -46,52 +50,233 @@ plot(pnv, maxpixels = 100000,
 
 
 # crop:
-tic()
 s_pnv <- crop(pnv, extent(s$y2017))
-toc()
-plot(s_pnv, breaks = c(0, pnv_table$Number), # note, you need a 0 at the beginning of the breaks
-     col = pnv_col)
-unique(values(s_pnv))
+b_pnv <- crop(pnv, extent(b$y2017))
+
+sort(unique(values(s_pnv)))
+sort(unique(values(b_pnv)))
 filter(pnv_table, Number %in% unique(values(s_pnv)))
+filter(pnv_table, Number %in% unique(values(b_pnv)))
 
-
-plot(s_pnv, maxpixels = 100000,
+# shaanxi
+par(mfrow = c(2,2))
+plot(s_pnv, maxpixels = 100000, main = "Shaanxi, PNV",
      breaks = c(0, filter(pnv_table, Number %in% unique(values(s_pnv)))$Number), # note, you need a 0 at the beginning of the breaks
-     col = rgb(filter(pnv_table, Number %in% unique(values(s_pnv)))$R, 
-               filter(pnv_table, Number %in% unique(values(s_pnv)))$G, 
-               filter(pnv_table, Number %in% unique(values(s_pnv)))$B, 
-               maxColorValue = 255)
+     col = rgb(
+       filter(pnv_table, Number %in% unique(values(s_pnv)))$R, 
+       filter(pnv_table, Number %in% unique(values(s_pnv)))$G, 
+       filter(pnv_table, Number %in% unique(values(s_pnv)))$B, 
+       maxColorValue = 255
+       )
      )
-legend("bottom", 
-       legend = filter(pnv_table, Number %in% 
-                         unique(values(s_pnv)))$New.global.consolidated.biome.scheme, 
-       fill = rgb(filter(pnv_table, Number %in% unique(values(s_pnv)))$R, 
-               filter(pnv_table, Number %in% unique(values(s_pnv)))$G, 
-               filter(pnv_table, Number %in% unique(values(s_pnv)))$B, 
-               maxColorValue = 255),
-       cex = 0.5, inset = 0)
-legend("right", legend = ,
-       fill = )
+legend("topleft", 
+       legend = filter(
+         pnv_table, Number %in% 
+           unique(values(s_pnv)))$New.global.consolidated.biome.scheme, 
+       fill = rgb(
+         filter(pnv_table, Number %in% unique(values(s_pnv)))$R, 
+         filter(pnv_table, Number %in% unique(values(s_pnv)))$G, 
+         filter(pnv_table, Number %in% unique(values(s_pnv)))$B, 
+         maxColorValue = 255
+         ),
+       cex = 0.6, inset = 0)
 
+# belarus
+plot(b_pnv, maxpixels = 100000, main = "Belarus, PNV",
+     breaks = c(0, filter(pnv_table, Number %in% unique(values(b_pnv)))$Number), # note, you need a 0 at the beginning of the breaks
+     col = rgb(
+       filter(pnv_table, Number %in% unique(values(b_pnv)))$R, 
+       filter(pnv_table, Number %in% unique(values(b_pnv)))$G, 
+       filter(pnv_table, Number %in% unique(values(b_pnv)))$B, 
+       maxColorValue = 255
+       )
+     )
+legend("bottomleft", 
+       legend = filter(
+         pnv_table, Number %in% 
+           unique(values(b_pnv)))$New.global.consolidated.biome.scheme, 
+       fill = rgb(
+         filter(pnv_table, Number %in% unique(values(b_pnv)))$R, 
+         filter(pnv_table, Number %in% unique(values(b_pnv)))$G, 
+         filter(pnv_table, Number %in% unique(values(b_pnv)))$B, 
+         maxColorValue = 255
+         ),
+       cex = 0.6, inset = 0)
 
-
-
-plot(pnv, maxpixels = 100000,
-     ext = extent(s$y2017))
-cellStats(pnv, ext = extent(s$y2017))
 
 # what habitat types are these?
 
+# area in each category, in km2 \\ Shaanxi
+s_area <- pnv_table %>%
+  filter(Number %in% unique(values(s_pnv))) %>%
+  select(Number, 
+         Name = New.global.consolidated.biome.scheme) %>%
+  mutate(
+    area_percent = (table(getValues(s_pnv))/ncell(s_pnv))*100, # percentage in each
+    area_km2 = 
+      length(raster::area(s_pnv)) * 
+      median(raster::area(s_pnv), na.rm = TRUE) * 
+      area_percent/100
+  )
+s_area # 
+# < 0.05 % in 9 (cool mixed forest) and 27 (desert)
+# 96% in steppe
+# 3.82% in temperate deciduous broadleaf forest
 
+# area in each category, in km2 \\ Belarus
+b_area <- pnv_table %>%
+  filter(Number %in% unique(values(b_pnv))) %>%
+  select(Number, 
+         Name = New.global.consolidated.biome.scheme) %>%
+  mutate(
+    area_percent = (table(getValues(b_pnv))/ncell(b_pnv))*100, # percentage in each
+    area_km2 = 
+      length(raster::area(b_pnv)) * 
+      median(raster::area(b_pnv), na.rm = TRUE) * 
+      area_percent/100
+  )
 
-# explore
+# 2/3 in 9, or "cool mixed forest"
+# 1/3 in 15, or "cold evergreen needleleaf forest"
+
 
 # plot
 
 plot(b_age_r$y2017, main = "Belarus, abn age, 2017")
 plot(s_age_r$y2017, main = "Shaanxi, abn age, 2017")
+```
+
+Which pnv map should we use? The published 1 km map, or the 250 m map?
+```{r pnv-250m}
+pnv_250 <- raster(paste0(p_dat, "/Habitats/PNV/Hengl_2018_PNV/250m/pnv_biome.type_biome00k_c_250m_s0..0cm_2000..2017_v0.2.tif"))
+
+# Resolution
+res(pnv) * 110 # = 0.9167 km grid (~ 1 km)
+res(pnv_250) * 110 # = 0.229 km grid (~ 250 m)
+
+# color palette information
+pnv_250_table <- read_csv(paste0(p_dat, "Habitats/PNV/Hengl_2018_PNV/250m/pnv_biome.type_biome00k_c_250m_s0..0cm_2000..2017_v0.2.tif.csv"))
+pnv_table # the tables are the same
+pnv_250_table == pnv_table
+pnv_250_table[14, ]
+pnv_table[14, ]
+
+# crop:
+s_pnv_250 <- crop(pnv_250, extent(s$y2017))
+b_pnv_250 <- crop(pnv_250, extent(b$y2017))
+
+sort(unique(values(s_pnv_250)))
+sort(unique(values(b_pnv_250)))
+filter(pnv_table, Number %in% unique(values(s_pnv_250)))
+filter(pnv_table, Number %in% unique(values(b_pnv_250)))
+
+# plots
+# shaanxi
+plot(s_pnv_250, maxpixels = 100000, main = "Shaanxi, PNV",
+     breaks = c(0, filter(pnv_table, Number %in% unique(values(s_pnv_250)))$Number), # note, you need a 0 at the beginning of the breaks
+     col = rgb(
+       filter(pnv_table, Number %in% unique(values(s_pnv_250)))$R, 
+       filter(pnv_table, Number %in% unique(values(s_pnv_250)))$G, 
+       filter(pnv_table, Number %in% unique(values(s_pnv_250)))$B, 
+       maxColorValue = 255
+       )
+     )
+legend("topleft", 
+       legend = filter(
+         pnv_table, Number %in% 
+           unique(values(s_pnv_250)))$New.global.consolidated.biome.scheme, 
+       fill = rgb(
+         filter(pnv_table, Number %in% unique(values(s_pnv_250)))$R, 
+         filter(pnv_table, Number %in% unique(values(s_pnv_250)))$G, 
+         filter(pnv_table, Number %in% unique(values(s_pnv_250)))$B, 
+         maxColorValue = 255
+         ),
+       cex = 0.6, inset = 0)
+
+# belarus
+plot(b_pnv_250, maxpixels = 100000, main = "Belarus, PNV",
+     breaks = c(0, filter(pnv_table, Number %in% unique(values(b_pnv_250)))$Number), # note, you need a 0 at the beginning of the breaks
+     col = rgb(
+       filter(pnv_table, Number %in% unique(values(b_pnv_250)))$R, 
+       filter(pnv_table, Number %in% unique(values(b_pnv_250)))$G, 
+       filter(pnv_table, Number %in% unique(values(b_pnv_250)))$B, 
+       maxColorValue = 255
+       )
+     )
+legend("bottomleft", 
+       legend = filter(
+         pnv_table, Number %in% 
+           unique(values(b_pnv_250)))$New.global.consolidated.biome.scheme, 
+       fill = rgb(
+         filter(pnv_table, Number %in% unique(values(b_pnv_250)))$R, 
+         filter(pnv_table, Number %in% unique(values(b_pnv_250)))$G, 
+         filter(pnv_table, Number %in% unique(values(b_pnv_250)))$B, 
+         maxColorValue = 255
+         ),
+       cex = 0.6, inset = 0)
+
+# what habitat types are these?
+# belarus, mostly closed mixed 
+
+# area in each category, in km2 \\ Shaanxi
+s_area <- pnv_table %>%
+  filter(Number %in% unique(values(s_pnv))) %>%
+  select(Number, 
+         Name = New.global.consolidated.biome.scheme) %>%
+  mutate(
+    area_percent = (table(getValues(s_pnv))/ncell(s_pnv))*100, # percentage in each
+    area_km2 = 
+      length(raster::area(s_pnv)) * 
+      median(raster::area(s_pnv), na.rm = TRUE) * 
+      area_percent/100
+  )
+s_area # 
+# < 0.05 % in 9 (cool mixed forest) and 27 (desert)
+# 96% in steppe
+# 3.82% in temperate deciduous broadleaf forest
+
+# area in each category, in km2 \\ Belarus
+b_area <- pnv_table %>%
+  filter(Number %in% unique(values(b_pnv))) %>%
+  select(Number, 
+         Name = New.global.consolidated.biome.scheme) %>%
+  mutate(
+    area_percent = (table(getValues(b_pnv))/ncell(b_pnv))*100, # percentage in each
+    area_km2 = 
+      length(raster::area(b_pnv)) * 
+      median(raster::area(b_pnv), na.rm = TRUE) * 
+      area_percent/100
+  )
+
+# 2/3 in 9, or "cool mixed forest"
+# 1/3 in 15, or "cold evergreen needleleaf forest"
+
 
 ```
+
+
+```{r habitat classifications}
+habitat <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Habitats/Jung_GlobalHabitatTypes/iucn_habitatclassification_composite_lvl1_ver003.tif")
+
+# color palette information
+habitat_table <- read_csv("/Users/christophercrawford/Google Drive/_Projects/data/Habitats/Jung_GlobalHabitatTypes/iucn_habitatclassification_code_ver003/styles/level1.clr")
+habitat_col <- rgb(pnv_table$R, pnv_table$G, pnv_table$B, maxColorValue = 255)
+pnv_table
+
+habitat
+res(habitat) * 110 # = 0.0988 km grid (~ 0.10 km, ~ 100 m)
+
+# crop:
+s_habitat <- crop(habitat, extent(s$y2017))
+b_habitat <- crop(habitat, extent(b$y2017))
+
+sort(unique(values(s_habitat)))
+sort(unique(values(b_habitat)))
+filter(pnv_table, Number %in% unique(values(s_pnv)))
+filter(pnv_table, Number %in% unique(values(b_pnv)))
+
+```
+
 
 ```{r basemaps}
 # plot world
