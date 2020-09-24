@@ -136,6 +136,7 @@ b_area <- pnv_table %>%
       area_percent/100
   )
 
+b_area
 # 2/3 in 9, or "cool mixed forest"
 # 1/3 in 15, or "cold evergreen needleleaf forest"
 
@@ -236,18 +237,20 @@ s_area #
 # 3.82% in temperate deciduous broadleaf forest
 
 # area in each category, in km2 \\ Belarus
-b_area <- pnv_table %>%
-  filter(Number %in% unique(values(b_pnv))) %>%
+b_area_250 <- pnv_table %>%
+  filter(Number %in% unique(values(b_pnv_250))) %>%
   select(Number, 
          Name = New.global.consolidated.biome.scheme) %>%
   mutate(
-    area_percent = (table(getValues(b_pnv))/ncell(b_pnv))*100, # percentage in each
+    area_percent = (table(getValues(b_pnv_250))/ncell(b_pnv_250))*100, # percentage in each
     area_km2 = 
-      length(raster::area(b_pnv)) * 
-      median(raster::area(b_pnv), na.rm = TRUE) * 
+      length(raster::area(b_pnv_250)) * 
+      median(raster::area(b_pnv_250), na.rm = TRUE) * 
       area_percent/100
   )
 
+b_area_250
+b_area
 # 2/3 in 9, or "cool mixed forest"
 # 1/3 in 15, or "cold evergreen needleleaf forest"
 
@@ -259,7 +262,10 @@ b_area <- pnv_table %>%
 habitat <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Habitats/Jung_GlobalHabitatTypes/iucn_habitatclassification_composite_lvl1_ver003.tif")
 
 # color palette information
-habitat_table <- read_csv("/Users/christophercrawford/Google Drive/_Projects/data/Habitats/Jung_GlobalHabitatTypes/iucn_habitatclassification_code_ver003/styles/level1.clr")
+habitat_table <- read_delim(file = "/Users/christophercrawford/Google Drive/_Projects/data/Habitats/Jung_GlobalHabitatTypes/iucn_habitatclassification_code_ver003/styles/level1.clr", delim = " ", col_names = c("Number", "R", "G", "B", "Opacity", "Name"))
+habitat_table
+ht2
+pnv_table
 habitat_col <- rgb(pnv_table$R, pnv_table$G, pnv_table$B, maxColorValue = 255)
 pnv_table
 
@@ -274,6 +280,42 @@ sort(unique(values(s_habitat)))
 sort(unique(values(b_habitat)))
 filter(pnv_table, Number %in% unique(values(s_pnv)))
 filter(pnv_table, Number %in% unique(values(b_pnv)))
+
+plot(s_habitat, main = "Shaanxi Habitat types")
+plot(b_habitat, main = "Belarus Habitat types")
+
+# compare to raw land use data
+plot(b$y1987, main = "Belarus 1987", breaks = plot_breaks, col = plot_cols)
+plot(b$y2017, main = "Belarus 2017", breaks = plot_breaks, col = plot_cols)
+
+habitat_table 
+# 0   Water                     
+# 100 Forest                   
+# 200 Savanna                 
+# 300 Shrubland               
+# 400 Grassland              
+# 500 Wetlands (inland)       
+# 600 Rocky Areas            
+# 800 Desert                 
+# 1400 Artificial - Terrestrial
+# 1700 Unknown
+unique(values(b_habitat))
+table(getValues(b_habitat))/ncell(b_habitat)
+plot(b_habitat, main = "Belarus Habitat classes", breaks = c(0, 100, 300, 500, 1400), col = plot_cols[c(2, 4, 4, 3)])
+
+
+# summary stats
+b_habitat_area <- habitat_table %>%
+  filter(Number %in% unique(values(b_habitat))) %>%
+  select(Number, 
+         Name = New.global.consolidated.biome.scheme) %>%
+  mutate(
+    area_percent = (table(getValues(b_pnv))/ncell(b_pnv))*100, # percentage in each
+    area_km2 = 
+      length(raster::area(b_pnv)) * 
+      median(raster::area(b_pnv), na.rm = TRUE) * 
+      area_percent/100
+  )
 
 ```
 

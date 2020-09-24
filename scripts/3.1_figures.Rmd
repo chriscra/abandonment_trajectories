@@ -93,6 +93,7 @@ show_col(plot_cols) # (topleft = 1, topright = 2, bottomleft = 3, bottomright = 
 
 # -------------------------- plot raw data --------------------------- #
 plot(b$y1987, main = "Belarus 1987", breaks = plot_breaks, col = plot_cols)
+plot(b$y2017, main = "Belarus 2017", breaks = plot_breaks, col = plot_cols)
 
 # ---------------------- plot abandonment age ---------------------- #
 plot(b_age_r$y2017, main = "Belarus Age of Abandonment 2017")
