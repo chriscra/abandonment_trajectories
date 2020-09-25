@@ -75,7 +75,7 @@ res(b1)[1] * 110 * 1000 # about 30 m checks out
 res(s)[1] * 110 * 1000 # about 30 m checks out
 b_tiles
 
-plot(s[[1]], main = "Shaanxi 1987", breaks = plot_breaks, col = plot_cols)
+plot(s[[1]], main = "Shaanxi 1987", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
 
 b_tiles <- lapply(1:6, function(i) {
     brick(paste0(p_dat, "Abandonment/belarus_tiles/", b_files[i]))})
@@ -136,17 +136,26 @@ show_col(plot_cols) # (topleft = 1, topright = 2, bottomleft = 3, bottomright = 
 # gold,         3. Crop
 # light green,  4. Grassland
 
-plot(b87_r, main = "Belarus 1987", breaks = plot_breaks, col = plot_cols)
+plot(b87_r, main = "Belarus 1987", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+legend("bottomleft", cex = 0.6, inset = 0,
+       legend = plot_cols$name, 
+       fill = plot_cols$color)
+
 plot(bs$smolensk1987, add = T, legend = F, col = "blue")
 plot(bt$smolensk1987, add = T, legend = F, col = "red")
 bs
 
 plot(bs$smolensk1987, main = "Subset: Belarus 1987", 
-     breaks = plot_breaks, col = plot_cols)
+     breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+legend("bottomleft", cex = 0.6, inset = 0,
+       legend = plot_cols$name, 
+       fill = plot_cols$color)
 
 plot(bt$smolensk1987, main = "Subset Subset: Belarus 1987", 
-     breaks = plot_breaks, col = plot_cols)
-
+     breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+legend("bottomleft", cex = 0.6, inset = 0,
+       legend = plot_cols$name, 
+       fill = plot_cols$color)
 
 # --------------
 # animate
@@ -154,7 +163,7 @@ plot(bt$smolensk1987, main = "Subset Subset: Belarus 1987",
 # https://www.rdocumentation.org/packages/raster/versions/3.1-5/topics/animate
 
 animate(bt, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
-        breaks = plot_breaks, col = plot_cols)
+        breaks = c(0, plot_cols$breaks), col = plot_cols$color)
 
 ```
 
@@ -423,8 +432,8 @@ tic()
 writeRaster(b, filename = paste0(p_dat_derived, "belarus.tif"))
 toc()
 
-plot(b$y1987, col = plot_cols, breaks = plot_breaks, main = "merged")
-plot(b87_r, col = plot_cols, breaks = plot_breaks, main = "1987 direct")
+plot(b$y1987, col = plot_cols$color, breaks = c(0, plot_cols$breaks), main = "merged")
+plot(b87_r, col = plot_cols$color, breaks = c(0, plot_cols$breaks), main = "1987 direct")
 plot(b87_r - b$y1987)
 
 cellStats(b$y1987 - b87_r, "sum")
@@ -829,8 +838,8 @@ hist(length[[1]], main = "Histogram of Length of Time Abandoned \n Shaanxi/Shanx
 
 
 # rasters:
-plot(s[[1]], main = "Shaanxi 1987", breaks = plot_breaks, col = plot_cols)
-plot(s[[31]], main = "Shaanxi 2017", breaks = plot_breaks, col = plot_cols)
+plot(s[[1]], main = "Shaanxi 1987", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+plot(s[[31]], main = "Shaanxi 2017", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
 
 
 ```

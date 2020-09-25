@@ -152,7 +152,7 @@ res(b1)[1] * 110 * 1000 # about 30 m checks out
 res(s)[1] * 110 * 1000 # about 30 m checks out
 b
 
-plot(s[[1]], main = "Shaanxi 1987", breaks = plot_breaks, col = plot_cols)
+plot(s[[1]], main = "Shaanxi 1987", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
 
 b <- lapply(1:6, function(i) {
     brick(paste0(p_eefull, b_files[i]))})
@@ -174,7 +174,7 @@ b87_r <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonm
 b88_r <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_1988.tif")
 
 # simple plots
-plot(b87_r, main = "Belarus 1987", breaks = plot_breaks, col = plot_cols)
+plot(b87_r, main = "Belarus 1987", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
 plot(b$`belarus-0000000000-0000000000.tif`[[1]], main = "Belarus 1987", col = "red", add = TRUE)
 plot(b[[1]][[1]], main = "Belarus 1987, 1", col = "gray", alpha = 0.5)
 
@@ -205,7 +205,7 @@ b88_r <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonm
 
 # simple plots, to check the coverage of the raster bricks
 dev.off()
-plot(b87_r, main = "Belarus 1987", breaks = plot_breaks, col = plot_cols)
+plot(b87_r, main = "Belarus 1987", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
 extent(b87_r)
 plot(b[[1]][[1]], col = "red", add = TRUE)
 plot(b[[2]][[1]], col = "blue", add = TRUE)
@@ -221,13 +221,13 @@ b4 <- b[[4]][[1]]
 b5 <- b[[5]][[1]]
 b6 <- b[[6]][[1]]
 par(mfrow = c(3,3))
-plot(b87_r, main = "Belarus 1987", breaks = plot_breaks, col = plot_cols)
-plot(b1, breaks = plot_breaks, col = plot_cols)
-plot(b2, breaks = plot_breaks, col = plot_cols)
-plot(b3, breaks = plot_breaks, col = plot_cols)
-plot(b4, breaks = plot_breaks, col = plot_cols)
-plot(b5, breaks = plot_breaks, col = plot_cols)
-plot(b6, breaks = plot_breaks, col = plot_cols)
+plot(b87_r, main = "Belarus 1987", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+plot(b1, breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+plot(b2, breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+plot(b3, breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+plot(b4, breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+plot(b5, breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+plot(b6, breaks = c(0, plot_cols$breaks), col = plot_cols$color)
 
 # do the extents match? yes
 extent(b87_r)
@@ -243,7 +243,7 @@ b_merge <- merge(b_merge, b3)
 b_merge <- merge(b_merge, b4)
 b_merge <- merge(b_merge, b5)
 b_merge <- merge(b_merge, b6)
-plot(b_merge, breaks = plot_breaks, col = plot_cols)
+plot(b_merge, breaks = c(0, plot_cols$breaks), col = plot_cols$color)
 check <- b87_r - b_merge
 plot(check)
 cellStats(check, "sum") # 0 ... which means that the data should match up
@@ -259,16 +259,26 @@ show_col(plot_cols) # (topleft = 1, topright = 2, bottomleft = 3, bottomright = 
 # gold,         3. Crop
 # light green,  4. Grassland
 
-plot(b87_r, main = "Belarus 1987", breaks = plot_breaks, col = plot_cols)
+plot(b87_r, main = "Belarus 1987", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+legend("bottomleft", cex = 0.6, inset = 0,
+       legend = plot_cols$name, 
+       fill = plot_cols$color)
+
 plot(bs$smolensk1987, add = T, legend = F, col = "blue")
 plot(bt$smolensk1987, add = T, legend = F, col = "red")
 bs
 
 plot(bs$smolensk1987, main = "Subset: Belarus 1987", 
-     breaks = plot_breaks, col = plot_cols)
+     breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+legend("bottomleft", cex = 0.6, inset = 0,
+       legend = plot_cols$name, 
+       fill = plot_cols$color)
 
 plot(bt$smolensk1987, main = "Subset Subset: Belarus 1987", 
-     breaks = plot_breaks, col = plot_cols)
+     breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+legend("bottomleft", cex = 0.6, inset = 0,
+       legend = plot_cols$name, 
+       fill = plot_cols$color)
 
 
 # --------------
@@ -277,7 +287,7 @@ plot(bt$smolensk1987, main = "Subset Subset: Belarus 1987",
 # https://www.rdocumentation.org/packages/raster/versions/3.1-5/topics/animate
 
 animate(bt, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
-        breaks = plot_breaks, col = plot_cols)
+        breaks = c(0, plot_cols$breaks), col = plot_cols$color)
 
 ```
 
@@ -381,8 +391,8 @@ r[r == 4] <- 3 # take grassland (4), set to 3
 r[r == 5] <- 4 # take 5 (woody veg), set to 4
 
 plot(r)
-plot(bt$smolensk1987, breaks = plot_breaks, col = plot_cols)  # 1 = nonveg, 2 = woody, 3 = crop, 4 = grassland
-plot(r, breaks = plot_breaks, col = plot_cols_new)
+plot(bt$smolensk1987, breaks = c(0, plot_cols$breaks), col = plot_cols$color)  # 1 = nonveg, 2 = woody, 3 = crop, 4 = grassland
+plot(r, breaks = c(0, plot_cols$breaks), col = plot_cols$color_new)
 
 # --------------
 # update to simple, 1 = cropland, 2 = noncropland
@@ -398,15 +408,15 @@ plot(btb[[1]] - 1) # 0 = crop, 1 = noncrop (woody + grassland)
 
 
 
-plot(btb[[1]], breaks = c(-1, 0, 1, 2), col = plot_cols[c(1, 3, 2)])
-plot(btb[[1]], col = plot_cols[c(3, 2)]) # same, just simpler
+plot(btb[[1]], breaks = c(-1, 0, 1, 2), col = plot_cols$color[c(1, 3, 2)])
+plot(btb[[1]], col = plot_cols$color[c(3, 2)]) # same, just simpler
 
 # 1 = brown, agriculture
 # 2 = green, non-agriculture
 
 
 animate(btb, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
-        breaks = c(-1, 0, 1, 2), col = plot_cols[c(1, 3, 2)])
+        breaks = c(-1, 0, 1, 2), col = plot_cols$color[c(1, 3, 2)])
 ```
 
 ```{r 0-values}
@@ -435,7 +445,7 @@ dt_merge
 dt_0
 r_0 <- dt_to_raster(dt_0, crs(bs))
 
-plot(b87_r, col = plot_cols)
+plot(b87_r, col = plot_cols$color)
 plot(r_0$belarus_1987, col = "red", add = T)
 plot(r_0$belarus_1987)
 
@@ -454,7 +464,7 @@ ncell(b87_r)
 summary(b87_r)
 test <- b87_r
 test[test == 0] <- 8
-plot(test, col = plot_cols)
+plot(test, col = plot_cols$color)
 
 (187084 / 94403140) * 100
 
@@ -1195,9 +1205,9 @@ object_size(dt_s)
 hist(length[[1]], main = "Histogram of Length of Time Abandoned \n Shaanxi/Shanxi Provinces, China", xlab = "Time (years)")
 
 
-plot(s[[1]], main = "Shaanxi 1987", breaks = plot_breaks, col = plot_cols)
+plot(s[[1]], main = "Shaanxi 1987", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
 
-plot(s[[31]], main = "Shaanxi 2017", breaks = plot_breaks, col = plot_cols)
+plot(s[[31]], main = "Shaanxi 2017", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
 
 
 ```
@@ -1411,12 +1421,12 @@ plot(noncrop_duration_avg)
 
 ```{r test-RS-TS}
 animate(btb, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
-        breaks = c(-1, 0, 1, 2), col = plot_cols[c(1, 3, 2)])
+        breaks = c(-1, 0, 1, 2), col = plot_cols$color[c(1, 3, 2)])
 
-plot(bs$smolensk1987, breaks = plot_breaks, col = plot_cols)
+plot(bs$smolensk1987, breaks = c(0, plot_cols$breaks), col = plot_cols$color)
 plot(bt$smolensk1987, add = T)
 
-plot(btb, breaks = plot_breaks, col = plot_cols) # binary version of bt
+plot(btb, breaks = c(0, plot_cols$breaks), col = plot_cols$color) # binary version of bt
 
 
 # Name the years
@@ -1450,10 +1460,10 @@ plot(btb$smolensk1987, add = T, col = "red")
 
 
 show_col(plot_cols[c(1, 3, 2)])
-plot(btb[[1:16]], breaks = c(-1, 0, 1, 2), col = plot_cols[c(1, 3, 2)])
+plot(btb[[1:16]], breaks = c(-1, 0, 1, 2), col = plot_cols$color[c(1, 3, 2)])
 # 1 = brown, crop | 2 = green, noncrop
 
-plot(running_diff[[1:16]], breaks = c(-2, -1, 0, 1), col = plot_cols[c(3, 1, 2)]) # brown (transition noncrop to crop), gray (no trans), green (transition crop to noncrop)
+plot(running_diff[[1:16]], breaks = c(-2, -1, 0, 1), col = plot_cols$color[c(3, 1, 2)]) # brown (transition noncrop to crop), gray (no trans), green (transition crop to noncrop)
 show_col(plot_cols[c(3, 1, 2)])
                                                 
 
