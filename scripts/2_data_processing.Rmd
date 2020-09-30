@@ -81,6 +81,8 @@ b_tiles <- lapply(1:6, function(i) {
     brick(paste0(p_dat, "Abandonment/belarus_tiles/", b_files[i]))})
 names(b_tiles) <- b_files
 
+names(b_tiles[[6]])
+
 # Shaanxi is much much smaller than Belarus
 ncell(s) # 94.4 M
 ncell(b87_r) # 22.59 M

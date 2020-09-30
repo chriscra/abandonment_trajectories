@@ -17,7 +17,7 @@ install_clpkg <- lapply(cluster_dev_packages, library, character.only = TRUE) # 
 
 
 # set paths
-file_in <- "/scratch/network/clc6/abandonment_trajectories/data/belarus.tif"
+file_in <- "/scratch/network/clc6/abandonment_trajectories/data_derived/belarus.tif"
 path_out <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
 
 # load functions

@@ -254,7 +254,8 @@ cc_process_rasters <- function(input_raster_file, name, path_out = p_dat_derived
   
   # update raster layer names
   tic("update raster layer names")
-  names(r) <- gsub(gsub_pattern, "y", names(r))
+  # names(r) <- gsub(gsub_pattern, "y", names(r))
+  names(r) <- paste0("y", 1987:2017) # 
   toc(log = TRUE)
   
   # load as a data.table - warning, this is very slow
