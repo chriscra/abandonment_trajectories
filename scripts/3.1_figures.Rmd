@@ -28,6 +28,8 @@ bs <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
 s <- brick(paste0(p_dat, "Abandonment/shaanxi.tif"))
 b <- brick(paste0(p_dat_derived, "belarus.tif")) # merged version
 
+names(s)
+names(b)
 # update names
 
 # age
@@ -42,7 +44,9 @@ names(b_age_r) <- paste0("y", 1987:2017)
 
 # data.tables
 b_age <- fread(input = paste0(p_dat_derived, "belarus_age.csv"))
+names(b_age)
 s_age <- fread(input = paste0(p_dat_derived, "shaanxi_age.csv"))
+
 
 b_length <- fread(input = paste0(p_dat_derived, "belarus_length.csv"))
 s_length <- fread(input = paste0(p_dat_derived, "shaanxi_length.csv"))
@@ -186,18 +190,21 @@ hist(b_length[[1]], right = FALSE, main = "right = FALSE")
 # both site histograms
 dat
 length_plot <- ggplot(data = distill) + 
-  labs(title = "Histogram of all periods of abandonment") +
-  geom_col(mapping = aes(x = length, y = freq), fill = "gray50") +
+  labs(title = "Histogram of time abandoned across all individual periods of abandonment") +
+  xlab("Time abandoned (years)") + ylab(expression("Count  (10"^{6}*" pixels)")) +
+  geom_col(mapping = aes(x = length, y = freq/(10^6)), fill = "gray50") +
   facet_grid(rows = vars(site), scales = "free") +
   geom_vline(xintercept=5, linetype="dashed", 
              color = "red", size = 0.75) +
   geom_vline(xintercept=20, linetype="dashed", color = "dark green", size = 0.75) +
   theme_classic()
 
+
 # max_length
 max_length_plot <- ggplot(data = max_distill) + 
-  labs(title = "Histogram of max abandonment length per pixel") +
-  geom_col(mapping = aes(x = max_length, y = freq), fill = "gray50") +
+  labs(title = "Histogram of maximum time abandoned per pixel") +
+  xlab("Maximum time abandoned (years)") + ylab(expression("Count  (10"^{6}*" pixels)")) + 
+  geom_col(mapping = aes(x = max_length, y = freq/(10^6)), fill = "gray50") +
   facet_grid(rows = vars(site), scales = "free") +
   geom_vline(xintercept=5, linetype="dashed", 
              color = "red", size = 0.75) +
@@ -220,6 +227,22 @@ ggplot(data = b_distill) +
 ggplot(data = b_length, aes(length)) + 
   geom_histogram() +
   theme_classic() # took forever!! Beware...
+```
+
+```{r save-age-histograms}
+
+# all lengths
+png(filename = paste0(p_output, "plots/length_hist.png"), 
+    width = 7, height = 5, units = "in", res = 400)
+print(length_plot)
+dev.off()
+
+# max lengths
+png(filename = paste0(p_output, "plots/max_length_hist.png"), 
+    width = 7, height = 5, units = "in", res = 400)
+print(max_length_plot)
+dev.off()
+
 ```
 
 
