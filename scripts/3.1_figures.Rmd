@@ -56,6 +56,8 @@ s_max_length <- fread(input = paste0(p_dat_derived, "shaanxi_max_length.csv"))
 
 # original data
 s_dt <- fread(input = paste0(p_dat_derived, "shaanxi.csv"))
+names(s_dt) <- gsub(pattern = "andcover", replacement = "y", names(s_dt))
+
 b_dt <- fread(input = paste0(p_dat_derived, "belarus.csv")) # caution - huge file! 8.4 GB at least. 
 ```
 
@@ -131,6 +133,101 @@ s_length
 b_length
 s_length[, .N, by = length]
 b_length[, .N, by = length]
+
+```
+
+```{r lc-type-distribution}
+s_dt[, .N, by = .(y1987)] #
+s_dt[, .N, by = .(y2017)] #
+
+s_dt[, .N, by = .(y1987, y1988)] #
+s_dt[, table(y1987)]
+
+grep("x$|y$", names(s_dt), value = TRUE, invert = TRUE)
+
+s_dt[, -c("x", "y")]
+s_dt[, .N, by = c(paste0("y", 1987:2017))] #
+
+s_dt[, .N, by = .(y1987)][order(get("y1987"))]
+DT <- s_dt[, .N, by = .(y1987)][order(get("y1987"))] %>% 
+  as_tibble()
+
+DT
+i <- "y1987"
+rename(DT, "lc" = i, 
+           eval(i) = "N")
+# s_dt[, c("i", "freq") := NULL]
+
+sum_area_per_lc <- function(dt) {
+  col_names <- grep("x$|y$", names(dt), value = TRUE, invert = TRUE)
+  
+  for (i in seq_along(col_names)) {
+    temp_dt <- dt[, .N, by = c(col_names[i])][order(get(col_names[i]))]
+    setnames(temp_dt, old = col_names[i], new = "lc")
+    setnames(temp_dt, old = "N", new = col_names[i])
+    
+    if(i>1) {
+      lc_sum <- merge(lc_sum, temp_dt, by = "lc")
+      } else {
+        lc_sum <- temp_dt
+      }
+  }
+  
+  # now, recode and pivot
+  # 1. Non-veg
+  # 2. Woody veg
+  # 3. Crop
+  # 4. Grassland
+  
+  lc_sum <- lc_sum %>% 
+    as_tibble() %>%
+    filter(lc != 0) %>% 
+    mutate(lc = as_factor(lc),
+           lc = recode(lc, # old = new
+                       "1" = "Non-veg", 
+                       "2" = "Woody veg",
+                       "3" = "Crop", 
+                       "4" = "Grassland")
+           ) %>%
+    pivot_longer(cols = starts_with("y"), names_to = "year", values_to = "count") %>%
+    mutate(year = as.integer(gsub("y", "", year))) %>%
+    select(year, lc, count)
+  
+  lc_sum
+}
+
+# plot
+((30^2) / (100^2)) # 30 km x 30 km cells, converted into hectares (100^2)conversion to ha
+
+gg_lc_area_s <- ggplot(data = lc_sum, aes(year, count)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  labs(y = expression("Area  (10"^{6}*" ha)") , 
+       x = "Year", 
+       title = "Land Cover Area, Shaanxi/Shanxi Provinces, China",
+       color = "Land Cover") + 
+  geom_line(mapping = aes(x = year, y = count*((30^2) / (100^2))*(1/10^6), 
+                          group = lc, color = lc)) #+
+  # facet_grid(rows = vars(lc_class),
+  #            cols = vars(scenario),
+  #            scales = "free_y")
+
+gg_lc_area_s
+
+# calculate area
+
+
+
+s_area <- raster::area(s$y2017) # area in km2
+res(s_area)[1] * # resolution of the raster, in degrees (lat/long)
+  100 * # ~100-110 km per degree 
+  1000 # 1000 m/km = 26.95 m resolution
+
+plot(s_area)
+(26.95 / # m
+  1000) ^2 # 1000 m per km, squared to get km2
+
+table(getValues(s$y2017))
 
 ```
 
@@ -352,95 +449,165 @@ dev.off()
 ```
 
 
-```{r layout-backup}
-pdf(file = paste0(p_output, "plots/pnv-habitat-lu-age-plot3.pdf"),
-    width = 9, height = 5.5)
+```{r area-plot}
+plot(globiom$RCPref_SSP2_NOBIOD$abn_cropland_other)
+plot(globiom$RCPref_SSP2_NOBIOD$abn_cropland_other$X2100)
+plot(r)
+cellStats(globiom_ref$cropland_other$X2100, "sum")
+cellStats(globiom_ref$cropland_other$X2100 * r_area, "sum")
 
-# Set plot layout
-# layout(mat = matrix(1:8, nrow = 2, ncol = 4),
-#        heights = c(1.5, 1.5),    # Heights of the two rows
-#        widths = c(2, 2, 2, 2))     # Widths of the two columns
-# layout.show(8)
-
-layout(mat = matrix(1:8, nrow = 2, ncol = 4, byrow = TRUE),
-       heights = c(1.5, 1.5),    # Heights of the two rows
-       widths = c(2, 2, 2, 2))     # Widths of the two columns
-# layout.show(8)
-
-# par(mfrow(c(2, 4)))
-maxpixels <- 1000
-
-# ------------- potential natural vegetation ---------------- #
-plot(s_pnv, maxpixels = 100000, main = "Shaanxi, PNV",
-     breaks = c(0, filter(pnv_table, Number %in% unique(values(s_pnv)))$Number),
-     col = filter(pnv_table, Number %in% unique(values(s_pnv)))$Color)
-
-legend("topleft", 
-       legend = filter(pnv_table, Number %in% unique(values(s_pnv)))$Name, 
-       fill = filter(pnv_table, Number %in% unique(values(s_pnv)))$Color,
-       cex = 0.6, inset = 0)
+# what does the sum correspond to?
+# "1" represents one full pixel, which is 0.5 x 0.5 degree.
+# at the equator, this is about:
+55.5 * 55.5 # 0.5 x 0.5 degree, about 3080.25 km2.
 
 
-# belarus
-plot(b_pnv, maxpixels = 100000, main = "Belarus, PNV",
-     breaks = c(0, filter(pnv_table, Number %in% unique(values(b_pnv)))$Number),
-     col = filter(pnv_table, Number %in% unique(values(b_pnv)))$Color)
+# ---------------------------------------------------
+# 1. extract area that comes along with the nc files
+# ---------------------------------------------------
+pixel_area <- raster(paste0(p_globiom, globiom_runs[7]), varname = "pixel_area", level = 9) # this is the same across the different model runs
 
-legend("bottomleft", 
-       legend = filter(pnv_table, Number %in% unique(values(b_pnv)))$Name, 
-       fill = filter(pnv_table, Number %in% unique(values(b_pnv)))$Color,
-       cex = 0.6, inset = 0)
-
-# ------------- habitat types ---------------- #
-
-plot(s_habitat, main = "Shaanxi, Habitat Types",
-     breaks = c(-1, 
-                filter(habitat_table, Number %in% unique(values(s_habitat)))$Number),
-     col = filter(habitat_table, Number %in% unique(values(s_habitat)))$Color,
-     maxpixels = maxpixels)
-
-legend("topleft", 
-       legend = filter(habitat_table, Number %in% unique(values(s_habitat)))$Name, 
-       fill = filter(habitat_table, Number %in% unique(values(s_habitat)))$Color,
-       cex = 0.6, inset = 0)
-
-# belarus
-plot(b_habitat, main = "Belarus, Habitat Types",
-     breaks = c(-1, 
-                filter(habitat_table, Number %in% unique(values(b_habitat)))$Number),
-     col = filter(habitat_table, Number %in% unique(values(b_habitat)))$Color,
-     maxpixels = maxpixels)
-
-legend("bottomleft", 
-       legend = filter(habitat_table, Number %in% unique(values(b_habitat)))$Name, 
-       fill = filter(habitat_table, Number %in% unique(values(b_habitat)))$Color,
-       cex = 0.6, inset = 0)
+plot(pixel_area) # this is in millions of ha. Remember, 1 km2 is 100 ha, so this corresponds to 10 ^ 4 km2 (10,000)
+plot(globiom$RCPref_SSP2_NOBIOD$abn_cropland_other$X2100 * pixel_area)
 
 
-# ------------- raw land use data ---------------- #
-plot(s$y2015, main = "Shaanxi 2015", 
-     breaks = c(0, plot_cols$breaks), col = plot_cols$color,
-     maxpixels = maxpixels)
-legend("bottomleft", cex = 0.6, inset = 0,
-       legend = plot_cols$name, 
-       fill = plot_cols$color)
+# 1.5 [unnecessary now] calculate area of each pixel in km2:
+# ---------------------------------------------------
+r_area <- raster::area(r)
+msk <- !is.na(r) # mask that has cell values of 1 for terrestrial, NA in ocean.
+plot(r_area * msk)
 
 
-plot(b$y2015, main = "Belarus 2015", 
-     breaks = c(0, plot_cols$breaks), col = plot_cols$color,
-     maxpixels = maxpixels)
-legend("bottomleft", cex = 0.6, inset = 0,
-       legend = plot_cols$name, 
-       fill = plot_cols$color)
+# ---------------------------------------------------
+# 2. recalculate rasters to show area in each land cover class (in km2), not just proportion
+# ---------------------------------------------------
+globiom_area <- vector(mode = "list", length = length(globiom))
+names(globiom_area) <- names(globiom)
+
+for (j in seq_along(globiom)) {
+  
+  globiom_area[[j]] <- lapply(seq_along(globiom[[j]]), function(i) {
+    out <- globiom[[j]][[i]] * pixel_area # r_area
+    names(out) <- names(globiom[[7]][[1]])
+    return(out)
+    })
+  
+  names(globiom_area[[j]]) <- lc_class
+}
 
 
-# ------------- abandonment age ---------------- #
-plot(s_age_r$y2017, main = "Shaanxi, 2017: Time abandoned (years)",
-     maxpixels = maxpixels)
-plot(b_age_r$y2017, main = "Belarus, 2017: Time abandoned (years)",
-     maxpixels = maxpixels)
+# ---------------------------------------------------
+# 3. produce a data.frame of cumulative area sum for each scenario in each year:
+# ---------------------------------------------------
 
-dev.off()
+globiom_area_df <- vector(mode = "list", length = length(globiom))
+names(globiom_area_df) <- names(globiom_area)
+for (i in seq_along(globiom)) {
+  globiom_area_df[[i]] <- sapply(globiom_area[[i]], function(x) cellStats(x, "sum")) %>%
+    as_tibble() %>%
+    mutate(model = "globiom", 
+           scenario = names(globiom_area)[i], 
+           year = seq(from = 2010, to = 2100, by = 10)) %>%
+    relocate(model, scenario, year)
+}
+toc()
+globiom_area_df <- do.call("rbind", globiom_area_df)
+
+object_size(globiom_area)
+rm(globiom_area) # remove the globiom_area list of lists of bricks, since it's 1.66 GB and  no longer necessary.
+
+globiom_area_melt <- melt(globiom_area_df, id.vars = c("model", "scenario", "year"), variable.name = "lc_class", value.name = "area") %>% as_tibble()
+
+globiom_area_melt0 %>% as_tibble()
+globiom_area_melt[1, 5]$area
+globiom_area_melt0[1, 5]
+# ---------------------------------------------------
+# 4. plot area 
+# ---------------------------------------------------
+globiom_area_melt$scenario <- gsub("RCPref_", "", globiom_area_melt$scenario)
+
+p1 <- ggplot(data = filter(globiom_area_melt, #scenario %in% c("RCPref_SSP2_NOBIOD", "RCPref_SSP2_BIOD"), 
+                           lc_class %in% c(
+                             "cropland_other", #grep("abn", unique(globiom_area_melt$lc_class), value = T)),
+                             "restored", "abn_cropland_other", "abn_cropland_2Gbioen", "abn_grassland"
+                             ))) + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  labs(y = "Area (Millions ha)" , x = "Year", title = "Area") + 
+  geom_line(mapping = aes(x = year, y = area, group = lc_class, color = lc_class)) +
+  facet_grid(rows = vars(lc_class),
+             cols = vars(scenario),
+             scales = "free_y")
+
+p1
+
+
+unique(globiom_area_melt$scenario)
+unique(globiom_area_melt$lc_class)
+
+globiom_area_melt %>% 
+  filter(scenario == "SSP2_NOBIOD",
+         year == "2100")
+
+#  1 globiom SSP2_NOBIOD  2100 cropland_other       1800.  
+#  2 globiom SSP2_NOBIOD  2100 cropland_2Gbioen       13.3 
+#  3 globiom SSP2_NOBIOD  2100 grassland            2073.  
+#  4 globiom SSP2_NOBIOD  2100 forest_unmanaged     2955.  
+#  5 globiom SSP2_NOBIOD  2100 forest_managed        657.  
+#  6 globiom SSP2_NOBIOD  2100 restored               62.3 
+#  7 globiom SSP2_NOBIOD  2100 other                5231.  
+#  8 globiom SSP2_NOBIOD  2100 built_up               23.8 
+#  9 globiom SSP2_NOBIOD  2100 abn_cropland_other    126.  
+# 10 globiom SSP2_NOBIOD  2100 abn_cropland_2Gbioen    2.29
+# 11 globiom SSP2_NOBIOD  2100 abn_grassland          78.8 
+# 12 globiom SSP2_NOBIOD  2100 abn_forest_managed      0
+
+globiom_area_melt %>% 
+  filter(scenario == "SSP2_NOBIOD",
+         year == "2100",
+         lc_class == "cropland_other") %>%
+  select(area) %>% unlist()
+
+
+v <- globiom_area_melt %>% 
+  filter(scenario == "SSP2_NOBIOD",
+         # lc_class == "cropland_other",
+         year == "2100") %>%
+  select(area) %>% unlist(use.names = FALSE)
+
+(v[6] + # restored
+    v[9] + # abn_crop
+    v[11] # abn_grass
+  ) / (v[1] + # crop
+         v[3] # grass
+       ) * 100
+
+# In 2100, the amount of land that is in some sort of abandonment state 
+# (restored, abandoned cropland, abandoned grassland) is about 7% of
+# the total amount of land in cropland or grassland in 2100. That's a lot!
+
+
+
+
+
+# how different are the two area measurements?
+pixel_area
+r_area
+plot(pixel_area*10000 - r_area) # this shows the number of km2 the area measurements differ by. A 0.5 deg x 0.5 deg cell is about 55.5^2 = 3080.25 km2 at the equator. 
+
+
+differences <- globiom_area_melt %>%
+  mutate(diff = globiom_area_melt$area*10000 - globiom_area_melt0$area,
+         area10e4 = area*10000,
+         area0 = globiom_area_melt0$area,
+         percent = (diff/area10e4)*100) %>%
+  print()
+
+differences$percent %>% mean(na.rm = TRUE) # on average, half a percent off in terms of area. 0.47 %
+sum(differences$percent, na.rm = TRUE) / sum(!is.na(differences$percent))
+sum(differences$percent, na.rm = TRUE) / nrow(differences) # 0.35 % if you include NAs as 0
+
 
 ```
+
 

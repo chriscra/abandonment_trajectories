@@ -9,6 +9,8 @@ editor_options:
 source("scripts/0_start.R")
 ```
 
+# Habitats
+
 ```{r pnv}
 # load PNV
 pnv <- raster(paste0(p_dat, "/Habitats/PNV/Hengl_2018_PNV/1km/pnv_biome.type_biome00k_c_1km_s0..0cm_2000..2017_v0.1.tif"))
@@ -91,7 +93,7 @@ legend("bottomleft",
 # what habitat types are these?
 
 # area in each category, in km2 \\ Shaanxi
-s_area <- pnv_table %>%
+s_pnv_area <- pnv_table %>%
   filter(Number %in% unique(values(s_pnv))) %>%
   select(Number, Name) %>%
   mutate(
@@ -101,7 +103,7 @@ s_area <- pnv_table %>%
       median(raster::area(s_pnv), na.rm = TRUE) * 
       area_percent/100
   )
-s_area # 
+s_pnv_area # 
 # < 0.05 % in 9 (cool mixed forest) and 27 (desert)
 # 96% in steppe
 # 3.82% in temperate deciduous broadleaf forest
@@ -179,7 +181,7 @@ legend("bottomleft",
 # belarus, mostly closed mixed 
 
 # area in each category, in km2 \\ Shaanxi
-s_area_250 <- pnv_table %>%
+s_pnv_area_250 <- pnv_table %>%
   filter(Number %in% unique(values(s_pnv_250))) %>%
   select(Number, Name) %>%
   mutate(area_percent = (table(getValues(s_pnv_250))/ncell(s_pnv_250))*100, # percentage in each
@@ -188,8 +190,8 @@ s_area_250 <- pnv_table %>%
       median(raster::area(s_pnv_250), na.rm = TRUE) * 
       area_percent/100
   )
-s_area # 
-s_area_250
+s_pnv_area # 
+s_pnv_area_250
 # < 0.05 % in 9 (cool mixed forest) and 27 (desert)
 # 96% in steppe
 # 3.82% in temperate deciduous broadleaf forest
@@ -491,3 +493,5 @@ template_raster <- extend(small_mask, extent(as.Spatial(sf_file)), value = 0)
 
 ```
 
+
+# PREDICTS

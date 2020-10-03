@@ -364,3 +364,8 @@ cc_calc_max_age <- function(dt, directory = p_dat_derived, name) {
   fwrite(dt[, .(x, y, max_length)], file = paste0(directory, name, "_max_length.csv"))
   
 }
+
+
+# -------------------------------------------------------------------------- #
+# extract the count of land use class in original land cover data 
+# -------------------------------------------------------------------------- #

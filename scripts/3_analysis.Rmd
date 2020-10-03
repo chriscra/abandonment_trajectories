@@ -22,3 +22,5 @@ citation("landscapemetrics")
 check_raster()
 ```
 
+
+# Spatial Regression
