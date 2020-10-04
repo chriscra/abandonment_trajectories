@@ -367,5 +367,43 @@ cc_calc_max_age <- function(dt, directory = p_dat_derived, name) {
 
 
 # -------------------------------------------------------------------------- #
-# extract the count of land use class in original land cover data 
+# calculate the total area in each land cover class in the original land cover data 
 # -------------------------------------------------------------------------- #
+cc_total_area_per_lc <- function(dt, area_raster) {
+  col_names <- grep("x$|y$", names(dt), value = TRUE, invert = TRUE)
+  
+  for (i in seq_along(col_names)) {
+    temp_dt <- dt[, .N, by = c(col_names[i])][order(get(col_names[i]))]
+    setnames(temp_dt, old = col_names[i], new = "lc")
+    setnames(temp_dt, old = "N", new = col_names[i])
+    
+    if(i>1) {
+      lc_sum <- merge(lc_sum, temp_dt, by = "lc")
+    } else {
+      lc_sum <- temp_dt
+    }
+  }
+  
+  # now, recode and pivot
+  lc_sum <- lc_sum %>% 
+    as_tibble() %>%
+    filter(lc != 0) %>% 
+    mutate(lc = as_factor(lc),
+           lc = recode(lc, # old = new
+                       "1" = "Non-veg", 
+                       "2" = "Woody veg",
+                       "3" = "Crop", 
+                       "4" = "Grassland")
+    ) %>%
+    pivot_longer(cols = starts_with("y"), names_to = "year", values_to = "count") %>%
+    mutate(year = as.integer(gsub("y", "", year))) %>%
+    select(year, lc, count)
+  
+  # calculate area of each category of land cover, 
+  # based on the median cell size
+  lc_sum <- lc_sum %>%
+    mutate(area_ha = count * median(getValues(area_raster)) * 100)
+  
+  # return the tibble
+  lc_sum
+}

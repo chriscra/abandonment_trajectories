@@ -136,7 +136,7 @@ b_length[, .N, by = length]
 
 ```
 
-```{r lc-type-distribution}
+```{r lc-type-summary}
 s_dt[, .N, by = .(y1987)] #
 s_dt[, .N, by = .(y2017)] #
 
@@ -158,108 +158,279 @@ rename(DT, "lc" = i,
            eval(i) = "N")
 # s_dt[, c("i", "freq") := NULL]
 
-sum_area_per_lc <- function(dt) {
-  col_names <- grep("x$|y$", names(dt), value = TRUE, invert = TRUE)
-  
-  for (i in seq_along(col_names)) {
-    temp_dt <- dt[, .N, by = c(col_names[i])][order(get(col_names[i]))]
-    setnames(temp_dt, old = col_names[i], new = "lc")
-    setnames(temp_dt, old = "N", new = col_names[i])
-    
-    if(i>1) {
-      lc_sum <- merge(lc_sum, temp_dt, by = "lc")
-      } else {
-        lc_sum <- temp_dt
-      }
-  }
-  
-  # now, recode and pivot
-  # 1. Non-veg
-  # 2. Woody veg
-  # 3. Crop
-  # 4. Grassland
-  
-  lc_sum <- lc_sum %>% 
-    as_tibble() %>%
-    filter(lc != 0) %>% 
-    mutate(lc = as_factor(lc),
-           lc = recode(lc, # old = new
-                       "1" = "Non-veg", 
-                       "2" = "Woody veg",
-                       "3" = "Crop", 
-                       "4" = "Grassland")
-           ) %>%
-    pivot_longer(cols = starts_with("y"), names_to = "year", values_to = "count") %>%
-    mutate(year = as.integer(gsub("y", "", year))) %>%
-    select(year, lc, count)
-  
-  lc_sum
-}
 
-# plot
-((30^2) / (100^2)) # 30 km x 30 km cells, converted into hectares (100^2)conversion to ha
-
-gg_lc_area_s <- ggplot(data = lc_sum, aes(year, count)) +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
-  labs(y = expression("Area  (10"^{6}*" ha)") , 
-       x = "Year", 
-       title = "Land Cover Area, Shaanxi/Shanxi Provinces, China",
-       color = "Land Cover") + 
-  geom_line(mapping = aes(x = year, y = count*((30^2) / (100^2))*(1/10^6), 
-                          group = lc, color = lc)) #+
-  # facet_grid(rows = vars(lc_class),
-  #            cols = vars(scenario),
-  #            scales = "free_y")
-
-gg_lc_area_s
-
-# calculate area
-
-
-
+# ------------- calculate area raster ---------------- #
 s_area <- raster::area(s$y2017) # area in km2
 res(s_area)[1] * # resolution of the raster, in degrees (lat/long)
   100 * # ~100-110 km per degree 
   1000 # 1000 m/km = 26.95 m resolution
 
 plot(s_area)
-(26.95 / # m
-  1000) ^2 # 1000 m per km, squared to get km2
 
-table(getValues(s$y2017))
+summary(getValues(s_area))
+median(getValues(s_area)) # 0.0006972 km2. 
+median(getValues(s_area)) * 100 / 1 # 100 ha/km2
+
+# median pixel size is 697 m2, 0.0697 ha, or 0.000697 km2. 
+median(getValues(s_area)) * # km2
+  100 * # 100 ha per km2 
+  10000 # m2 per ha
+
+# the difference between minimum and maximum cell size, in m2
+(max(getValues(s_area)) - 
+    min(getValues(s_area))
+  ) * # in km2
+  1000^2 # m2 / km 2
+
+# ------------- calculate total area per lc ---------------- #
+
+lc_area_s <- cc_total_area_per_lc(dt = s_dt, area_raster = s_area)
+identical(lc_sum_s, lc_area_s)
+
+# ------------- plot ---------------- #
+
+gg_lc_area_s <- ggplot(data = lc_area_s, aes(year, area_ha)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  labs(y = expression("Area  (10"^{6}*" ha)") , 
+       x = "Year", 
+       title = "Land Cover Area, Shaanxi/Shanxi Provinces, China",
+       color = "Land Cover") + 
+  geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
+                          group = lc, color = lc)) #+
+  # facet_grid(rows = vars(lc_class),
+  #            cols = vars(scenario),
+  #            scales = "free_y")
+
+gg_lc_area_s # based on the median cell size
+
+# check to make sure that the area and the count of pixels are close approximations of each other
+# calculate area
+
+
 
 ```
 
 
-```{r distill-data}
+
+```{r distill-length-data}
 s_length[, site := "shaanxi"]
 b_length[, site := "belarus"]
 
 length_all <- rbindlist(list(s_length, b_length))
 object_size(length_all)
 
-dat <- length_all[, .(mean_length = mean(length)), by = site]
-dat2 <- length_all[length >= 5, .(mean_length_thr5 = mean(length)), by = site]
-dat <- merge(dat, dat2, by = "site", sort = FALSE)
-dat
+dat_mean_length <- length_all[, .(mean_length = mean(length)), by = site]
+dat2_mean_length <- length_all[length >= 5, .(mean_length_thr5 = mean(length)), by = site]
+dat_mean_length <- merge(dat_mean_length, dat2_mean_length, by = "site", sort = FALSE)
+dat_mean_length
+
+# can also calculate the mean length from the distilled dat
+sum((b_distill$length * b_distill$freq)) / sum(b_distill$freq)
 
 
 # to use with ggplot, first distill the data
 
-b_distill <- b_length[, .(freq = .N), by = length]
-b_distill[, site := "belarus"]
-s_distill <- s_length[, .(freq = .N), by = length]
-s_distill[, site := "shaanxi"]
+b_length_distill <- b_length[, .(freq = .N), by = length]
+b_length_distill[, site := "belarus"]
+s_length_distill <- s_length[, .(freq = .N), by = length]
+s_length_distill[, site := "shaanxi"]
 
-distill <- rbind(b_distill, s_distill)
+length_distill <- rbind(b_length_distill, s_length_distill)
 
-b_max_distill <- b_max_length[, .(freq = .N), by = max_length]
-b_max_distill[, site := "belarus"]
-s_max_distill <- s_max_length[, .(freq = .N), by = max_length]
-s_max_distill[, site := "shaanxi"]
-max_distill <- rbind(b_max_distill, s_max_distill)
+b_max_length_distill <- b_max_length[, .(freq = .N), by = max_length]
+b_max_length_distill[, site := "belarus"]
+s_max_length_distill <- s_max_length[, .(freq = .N), by = max_length]
+s_max_length_distill[, site := "shaanxi"]
+max_length_distill <- rbind(b_max_length_distill, s_max_length_distill)
 
+
+```
+
+```{r abandoned-area-over-time}
+s_age_r
+plot(s_age_r$y2017)
+
+plot(s_age_r$y2017 > 0)
+test <- (s_age_r$y2017 > 0)
+plot(test)
+
+cellStats(test, "sum")
+
+# ok, calculate the area of
+
+s_age[y2017 > 0, .N] # the total number of pixels with non-zero abandonment ages in the year 2017
+lc_sum_s
+
+names(s_age_r)
+
+test_df <- lc_sum_s[, 1:3]
+
+abn_area_s <- tibble(
+  year = 1987:2017,
+  lc = "Abandoned",
+  count = sapply(1:31, FUN = function(i) {s_age[get(paste0("y", 1987:2017)[i]) > 0, .N]}),
+  area_ha = count * median(getValues(s_area)) * 100
+)
+
+area_s <- rbind(lc_sum_s, abn_area_s)
+
+
+s_age[, lapply(.SD, mean)] # mean age of abandonment overtime.
+s_age[y1988 > 0, .N] # count of "abandoned" cells in a particular year
+s_age[get("y2017") > 0, .N]
+s_age[y2017 > 0, .N]
+
+
+# plot
+
+g_abn_area <- ggplot(data = area_s, aes(year, area_ha)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  labs(y = expression("Area  (10"^{6}*" ha)") , 
+       x = "Year", 
+       title = "Land Cover Area, Shaanxi/Shanxi Provinces, China",
+       color = "Land Cover") + 
+  geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
+                          group = lc, color = lc)) #+
+  # facet_grid(rows = vars(lc_class),
+  #            cols = vars(scenario),
+  #            scales = "free_y")
+
+```
+
+```{r abandonment-persistence}
+s_age[get(paste0("y", 1987:2017)[2]) > 0]
+s_age[y1988 > 0]
+
+s_age[y1988 > 0][y1989 > 0][]
+dt[V1 > 0, 
+   ][V2 > 0
+     ][V3 > 0
+       ][V4 > 0
+         ][V5 > 0
+           ][V6 > 0
+             ][V7 > 0, V7 := 0][]
+
+s_age[get(paste0("y", 1987:2017)[2]) > 0
+      ][get(paste0("y", 1987:2017)[3]) > 0
+      ][get(paste0("y", 1987:2017)[4]) > 0
+      ][get(paste0("y", 1987:2017)[5]) > 0
+      ][get(paste0("y", 1987:2017)[6]) > 0
+      ][get(paste0("y", 1987:2017)[7]) > 0, .N
+      ]
+
+i <- 7
+j <- 1
+rep(0, j)
+sapply(1:30, FUN = function(i) {s_age[get(paste0("y", 1987:2017)[i + 1]) == i, .N]})
+
+persist_l <- lapply(1:30, FUN = function(j) {
+  c(
+    sapply(1:(31 - j), FUN = function(i) {
+      s_age[get(paste0("y", 1987:2017)[i + j]) == i, .N]
+      }),
+    rep(NA, j)
+    )
+  }
+)
+
+persist_l_percent <- lapply(1:30, FUN = function(j) {
+  temp <- c(
+    sapply(1:(31 - j), FUN = function(i) {
+      s_age[get(paste0("y", 1987:2017)[i + j]) == i, .N]
+      }),
+    rep(NA, j)
+    )
+  temp <- temp / max(temp, na.rm = TRUE)
+  temp
+  }
+)
+
+persist_l
+persist_l_percent[[6]]
+persist_l[[6]] / max(persist_l[[6]], na.rm = TRUE)
+
+# raw counts
+persist_df <- data.frame(
+  do.call("cbind", persist_l))
+names(persist_df) <- paste0("y", 1988:2017)
+
+persist_df <- persist_df %>%
+  mutate(time_abn = 1:31) %>%
+  select(time_abn, everything())
+
+persist_long <- persist_df %>%
+  pivot_longer(cols = starts_with("y"), 
+               names_to = "year_abn", 
+               values_to = "count",
+               values_drop_na = TRUE) %>%
+  mutate(year_abn = as.integer(gsub("y", "", year_abn))) %>%
+  select(time_abn, year_abn, count)
+
+# plot
+ggplot(data = persist_long, aes(time_abn, count)) + 
+  theme_classic() + 
+  geom_line(mapping = aes(x = time_abn, y = count,
+                          group = year_abn, color = year_abn))
+
+
+# ----- #
+# as a percentage
+persist_percent_df <- data.frame(
+  do.call("cbind", persist_l_percent))
+names(persist_percent_df) <- paste0("y", 1988:2017)
+
+persist_percent_df <- persist_percent_df %>%
+  mutate(time_abn = 1:31) %>%
+  select(time_abn, everything())
+
+persist_percent_long <- persist_percent_df %>%
+  pivot_longer(cols = starts_with("y"), 
+               names_to = "year_abn", 
+               values_to = "prop_remaining",
+               values_drop_na = TRUE) %>%
+  mutate(year_abn = as.integer(gsub("y", "", year_abn))) %>%
+  select(time_abn, year_abn, prop_remaining)
+
+gg_abn_decay <- ggplot(data = persist_percent_long, aes(time_abn, prop_remaining)) + 
+  theme_classic() + 
+  geom_line(mapping = aes(x = time_abn, y = prop_remaining,
+                          group = year_abn, color = year_abn), 
+            size = 1.25
+            ) + 
+  labs(y = expression("Proportion remaining abandoned (%))") , 
+       x = "Years since initial abandonment", 
+       title = "Land Cover Area, Shaanxi/Shanxi Provinces, China",
+       color = "Year Abandoned") + 
+  scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom")
+
+gg_abn_decay
+gg_abn_decay 
+
+
+
+ggplot(data = area_s, aes(year, area_ha)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  labs(y = expression("Area  (10"^{6}*" ha)") , 
+       x = "Year", 
+       title = "Land Cover Area, Shaanxi/Shanxi Provinces, China",
+       color = "Land Cover") + 
+  geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
+                          group = lc, color = lc))
+
+
+s_age[y1994 == 6, .N]
+s_age[get(paste0("y", 1987:2017)[i + 2]) == i, .N]
+
+s_age[y1990 == 1, .N]
+
+persist_l[1:3]
+
+abn_area_s
+366131 + 534417
+323701 + 420693 + 405243
 
 ```
 
@@ -448,166 +619,5 @@ dev.off()
 
 ```
 
-
-```{r area-plot}
-plot(globiom$RCPref_SSP2_NOBIOD$abn_cropland_other)
-plot(globiom$RCPref_SSP2_NOBIOD$abn_cropland_other$X2100)
-plot(r)
-cellStats(globiom_ref$cropland_other$X2100, "sum")
-cellStats(globiom_ref$cropland_other$X2100 * r_area, "sum")
-
-# what does the sum correspond to?
-# "1" represents one full pixel, which is 0.5 x 0.5 degree.
-# at the equator, this is about:
-55.5 * 55.5 # 0.5 x 0.5 degree, about 3080.25 km2.
-
-
-# ---------------------------------------------------
-# 1. extract area that comes along with the nc files
-# ---------------------------------------------------
-pixel_area <- raster(paste0(p_globiom, globiom_runs[7]), varname = "pixel_area", level = 9) # this is the same across the different model runs
-
-plot(pixel_area) # this is in millions of ha. Remember, 1 km2 is 100 ha, so this corresponds to 10 ^ 4 km2 (10,000)
-plot(globiom$RCPref_SSP2_NOBIOD$abn_cropland_other$X2100 * pixel_area)
-
-
-# 1.5 [unnecessary now] calculate area of each pixel in km2:
-# ---------------------------------------------------
-r_area <- raster::area(r)
-msk <- !is.na(r) # mask that has cell values of 1 for terrestrial, NA in ocean.
-plot(r_area * msk)
-
-
-# ---------------------------------------------------
-# 2. recalculate rasters to show area in each land cover class (in km2), not just proportion
-# ---------------------------------------------------
-globiom_area <- vector(mode = "list", length = length(globiom))
-names(globiom_area) <- names(globiom)
-
-for (j in seq_along(globiom)) {
-  
-  globiom_area[[j]] <- lapply(seq_along(globiom[[j]]), function(i) {
-    out <- globiom[[j]][[i]] * pixel_area # r_area
-    names(out) <- names(globiom[[7]][[1]])
-    return(out)
-    })
-  
-  names(globiom_area[[j]]) <- lc_class
-}
-
-
-# ---------------------------------------------------
-# 3. produce a data.frame of cumulative area sum for each scenario in each year:
-# ---------------------------------------------------
-
-globiom_area_df <- vector(mode = "list", length = length(globiom))
-names(globiom_area_df) <- names(globiom_area)
-for (i in seq_along(globiom)) {
-  globiom_area_df[[i]] <- sapply(globiom_area[[i]], function(x) cellStats(x, "sum")) %>%
-    as_tibble() %>%
-    mutate(model = "globiom", 
-           scenario = names(globiom_area)[i], 
-           year = seq(from = 2010, to = 2100, by = 10)) %>%
-    relocate(model, scenario, year)
-}
-toc()
-globiom_area_df <- do.call("rbind", globiom_area_df)
-
-object_size(globiom_area)
-rm(globiom_area) # remove the globiom_area list of lists of bricks, since it's 1.66 GB and  no longer necessary.
-
-globiom_area_melt <- melt(globiom_area_df, id.vars = c("model", "scenario", "year"), variable.name = "lc_class", value.name = "area") %>% as_tibble()
-
-globiom_area_melt0 %>% as_tibble()
-globiom_area_melt[1, 5]$area
-globiom_area_melt0[1, 5]
-# ---------------------------------------------------
-# 4. plot area 
-# ---------------------------------------------------
-globiom_area_melt$scenario <- gsub("RCPref_", "", globiom_area_melt$scenario)
-
-p1 <- ggplot(data = filter(globiom_area_melt, #scenario %in% c("RCPref_SSP2_NOBIOD", "RCPref_SSP2_BIOD"), 
-                           lc_class %in% c(
-                             "cropland_other", #grep("abn", unique(globiom_area_melt$lc_class), value = T)),
-                             "restored", "abn_cropland_other", "abn_cropland_2Gbioen", "abn_grassland"
-                             ))) + 
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
-  labs(y = "Area (Millions ha)" , x = "Year", title = "Area") + 
-  geom_line(mapping = aes(x = year, y = area, group = lc_class, color = lc_class)) +
-  facet_grid(rows = vars(lc_class),
-             cols = vars(scenario),
-             scales = "free_y")
-
-p1
-
-
-unique(globiom_area_melt$scenario)
-unique(globiom_area_melt$lc_class)
-
-globiom_area_melt %>% 
-  filter(scenario == "SSP2_NOBIOD",
-         year == "2100")
-
-#  1 globiom SSP2_NOBIOD  2100 cropland_other       1800.  
-#  2 globiom SSP2_NOBIOD  2100 cropland_2Gbioen       13.3 
-#  3 globiom SSP2_NOBIOD  2100 grassland            2073.  
-#  4 globiom SSP2_NOBIOD  2100 forest_unmanaged     2955.  
-#  5 globiom SSP2_NOBIOD  2100 forest_managed        657.  
-#  6 globiom SSP2_NOBIOD  2100 restored               62.3 
-#  7 globiom SSP2_NOBIOD  2100 other                5231.  
-#  8 globiom SSP2_NOBIOD  2100 built_up               23.8 
-#  9 globiom SSP2_NOBIOD  2100 abn_cropland_other    126.  
-# 10 globiom SSP2_NOBIOD  2100 abn_cropland_2Gbioen    2.29
-# 11 globiom SSP2_NOBIOD  2100 abn_grassland          78.8 
-# 12 globiom SSP2_NOBIOD  2100 abn_forest_managed      0
-
-globiom_area_melt %>% 
-  filter(scenario == "SSP2_NOBIOD",
-         year == "2100",
-         lc_class == "cropland_other") %>%
-  select(area) %>% unlist()
-
-
-v <- globiom_area_melt %>% 
-  filter(scenario == "SSP2_NOBIOD",
-         # lc_class == "cropland_other",
-         year == "2100") %>%
-  select(area) %>% unlist(use.names = FALSE)
-
-(v[6] + # restored
-    v[9] + # abn_crop
-    v[11] # abn_grass
-  ) / (v[1] + # crop
-         v[3] # grass
-       ) * 100
-
-# In 2100, the amount of land that is in some sort of abandonment state 
-# (restored, abandoned cropland, abandoned grassland) is about 7% of
-# the total amount of land in cropland or grassland in 2100. That's a lot!
-
-
-
-
-
-# how different are the two area measurements?
-pixel_area
-r_area
-plot(pixel_area*10000 - r_area) # this shows the number of km2 the area measurements differ by. A 0.5 deg x 0.5 deg cell is about 55.5^2 = 3080.25 km2 at the equator. 
-
-
-differences <- globiom_area_melt %>%
-  mutate(diff = globiom_area_melt$area*10000 - globiom_area_melt0$area,
-         area10e4 = area*10000,
-         area0 = globiom_area_melt0$area,
-         percent = (diff/area10e4)*100) %>%
-  print()
-
-differences$percent %>% mean(na.rm = TRUE) # on average, half a percent off in terms of area. 0.47 %
-sum(differences$percent, na.rm = TRUE) / sum(!is.na(differences$percent))
-sum(differences$percent, na.rm = TRUE) / nrow(differences) # 0.35 % if you include NAs as 0
-
-
-```
 
 
