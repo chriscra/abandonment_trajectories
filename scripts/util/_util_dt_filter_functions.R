@@ -5,7 +5,7 @@
 # --------------------------------------------------------------- #
 
 
-
+# data.table filtering functions ----
 # -------------------------------------------------------------------------- #
 # Update land cover classes values
 # -------------------------------------------------------------------------- #
@@ -366,26 +366,31 @@ cc_calc_max_age <- function(dt, directory = p_dat_derived, name) {
 }
 
 
+# summary functions ---- 
 # -------------------------------------------------------------------------- #
-# calculate the total area in each land cover class in the original land cover data 
+# calculate the total area in:
+# each land cover class in the original land cover data, and
+# that is abandoned, over time
 # -------------------------------------------------------------------------- #
-cc_total_area_per_lc <- function(dt, area_raster) {
-  col_names <- grep("x$|y$", names(dt), value = TRUE, invert = TRUE)
+cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster) {
+  col_names <- grep("x$|y$", names(land_cover_dt), value = TRUE, invert = TRUE)
+  area_raster <- raster::area(land_cover_raster) # calculate area in km2
+  median_cell_area_km2 <- median(getValues(area_raster))
   
   for (i in seq_along(col_names)) {
-    temp_dt <- dt[, .N, by = c(col_names[i])][order(get(col_names[i]))]
+    temp_dt <- land_cover_dt[, .N, by = c(col_names[i])][order(get(col_names[i]))]
     setnames(temp_dt, old = col_names[i], new = "lc")
     setnames(temp_dt, old = "N", new = col_names[i])
     
     if(i>1) {
-      lc_sum <- merge(lc_sum, temp_dt, by = "lc")
+      lc_area_df <- merge(lc_area_df, temp_dt, by = "lc")
     } else {
-      lc_sum <- temp_dt
+      lc_area_df <- temp_dt
     }
   }
   
   # now, recode and pivot
-  lc_sum <- lc_sum %>% 
+  lc_area_df <- lc_area_df %>% 
     as_tibble() %>%
     filter(lc != 0) %>% 
     mutate(lc = as_factor(lc),
@@ -401,9 +406,248 @@ cc_total_area_per_lc <- function(dt, area_raster) {
   
   # calculate area of each category of land cover, 
   # based on the median cell size
-  lc_sum <- lc_sum %>%
-    mutate(area_ha = count * median(getValues(area_raster)) * 100)
+  lc_area_df <- lc_area_df %>%
+    mutate(area_ha = count * median_cell_area_km2 * 100)
+  
+  
+  abandoned_area_df <- tibble(
+    year = 1987:2017,
+    lc = "Abandoned",
+    count = sapply(1:31, function(i) {age_dt[get(paste0("y", 1987:2017)[i]) > 0, .N]}),
+    area_ha = count * median_cell_area_km2 * 100
+  )
   
   # return the tibble
-  lc_sum
+  area_df <- rbind(lc_area_df, abandoned_area_df)
+  
 }
+
+# ------------------------------------------------------------------------------------ #
+# calculate area of abandoned land over time, for a particular age_dt
+# ------------------------------------------------------------------------------------ #
+
+cc_calc_abn_area <- function(age_dt, area_raster) {
+  abandoned_area_df <- tibble(
+    year = 1987:2017,
+    lc = "Abandoned",
+    count = sapply(1:31, function(i) {age_dt[get(paste0("y", 1987:2017)[i]) > 0, .N]}),
+    area_ha = count * median(getValues(area_raster)) * 100
+  )
+}
+
+# ------------------------------------------------------------------------------------ #
+# calculate persistence of abandoned land over time, either as a raw count or as a percentage
+# ------------------------------------------------------------------------------------ #
+cc_calc_persistence <- function(age_dt, land_cover_raster,
+                                stat_proportion = TRUE, pivot_to_long = TRUE, NA_first = FALSE) {
+  
+  area_raster <- raster::area(land_cover_raster) # calculate area in km2
+  median_cell_area_km2 <- median(getValues(area_raster))
+  
+  # first calculate a list of 30 vectors corresponding to abandonment originating in a particular year.
+  persistence_list <- lapply(1:30, function(j) {
+    # calculate a vector of counts of abandoned pixels that originate in a particular year, 
+    # and the count of those pixels in each year following, starting in 1988.
+    # Filled with NAs for periods that are beyond the length of the time series.
+    
+    temp_vector <- c(
+      if (NA_first) {rep(NA, j)} else {rep(NA, 0)},
+      sapply(1:(31 - j), function(i) {
+        age_dt[get(paste0("y", 1987:2017)[i + j]) == i, .N]
+      }),
+      if (NA_first) {rep(NA, 0)} else {rep(NA, j)}
+    )
+    
+    # convert this vector to a proportion of original cohort of abandoned pixels
+    if(stat_proportion) {
+      temp_vector / max(temp_vector, na.rm = TRUE) # calculate as percentage
+    } else {
+      temp_vector
+    }
+  }
+  )
+  
+  # combine list into a data.frame
+  persistence_df <- data.frame(
+    do.call("cbind", persistence_list))
+  
+  names(persistence_df) <- paste0("y", 1988:2017)
+  
+  persistence_df <- persistence_df %>%
+    mutate(time_abn = 
+             if(NA_first) {1987:2017
+               } else {
+                 1:31
+                 }
+           ) %>%
+    select(time_abn, everything())
+  
+  if(NA_first) {
+    names(persistence_df)[1] <- "year"
+  } else {
+      persistence_df
+    }
+  
+  # pivot to long format
+  if(pivot_to_long) {
+    persistence_long <- persistence_df %>%
+      pivot_longer(cols = paste0("y", 1988:2017), 
+                   names_to = "year_abn", 
+                   values_to = if (stat_proportion) {"proportion"} else {"count"},
+                   values_drop_na = TRUE) %>%
+      mutate(year_abn = as.integer(gsub("y", "", year_abn))) 
+    
+    if (stat_proportion) {
+      persistence_long
+    } else {mutate(persistence_long, area_ha = count * median_cell_area_km2 * 100)}
+    
+  } else {
+    persistence_df
+  }
+  # if(pivot_to_long) {persistence_long} else {persistence_df}
+  
+}
+
+
+# ------------------------------------------------------------------------------------ #
+# calculate gains and losses of abandoned land over time
+# ------------------------------------------------------------------------------------ #
+cc_calc_abn_area_diff <- function(age_dt, area_raster) {
+  
+  # first calculate a list of 30 vectors corresponding to abandonment originating in a particular year.
+  abn_turnover_list <- lapply(1:30, function(j) {
+    # Calculate a vector of counts of abandoned pixels that originate in a particular year, 
+    # and the count of those pixels in each year following, starting in 1988.
+    # Filled with 0s for periods that are beyond the length of the time series.
+    # Then, calculate the difference year-to-year for each abandonment cohort.
+    
+    temp_vector_diff <- c(
+      rep(0, j),
+      sapply(1:(31 - j), function(i) {
+        age_dt[get(paste0("y", 1987:2017)[i + j]) == i, .N]
+      })
+    ) %>%
+      diff()
+    }
+    )
+  
+  # combine list into a data.frame
+  abn_turnover_df <- data.frame(
+    do.call("cbind", abn_turnover_list))
+  
+  names(abn_turnover_df) <- paste0("y", 1988:2017)
+  
+  abn_turnover_df <- abn_turnover_df %>%
+    mutate(year = 1988:2017) %>%
+    select(year, everything())
+  
+  # pivot to long format
+  abn_turnover_long <- abn_turnover_df %>%
+    pivot_longer(cols = paste0("y", 1988:2017), 
+                 names_to = "year_abn", 
+                 values_to = "count",
+                 values_drop_na = TRUE) %>%
+    mutate(year_abn = as.integer(gsub("y", "", year_abn)))
+  
+  
+  # calculate net, gain, and loss:
+  # net gain in abandoned land area
+  abn_area_net <- abn_turnover_long %>%
+    group_by(year) %>% 
+    summarise(net = sum(count))
+  
+  # gain
+  abn_area_gain <- abn_turnover_long %>%
+    group_by(year) %>% 
+    filter(count > 0) %>%
+    summarise(gain = sum(count))
+  
+  # loss
+  abn_area_loss <- abn_turnover_long %>%
+    group_by(year) %>% 
+    filter(count < 0) %>%
+    summarise(loss = sum(count))
+  
+  abn_area_change_df <- abn_area_net %>% 
+    full_join(., abn_area_gain, by = "year") %>%
+    full_join(., abn_area_loss, by = "year") %>%
+    pivot_longer(cols = c("net", "gain", "loss"),
+                 names_to = "direction", values_to = "count",
+                 values_drop_na = TRUE) %>%
+    mutate(area_ha = count * median(getValues(area_raster)) * 100)
+  
+  abn_area_change_df
+
+}
+
+
+
+
+# plot and save functions ----
+
+# ------------------------------------------------------------------------------------ #
+# plot histograms
+# ------------------------------------------------------------------------------------ #
+
+
+# ------------------------------------------------------------------------------------ #
+# plot lc and abandonment area over time
+# ------------------------------------------------------------------------------------ #
+cc_save_plot_lc_abn_area <- function(df, subtitle, outfile_label) {
+  
+  gg_lc_abn_area <- ggplot(data = df, aes(year, area_ha)) +
+    theme_classic() +
+    # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+    labs(y = expression("Area  (10"^{6}*" ha)") , 
+         x = "Year", 
+         title = "Area by Land Cover, with Abandonment",
+         subtitle = subtitle,
+         color = "Land Cover") + 
+    geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
+                            group = lc, color = lc),
+              size = 1.2) + 
+    scale_x_continuous(n.breaks = 10)
+  
+  # save
+  png(filename = paste0("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/output/plots/lc_abn_area_", 
+                        outfile_label, ".png"), 
+      width = 7, height = 5, units = "in", res = 400)
+  
+  print(gg_lc_abn_area)
+  dev.off()
+}
+
+# ------------------------------------------------------------------------------------ #
+# plot persistence of abandonment over time
+# ------------------------------------------------------------------------------------ #
+
+
+
+# ------------------------------------------------------------------------------------ #
+# plot gains and losses of abandoned land, over time
+# ------------------------------------------------------------------------------------ #
+
+
+# ------------------------------------------------------------------------------------ #
+# plot area of abandonment, by age class
+# ------------------------------------------------------------------------------------ #
+
+
+# ------------------------------------------------------------------------------------ #
+# plot map: land cover
+# ------------------------------------------------------------------------------------ #
+
+
+# ------------------------------------------------------------------------------------ #
+# plot map: age of abandonment
+# ------------------------------------------------------------------------------------ #
+
+
+# ------------------------------------------------------------------------------------ #
+# plot map: max age of abandonment cover
+# ------------------------------------------------------------------------------------ #
+
+
+
+
+

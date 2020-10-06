@@ -135,8 +135,41 @@ s_length[, .N, by = length]
 b_length[, .N, by = length]
 
 ```
+```{r distill-length-data}
+s_length[, site := "shaanxi"]
+b_length[, site := "belarus"]
 
-```{r lc-type-summary}
+length_all <- rbindlist(list(s_length, b_length))
+object_size(length_all)
+
+dat_mean_length <- length_all[, .(mean_length = mean(length)), by = site]
+dat2_mean_length <- length_all[length >= 5, .(mean_length_thr5 = mean(length)), by = site]
+dat_mean_length <- merge(dat_mean_length, dat2_mean_length, by = "site", sort = FALSE)
+dat_mean_length
+
+# can also calculate the mean length from the distilled dat
+sum((b_distill$length * b_distill$freq)) / sum(b_distill$freq)
+
+
+# to use with ggplot, first distill the data
+
+b_length_distill <- b_length[, .(freq = .N), by = length]
+b_length_distill[, site := "belarus"]
+s_length_distill <- s_length[, .(freq = .N), by = length]
+s_length_distill[, site := "shaanxi"]
+
+length_distill <- rbind(b_length_distill, s_length_distill)
+
+b_max_length_distill <- b_max_length[, .(freq = .N), by = max_length]
+b_max_length_distill[, site := "belarus"]
+s_max_length_distill <- s_max_length[, .(freq = .N), by = max_length]
+s_max_length_distill[, site := "shaanxi"]
+max_length_distill <- rbind(b_max_length_distill, s_max_length_distill)
+
+
+```
+
+```{r lc-abn-area-over-time}
 s_dt[, .N, by = .(y1987)] #
 s_dt[, .N, by = .(y2017)] #
 
@@ -182,148 +215,70 @@ median(getValues(s_area)) * # km2
   ) * # in km2
   1000^2 # m2 / km 2
 
-# ------------- calculate total area per lc ---------------- #
 
-lc_area_s <- cc_total_area_per_lc(dt = s_dt, area_raster = s_area)
-identical(lc_sum_s, lc_area_s)
-
-# ------------- plot ---------------- #
-
-gg_lc_area_s <- ggplot(data = lc_area_s, aes(year, area_ha)) +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
-  labs(y = expression("Area  (10"^{6}*" ha)") , 
-       x = "Year", 
-       title = "Land Cover Area, Shaanxi/Shanxi Provinces, China",
-       color = "Land Cover") + 
-  geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
-                          group = lc, color = lc)) #+
-  # facet_grid(rows = vars(lc_class),
-  #            cols = vars(scenario),
-  #            scales = "free_y")
-
-gg_lc_area_s # based on the median cell size
-
-# check to make sure that the area and the count of pixels are close approximations of each other
-# calculate area
-
-
-
-```
-
-
-
-```{r distill-length-data}
-s_length[, site := "shaanxi"]
-b_length[, site := "belarus"]
-
-length_all <- rbindlist(list(s_length, b_length))
-object_size(length_all)
-
-dat_mean_length <- length_all[, .(mean_length = mean(length)), by = site]
-dat2_mean_length <- length_all[length >= 5, .(mean_length_thr5 = mean(length)), by = site]
-dat_mean_length <- merge(dat_mean_length, dat2_mean_length, by = "site", sort = FALSE)
-dat_mean_length
-
-# can also calculate the mean length from the distilled dat
-sum((b_distill$length * b_distill$freq)) / sum(b_distill$freq)
-
-
-# to use with ggplot, first distill the data
-
-b_length_distill <- b_length[, .(freq = .N), by = length]
-b_length_distill[, site := "belarus"]
-s_length_distill <- s_length[, .(freq = .N), by = length]
-s_length_distill[, site := "shaanxi"]
-
-length_distill <- rbind(b_length_distill, s_length_distill)
-
-b_max_length_distill <- b_max_length[, .(freq = .N), by = max_length]
-b_max_length_distill[, site := "belarus"]
-s_max_length_distill <- s_max_length[, .(freq = .N), by = max_length]
-s_max_length_distill[, site := "shaanxi"]
-max_length_distill <- rbind(b_max_length_distill, s_max_length_distill)
-
-
-```
-
-```{r abandoned-area-over-time}
+# abandoned area over time
 s_age_r
 plot(s_age_r$y2017)
-
 plot(s_age_r$y2017 > 0)
-test <- (s_age_r$y2017 > 0)
-plot(test)
-
-cellStats(test, "sum")
-
-# ok, calculate the area of
+cellStats((s_age_r$y2017 > 0), "sum")
 
 s_age[y2017 > 0, .N] # the total number of pixels with non-zero abandonment ages in the year 2017
-lc_sum_s
 
-names(s_age_r)
-
-test_df <- lc_sum_s[, 1:3]
-
-abn_area_s <- tibble(
-  year = 1987:2017,
-  lc = "Abandoned",
-  count = sapply(1:31, FUN = function(i) {s_age[get(paste0("y", 1987:2017)[i]) > 0, .N]}),
-  area_ha = count * median(getValues(s_area)) * 100
-)
-
-area_s <- rbind(lc_sum_s, abn_area_s)
-
-
-s_age[, lapply(.SD, mean)] # mean age of abandonment overtime.
+s_age[, lapply(.SD, mean)] # mean age of abandonment over time.
 s_age[y1988 > 0, .N] # count of "abandoned" cells in a particular year
 s_age[get("y2017") > 0, .N]
 s_age[y2017 > 0, .N]
 
 
-# plot
+# calculate areas for lc and abn manually
+lc_area_s <- cc_total_area_per_lc(land_cover_dt = s_dt, area_raster = s_area)
+abn_area_s <- cc_calc_abn_area(s_age, s_area)
+area_s <- rbind(lc_area_s, abn_area_s)
 
-g_abn_area <- ggplot(data = area_s, aes(year, area_ha)) +
+
+
+# -------------------------------------------------------------- #
+# -------------------------------------------------------------- #
+# ------------- calculate total area per lc ---------------- #
+area_s <- cc_calc_area_per_lc_abn(land_cover_dt = s_dt, 
+                                  abn_age_dt = s_age, 
+                                  land_cover_raster = s$y2017)
+
+# ------------- plot ---------------- #
+gg_lc_abn_area_s <- ggplot(data = area_s, aes(year, area_ha)) +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
   labs(y = expression("Area  (10"^{6}*" ha)") , 
        x = "Year", 
-       title = "Land Cover Area, Shaanxi/Shanxi Provinces, China",
+       title = "Area by Land Cover, with Abandonment",
+       subtitle = "Shaanxi/Shanxi Provinces, China",
        color = "Land Cover") + 
   geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
-                          group = lc, color = lc)) #+
-  # facet_grid(rows = vars(lc_class),
-  #            cols = vars(scenario),
-  #            scales = "free_y")
+                          group = lc, color = lc),
+            size = 1.2)
+
+gg_lc_abn_area_s
+
+# filter to include only subsets
+gg_lc_abn_area_s %+% filter(area_s, lc == "Abandoned") + labs(title = "Abandoned Area")
+gg_lc_abn_area_s %+% filter(area_s, lc != "Abandoned")
+
+gg_lc_abn_area_s
+gg_abn_area_s
+
+gg_lc_abn_area_s2
+gg_lc_abn_area_s
+
+
+
+cc_save_plot_lc_abn_area(df = area_s, subtitle = "Shaanxi/Shanxi Provinces, China", outfile_label = "s")
 
 ```
+
 
 ```{r abandonment-persistence}
 s_age[get(paste0("y", 1987:2017)[2]) > 0]
 s_age[y1988 > 0]
-
-s_age[y1988 > 0][y1989 > 0][]
-dt[V1 > 0, 
-   ][V2 > 0
-     ][V3 > 0
-       ][V4 > 0
-         ][V5 > 0
-           ][V6 > 0
-             ][V7 > 0, V7 := 0][]
-
-s_age[get(paste0("y", 1987:2017)[2]) > 0
-      ][get(paste0("y", 1987:2017)[3]) > 0
-      ][get(paste0("y", 1987:2017)[4]) > 0
-      ][get(paste0("y", 1987:2017)[5]) > 0
-      ][get(paste0("y", 1987:2017)[6]) > 0
-      ][get(paste0("y", 1987:2017)[7]) > 0, .N
-      ]
-
-i <- 7
-j <- 1
-rep(0, j)
-sapply(1:30, FUN = function(i) {s_age[get(paste0("y", 1987:2017)[i + 1]) == i, .N]})
 
 persist_l <- lapply(1:30, FUN = function(j) {
   c(
@@ -335,65 +290,49 @@ persist_l <- lapply(1:30, FUN = function(j) {
   }
 )
 
-persist_l_percent <- lapply(1:30, FUN = function(j) {
-  temp <- c(
-    sapply(1:(31 - j), FUN = function(i) {
-      s_age[get(paste0("y", 1987:2017)[i + j]) == i, .N]
-      }),
-    rep(NA, j)
-    )
-  temp <- temp / max(temp, na.rm = TRUE)
-  temp
-  }
-)
+# ----------------------- see functions in _util_dt_filter_functions ------------------------------------ #
 
-persist_l
-persist_l_percent[[6]]
-persist_l[[6]] / max(persist_l[[6]], na.rm = TRUE)
+persistence_count_long <- cc_calc_persistence(age_dt = s_age, 
+                                               land_cover_raster = s$y2017, 
+                                               stat_proportion = FALSE,
+                                               pivot_to_long)
+
+# pick up here, and write up a function to save persistence plots, based on whether count, pivot, etc.
+
+persistence_count <- cc_calc_persistence(
+  s_age, stat = "count" = FALSE, pivot_to_long = FALSE)
+
+persistence_count_long_na_first <- cc_calc_persistence(
+  s_age, stat = "count", pivot_to_long = TRUE, NA_first = TRUE)
+
+persistence_percent_long_na_first <- cc_calc_persistence(s_age, NA_first = TRUE)
+persistence_percent_long <- cc_calc_persistence(s_age)
+persistence_percent <- cc_calc_persistence(s_age, pivot_to_long = FALSE)
+
+
+# ----------------------------------- plot ------------------------------------------------- #
+
+# plot the count of pixels abandoned (or age 1) in each year. This shows that over time, a greater amount of land is abandoned at once.
+ggplot(data = filter(persistence_count_long, time_abn == 1)) + 
+  theme_classic() + 
+  geom_point(mapping = aes(x = year_abn, y = count, color = year_abn))
 
 # raw counts
-persist_df <- data.frame(
-  do.call("cbind", persist_l))
-names(persist_df) <- paste0("y", 1988:2017)
-
-persist_df <- persist_df %>%
-  mutate(time_abn = 1:31) %>%
-  select(time_abn, everything())
-
-persist_long <- persist_df %>%
-  pivot_longer(cols = starts_with("y"), 
-               names_to = "year_abn", 
-               values_to = "count",
-               values_drop_na = TRUE) %>%
-  mutate(year_abn = as.integer(gsub("y", "", year_abn))) %>%
-  select(time_abn, year_abn, count)
-
-# plot
-ggplot(data = persist_long, aes(time_abn, count)) + 
+gg_abn_decay_count <- ggplot(data = persistence_count_long, aes(time_abn, count)) + 
   theme_classic() + 
   geom_line(mapping = aes(x = time_abn, y = count,
-                          group = year_abn, color = year_abn))
+                          group = year_abn, color = year_abn), 
+            size = 1.25
+            ) + 
+  labs(y = expression("Count of pixels abandoned") , 
+       x = "Years since initial abandonment", 
+       title = "Persistence of Abandoned Land",
+       subtitle = "Shaanxi/Shanxi Provinces, China",
+       color = "Year Abandoned") + 
+  scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom")
 
-
-# ----- #
-# as a percentage
-persist_percent_df <- data.frame(
-  do.call("cbind", persist_l_percent))
-names(persist_percent_df) <- paste0("y", 1988:2017)
-
-persist_percent_df <- persist_percent_df %>%
-  mutate(time_abn = 1:31) %>%
-  select(time_abn, everything())
-
-persist_percent_long <- persist_percent_df %>%
-  pivot_longer(cols = starts_with("y"), 
-               names_to = "year_abn", 
-               values_to = "prop_remaining",
-               values_drop_na = TRUE) %>%
-  mutate(year_abn = as.integer(gsub("y", "", year_abn))) %>%
-  select(time_abn, year_abn, prop_remaining)
-
-gg_abn_decay <- ggplot(data = persist_percent_long, aes(time_abn, prop_remaining)) + 
+# as percentage
+gg_abn_decay <- ggplot(data = persistence_percent_long, aes(time_abn, prop_remaining)) + 
   theme_classic() + 
   geom_line(mapping = aes(x = time_abn, y = prop_remaining,
                           group = year_abn, color = year_abn), 
@@ -401,36 +340,125 @@ gg_abn_decay <- ggplot(data = persist_percent_long, aes(time_abn, prop_remaining
             ) + 
   labs(y = expression("Proportion remaining abandoned (%))") , 
        x = "Years since initial abandonment", 
-       title = "Land Cover Area, Shaanxi/Shanxi Provinces, China",
+       title = "Persistence of Abandoned Land",
+       subtitle = "Shaanxi/Shanxi Provinces, China",
        color = "Year Abandoned") + 
   scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom")
 
+gg_abn_decay_na_first <- ggplot(data = persistence_percent_long_na_first, 
+                                aes(year, prop_remaining)) + 
+  theme_classic() + 
+  geom_line(mapping = aes(x = year, y = prop_remaining,
+                          group = year_abn, color = year_abn), 
+            size = 1.25
+            ) + 
+  labs(y = expression("Proportion remaining abandoned (%))") , 
+       x = "Year", 
+       title = "Persistence of Abandoned Land",
+       subtitle = "Shaanxi/Shanxi Provinces, China",
+       color = "Year Abandoned") + 
+  scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") + 
+  scale_x_continuous(n.breaks = 10)
+
+gg_abn_decay_count_na_first <- ggplot(data = persistence_count_long_na_first, 
+                                      aes(year, count)) + 
+  theme_classic() + 
+  geom_line(mapping = aes(x = year, y = count,
+                          group = year_abn, color = year_abn), 
+            size = 1.25
+            ) + 
+  labs(y = expression("Area abandoned (10"^{6}*" ha)") , 
+       x = "Year", 
+       title = "Persistence of Abandoned Land",
+       subtitle = "Shaanxi/Shanxi Provinces, China",
+       color = "Year Abandoned") + 
+  scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") + 
+  scale_x_continuous(n.breaks = 10)
+
 gg_abn_decay
-gg_abn_decay 
+gg_abn_decay_count
+gg_abn_decay_na_first
 
 
+cc_save_plot_abn_persistence <- function(df, subtitle, outfile_label) {
+  
+  gg_lc_abn_area <- ggplot(data = df, aes(year, area_ha)) +
+    theme_classic() +
+    # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+    labs(y = expression("Area  (10"^{6}*" ha)") , 
+         x = "Year", 
+         title = "Area by Land Cover, with Abandonment",
+         subtitle = subtitle,
+         color = "Land Cover") + 
+    geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
+                            group = lc, color = lc),
+              size = 1.2) + 
+    scale_x_continuous(n.breaks = 10)
+  
+  # save
+  png(filename = paste0("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/output/plots/lc_abn_area_", 
+                        outfile_label, ".png"), 
+      width = 7, height = 5, units = "in", res = 400)
+  
+  print(gg_lc_abn_area)
+  dev.off()
+}
 
-ggplot(data = area_s, aes(year, area_ha)) +
+```
+
+```{r abn-gain-loss-area}
+# calculate the abandonment area turnover
+abn_area_change_s <- cc_calc_abn_area_diff(age_dt = s_age, area_raster = s_area)
+
+
+# gain, loss, and net change in abandoned area, over time
+gg_abn_area_change_s <- ggplot() + 
+  theme_classic() + 
+  geom_col(data = filter(abn_area_change_s, direction != "net"),
+           mapping = aes(x = year, y = area_ha / (10^3), 
+                         group = direction, fill = direction)) + 
+  geom_line(data = filter(abn_area_change_s, direction == "net"),
+           mapping = aes(x = year, y = area_ha / (10^3), color = "Net Change in Area"),
+           size = 1.5) + 
+  labs(y = expression("Change in area abandoned (10"^{3}*" ha)"), 
+       x = "Year", 
+       title = "Change in Area of Abandoned Land",
+       subtitle = "Shaanxi/Shanxi Provinces, China",
+       fill = NULL, #"Change in Area",
+       color = NULL) + 
+  scale_color_manual(values = c("black"),
+                     labels = "Net Change in Area") + 
+  scale_fill_manual(values = brewer_pal(palette = "Greens")(5)[3:2],
+                    labels = c("Area Gained", "Area Lost")) + 
+  theme(legend.position = "bottom")
+
+gg_abn_area_change_s
+
+
+# save to file
+png(filename = paste0(p_output, "plots/abn_area_change_s.png"), 
+    width = 7, height = 5, units = "in", res = 400)
+print(gg_abn_area_change_s)
+dev.off()
+
+```
+
+```{r abn-area-by-age-class}
+
+gg_abn_area_s <- ggplot(data = filter(area_s, lc == "Abandoned"), 
+                     aes(year, area_ha)) +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
   labs(y = expression("Area  (10"^{6}*" ha)") , 
        x = "Year", 
-       title = "Land Cover Area, Shaanxi/Shanxi Provinces, China",
+       title = "Area of Abandoned land",
+       subtitle = "Shaanxi/Shanxi Provinces, China",
        color = "Land Cover") + 
   geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
                           group = lc, color = lc))
 
-
-s_age[y1994 == 6, .N]
-s_age[get(paste0("y", 1987:2017)[i + 2]) == i, .N]
-
-s_age[y1990 == 1, .N]
-
-persist_l[1:3]
-
-abn_area_s
-366131 + 534417
-323701 + 420693 + 405243
+gg_lc_abn_area_s
+gg_abn_area_s
 
 ```
 
@@ -516,7 +544,7 @@ dev.off()
 
 
 ```{r pnv-habitat-lu-age-plot}
-pdf(file = paste0(p_output, "plots/pnv-habitat-lu-age-plot4.pdf"),
+pdf(file = paste0(p_output, "plots/pnv-habitat-lu-age.pdf"),
     width = 9, height = 5.5)
 
 # Set plot layout
