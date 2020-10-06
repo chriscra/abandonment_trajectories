@@ -413,7 +413,7 @@ cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster
   abandoned_area_df <- tibble(
     year = 1987:2017,
     lc = "Abandoned",
-    count = sapply(1:31, function(i) {age_dt[get(paste0("y", 1987:2017)[i]) > 0, .N]}),
+    count = sapply(1:31, function(i) {abn_age_dt[get(paste0("y", 1987:2017)[i]) > 0, .N]}),
     area_ha = count * median_cell_area_km2 * 100
   )
   
@@ -423,14 +423,14 @@ cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster
 }
 
 # ------------------------------------------------------------------------------------ #
-# calculate area of abandoned land over time, for a particular age_dt
+# calculate area of abandoned land over time, for a particular abn_age_dt
 # ------------------------------------------------------------------------------------ #
 
-cc_calc_abn_area <- function(age_dt, area_raster) {
+cc_calc_abn_area <- function(abn_age_dt, area_raster) {
   abandoned_area_df <- tibble(
     year = 1987:2017,
     lc = "Abandoned",
-    count = sapply(1:31, function(i) {age_dt[get(paste0("y", 1987:2017)[i]) > 0, .N]}),
+    count = sapply(1:31, function(i) {abn_age_dt[get(paste0("y", 1987:2017)[i]) > 0, .N]}),
     area_ha = count * median(getValues(area_raster)) * 100
   )
 }
@@ -440,7 +440,7 @@ cc_calc_abn_area <- function(age_dt, area_raster) {
 # ------------------------------------------------------------------------------------ #
 # calculate persistence of abandoned land over time, either as a raw count or as a percentage
 # ------------------------------------------------------------------------------------ #
-cc_calc_persistence <- function(age_dt, land_cover_raster,
+cc_calc_persistence <- function(abn_age_dt, land_cover_raster,
                                 stat_proportion = TRUE, NA_first = FALSE,
                                 include_wide = FALSE) {
   
@@ -456,7 +456,7 @@ cc_calc_persistence <- function(age_dt, land_cover_raster,
     temp_vector <- c(
       if (NA_first) {rep(NA, j)} else {rep(NA, 0)},
       sapply(1:(31 - j), function(i) {
-        age_dt[get(paste0("y", 1987:2017)[i + j]) == i, .N]
+        abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, .N]
       }),
       if (NA_first) {rep(NA, 0)} else {rep(NA, j)}
     )
@@ -530,38 +530,38 @@ cc_calc_persistence <- function(age_dt, land_cover_raster,
 # save all permutations of abandonment persistence
 # ------------------------------------------------------------------------------------ #
 
-cc_calc_persistence_all <- function(age_dt, land_cover_raster, include_wide = FALSE){
+cc_calc_persistence_all <- function(abn_age_dt, land_cover_raster, include_wide = FALSE){
   if (include_wide){
-    count <- cc_calc_persistence(age_dt, land_cover_raster, 
+    count <- cc_calc_persistence(abn_age_dt, land_cover_raster, 
                                  stat_proportion = FALSE,
                                  NA_first = FALSE, include_wide = TRUE)
     
-    proportion <- cc_calc_persistence(age_dt, land_cover_raster, 
+    proportion <- cc_calc_persistence(abn_age_dt, land_cover_raster, 
                                       stat_proportion = TRUE,
                                       NA_first = FALSE, include_wide = TRUE)
     
-    count_na_first <- cc_calc_persistence(age_dt, land_cover_raster, 
+    count_na_first <- cc_calc_persistence(abn_age_dt, land_cover_raster, 
                                           stat_proportion = FALSE,
                                           NA_first = TRUE, include_wide = TRUE)
     
-    proportion_na_first <- cc_calc_persistence(age_dt, land_cover_raster, 
+    proportion_na_first <- cc_calc_persistence(abn_age_dt, land_cover_raster, 
                                                stat_proportion = TRUE,
                                                NA_first = TRUE, include_wide = TRUE)
     
   } else {
-    count <- cc_calc_persistence(age_dt, land_cover_raster, 
+    count <- cc_calc_persistence(abn_age_dt, land_cover_raster, 
                                  stat_proportion = FALSE,
                                  NA_first = FALSE, include_wide = FALSE)
     
-    proportion <- cc_calc_persistence(age_dt, land_cover_raster, 
+    proportion <- cc_calc_persistence(abn_age_dt, land_cover_raster, 
                                       stat_proportion = TRUE,
                                       NA_first = FALSE, include_wide = FALSE)
     
-    count_na_first <- cc_calc_persistence(age_dt, land_cover_raster, 
+    count_na_first <- cc_calc_persistence(abn_age_dt, land_cover_raster, 
                                           stat_proportion = FALSE,
                                           NA_first = TRUE, include_wide = FALSE)
     
-    proportion_na_first <- cc_calc_persistence(age_dt, land_cover_raster, 
+    proportion_na_first <- cc_calc_persistence(abn_age_dt, land_cover_raster, 
                                                stat_proportion = TRUE,
                                                NA_first = TRUE, include_wide = FALSE)
   }
@@ -576,7 +576,7 @@ cc_calc_persistence_all <- function(age_dt, land_cover_raster, include_wide = FA
 # ------------------------------------------------------------------------------------ #
 # calculate gains and losses of abandoned land over time
 # ------------------------------------------------------------------------------------ #
-cc_calc_abn_area_diff <- function(age_dt, area_raster) {
+cc_calc_abn_area_diff <- function(abn_age_dt, area_raster) {
   
   # first calculate a list of 30 vectors corresponding to abandonment originating in a particular year.
   abn_turnover_list <- lapply(1:30, function(j) {
@@ -588,7 +588,7 @@ cc_calc_abn_area_diff <- function(age_dt, area_raster) {
     temp_vector_diff <- c(
       rep(0, j),
       sapply(1:(31 - j), function(i) {
-        age_dt[get(paste0("y", 1987:2017)[i + j]) == i, .N]
+        abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, .N]
       })
     ) %>%
       diff()
@@ -657,10 +657,10 @@ cc_calc_abn_area_diff <- function(age_dt, area_raster) {
 # ------------------------------------------------------------------------------------ #
 # plot lc and abandonment area over time
 # ------------------------------------------------------------------------------------ #
-cc_save_plot_lc_abn_area <- function(input_df, subtitle, outfile_label,
-                                     width = 7, height = 5) {
+cc_save_plot_lc_abn_area <- function(input_area_df, subtitle, outfile_label,
+                                     width = 5, height = 4) {
   
-  gg_lc_abn_area <- ggplot(data = input_df) +
+  gg_lc_abn_area <- ggplot(data = input_area_df) +
     theme_classic() +
     # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
     labs(y = expression("Area  (10"^{6}*" ha)") , 
@@ -750,14 +750,14 @@ cc_save_plot_abn_persistence <- function(input_list, subtitle, outfile_label,
   
   # save
   png(filename = paste0(p_output, "plots/persistence_", 
-                        "count_", outfile_label, ".png"), 
+                        "count", outfile_label, ".png"), 
       width = width, height = height, units = "in", res = 400)
   
   print(gg_persistence_count)
   dev.off()
   
   png(filename = paste0(p_output, "plots/persistence_", 
-                        "proportion_", outfile_label, ".png"), 
+                        "proportion", outfile_label, ".png"), 
       width = width, height = height, units = "in", res = 400)
   
   print(gg_persistence_proportion)
@@ -782,16 +782,16 @@ cc_save_plot_abn_persistence <- function(input_list, subtitle, outfile_label,
 # ------------------------------------------------------------------------------------ #
 # plot gains and losses of abandoned land, over time
 # ------------------------------------------------------------------------------------ #
-cc_save_plot_area_gain_loss <- function(input_df, subtitle, outfile_label,
-                                        width = 7, height = 5) {
+cc_save_plot_area_gain_loss <- function(input_area_change_df, subtitle, outfile_label,
+                                        width = 6, height = 5) {
   
   # gain, loss, and net change in abandoned area, over time
   gg_abn_area_change <- ggplot() + 
     theme_classic() + 
-    geom_col(data = filter(input_df, direction != "net"),
+    geom_col(data = filter(input_area_change_df, direction != "net"),
              mapping = aes(x = year, y = area_ha / (10^3), 
                            group = direction, fill = direction)) + 
-    geom_line(data = filter(input_df, direction == "net"),
+    geom_line(data = filter(input_area_change_df, direction == "net"),
               mapping = aes(x = year, y = area_ha / (10^3), color = "Net Change in Area"),
               size = 1.5) + 
     labs(y = expression("Change in area abandoned (10"^{3}*" ha)"), 
@@ -858,19 +858,230 @@ cc_save_plot_area_by_age_class <- function(input_list, subtitle, outfile_label,
   
 }
 
-# ------------------------------------------------------------------------------------ #
-# plot map: land cover
-# ------------------------------------------------------------------------------------ #
-
 
 # ------------------------------------------------------------------------------------ #
-# plot map: age of abandonment
+# save four plot types, master function
 # ------------------------------------------------------------------------------------ #
+cc_save_plots_master <- function(land_cover_dt,
+                                 abn_age_dt, 
+                                 land_cover_raster,
+                                 subtitle, 
+                                 outfile_label) {
+  # ------------- calculate total area per lc, with abandonment ---------------- #
+  area <- cc_calc_area_per_lc_abn(land_cover_dt = land_cover_dt, 
+                                  abn_age_dt = abn_age_dt, 
+                                  land_cover_raster = land_cover_raster)
+  
+  cc_save_plot_lc_abn_area(input_area_df = area, subtitle = subtitle, 
+                           outfile_label = outfile_label)
+  
+  # ------------------------ abandonment persistence --------------------------- #
+  persistence_list <- cc_calc_persistence_all(abn_age_dt = abn_age_dt, land_cover_raster = land_cover_raster)
+  
+  cc_save_plot_abn_persistence(input_list = persistence_list, subtitle = subtitle, outfile_label = outfile_label)
+  
+  
+  # -------------------- calculate the abandonment area turnover ------------------- #
+  abn_area_change <- cc_calc_abn_area_diff(abn_age_dt = abn_age_dt, area_raster = s_area)
+  
+  cc_save_plot_area_gain_loss(input_area_change_df = abn_area_change, 
+                              subtitle = subtitle, outfile_label = outfile_label)
+  
+  # -------------------- plot abandonment area by age class ------------------- #
+  cc_save_plot_area_by_age_class(input_list = persistence_list, 
+                                 subtitle = subtitle, outfile_label = outfile_label)
+
+  save(area, persistence_list, abn_area_change, file = paste0(p_output, "abn_dat_products", outfile_label, ".rds"))
+
+  }
+
+# save raster functions ---- 
+
+# ------------------------------------------------------------------------------------ #
+# plot map: pnv, habitats, land cover, abandonment
+# ------------------------------------------------------------------------------------ #
+cc_save_map_pnv_hab_lc_abn <- function(maxpixels, width = 9, height = 5.5) {
+  
+  pdf(file = paste0(p_output, "plots/pnv-habitat-lc-age.pdf"),
+      width = 9, height = 5.5)
+  
+  # Set plot layout
+  # layout(mat = matrix(1:8, nrow = 2, ncol = 4),
+  #        heights = c(1.5, 1.5),    # Heights of the two rows
+  #        widths = c(2, 2, 2, 2))     # Widths of the two columns
+  # layout.show(8)
+  
+  # layout(mat = matrix(1:8, nrow = 2, ncol = 4, byrow = TRUE),
+  #        heights = c(1.5, 1.5),    # Heights of the two rows
+  #        widths = c(2, 2, 2, 2))     # Widths of the two columns
+  # layout.show(8)
+  
+  par(mfrow = c(2, 4),
+      oma = c(0,0,0,1))
+  
+  # --------------------------------------- #
+  # ------------ Shaanxi ------------------ #
+  # --------------------------------------- #
+  
+  # ------------- potential natural vegetation ---------------- #
+  plot(s_pnv, maxpixels = 100000, main = "Shaanxi, PNV",
+       breaks = c(0, filter(pnv_table, Number %in% unique(values(s_pnv)))$Number),
+       col = filter(pnv_table, Number %in% unique(values(s_pnv)))$Color)
+  
+  legend("topleft", 
+         legend = filter(pnv_table, Number %in% unique(values(s_pnv)))$Name, 
+         fill = filter(pnv_table, Number %in% unique(values(s_pnv)))$Color,
+         cex = 0.6, inset = 0)
+  
+  
+  # ------------- habitat types ---------------- #
+  plot(s_habitat, main = "Shaanxi, Habitat Types",
+       breaks = c(-1, 
+                  filter(habitat_table, Number %in% unique(values(s_habitat)))$Number),
+       col = filter(habitat_table, Number %in% unique(values(s_habitat)))$Color,
+       maxpixels = maxpixels)
+  
+  legend("topleft", 
+         legend = filter(habitat_table, Number %in% unique(values(s_habitat)))$Name, 
+         fill = filter(habitat_table, Number %in% unique(values(s_habitat)))$Color,
+         cex = 0.6, inset = 0)
+  
+  # ------------- raw land use data ---------------- #
+  plot(s$y2015, main = "Shaanxi 2015", 
+       breaks = c(0, plot_cols$breaks), col = plot_cols$color,
+       maxpixels = maxpixels)
+  legend("bottomleft", cex = 0.6, inset = 0,
+         legend = plot_cols$name, 
+         fill = plot_cols$color)
+  
+  # ------------- abandonment age ---------------- #
+  plot(s_age_r$y2017, main = "Shaanxi, 2017: \nTime abandoned (years)",
+       maxpixels = maxpixels)
+  
+  
+  # --------------------------------------- #
+  # ------------ Belarus ------------------ #
+  # --------------------------------------- #
+  
+  # ------------- potential natural vegetation ---------------- #
+  plot(b_pnv, maxpixels = 100000, main = "Belarus, PNV",
+       breaks = c(0, filter(pnv_table, Number %in% unique(values(b_pnv)))$Number),
+       col = filter(pnv_table, Number %in% unique(values(b_pnv)))$Color)
+  
+  legend("bottomleft", 
+         legend = filter(pnv_table, Number %in% unique(values(b_pnv)))$Name, 
+         fill = filter(pnv_table, Number %in% unique(values(b_pnv)))$Color,
+         cex = 0.6, inset = 0)
+  
+  # ------------- habitat types ---------------- #
+  plot(b_habitat, main = "Belarus, Habitat Types",
+       breaks = c(-1, 
+                  filter(habitat_table, Number %in% unique(values(b_habitat)))$Number),
+       col = filter(habitat_table, Number %in% unique(values(b_habitat)))$Color,
+       maxpixels = maxpixels)
+  
+  legend("bottomleft", 
+         legend = filter(habitat_table, Number %in% unique(values(b_habitat)))$Name, 
+         fill = filter(habitat_table, Number %in% unique(values(b_habitat)))$Color,
+         cex = 0.6, inset = 0)
+  
+  
+  # ------------- raw land use data ---------------- #
+  plot(b$y2015, main = "Belarus 2015", 
+       breaks = c(0, plot_cols$breaks), col = plot_cols$color,
+       maxpixels = maxpixels)
+  legend("bottomleft", cex = 0.6, inset = 0,
+         legend = plot_cols$name, 
+         fill = plot_cols$color)
+  
+  
+  # ------------- abandonment age ---------------- #
+  plot(b_age_r$y2017, main = "Belarus, 2017: \nTime abandoned (years)",
+       maxpixels = maxpixels)
+  
+  
+  dev.off()
+}
 
 
+
 # ------------------------------------------------------------------------------------ #
-# plot map: max age of abandonment cover
+# plot map: land cover in 1987, 2017, age of abandonment in 2017, and max age
 # ------------------------------------------------------------------------------------ #
+cc_save_map_lc_age_rasters <- function(maxpixels, width = 9, height = 5.5) {
+  pdf(file = paste0(p_output, "plots/rasters_lc_w_abn_age.pdf"),
+      width = width, height = height)
+  
+  # Set plot layout
+  par(mfrow = c(2, 4),
+      oma = c(0,0,0,1))
+  
+  # left to right
+  # LC 1987 
+  # LC 2017
+  # Time abandoned 2017
+  # Max length abandoned
+  
+  # row 1
+  # --------------------------------------- #
+  # ------------ Shaanxi ------------------ #
+  # --------------------------------------- #
+  
+  # ------------- raw land use data ---------------- #
+  plot(s$y1987, main = "Shaanxi 1987", 
+       breaks = c(0, plot_cols$breaks), col = plot_cols$color, maxpixels = maxpixels
+  )
+  legend("bottomleft", cex = 0.6, inset = 0,
+         legend = plot_cols$name, 
+         fill = plot_cols$color)
+  
+  plot(s$y2017, main = "Shaanxi 2017", 
+       breaks = c(0, plot_cols$breaks), col = plot_cols$color,
+       maxpixels = maxpixels)
+  legend("bottomleft", cex = 0.6, inset = 0,
+         legend = plot_cols$name, 
+         fill = plot_cols$color)
+  
+  # ------------- abandonment age ---------------- #
+  plot(s_age_r$y2017, main = "Shaanxi, 2017: \nTime abandoned (years)",
+       maxpixels = maxpixels)
+  
+  # ------------- max abandonment length (age) ---------------- #
+  plot(s_max_length_r, main = "Shaanxi: Maximum \nTime abandoned (years)",
+       maxpixels = maxpixels)
+  
+  # row two
+  # --------------------------------------- #
+  # ------------ Belarus ------------------ #
+  # --------------------------------------- #
+  
+  
+  # ------------- raw land use data ---------------- #
+  plot(b$y1987, main = "Belarus 1987", 
+       breaks = c(0, plot_cols$breaks), col = plot_cols$color,
+       maxpixels = maxpixels)
+  legend("bottomleft", cex = 0.6, inset = 0,
+         legend = plot_cols$name, 
+         fill = plot_cols$color)
+  
+  plot(b$y2017, main = "Belarus 2017", 
+       breaks = c(0, plot_cols$breaks), col = plot_cols$color,
+       maxpixels = maxpixels)
+  legend("bottomleft", cex = 0.6, inset = 0,
+         legend = plot_cols$name, 
+         fill = plot_cols$color)
+  
+  
+  # ------------- abandonment age ---------------- #
+  plot(b_age_r$y2017, main = "Belarus, 2017: \nTime abandoned (years)",
+       maxpixels = maxpixels)
+  
+  # ------------- max abandonment length (age) ---------------- #
+  plot(b_max_length_r, main = "Belarus: Maximum \nTime abandoned (years)",
+       maxpixels = maxpixels)
+  
+  dev.off()
+}
 
 
 

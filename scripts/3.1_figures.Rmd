@@ -15,6 +15,13 @@ source("")
 
 
 ```{r load-data}
+# for use on cluster:
+p_dat <- "scratch/network/clc6/abandonment_trajectories/dat_derived/"
+p_dat_derived <- "scratch/network/clc6/abandonment_trajectories/dat_derived/"
+p_output <- paste0("scratch/network/clc6/abandonment_trajectories/output/")
+
+
+
 # Land use class codes:
 #       1. Non-vegetated area (e.g. water, urban, barren land)
 #       2. Woody vegetation
@@ -35,6 +42,10 @@ names(b)
 # age
 s_age_r <- brick(paste0(p_dat_derived, "shaanxi_age.tif"))
 b_age_r <- brick(paste0(p_dat_derived, "belarus_age.tif"))
+
+# max_length
+s_max_length_r <- brick(paste0(p_dat_derived, "shaanxi_max_length.tif"))
+b_max_length_r <- brick(paste0(p_dat_derived, "belarus_max_length.tif"))
 
 # update year names 1987 - 2017
 names(s) <- paste0("y", 1987:2017)
@@ -245,7 +256,7 @@ area_s <- cc_calc_area_per_lc_abn(land_cover_dt = s_dt,
                                   land_cover_raster = s$y2017)
 
 # ------------- plot ---------------- #
-cc_save_plot_lc_abn_area(input_df = area_s, subtitle = "Shaanxi/Shanxi Provinces, China", 
+cc_save_plot_lc_abn_area(input_area_df = area_s, subtitle = "Shaanxi/Shanxi Provinces, China", 
                          outfile_label = "s",
                          width = 6, height = 4)
 
@@ -288,17 +299,17 @@ s_age[y1988 > 0]
 
 # ----------------------- see functions in _util_dt_filter_functions ------------------------------------
 # manual
-persistence_count_long <- cc_calc_persistence(age_dt = s_age, land_cover_raster = s$y2017, 
+persistence_count_long <- cc_calc_persistence(abn_age_dt = s_age, land_cover_raster = s$y2017, 
                                               stat_proportion = FALSE,
                                               NA_first = FALSE)
 
-persistence_count_long2 <- cc_calc_persistence(age_dt = s_age, land_cover_raster = s$y2017, 
+persistence_count_long2 <- cc_calc_persistence(abn_age_dt = s_age, land_cover_raster = s$y2017, 
                                               stat_proportion = FALSE, include_wide = TRUE,
                                               NA_first = FALSE)
 
 # as a list
 
-persistence_list_s <- cc_calc_persistence_all(age_dt = s_age, land_cover_raster = s$y2017)
+persistence_list_s <- cc_calc_persistence_all(abn_age_dt = s_age, land_cover_raster = s$y2017)
 
 
 # ----------------------------------- plot ------------------------------------------------- #
@@ -315,9 +326,9 @@ cc_save_plot_abn_persistence(input_list = persistence_list_s, subtitle = "Shaanx
 
 ```{r abn-gain-loss-area}
 # calculate the abandonment area turnover
-abn_area_change_s <- cc_calc_abn_area_diff(age_dt = s_age, area_raster = s_area)
+abn_area_change_s <- cc_calc_abn_area_diff(abn_age_dt = s_age, area_raster = s_area)
 
-cc_save_plot_area_gain_loss(input_df = abn_area_change_s, 
+cc_save_plot_area_gain_loss(input_area_change_df = abn_area_change_s, 
                             subtitle = "Shaanxi/Shanxi Provinces, China", outfile_label = "_s",
                             width = 6)
 
@@ -356,46 +367,7 @@ age_class_df <- persistence_list_s$count_na_first %>%
 
 
 
-# function: 
-cc_save_plot_area_by_age_class <- function(input_list, subtitle, outfile_label,
-                                        width = 7, height = 5) {
-  
-  age_class_base <- ggplot(data = input_list$count_na_first) + 
-  theme_classic() +
-  labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
-         x = "Year", 
-         title = "Area of Abandoned Land, by Age Class",
-         subtitle = subtitle,
-         fill = "Age") + 
-  scale_x_continuous(n.breaks = 10)
-  
-  age_class_continuous <- age_class_base +
-    geom_col(mapping = aes(x = year, y = area_ha / 10^3, group = age, fill = age),
-             position = position_stack(reverse = TRUE)
-             ) + 
-    scale_fill_distiller(palette = "Greens", direction = 1)
-  
-  
-  age_class_bins <- age_class_base +
-    geom_col(mapping = aes(x = year, y = area_ha / 10^3, group = bins, fill = bins),
-             position = position_stack(reverse = TRUE)
-             ) +
-    scale_fill_brewer(palette = "Greens", direction = 1) 
-
-  
-  # save to file
-  png(filename = paste0(p_output, "plots/abn_area_by_class_cont", outfile_label, ".png"), 
-      width = width, height = height, units = "in", res = 400)
-  print(age_class_continuous)
-  dev.off()
-  
-  png(filename = paste0(p_output, "plots/abn_area_by_class_bins", outfile_label, ".png"), 
-      width = width, height = height, units = "in", res = 400)
-  print(age_class_bins)
-  dev.off()
-  
-}
-
+# Function
 cc_save_plot_area_by_age_class(input_list = persistence_list_s, 
                                subtitle = "Shaanxi/Shanxi Provinces, China", outfile_label = "_s")
 
@@ -482,127 +454,68 @@ dev.off()
 
 
 
-```{r pnv-habitat-lu-age-plot}
-pdf(file = paste0(p_output, "plots/pnv-habitat-lu-age.pdf"),
-    width = 9, height = 5.5)
+```{r save-rasters}
+cc_save_map_pnv_hab_lc_abn(maxpixels = 3000000)
 
-# Set plot layout
-# layout(mat = matrix(1:8, nrow = 2, ncol = 4),
-#        heights = c(1.5, 1.5),    # Heights of the two rows
-#        widths = c(2, 2, 2, 2))     # Widths of the two columns
-# layout.show(8)
-
-# layout(mat = matrix(1:8, nrow = 2, ncol = 4, byrow = TRUE),
-#        heights = c(1.5, 1.5),    # Heights of the two rows
-#        widths = c(2, 2, 2, 2))     # Widths of the two columns
-# layout.show(8)
-
-par(mfrow = c(2, 4),
-    oma = c(0,0,0,1))
-maxpixels <- 3000000
-
-# --------------------------------------- #
-# ------------ Shaanxi ------------------ #
-# --------------------------------------- #
-
-# ------------- potential natural vegetation ---------------- #
-plot(s_pnv, maxpixels = 100000, main = "Shaanxi, PNV",
-     breaks = c(0, filter(pnv_table, Number %in% unique(values(s_pnv)))$Number),
-     col = filter(pnv_table, Number %in% unique(values(s_pnv)))$Color)
-
-legend("topleft", 
-       legend = filter(pnv_table, Number %in% unique(values(s_pnv)))$Name, 
-       fill = filter(pnv_table, Number %in% unique(values(s_pnv)))$Color,
-       cex = 0.6, inset = 0)
-
-
-# ------------- habitat types ---------------- #
-plot(s_habitat, main = "Shaanxi, Habitat Types",
-     breaks = c(-1, 
-                filter(habitat_table, Number %in% unique(values(s_habitat)))$Number),
-     col = filter(habitat_table, Number %in% unique(values(s_habitat)))$Color,
-     maxpixels = maxpixels)
-
-legend("topleft", 
-       legend = filter(habitat_table, Number %in% unique(values(s_habitat)))$Name, 
-       fill = filter(habitat_table, Number %in% unique(values(s_habitat)))$Color,
-       cex = 0.6, inset = 0)
-
-# ------------- raw land use data ---------------- #
-plot(s$y2015, main = "Shaanxi 2015", 
-     breaks = c(0, plot_cols$breaks), col = plot_cols$color,
-     maxpixels = maxpixels)
-legend("bottomleft", cex = 0.6, inset = 0,
-       legend = plot_cols$name, 
-       fill = plot_cols$color)
-
-# ------------- abandonment age ---------------- #
-plot(s_age_r$y2017, main = "Shaanxi, 2017: \nTime abandoned (years)",
-     maxpixels = maxpixels)
-
-
-# --------------------------------------- #
-# ------------ Belarus ------------------ #
-# --------------------------------------- #
-
-# ------------- potential natural vegetation ---------------- #
-plot(b_pnv, maxpixels = 100000, main = "Belarus, PNV",
-     breaks = c(0, filter(pnv_table, Number %in% unique(values(b_pnv)))$Number),
-     col = filter(pnv_table, Number %in% unique(values(b_pnv)))$Color)
-
-legend("bottomleft", 
-       legend = filter(pnv_table, Number %in% unique(values(b_pnv)))$Name, 
-       fill = filter(pnv_table, Number %in% unique(values(b_pnv)))$Color,
-       cex = 0.6, inset = 0)
-
-# ------------- habitat types ---------------- #
-plot(b_habitat, main = "Belarus, Habitat Types",
-     breaks = c(-1, 
-                filter(habitat_table, Number %in% unique(values(b_habitat)))$Number),
-     col = filter(habitat_table, Number %in% unique(values(b_habitat)))$Color,
-     maxpixels = maxpixels)
-
-legend("bottomleft", 
-       legend = filter(habitat_table, Number %in% unique(values(b_habitat)))$Name, 
-       fill = filter(habitat_table, Number %in% unique(values(b_habitat)))$Color,
-       cex = 0.6, inset = 0)
-
-
-# ------------- raw land use data ---------------- #
-plot(b$y2015, main = "Belarus 2015", 
-     breaks = c(0, plot_cols$breaks), col = plot_cols$color,
-     maxpixels = maxpixels)
-legend("bottomleft", cex = 0.6, inset = 0,
-       legend = plot_cols$name, 
-       fill = plot_cols$color)
-
-
-# ------------- abandonment age ---------------- #
-plot(b_age_r$y2017, main = "Belarus, 2017: \nTime abandoned (years)",
-     maxpixels = maxpixels)
-
-
-dev.off()
+cc_save_map_lc_age_rasters(maxpixels = 3000000)
 
 ```
 
 
 
 ```{r master-functions}
-
-# ------------- calculate total area per lc, with abandonment ---------------- #
+# Shaanxi master functions
+# 1. ------------- calculate total area per lc, with abandonment ---------------- #
 area_s <- cc_calc_area_per_lc_abn(land_cover_dt = s_dt, 
                                   abn_age_dt = s_age, 
                                   land_cover_raster = s$y2017)
 
-cc_save_plot_lc_abn_area(input_df = area_s, subtitle = "Shaanxi/Shanxi Provinces, China", 
+cc_save_plot_lc_abn_area(input_area_df = area_s, subtitle = "Shaanxi/Shanxi Provinces, China", 
                          outfile_label = "s",
-                         width = 6, height = 4)
+                         width = 5, height = 4)
 
-# ------------------------ abandonment persistence --------------------------- #
-persistence_list_s <- cc_calc_persistence_all(age_dt = s_age, land_cover_raster = s$y2017)
+# 2. ------------------------ abandonment persistence --------------------------- #
+persistence_list_s <- cc_calc_persistence_all(abn_age_dt = s_age, land_cover_raster = s$y2017)
 
 cc_save_plot_abn_persistence(input_list = persistence_list_s, subtitle = "Shaanxi/Shanxi Provinces, China", outfile_label = "_s")
 
+
+# 3. -------------------- calculate the abandonment area turnover ------------------- #
+abn_area_change_s <- cc_calc_abn_area_diff(abn_age_dt = s_age, area_raster = s_area)
+
+cc_save_plot_area_gain_loss(input_area_change_df = abn_area_change_s, 
+                            subtitle = "Shaanxi/Shanxi Provinces, China", outfile_label = "_s",
+                            width = 6)
+
+# 4. -------------------- plot abandonment area by age class ------------------- #
+cc_save_plot_area_by_age_class(input_list = persistence_list_s, 
+                               subtitle = "Shaanxi/Shanxi Provinces, China", outfile_label = "_s")
+
+
+
+
+# mega function to save all four plot types
+tic()
+cc_save_plots_master(land_cover_dt = s_dt, 
+  abn_age_dt = s_age, 
+  land_cover_raster = s$y2017,
+  subtitle = "Shaanxi/Shanxi Provinces, China",
+  outfile_label = "_s_test"
+  )
+toc()
+
+```
+
+```{r belarus-plots}
+# Belarus:
+
+tic()
+cc_save_plots_master(land_cover_dt = b_dt, 
+  abn_age_dt = b_age, 
+  land_cover_raster = b$y2017,
+  subtitle = "Eastern Belarus/Smolensk, Russia",
+  outfile_label = "_b"
+  )
+toc()
 ```
 
