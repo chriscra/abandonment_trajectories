@@ -20,71 +20,71 @@ cc_update_lc <- function(dt, crop_code = 0, noncrop_code = 1) {
   # this function updates these land cover classes to:
   #       1. for crop
   #       2. for noncrop
-
+  
   # check if data.table contains x, y columns
   if (length(grep("[xy]$", names(dt))) > 0) {
     if (!identical(names(dt)[1:2], c("x", "y"))) {
       stop("x and y must be the first two columns in the data.table")
-      } 
+    } 
     
     for (x in names(dt[, 3:length(dt)])) {    # can also use names(dt[, !c("x", "y")])
       set(dt, i = which(dt[[x]] == 0), j = x, value = NA)       
       # set 0 values to NA
-      } 
+    } 
     
     for (x in names(dt[, 3:length(dt)])) {
       set(dt, i = which(dt[[x]] == 1), j = x, value = NA)       
       # set nonveg (urban, water, etc.) to NA
-      } 
+    } 
     
     for (x in names(dt[, 3:length(dt)])) {
       set(dt, i = which(dt[[x]] == 2), j = x, value = noncrop_code)      
       # set 2 (woody) to noncrop_code
       # combining into a single noncrop layer
-      }
+    }
     
     for (x in names(dt[, 3:length(dt)])) {
       set(dt, i = which(dt[[x]] == 3), j = x, value = crop_code)      
       # set crop from 3 to crop_code
-      } 
+    } 
     
     for (x in names(dt[, 3:length(dt)])) {
       set(dt, i = which(dt[[x]] == 4), j = x, value = noncrop_code)      
       # set 4 (grassland) to noncrop_code
       # combining into a single noncrop layer
-      }
-    
-    } else { 
-      # If the data.table doesn't have x y coordinates, use the following:
-      # might be slightly faster if x and y are removed first, allowing the following
-      
-      for (x in seq_len(length(dt))) {
-        set(dt, i = which(dt[[x]] == 0), j = x, value = NA)   
-        # set 0 values to NA
-        }     
-      
-      for (x in seq_len(length(dt))) {
-        set(dt, i = which(dt[[x]] == 1), j = x, value = NA)   
-        # set nonveg (urban, water, etc.) to NA
-        }
-      
-      for (x in seq_len(length(dt))) {
-        set(dt, i = which(dt[[x]] == 2), j = x, value = noncrop_code)    
-        # set 2 (woody) to noncrop_code
-        # combining into a single noncrop layer
-        }
-      
-      for (x in seq_len(length(dt))) {
-        set(dt, i = which(dt[[x]] == 3), j = x, value = crop_code)    
-        # set crop from 3 to crop_code
-        }
-      
-      for (x in seq_len(length(dt))) {
-        set(dt, i = which(dt[[x]] == 4), j = x, value = noncrop_code)    
-        # set 4 (grassland) to noncrop_code
-        # combining into a single noncrop layer
-        }
     }
+    
+  } else { 
+    # If the data.table doesn't have x y coordinates, use the following:
+    # might be slightly faster if x and y are removed first, allowing the following
+    
+    for (x in seq_len(length(dt))) {
+      set(dt, i = which(dt[[x]] == 0), j = x, value = NA)   
+      # set 0 values to NA
+    }     
+    
+    for (x in seq_len(length(dt))) {
+      set(dt, i = which(dt[[x]] == 1), j = x, value = NA)   
+      # set nonveg (urban, water, etc.) to NA
+    }
+    
+    for (x in seq_len(length(dt))) {
+      set(dt, i = which(dt[[x]] == 2), j = x, value = noncrop_code)    
+      # set 2 (woody) to noncrop_code
+      # combining into a single noncrop layer
+    }
+    
+    for (x in seq_len(length(dt))) {
+      set(dt, i = which(dt[[x]] == 3), j = x, value = crop_code)    
+      # set crop from 3 to crop_code
+    }
+    
+    for (x in seq_len(length(dt))) {
+      set(dt, i = which(dt[[x]] == 4), j = x, value = noncrop_code)    
+      # set 4 (grassland) to noncrop_code
+      # combining into a single noncrop layer
+    }
+  }
 }
 
 
@@ -106,12 +106,12 @@ cc_make_dt_binary <- function(dt) {
     } 
     for (i in 3:length(dt)) {
       dt[, c(names(dt)[i]) := get(names(dt)[i]) - 1]
-      }
-    } else {
-      for (i in seq_len(length(dt))) {
-        dt[, c(names(dt)[i]) := get(names(dt)[i]) - 1] 
-      }
     }
+  } else {
+    for (i in seq_len(length(dt))) {
+      dt[, c(names(dt)[i]) := get(names(dt)[i]) - 1] 
+    }
+  }
 }
 
 # alternatively: dt <- dt - 1 works just fine
@@ -220,8 +220,8 @@ cc_extract_length <- function(dt_diff) {
   abn_length <- vector(mode = "numeric")
   for(i in seq_len(length(dt_diff))) {
     abn_length <- c(abn_length, 
-                     dt_diff[get(names(dt_diff)[i]) < 0,
-                             get(names(dt_diff)[i])])
+                    dt_diff[get(names(dt_diff)[i]) < 0,
+                            get(names(dt_diff)[i])])
   }
   abs(abn_length)
 }
@@ -342,7 +342,7 @@ cc_save_age_rasters <- function(name, directory = p_dat_derived) {
   
   # convert age dt to raster
   r <- dt_to_raster(dt, crs("+proj=longlat +datum=WGS84 +no_defs"))
-
+  
   # write raster
   writeRaster(r, filename = paste0(directory, name, "_age.tif"))
   
@@ -426,12 +426,15 @@ cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster
 # calculate area of abandoned land over time, for a particular abn_age_dt
 # ------------------------------------------------------------------------------------ #
 
-cc_calc_abn_area <- function(abn_age_dt, area_raster) {
+cc_calc_abn_area <- function(abn_age_dt, land_cover_raster) {
+  area_raster <- raster::area(land_cover_raster) # calculate area in km2
+  median_cell_area_km2 <- median(getValues(area_raster))
+  
   abandoned_area_df <- tibble(
     year = 1987:2017,
     lc = "Abandoned",
     count = sapply(1:31, function(i) {abn_age_dt[get(paste0("y", 1987:2017)[i]) > 0, .N]}),
-    area_ha = count * median(getValues(area_raster)) * 100
+    area_ha = count * median_cell_area_km2 * 100
   )
 }
 
@@ -511,7 +514,7 @@ cc_calc_persistence <- function(abn_age_dt, land_cover_raster,
   } else {
     persistence_long <- persistence_long
   }
-
+  
   
   # return product
   if (include_wide) {
@@ -576,7 +579,10 @@ cc_calc_persistence_all <- function(abn_age_dt, land_cover_raster, include_wide 
 # ------------------------------------------------------------------------------------ #
 # calculate gains and losses of abandoned land over time
 # ------------------------------------------------------------------------------------ #
-cc_calc_abn_area_diff <- function(abn_age_dt, area_raster) {
+cc_calc_abn_area_diff <- function(abn_age_dt, land_cover_raster) {
+  
+  area_raster <- raster::area(land_cover_raster) # calculate area in km2
+  median_cell_area_km2 <- median(getValues(area_raster))
   
   # first calculate a list of 30 vectors corresponding to abandonment originating in a particular year.
   abn_turnover_list <- lapply(1:30, function(j) {
@@ -592,8 +598,8 @@ cc_calc_abn_area_diff <- function(abn_age_dt, area_raster) {
       })
     ) %>%
       diff()
-    }
-    )
+  }
+  )
   
   # combine list into a data.frame
   abn_turnover_df <- data.frame(
@@ -638,10 +644,10 @@ cc_calc_abn_area_diff <- function(abn_age_dt, area_raster) {
     pivot_longer(cols = c("net", "gain", "loss"),
                  names_to = "direction", values_to = "count",
                  values_drop_na = TRUE) %>%
-    mutate(area_ha = count * median(getValues(area_raster)) * 100)
+    mutate(area_ha = count * median_cell_area_km2 * 100)
   
   abn_area_change_df
-
+  
 }
 
 
@@ -750,14 +756,14 @@ cc_save_plot_abn_persistence <- function(input_list, subtitle, outfile_label,
   
   # save
   png(filename = paste0(p_output, "plots/persistence_", 
-                        "count", outfile_label, ".png"), 
+                        "count_", outfile_label, ".png"), 
       width = width, height = height, units = "in", res = 400)
   
   print(gg_persistence_count)
   dev.off()
   
   png(filename = paste0(p_output, "plots/persistence_", 
-                        "proportion", outfile_label, ".png"), 
+                        "proportion_", outfile_label, ".png"), 
       width = width, height = height, units = "in", res = 400)
   
   print(gg_persistence_proportion)
@@ -890,10 +896,9 @@ cc_save_plots_master <- function(land_cover_dt,
   # -------------------- plot abandonment area by age class ------------------- #
   cc_save_plot_area_by_age_class(input_list = persistence_list, 
                                  subtitle = subtitle, outfile_label = outfile_label)
-
+  
   save(area, persistence_list, abn_area_change, file = paste0(p_output, "abn_dat_products", outfile_label, ".rds"))
-
-  }
+}
 
 # save raster functions ---- 
 
