@@ -6,6 +6,9 @@
 
 source("scripts/util/_util_misc_functions.R")
 source("scripts/util/_util_pathnames.R")
+source("scripts/util/_util_spatial_functions.R")
+source("scripts/util/_util_dt_filter_functions.R")
+
 
 
 # -------------------------
@@ -24,12 +27,15 @@ needed_packages <- c(
   "patchwork", "cowplot", # for combining multiple plots
   "animation", "magick",
   
+  # development
   "tictoc",  "magrittr", "parallel", "knitr", 
-  "rredlist",
+  "devtools", "Hmisc", "acepack",
   
-  # spatial packages, extra:
+  # spatial, ecological packages, extra:
   "rnaturalearth", "smoothr", "spatialEco", "maps", "rangeBuilder",
-  "devtools", "Hmisc", "acepack")
+  "rredlist",
+  "landscapemetrics", "landscapetools"
+  )
 
 
 # cluster_packages <- c(

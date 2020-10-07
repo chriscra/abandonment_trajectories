@@ -1,25 +1,428 @@
 ---
 title: "R Notebook"
 output: html_notebook
+editor_options: 
+  chunk_output_type: console
 ---
+```{r initialize}
+source("scripts/0_start.R")
+```
+
+```{r load-data}
+
+# Land use class codes:
+#       1. Non-vegetated area (e.g. water, urban, barren land)
+#       2. Woody vegetation
+#       3. Cropland 
+#       4. Herbaceous land (e.g. grassland)
+
+# -------------------------- rasters --------------------------- #
+# raw rasters
+s <- brick(paste0(p_dat, "Abandonment/shaanxi.tif"))
+b <- brick(paste0(p_dat_derived, "belarus.tif")) # merged version
+
+# subset:
+bt <- brick(paste0(p_dat_derived, "belarus_subset.tif"))
+
+
+# age
+s_age_r <- brick(paste0(p_dat_derived, "shaanxi_age.tif"))
+b_age_r <- brick(paste0(p_dat_derived, "belarus_age.tif"))
+
+# max_length
+s_max_length_r <- brick(paste0(p_dat_derived, "shaanxi_max_length.tif"))
+b_max_length_r <- brick(paste0(p_dat_derived, "belarus_max_length.tif"))
+
+# update year names 1987 - 2017
+names(s) <- paste0("y", 1987:2017)
+names(b) <- paste0("y", 1987:2017)
+names(s_age_r) <- paste0("y", 1987:2017)
+names(b_age_r) <- paste0("y", 1987:2017)
+
+
+
+
+
+
+# -------------------------- data.tables --------------------------- #
+
+b_age <- fread(input = paste0(p_dat_derived, "belarus_age.csv"))
+names(b_age)
+s_age <- fread(input = paste0(p_dat_derived, "shaanxi_age.csv"))
+
+
+b_length <- fread(input = paste0(p_dat_derived, "belarus_length.csv"))
+s_length <- fread(input = paste0(p_dat_derived, "shaanxi_length.csv"))
+
+b_max_length <- fread(input = paste0(p_dat_derived, "belarus_max_length.csv"))
+s_max_length <- fread(input = paste0(p_dat_derived, "shaanxi_max_length.csv"))
+
+# original data
+s_dt <- fread(input = paste0(p_dat_derived, "shaanxi.csv"))
+names(s_dt) <- gsub(pattern = "andcover", replacement = "y", names(s_dt))
+
+b_dt <- fread(input = paste0(p_dat_derived, "belarus.csv")) # caution - huge file! 8.4 GB at least.
+```
+
+```{r simple-plots}
+# crop b to a small area for testing
+plot(bt$y2017, main = "Belarus 2017, subset", 
+     col = plot_cols$color,
+     breaks = c(0, plot_cols$breaks))
+legend("bottomleft", cex = 0.7, inset = 0,
+       legend = plot_cols$name, 
+       fill = plot_cols$color)
+
+
+```
+
+```{r}
+
+```
+
 
 # Fragmentation analysis
 Using the R package `landscapemetrics`, 
-```{r}
+```{r load-landscapemetrics}
 install.packages("landscapemetrics")
+install.packages("landscapetools")
 library(landscapemetrics)
+library(landscapetools)
+
+# landscape raster
+show_landscape(landscape)
+res(landscape)
 
 citation("landscapemetrics")
 ```
 
-```{r load-rasters}
+`landscapemetrics` works only with rasters with cell resolutions in terms of meters.
+
+"The resolution of a raster cell has to be in meters, as the package converts units internally and returns results in either meters, square meters or hectares. Before using landscapemetrics, be sure to check your raster (see check_raster())."
+```{r reproject-check-landscape}
+plot(bt$y2017)
+
+# -------------------------------------------------- #
+# Reproject, and check_landscape()
+btr <- projectRaster(bt, crs = crs("+proj=bonne +lat_1=10 +lon_0=30"), method = "ngb")
+writeRaster(btr, filename = paste0(p_dat_derived, "belarus_subset_reproj.tif"))
+
+check_landscape(rp) # checks out
+getValues(rp) %>% summary()
+
+
+plot(btr$y2017, col = plot_cols$color, breaks = c(0, plot_cols$breaks))
+animate(btr, col = plot_cols$color, breaks = c(0, plot_cols$breaks), n = 2)
+
+
+# reproject full brick:
+br <- projectRaster(b, crs = crs("+proj=bonne +lat_1=10 +lon_0=30"), method = "ngb")
+
+# save reprojected raster to file:
+tic()
+writeRaster(br, filename = paste0(p_dat_derived, "belarus_reproj.tif"))
+toc()
+
+# testing on just one layer
+tic()
+br1 <- projectRaster(b$y2017, crs = crs("+proj=bonne +lat_1=10"), method = "ngb")
+toc() # 2158 sec
+
+tic()
+writeRaster(br1, filename = paste0(p_dat_derived, "belarus_reproj1.tif"))
+toc()
+plot(br1, col = plot_cols$color, breaks = c(0, plot_cols$breaks))
+
+# 
+
+plot(bt$y1987, col = plot_cols$color, breaks = c(0, plot_cols$breaks))
+plot(bt$y2017, col = plot_cols$color, breaks = c(0, plot_cols$breaks))
+plot(btr$y1987, col = plot_cols$color, breaks = c(0, plot_cols$breaks))
+plot(btr$y2017, col = plot_cols$color, breaks = c(0, plot_cols$breaks))
+plot(br$y1987, col = plot_cols$color, breaks = c(0, plot_cols$breaks))
+plot(br$y2017, col = plot_cols$color, breaks = c(0, plot_cols$breaks))
+
+# resolution and area
+bt_area <- raster::area(bt)
+plot(bt_area, main = "bt_area")
+median(getValues(bt_area)) * (1000)^2 # 0.00051717 km2, 517.17 m2
+res(btr)[1] * res(btr)[2] # = 522 m2
+sqrt(median(getValues(r_area))) * (1000) # 22.74 m x 22.74 m, approximately, if sqrt
+
+
+# ------------------------------------------------------------------ #
+# ---------------------- testing grounds --------------------------- #
+# ------------------------------------------------------------------ #
+
+r <- bt$y2017
+
+plot(r, col = plot_cols$color, breaks = c(0, plot_cols$breaks))
+show_landscape(r)
+
+landscapemetrics::check_landscape(r)
+
+# reproject raster
+crs(r)
+
+proj
+
+epsg %>% filter(str_detect(note, regex("Pulkovo", ignore_case = TRUE))) %>% head()
+
+
+st_crs(r)
+st_crs(landscape)
+
+# reproject raster to have units in meters
+rp1 <- projectRaster(r, crs = crs("+proj=bonne +lat_1=10"),
+                    method = "ngb")
+rp2 <- projectRaster(r, crs = crs("+proj=bonne +lat_1=40"),
+                     method = "ngb")
+rp3 <- projectRaster(r, crs = crs("+proj=bonne +lat_1=60"),
+                    method = "ngb")
+rp4 <- projectRaster(r, crs = crs("+proj=bonne +lat_1=90"),
+                     method = "ngb")
+rp5 <- projectRaster(r, crs = crs("+proj=bonne +lat_1=90 +lon_0=30"),
+                     method = "ngb")
+rp1.2 <- projectRaster(r, crs = crs("+proj=bonne +lat_1=10 +lon_0=30"),
+                     method = "ngb")
+
+par(mfrow = c(2, 2))
+plot(rp1); plot(rp2); plot(rp3); plot(rp4)
+plot(rp1); plot(rp2); plot(rp4); plot(rp5)
+
+rp6 <- projectRaster(r, crs = crs("+proj=tmerc"), method = "ngb")
+rp7 <- projectRaster(r, crs = crs("+proj=tmerc +lon_0=30"), method = "ngb")
+rp7.1 <- projectRaster(r, crs = crs("+proj=tmerc +lon_0=20"), method = "ngb")
+rp7.2 <- projectRaster(r, crs = crs("+proj=tmerc +lon_0=40"), method = "ngb")
+rp7.3 <- projectRaster(r, crs = crs("+proj=tmerc +lon_0=35"), method = "ngb")
+rp7.4 <- projectRaster(r, crs = crs("+proj=tmerc +lon_0=25"), method = "ngb")
+
+rp8 <- projectRaster(r, crs = crs("+proj=tmerc +lat_0=0 +lon_0=9 +k_0=1 +x_0=3500000 +y_0=0 +ellps=bessel +units=m"), method = "ngb")
+rp9 <- projectRaster(r, crs = crs("+proj=utm +zone=36"), method = "ngb")
+rp10 <- projectRaster(r, crs = crs("+proj=utm +zone=35"), method = "ngb")
+rp11 <- projectRaster(r, crs = crs("+proj=utm +zone=37"), method = "ngb")
+
+plot(rp6); plot(rp7); plot(rp8); plot(rp5, main = "rp5")
+plot(rp6); plot(rp7); plot(rp9); plot(rp5, main = "rp5")
+plot(rp9); plot(rp10); plot(rp11); plot(rp5, main = "rp5")
+
+plot(rp7); plot(rp7.1); plot(rp7.2); plot(rp5, main = "rp5")
+plot(rp7); plot(rp7.3); plot(rp7.4); plot(rp5, main = "rp5")
+
+
+rp7
+
+
+par(mfrow = c(2, 2))
+plot(rp4); plot(rp5)
+plot(r); plot(r, col = plot_cols$color, breaks = c(0, plot_cols$breaks))
+
+res(rp1)
+res(rp2)
+res(rp3)
+res(rp4)
+res(rp5)
+res(rp5)[1] * res(rp5)[2]
+res(rp6)
+res(rp7)
+res(rp8)
+res(rp9)
+res(rp10)
+res(rp11)
+
+
+plot(rp5, col = plot_cols$color, breaks = c(0, plot_cols$breaks))
+plot(rp9, col = plot_cols$color, breaks = c(0, plot_cols$breaks))
+
+
 
 ```
 
-`landscapemetrics` works only with rasters with cell resolutions in terms of meters.
-```{r}
+```{r binarize}
+plot(btr$y2017, main = "Belarus 2017, subset", col = plot_cols$color, breaks = c(0, plot_cols$breaks))
+legend("bottomleft", cex = 0.7, inset = 0, legend = plot_cols$name, fill = plot_cols$color)
 
-check_raster()
+# Original Land-use class codes:
+#       1. Non-vegetated area (e.g. water, urban, barren land)
+#       2. Woody vegetation
+#       3. Cropland 
+#       4. Herbaceous land (e.g. grassland)
+
+
+# This chunk updates these land cover classes to:
+#       0. Cropland
+#       1. Noncrop - grassland (formerly 4) or woody vegetation (formerly 2)
+
+binary <- btr
+binary[binary == 1] <- NA # non-veg
+binary[binary == 3] <- 0  # Cropland
+binary[binary == 4] <- 1  # Grassland
+binary[binary == 2] <- 1  # Woody vegetation
+
+
+# 0-1-2, increasing scale of vegetation structure
+binary2 <- btr
+binary2[binary2 == 1] <- NA # non-veg
+binary2[binary2 == 3] <- 0  # Cropland
+binary2[binary2 == 4] <- 1  # Grassland
+binary2[binary2 == 2] <- 2  # Woody vegetation
+
+animate(binary)
+animate(binary2)
+
+```
+
+## Background
+### Levels of metrics
+Three levels of landscape metrics:
+1. patch - an individual patch in the landscape (clump)
+2. **class** - one categorical class, such as 4 - woody vegetation
+3. *landscape* - the landscape as a whole, the entire raster. These metrics summarize the entire landscape into a single value
+
+### Classes of landscape metrics
+1. *Area and edge metrics*
+2. Shape metrics - largely based on the perimeter and the area.
+3. Core metrics, about the area of the patch that is not on an edge.
+4. *Aggregation* metrics, describing if patches (of the same class) are rather clumped (aggregated) or tend to be isolated. Following, these metrics describe mainly the spatial configuration of the landscape.
+5. Diversity metrics, describing the diversity of different classes in the landscape.
+6. Complexity metrics, which describe landscape complexity in new ways outside of FRAGSTATS, including: Marginal entropy [H(x)], Conditional entropy [H(y|x)], Joint entropy [H(x, y)], and Mutual information [I(y,x)]. (Not likely to use these.)
+
+### Metrics of interest
+
+Area and edge: what is the average patch area for each class (ag, grassland, woody vegetation, and how does this change over time? Does abandonment make the average patch area for a particular class grow over time, or not?)
+
+Aggregation: is the landscape as a whole more densely aggregated, or clumped together like with like? In otherwords, how distributed or mixed are the different land use classes throughout the landscape?
+
+```{r explore-fragstats}
+bt
+btr
+br
+
+# look at the data again
+plot(btr$y2017, col = plot_cols$color, breaks = c(0, plot_cols$breaks))
+animate(btr, col = plot_cols$color, breaks = c(0, plot_cols$breaks), n = 2)
+
+show_landscape(btr$y2017)
+
+show_landscape(landscape)
+show_patches(landscape)
+show_patches(landscape, class = "all", labels = FALSE)
+
+check_landscape(btr) # 
+check_landscape(br) # full dataset
+#    layer       crs units   class n_classes OK
+# 1      1 projected     m integer         5  ✓
+# 2      2 projected     m integer         5  ✓
+# 3      3 projected     m integer         5  ✓
+# 4      4 projected     m integer         5  ✓
+# 5      5 projected     m integer         5  ✓
+# 6      6 projected     m integer         5  ✓
+# 7      7 projected     m integer         5  ✓
+# 8      8 projected     m integer         5  ✓
+# 9      9 projected     m integer         5  ✓
+# 10    10 projected     m integer         5  ✓
+# 11    11 projected     m integer         5  ✓
+# 12    12 projected     m integer         5  ✓
+# 13    13 projected     m integer         5  ✓
+# 14    14 projected     m integer         5  ✓
+# 15    15 projected     m integer         5  ✓
+# 16    16 projected     m integer         5  ✓
+# 17    17 projected     m integer         5  ✓
+# 18    18 projected     m integer         5  ✓
+# 19    19 projected     m integer         5  ✓
+# 20    20 projected     m integer         5  ✓
+# 21    21 projected     m integer         5  ✓
+# 22    22 projected     m integer         5  ✓
+# 23    23 projected     m integer         5  ✓
+# 24    24 projected     m integer         5  ✓
+# 25    25 projected     m integer         5  ✓
+# 26    26 projected     m integer         5  ✓
+# 27    27 projected     m integer         5  ✓
+# 28    28 projected     m integer         5  ✓
+# 29    29 projected     m integer         5  ✓
+# 30    30 projected     m integer         5  ✓
+# 31    31 projected     m integer         5  ✓
+
+list_lsm()
+
+# Explore metrics
+list_lsm(level = "landscape", type = "aggregation metric", simplify = FALSE)
+
+list_lsm(level = "landscape", simplify = FALSE) %>% print(n = 65)
+
+
+show_landscape(landscape)
+check_landscape(btr)
+ls_metrics <- btr %>%
+  calculate_lsm(
+    #what = "patch"
+    #type = "aggregation metric",
+    #level = "landscape",
+    what = 
+      grep("circle", 
+           list_lsm(level = "landscape", simplify = TRUE), 
+           invert = TRUE, value = TRUE),
+    classes_max = 4,
+    verbose = TRUE,
+    progress = TRUE
+    ) %>%
+  dplyr::left_join(x = .,
+                   y = lsm_abbreviations_names, 
+                   by = c("metric", "level"))
+
+metrics %>% print(n=65)
+  
+
+show_correlation(metrics, method = "pearson")
+
+
+show_patches(landscape, class = "all", labels = FALSE)
+
+# bind results from different metric functions
+patch_metrics <- dplyr::bind_rows(
+  lsm_p_cai(landscape),
+  lsm_p_circle(landscape),
+  lsm_p_enn(landscape)
+  )
+# look at the results
+patch_metrics_full_names <- dplyr::left_join(x = patch_metrics,
+                                             y = lsm_abbreviations_names, 
+                                             by = "metric")
+patch_metrics_full_names
+```
+
+```{r s}
+
+
+```
+
+
+```{r aggregation-stats}
+aggregation <- lsm_l_ai(binary)
+aggregation2 <- lsm_l_ai(btr)
+ggplot() + 
+  geom_point(data = aggregation, mapping = aes(x = layer, y = value, col = "blue"), size = 3) + 
+  geom_point(data = aggregation2, mapping = aes(x = layer, y = value, col = "red")) + 
+  theme_classic()
+
+
+# calculate aggregation statistic 
+check_landscape(br)
+agg_br <- lsm_l_ai(br)
+ggplot(data = agg_br) + 
+  geom_point(mapping = aes(x = layer, y = value#, color = "blue"
+                           )) + 
+  geom_smooth(method = "lm", mapping = aes(x = layer, y = value)) + 
+  #geom_point(data = aggregation2, mapping = aes(x = layer, y = value, col = "red")) + 
+  labs(x = "Year", y = "Aggregation Index"#, title = "Aggregation"
+       ) + 
+  theme_classic()
+
+
+# calc patch cohesion index
+agg_cohesion <- lsm_l_cohesion(bt)
+animate(bt)
+
 ```
 
 

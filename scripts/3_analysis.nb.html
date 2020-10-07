@@ -1754,12 +1754,6 @@ summary {
 <p>Using the R package <code>landscapemetrics</code>,</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuaW5zdGFsbC5wYWNrYWdlcyhcImxhbmRzY2FwZW1ldHJpY3NcIilcbmxpYnJhcnkobGFuZHNjYXBlbWV0cmljcylcblxuY2l0YXRpb24oXCJsYW5kc2NhcGVtZXRyaWNzXCIpXG5gYGAifQ== -->
-<pre class="r"><code>install.packages(&quot;landscapemetrics&quot;)
-library(landscapemetrics)
-
-citation(&quot;landscapemetrics&quot;)</code></pre>
-<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
@@ -1767,11 +1761,13 @@ citation(&quot;landscapemetrics&quot;)</code></pre>
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p><code>landscapemetrics</code> works only with rasters with cell resolutions in terms of meters.</p>
+<p>“The resolution of a raster cell has to be in meters, as the package converts units internally and returns results in either meters, square meters or hectares. Before using landscapemetrics, be sure to check your raster (see check_raster()).”</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG5jaGVja19yYXN0ZXIoKVxuYGBgIn0= -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG5jaGVja19yYXN0ZXIoKVxuXG5gYGAifQ== -->
 <pre class="r"><code>
-check_raster()</code></pre>
+check_raster()
+</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
@@ -1781,7 +1777,7 @@ check_raster()</code></pre>
 <!-- rnb-text-end -->
 </div>
 
-<div id="rmd-source-code">LS0tCnRpdGxlOiAiUiBOb3RlYm9vayIKb3V0cHV0OiBodG1sX25vdGVib29rCi0tLQoKIyBGcmFnbWVudGF0aW9uIGFuYWx5c2lzClVzaW5nIHRoZSBSIHBhY2thZ2UgYGxhbmRzY2FwZW1ldHJpY3NgLCAKYGBge3J9Cmluc3RhbGwucGFja2FnZXMoImxhbmRzY2FwZW1ldHJpY3MiKQpsaWJyYXJ5KGxhbmRzY2FwZW1ldHJpY3MpCgpjaXRhdGlvbigibGFuZHNjYXBlbWV0cmljcyIpCmBgYAoKYGBge3IgbG9hZC1yYXN0ZXJzfQoKYGBgCgpgbGFuZHNjYXBlbWV0cmljc2Agd29ya3Mgb25seSB3aXRoIHJhc3RlcnMgd2l0aCBjZWxsIHJlc29sdXRpb25zIGluIHRlcm1zIG9mIG1ldGVycy4KYGBge3J9CgpjaGVja19yYXN0ZXIoKQpgYGAKCgojIFNwYXRpYWwgUmVncmVzc2lvbgo=</div>
+<div id="rmd-source-code">LS0tCnRpdGxlOiAiUiBOb3RlYm9vayIKb3V0cHV0OiBodG1sX25vdGVib29rCi0tLQoKIyBGcmFnbWVudGF0aW9uIGFuYWx5c2lzClVzaW5nIHRoZSBSIHBhY2thZ2UgYGxhbmRzY2FwZW1ldHJpY3NgLCAKYGBge3J9Cmluc3RhbGwucGFja2FnZXMoImxhbmRzY2FwZW1ldHJpY3MiKQppbnN0YWxsLnBhY2thZ2VzKCJsYW5kc2NhcGV0b29scyIpCmxpYnJhcnkobGFuZHNjYXBlbWV0cmljcykKbGlicmFyeShsYW5kc2NhcGV0b29scykKCiMgbGFuZHNjYXBlIHJhc3RlcgpzaG93X2xhbmRzY2FwZShsYW5kc2NhcGUpCgpjaXRhdGlvbigibGFuZHNjYXBlbWV0cmljcyIpCmBgYAoKYGBge3IgbG9hZC1yYXN0ZXJzfQoKYGBgCgpgbGFuZHNjYXBlbWV0cmljc2Agd29ya3Mgb25seSB3aXRoIHJhc3RlcnMgd2l0aCBjZWxsIHJlc29sdXRpb25zIGluIHRlcm1zIG9mIG1ldGVycy4KCiJUaGUgcmVzb2x1dGlvbiBvZiBhIHJhc3RlciBjZWxsIGhhcyB0byBiZSBpbiBtZXRlcnMsIGFzIHRoZSBwYWNrYWdlIGNvbnZlcnRzIHVuaXRzIGludGVybmFsbHkgYW5kIHJldHVybnMgcmVzdWx0cyBpbiBlaXRoZXIgbWV0ZXJzLCBzcXVhcmUgbWV0ZXJzIG9yIGhlY3RhcmVzLiBCZWZvcmUgdXNpbmcgbGFuZHNjYXBlbWV0cmljcywgYmUgc3VyZSB0byBjaGVjayB5b3VyIHJhc3RlciAoc2VlIGNoZWNrX3Jhc3RlcigpKS4iCmBgYHtyfQoKY2hlY2tfcmFzdGVyKCkKCmBgYAoKCiMgU3BhdGlhbCBSZWdyZXNzaW9uCg==</div>
 
 
 

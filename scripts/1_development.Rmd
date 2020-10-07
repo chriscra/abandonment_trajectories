@@ -250,6 +250,24 @@ cellStats(check, "sum") # 0 ... which means that the data should match up
 ```
 
 
+```{r crop-bt}
+plot(b$y2017, main = "Belarus 2017", col = plot_cols$color, breaks = c(0, plot_cols$breaks))
+
+ext_b <- drawExtent(show = TRUE, col = "red")
+plot(b$y2017, main = "Belarus 2017, subset", col = plot_cols$color, breaks = c(0, plot_cols$breaks), ext = ext_b)
+
+ext_b2 <- drawExtent(show = TRUE, col = "red")
+plot(b$y2017, main = "Belarus 2017, subset", col = plot_cols$color, breaks = c(0, plot_cols$breaks), ext = ext_b2)
+
+# crop
+bt <- crop(b, ext_b2)
+plot(bt$y2017, main = "Belarus 2017, subset", col = plot_cols$color, breaks = c(0, plot_cols$breaks))
+bt
+
+# save as .tif
+writeRaster(bt, filename = paste0(p_dat_derived, "belarus_subset.tif"))
+
+```
 
 
 ```{r simple-plots}
@@ -290,6 +308,7 @@ animate(bt, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
         breaks = c(0, plot_cols$breaks), col = plot_cols$color)
 
 ```
+
 
 
 ```{r create-tester}

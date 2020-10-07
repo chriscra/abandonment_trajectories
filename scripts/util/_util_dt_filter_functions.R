@@ -680,7 +680,7 @@ cc_save_plot_lc_abn_area <- function(input_area_df, subtitle, outfile_label,
     scale_x_continuous(n.breaks = 10)
   
   # save
-  png(filename = paste0(p_output, "plots/area_lc_abn_", 
+  png(filename = paste0(p_output, "plots/area_lc_abn", 
                         outfile_label, ".png"), 
       width = width, height = height, units = "in", res = 400)
   
@@ -756,14 +756,14 @@ cc_save_plot_abn_persistence <- function(input_list, subtitle, outfile_label,
   
   # save
   png(filename = paste0(p_output, "plots/persistence_", 
-                        "count_", outfile_label, ".png"), 
+                        "count", outfile_label, ".png"), 
       width = width, height = height, units = "in", res = 400)
   
   print(gg_persistence_count)
   dev.off()
   
   png(filename = paste0(p_output, "plots/persistence_", 
-                        "proportion_", outfile_label, ".png"), 
+                        "proportion", outfile_label, ".png"), 
       width = width, height = height, units = "in", res = 400)
   
   print(gg_persistence_proportion)
@@ -888,7 +888,7 @@ cc_save_plots_master <- function(land_cover_dt,
   
   
   # -------------------- calculate the abandonment area turnover ------------------- #
-  abn_area_change <- cc_calc_abn_area_diff(abn_age_dt = abn_age_dt, area_raster = s_area)
+  abn_area_change <- cc_calc_abn_area_diff(abn_age_dt = abn_age_dt, land_cover_raster = land_cover_raster)
   
   cc_save_plot_area_gain_loss(input_area_change_df = abn_area_change, 
                               subtitle = subtitle, outfile_label = outfile_label)

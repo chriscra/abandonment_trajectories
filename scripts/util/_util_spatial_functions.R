@@ -1,8 +1,56 @@
-# ---------------------------------------------------------------
+# --------------------------------------------------------------- #
 #
 # Spatial Functions: 
 # 
-# ---------------------------------------------------------------
+# --------------------------------------------------------------- #
+
+# --------------------------------------------------------------- #
+# ----------------------- plotting utils ------------------------ 
+# --------------------------------------------------------------- #
+# define color palette for plotting:
+# 1. Non-veg
+# 2. Woody veg
+# 3. Crop
+# 4. Grassland
+plot_cols <- data.frame(
+  color = c("gray80", # gray, 1. Non-veg
+            terrain.colors(9)[1], # dark green, 2. Woody veg
+            terrain.colors(9)[5], # gold, 3. Crop
+            terrain.colors(9)[3] # light green, 4. Grassland
+  ),
+  name = c("1. Non-veg", "2. Woody veg", "3. Crop", "4. Grassland"),
+  breaks = c(1, 2, 3, 4))
+
+# visualize them
+# show_col(plot_cols$color) # (topleft = 1, topright = 2, bottomleft = 3, bottomright = 4)
+# gray,         1. Non-veg
+# dark green,   2. Woody veg
+# gold,         3. Crop
+# light green,  4. Grassland
+
+plot_cols_new <- c("gray80", # gray, 1. Non-veg
+                   terrain.colors(9)[5], # gold, 2 (formerly 3) Crop
+                   terrain.colors(9)[3], # light green, 3 (formerly 4) Grassland
+                   terrain.colors(9)[1]  # dark green, 4 (formerly 2) Woody veg
+)
+
+# no longer necessary
+# plot_breaks <- c(0, 1, 2, 3, 4)
+
+# show_col(terrain.colors(20))
+# show_col(topo.colors(20))
+# show_col(cm.colors(20))
+# 
+# show_col(plot_cols)
+# show_col(plot_cols[c(1, 3, 2)])
+
+
+
+
+
+# --------------------------------------------------------------- #
+# ----------------------- functions ----------------------------- 
+# --------------------------------------------------------------- #
 
 # Zambia functions
 invert = function(x){
@@ -12,7 +60,7 @@ normalize <- function(x) {
   (x - cellStats(x,"min")) / (cellStats(x,"max") - cellStats(x,"min"))
 }
 
-# --------------- gdal_polygonizeR function -----------------
+# --------------- gdal_polygonizeR function ----------------- #
 
 # Originally written by Lyndon Estes (Clark University), and 
 # expanded upon by John Baumgartner:
@@ -126,7 +174,7 @@ cc_write_bd_to_dt <- function(bd_input, input_key) {
 
 
 
-# ---------------------------------------------------------------
+# --------------------------------------------------------------- #
 
 
 
