@@ -310,58 +310,128 @@ show_patches(landscape, class = "all", labels = FALSE)
 
 check_landscape(btr) # 
 check_landscape(br) # full dataset
-#    layer       crs units   class n_classes OK
-# 1      1 projected     m integer         5  ✓
-# 2      2 projected     m integer         5  ✓
-# 3      3 projected     m integer         5  ✓
-# 4      4 projected     m integer         5  ✓
-# 5      5 projected     m integer         5  ✓
-# 6      6 projected     m integer         5  ✓
-# 7      7 projected     m integer         5  ✓
-# 8      8 projected     m integer         5  ✓
-# 9      9 projected     m integer         5  ✓
-# 10    10 projected     m integer         5  ✓
-# 11    11 projected     m integer         5  ✓
-# 12    12 projected     m integer         5  ✓
-# 13    13 projected     m integer         5  ✓
-# 14    14 projected     m integer         5  ✓
-# 15    15 projected     m integer         5  ✓
-# 16    16 projected     m integer         5  ✓
-# 17    17 projected     m integer         5  ✓
-# 18    18 projected     m integer         5  ✓
-# 19    19 projected     m integer         5  ✓
-# 20    20 projected     m integer         5  ✓
-# 21    21 projected     m integer         5  ✓
-# 22    22 projected     m integer         5  ✓
-# 23    23 projected     m integer         5  ✓
-# 24    24 projected     m integer         5  ✓
-# 25    25 projected     m integer         5  ✓
-# 26    26 projected     m integer         5  ✓
-# 27    27 projected     m integer         5  ✓
-# 28    28 projected     m integer         5  ✓
-# 29    29 projected     m integer         5  ✓
-# 30    30 projected     m integer         5  ✓
-# 31    31 projected     m integer         5  ✓
+# 5 classes, all checks out ok. 
 
 list_lsm()
+list_lsm(level = "landscape", simplify = TRUE) # just the 
 
 # Explore metrics
-list_lsm(level = "landscape", type = "aggregation metric", simplify = FALSE)
-
+list_lsm(level = "landscape", type = "aggregation metric", simplify = FALSE) %>% print(n = 14)
+list_lsm(type = "aggregation metric", simplify = FALSE) %>% print(n = 30)
 list_lsm(level = "landscape", simplify = FALSE) %>% print(n = 65)
+list_lsm(type = "area and edge metric", simplify = FALSE) %>% print(n = 24)
 
 
-show_landscape(landscape)
-check_landscape(btr)
-ls_metrics <- btr %>%
+metrics_list <- c(
+  # aggregation metrics
+  "lsm_l_ai", # aggregation index, landscape level
+  "lsm_c_ai", # aggregation index, class level
+  "lsm_l_cohesion", # patch cohesion index, landscape
+  "lsm_c_cohesion", # patch cohesion index, class
+  "lsm_c_enn_mn", # euclidean nearest neighbor distance, mean, class
+
+  "lsm_l_contag", # connectance
+  "lsm_l_np", # number of patches
+  "lsm_l_pd", # patch density
+  
+  # shape metric
+  "lsm_l_contig_mn", # contiguity index
+  
+  # area and edge metrics
+  "lsm_l_area_mn", # patch area, mean, landscape overall
+  "lsm_c_area_mn", # patch area, mean, per class
+  "lsm_c_ca", # total (class) area
+  "lsm_l_lpi", # largest patch index, landscape
+  "lsm_c_lpi" # largest patch index, class
+  )
+
+# test area
+tic()
+lsm_c_ca(btr$y2017)
+toc() # 0.029
+
+tic()
+lsm_c_ca(br$y2017)
+toc() # 37.178
+37.178 / 0.029
+90 * 1282 / 60 / 60
+
+ncell(br)/ncell(btr)
+
+# so, it's 
+(61120 + 2037336 + 1114915 + 1712799) / (24.5 + 40 + 50.6) # times as large
+42799 * 1.5 / 60
+
+# calculate metrics for subset
+check_landscape(btr[[1:5]])
+show_landscape(btr$y2017)
+
+tic()
+btr_metrics <- btr %>%
   calculate_lsm(
-    #what = "patch"
     #type = "aggregation metric",
     #level = "landscape",
-    what = 
-      grep("circle", 
-           list_lsm(level = "landscape", simplify = TRUE), 
-           invert = TRUE, value = TRUE),
+    what = metrics_list,
+    classes_max = 3,
+    verbose = TRUE,
+    progress = TRUE
+    ) %>%
+  dplyr::left_join(x = .,
+                   y = lsm_abbreviations_names, 
+                   by = c("metric", "level"))
+toc() # 93.7 seconds
+
+btr_metrics %>% print(n=65)
+  
+
+show_correlation(ls_metrics, method = "pearson")
+1987:2017
+as.character(1:31)
+# fct_recode(as_factor(layer), 
+#                             1987 = "1", 1988 = "2", 1989 = "3", 
+#                             1990 = "4", 1991 = "5", 1992 = "6", 
+#                             1993 = "7", 1994 = "8", 1995 = "9", 
+#                             1996 = "10", 1997 = "11", 1998 = "12", 
+#                             1999 = "13", 2000 = "14", 2001 = "15", 
+#                             2002 = "16", 2003 = "17", 2004 = "18", 
+#                             2005 = "19", 2006 = "20", 2007 = "21", 
+#                             2008 = "22", 2009 ="23", 2010 = "24", 
+#                             2011 = "25", 2012 = "26", 2013 = "27", 
+#                             2014 = "28", 2015 = "29", 2016 = "30", 
+#                             2017 = "31")
+
+
+```
+
+```{r plot-metrics}
+# massage dataframe
+btr_metrics <- btr_metrics %>% 
+  mutate(land_cover = fct_recode(as_factor(class), 
+                            woody_veg = "2", cropland = "3", grassland = "4"),
+         year = layer + 1986) %>%
+  select(class) %>%
+  unique()
+
+
+ggplot(data = filter(btr_metrics, name == "aggregation index")) +
+  geom_point(mapping = aes(x = layer, y = value, group = class, color = class))
+
+```
+
+```{r run-lsm}
+
+# first, prep raster, to remove 0s
+br
+br[br == 0] <- NA
+
+
+# run, for a subset of the metrics
+tic()
+br_metrics1 <- br %>%
+  calculate_lsm(
+    #type = "aggregation metric",
+    #level = "landscape",
+    what = metrics_list[c(1, 2, 6, 9)],
     classes_max = 4,
     verbose = TRUE,
     progress = TRUE
@@ -369,31 +439,7 @@ ls_metrics <- btr %>%
   dplyr::left_join(x = .,
                    y = lsm_abbreviations_names, 
                    by = c("metric", "level"))
-
-metrics %>% print(n=65)
-  
-
-show_correlation(metrics, method = "pearson")
-
-
-show_patches(landscape, class = "all", labels = FALSE)
-
-# bind results from different metric functions
-patch_metrics <- dplyr::bind_rows(
-  lsm_p_cai(landscape),
-  lsm_p_circle(landscape),
-  lsm_p_enn(landscape)
-  )
-# look at the results
-patch_metrics_full_names <- dplyr::left_join(x = patch_metrics,
-                                             y = lsm_abbreviations_names, 
-                                             by = "metric")
-patch_metrics_full_names
-```
-
-```{r s}
-
-
+toc() # 
 ```
 
 
