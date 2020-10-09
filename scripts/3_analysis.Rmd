@@ -21,9 +21,11 @@ source("scripts/0_start.R")
 s <- brick(paste0(p_dat, "Abandonment/shaanxi.tif"))
 b <- brick(paste0(p_dat_derived, "belarus.tif")) # merged version
 
+# reprojected rasters:
+br <- brick(paste0(p_dat_derived, "belarus_reproj.tif"))
+
 # subset:
 bt <- brick(paste0(p_dat_derived, "belarus_subset.tif"))
-
 
 # age
 s_age_r <- brick(paste0(p_dat_derived, "shaanxi_age.tif"))
@@ -36,6 +38,7 @@ b_max_length_r <- brick(paste0(p_dat_derived, "belarus_max_length.tif"))
 # update year names 1987 - 2017
 names(s) <- paste0("y", 1987:2017)
 names(b) <- paste0("y", 1987:2017)
+names(br) <- paste0("y", 1987:2017)
 names(s_age_r) <- paste0("y", 1987:2017)
 names(b_age_r) <- paste0("y", 1987:2017)
 
@@ -400,11 +403,6 @@ as.character(1:31)
 #                             2014 = "28", 2015 = "29", 2016 = "30", 
 #                             2017 = "31")
 
-
-```
-
-```{r plot-metrics}
-# massage dataframe
 btr_metrics <- btr_metrics %>% 
   mutate(land_cover = fct_recode(as_factor(class), 
                             woody_veg = "2", cropland = "3", grassland = "4"),
@@ -412,18 +410,16 @@ btr_metrics <- btr_metrics %>%
   select(class) %>%
   unique()
 
-
-ggplot(data = filter(btr_metrics, name == "aggregation index")) +
-  geom_point(mapping = aes(x = layer, y = value, group = class, color = class))
-
 ```
 
-```{r run-lsm}
+
+```{r run-lsm-full}
 
 # first, prep raster, to remove 0s
 br
 br[br == 0] <- NA
 
+summary(getValues(br$y1987))
 
 # run, for a subset of the metrics
 tic()
@@ -439,9 +435,158 @@ br_metrics1 <- br %>%
   dplyr::left_join(x = .,
                    y = lsm_abbreviations_names, 
                    by = c("metric", "level"))
-toc() # 
+toc() # 3954 sec
+
+# Save file
+write_rds(br_metrics1, paste0(p_output, "frag/br_metrics1.rds"))
+
+# reload
+br_metrics1 <- read_rds(paste0(p_output, "frag/br_metrics1.rds"))
+
+
+list_lsm(what = metrics_list)
+
+
+# full list:
+tic()
+check_br <- check_landscape(br)
+print(check_br)
+toc()
+
+tic()
+br_metrics_full <- br %>%
+  calculate_lsm(
+    what = metrics_list,
+    classes_max = 5,
+    verbose = TRUE, progress = TRUE
+    ) %>%
+  dplyr::left_join(x = .,
+                   y = lsm_abbreviations_names, 
+                   by = c("metric", "level"))
+toc() #  sec
+
+# Save file
+tic()
+write_rds(br_metrics_full, paste0(p_output, "frag/br_metrics_full.rds"))
+toc()
 ```
 
+```{r plot-metrics}
+# massage dataframe
+  # Original Land-use class codes:
+  #       1. Non-vegetated area (e.g. water, urban, barren land)
+  #       2. Woody vegetation
+  #       3. Cropland 
+  #       4. Herbaceous land (e.g. grassland)
+
+br_metrics1 <- br_metrics1 %>% 
+  mutate(land_cover = fct_recode(as_factor(class), 
+                                 non_veg = "1", woody_veg = "2", 
+                                 cropland = "3", grassland = "4"),
+         year = layer + 1986) %>%
+  # drop 0 land cover class
+  filter(land_cover %in% c("non_veg", "woody_veg", "cropland", "grassland", NA))
+
+
+br_metrics1 %>%
+  select(land_cover, level) %>%
+  unique()
+
+br_metrics1 %>% 
+  filter(level == "landscape")
+
+br_metrics1 %>% select(name, function_name) %>% unique()
+
+# four metrics:
+# 1. aggregation, class
+# 2. aggregation, landscape
+# 3. connectance, landscape
+# 4. mean contiguity index, landscape
+
+
+# seven values per year (31 years * 7 = 217 values) [having removed 0 class]
+# 4 classes, aggregation, then each of the single landscape metrics
+
+
+# 1. aggregation, class
+ggplot() +
+  theme_classic() +
+  geom_point(data = filter(br_metrics1, function_name == "lsm_c_ai"),
+             mapping = aes(x = year, y = value, 
+                           group = land_cover, color = land_cover)
+             ) + 
+  labs(title = "Aggregation Index, by land cover",
+       color = "Land Cover")
+
+
+# 2. aggregation, landscape
+gg_aggregation_index_br <- ggplot() +
+  theme_classic() +
+  geom_point(data = filter(br_metrics1, function_name == "lsm_l_ai"),
+             mapping = aes(x = year, y = value, fill = level)) + 
+  geom_smooth(method = "lm", 
+              data = filter(br_metrics1, function_name == "lsm_l_ai"),
+              mapping = aes(x = year, y = value, fill = level)) + 
+  
+  # add by class
+  geom_point(data = filter(br_metrics1, function_name == "lsm_c_ai"),
+             mapping = aes(x = year, y = value, 
+                           group = land_cover, color = land_cover)
+             ) + 
+  geom_smooth(method = "lm", 
+              data = filter(br_metrics1, function_name == "lsm_c_ai"),
+              mapping = aes(x = year, y = value,
+                            group = land_cover, color = land_cover)) +
+  labs(title = "Aggregation Index",
+       fill = "Entire \nLandscape",
+       color = "Land Cover")
+gg_aggregation_index_br
+
+# 3. connectance, landscape
+br_metrics1 %>% select(name, function_name) %>% unique()
+
+gg_connectance_br <- ggplot(data = filter(br_metrics1, function_name == "lsm_l_contag")) +
+  theme_classic() +
+  geom_point(mapping = aes(x = year, y = value)) + 
+  geom_smooth(method = "lm", 
+              mapping = aes(x = year, y = value)) +
+  labs(title = "Connectance")
+
+
+# 4. mean contiguity index, landscape
+gg_contiguity_br <- ggplot(data = filter(br_metrics1, function_name == "lsm_l_contig_mn")) +
+  theme_classic() +
+  geom_point(mapping = aes(x = year, y = value)) + 
+  geom_smooth(method = "lm", 
+              mapping = aes(x = year, y = value)) +
+  labs(title = "Contiguity Index, Mean")
+
+plot_grid(gg_aggregation_index_br,
+          plot_grid(gg_connectance_br, gg_contiguity_br, nrow = 1),
+          nrow = 2)
+
+
+# save plot:
+plot_grid(gg_aggregation_index_br,
+          plot_grid(gg_connectance_br, gg_contiguity_br, nrow = 1),
+          nrow = 2)
+
+
+png(filename = paste0(p_output, "plots/br_lsm_metrics1.3.png"), 
+    width = 7, height = 5, units = "in", res = 400)
+print(
+  plot_grid(
+    plot_grid(gg_connectance_br, gg_contiguity_br, nrow = 2, align = "v"),
+    gg_aggregation_index_br,
+    ncol = 2,
+    rel_widths = c(3, 5)
+    )
+  )
+
+dev.off()
+
+
+```
 
 ```{r aggregation-stats}
 aggregation <- lsm_l_ai(binary)
