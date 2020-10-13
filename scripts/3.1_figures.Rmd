@@ -494,10 +494,12 @@ area_s <- area
 persistence_list_s <- persistence_list
 abn_area_change_s <- abn_area_change
 
+
 load(file = paste0(p_output, "abn_dat_products_b.rds"), verbose = TRUE)
 area_b <- area
 persistence_list_b <- persistence_list
 abn_area_change_b <- abn_area_change
+
 ```
 
 
@@ -512,5 +514,99 @@ cc_save_plots_master(land_cover_dt = b_dt,
   outfile_label = "_b"
   )
 toc()
+
+# generate plots
+cc_save_plots_master(subtitle = "Shaanxi/Shanxi Provinces, China", outfile_label = "_s")
+
+cc_save_plots_master(subtitle = "Shaanxi/Shanxi Provinces, China", input_site_label = "_s", 
+                     outfile_label = "_s_all")
+
+cc_save_plots_master(subtitle = "Eastern Belarus/Smolensk, Russia", input_site_label = "_b", 
+                     outfile_label = "_b_all")
+
 ```
+
+# Update to implement 5 year threshold
+```{r n_lc_area}
+# three files:
+area_s
+persistence_list_s
+abn_area_change_s
+
+# first, area
+
+ggplot(data = area_s) +
+    theme_classic() +
+    # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+    labs(y = expression("Area  (10"^{6}*" ha)") , 
+         x = "Year", 
+         title = "Area by Land Cover, with Abandonment",
+         subtitle = subtitle,
+         color = "Land Cover") + 
+    geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
+                            group = lc, color = lc),
+              size = 1.2) + 
+    scale_x_continuous(n.breaks = 10)
+
+abandonment_definition <- 5
+
+abandoned_area_df <- tibble(
+    year = 1987:2017,
+    lc = "Abandoned",
+    count = sapply(1:31, function(i) {s_age[get(paste0("y", 1987:2017)[i]) >= abandonment_definition, .N]}),
+    count_all = sapply(1:31, function(i) {s_age[get(paste0("y", 1987:2017)[i]) > 0, .N]}),
+
+    area_ha = count * median_cell_area_km2 * 100,
+    area_all_ha = count_all * median_cell_area_km2 * 100
+  )
+
+s_age[y1992 >= 5, .N]
+
+abandoned_area_df %>% print(n = 31)
+filter(area, lc != "Abandoned")
+n_area_s <- bind_rows(filter(area_s, lc != "Abandoned"), abandoned_area_df) %>% print(n = 155)
+
+# new updated plot
+ggplot(data = n_area_s) +
+    theme_classic() +
+    # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+    labs(y = expression("Area  (10"^{6}*" ha)") , 
+         x = "Year", 
+         title = "Area by Land Cover, with Abandonment",
+         subtitle = subtitle,
+         color = "Land Cover") + 
+    geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
+                            group = lc, color = lc),
+              size = 1.2) + 
+    scale_x_continuous(n.breaks = 10)
+
+persistence_list_s
+abn_area_change_s
+
+```
+
+```{r n_persistence}
+persistence_list_s
+
+
+```
+
+```{r n_abn_area_change}
+abn_area_change_s
+```
+
+
+```{r test-new-functions}
+
+tic()
+cc_generate_dfs(
+  land_cover_dt = s_dt, 
+  abn_age_dt = s_age, 
+  land_cover_raster = s$y2017,
+  outfile_label = "_s"
+  )
+toc()
+
+```
+
 

@@ -414,6 +414,8 @@ btr_metrics <- btr_metrics %>%
 
 
 ```{r run-lsm-full}
+names(br)
+names(b)
 
 # first, prep raster, to remove 0s
 br
@@ -454,9 +456,9 @@ print(check_br)
 toc()
 
 tic()
-br_metrics_full <- br %>%
+br_metrics2 <- br %>%
   calculate_lsm(
-    what = metrics_list,
+    what = metrics_list[c(3, 4, 5, 7, 8)],
     classes_max = 5,
     verbose = TRUE, progress = TRUE
     ) %>%
@@ -467,7 +469,7 @@ toc() #  sec
 
 # Save file
 tic()
-write_rds(br_metrics_full, paste0(p_output, "frag/br_metrics_full.rds"))
+write_rds(br_metrics2, paste0(p_output, "frag/br_metrics2.rds"))
 toc()
 ```
 

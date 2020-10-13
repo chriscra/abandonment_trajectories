@@ -372,7 +372,8 @@ cc_calc_max_age <- function(dt, directory = p_dat_derived, name) {
 # each land cover class in the original land cover data, and
 # that is abandoned, over time
 # -------------------------------------------------------------------------- #
-cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster) {
+cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster, 
+                                    abandonment_threshold = 5) {
   col_names <- grep("x$|y$", names(land_cover_dt), value = TRUE, invert = TRUE)
   area_raster <- raster::area(land_cover_raster) # calculate area in km2
   median_cell_area_km2 <- median(getValues(area_raster))
@@ -410,15 +411,23 @@ cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster
     mutate(area_ha = count * median_cell_area_km2 * 100)
   
   
-  abandoned_area_df <- tibble(
+  abandoned_area_df_threshold <- tibble(
     year = 1987:2017,
     lc = "Abandoned",
-    count = sapply(1:31, function(i) {abn_age_dt[get(paste0("y", 1987:2017)[i]) > 0, .N]}),
-    area_ha = count * median_cell_area_km2 * 100
+    count = sapply(1:31, function(i) {abn_age_dt[get(paste0("y", 1987:2017)[i]) >= abandonment_threshold, .N]}),
+    area_ha = count * median_cell_area_km2 * 100,
   )
   
+  abandoned_area_df_all <- tibble(
+    year = 1987:2017,
+    lc = "Abandoned_all",
+    count = sapply(1:31, function(i) {abn_age_dt[get(paste0("y", 1987:2017)[i]) > 0, .N]}),
+    area_ha = count * median_cell_area_km2 * 100,
+  )
+  
+  
   # return the tibble
-  area_df <- rbind(lc_area_df, abandoned_area_df)
+  area_df <- bind_rows(lc_area_df, abandoned_area_df_threshold, abandoned_area_df_all)
   
 }
 
@@ -426,16 +435,20 @@ cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster
 # calculate area of abandoned land over time, for a particular abn_age_dt
 # ------------------------------------------------------------------------------------ #
 
-cc_calc_abn_area <- function(abn_age_dt, land_cover_raster) {
+cc_calc_abn_area <- function(abn_age_dt, land_cover_raster, abandonment_definition = 5) {
   area_raster <- raster::area(land_cover_raster) # calculate area in km2
   median_cell_area_km2 <- median(getValues(area_raster))
-  
+
   abandoned_area_df <- tibble(
     year = 1987:2017,
     lc = "Abandoned",
-    count = sapply(1:31, function(i) {abn_age_dt[get(paste0("y", 1987:2017)[i]) > 0, .N]}),
-    area_ha = count * median_cell_area_km2 * 100
+    count = sapply(1:31, function(i) {abn_age_dt[get(paste0("y", 1987:2017)[i]) >= abandonment_threshold, .N]}),
+    count_all = sapply(1:31, function(i) {abn_age_dt[get(paste0("y", 1987:2017)[i]) > 0, .N]}),
+    
+    area_ha = count * median_cell_area_km2 * 100,
+    area_all_ha = count_all * median_cell_area_km2 * 100
   )
+  
 }
 
 
@@ -868,7 +881,7 @@ cc_save_plot_area_by_age_class <- function(input_list, subtitle, outfile_label,
 # ------------------------------------------------------------------------------------ #
 # save four plot types, master function
 # ------------------------------------------------------------------------------------ #
-cc_save_plots_master <- function(land_cover_dt,
+cc_save_plots_master_old <- function(land_cover_dt,
                                  abn_age_dt, 
                                  land_cover_raster,
                                  subtitle, 
@@ -899,6 +912,63 @@ cc_save_plots_master <- function(land_cover_dt,
   
   save(area, persistence_list, abn_area_change, file = paste0(p_output, "abn_dat_products", outfile_label, ".rds"))
 }
+
+
+# generate the files needed to calculate plots
+cc_generate_dfs <- function(land_cover_dt,
+                            abn_age_dt, 
+                            land_cover_raster, 
+                            outfile_label) {
+  # ------------- calculate total area per lc, with abandonment ---------------- #
+  area <- cc_calc_area_per_lc_abn(land_cover_dt = land_cover_dt, 
+                                  abn_age_dt = abn_age_dt, 
+                                  land_cover_raster = land_cover_raster)
+  
+  # ------------------------ abandonment persistence --------------------------- #
+  persistence_list <- cc_calc_persistence_all(abn_age_dt = abn_age_dt, land_cover_raster = land_cover_raster)
+  
+  # -------------------- calculate the abandonment area turnover ------------------- #
+  abn_area_change <- cc_calc_abn_area_diff(abn_age_dt = abn_age_dt, land_cover_raster = land_cover_raster)
+  
+
+  # change names
+  assign(paste0("area", outfile_label), area)
+  assign(paste0("persistence_list", outfile_label), persistence_list)
+  assign(paste0("abn_area_change", outfile_label), abn_area_change)
+
+  # save files
+  save(list = c(paste0("area", outfile_label), 
+                paste0("persistence_list", outfile_label),
+                paste0("abn_area_change", outfile_label)
+                ), 
+       file = paste0(p_output, "abn_dat_products", outfile_label, ".rds"))
+}
+
+# save just the plots
+cc_save_plots_master <- function(input_site_label = outfile_label, outfile_label,
+                                 subtitle) {
+  
+  
+  # ------------- calculate total area per lc, with abandonment ---------------- #
+  cc_save_plot_lc_abn_area(input_area_df = eval(parse(text = paste0("area", input_site_label))), 
+                           subtitle = subtitle, outfile_label = outfile_label)
+  
+  
+  # ------------------------ abandonment persistence --------------------------- #
+  cc_save_plot_abn_persistence(input_list = eval(parse(text = paste0("persistence_list", input_site_label))), 
+                               subtitle = subtitle, outfile_label = outfile_label)
+  
+  
+  # -------------------- calculate the abandonment area turnover ------------------- #
+  cc_save_plot_area_gain_loss(input_area_change_df = eval(parse(text = paste0("abn_area_change", input_site_label))), 
+                              subtitle = subtitle, outfile_label = outfile_label)
+  
+  
+  # -------------------- plot abandonment area by age class ------------------- #
+  cc_save_plot_area_by_age_class(input_list = eval(parse(text = paste0("persistence_list", input_site_label))), 
+                                 subtitle = subtitle, outfile_label = outfile_label)
+}
+
 
 # save raster functions ---- 
 
