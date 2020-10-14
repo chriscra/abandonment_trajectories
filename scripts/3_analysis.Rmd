@@ -273,6 +273,18 @@ binary2[binary2 == 2] <- 2  # Woody vegetation
 animate(binary)
 animate(binary2)
 
+
+
+# to remove the 0s:
+plot(br$y1987, #col = plot_cols$color, breaks = c(0, plot_cols$breaks),
+     ext = ext)
+ext <- drawExtent(show = TRUE, col = "red")
+
+br_test <- crop(br$y1987, ext)
+plot(br_test)
+br_test[br_test == 0] <- NA
+plot(br_test)
+# It works!
 ```
 
 ## Background
@@ -615,6 +627,20 @@ ggplot(data = agg_br) +
 # calc patch cohesion index
 agg_cohesion <- lsm_l_cohesion(bt)
 animate(bt)
+
+```
+
+The cluster cannot handle running all of the metrics for Belarus raster, across all of the years. So far, the Shaanxi raster is running, with 150 GB of memory, but just for the first five metrics. It may not finish, since it's just through the first 2 layers. That does not look promising. So, what I need to do is either reduce the number of metrics per run, or reduce the number of years per run, or both. 
+
+```{r prep-cluster-runs}
+br # input raster
+nlayers(br) # 31 layers
+metrics_list %>% length # 14 metrics
+
+# load the cleaned up raster
+
+# set the metrics
+
 
 ```
 

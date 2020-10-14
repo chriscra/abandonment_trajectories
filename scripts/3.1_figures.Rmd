@@ -548,12 +548,12 @@ ggplot(data = area_s) +
               size = 1.2) + 
     scale_x_continuous(n.breaks = 10)
 
-abandonment_definition <- 5
+abandonment_threshold <- 5
 
 abandoned_area_df <- tibble(
     year = 1987:2017,
     lc = "Abandoned",
-    count = sapply(1:31, function(i) {s_age[get(paste0("y", 1987:2017)[i]) >= abandonment_definition, .N]}),
+    count = sapply(1:31, function(i) {s_age[get(paste0("y", 1987:2017)[i]) >= abandonment_threshold, .N]}),
     count_all = sapply(1:31, function(i) {s_age[get(paste0("y", 1987:2017)[i]) > 0, .N]}),
 
     area_ha = count * median_cell_area_km2 * 100,
@@ -564,21 +564,39 @@ s_age[y1992 >= 5, .N]
 
 abandoned_area_df %>% print(n = 31)
 filter(area, lc != "Abandoned")
-n_area_s <- bind_rows(filter(area_s, lc != "Abandoned"), abandoned_area_df) %>% print(n = 155)
+n_area_s1 <- bind_rows(filter(area_s, lc != "Abandoned"), abandoned_area_df) %>% print(n = 155)
+
+tic()
+n_area_s <- cc_calc_area_per_lc_abn(land_cover_dt = s_dt,
+                                    abn_age_dt = s_age, 
+                                    land_cover_raster = s$y2017,
+                                    abandonment_threshold = 5)
+toc()
+identical(n_area_s, n_area_s1)
 
 # new updated plot
-ggplot(data = n_area_s) +
-    theme_classic() +
-    # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
-    labs(y = expression("Area  (10"^{6}*" ha)") , 
-         x = "Year", 
-         title = "Area by Land Cover, with Abandonment",
-         subtitle = subtitle,
-         color = "Land Cover") + 
-    geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
-                            group = lc, color = lc),
-              size = 1.2) + 
-    scale_x_continuous(n.breaks = 10)
+ggplot(data = n_area_s 
+       %>% filter(lc != "Abandoned (all)") %>% 
+         mutate(lc = recode(lc, "Abandoned (>5)" = "Abandoned"))
+       ) +
+  theme_classic() +
+  # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  labs(y = expression("Area  (10"^{6}*" ha)") , 
+       x = "Year", 
+       title = "Area by Land Cover, with Abandonment",
+       subtitle = subtitle,
+       color = "Land Cover") + 
+  geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
+                          group = lc, color = lc),
+            size = 1.2) + 
+  scale_x_continuous(n.breaks = 10) #+
+  # scale_color_discrete(name = "COVER", 
+  #                      labels = c("Abandoned (>5)",
+  #                                 "Abandoned (all)", 
+  #                                 "Crop", "Grassland", 
+  #                                 "Non-veg", "Woody veg"))
+
+n_area_s %>% select(lc) %>% unique() %>% arrange(lc)
 
 persistence_list_s
 abn_area_change_s
@@ -588,8 +606,167 @@ abn_area_change_s
 ```{r n_persistence}
 persistence_list_s
 
+s_age
+s
 
+persistence_list_s <- cc_calc_persistence_all(
+  abn_age_dt = s_age, land_cover_raster = s$y2017)
+
+# starting with i + 1 (i.e. 1988), count the number of cells that are of i age, then the next year, with age 2, then the next year with age 3, etc.
+# the j represents each cohort of abandonment. I think I can just start with the fifth year for the counts.
+stat_proportion <- FALSE
+NA_first <- TRUE
+pl1 <- persistence_list
+pl2 <- persistence_list
+
+pl1
+pl2
+
+
+names(persistence_list) <- paste0("y", 1988:2017)
+pl2[[1]][-c(1:4)]
+abandonment_threshold
+c(abandonment_threshold:31) %>% length
+pl2[[1]][c(abandonment_threshold:31)]
+pl_na1 <- persistence_list
+pl_na2 <- persistence_list
+
+pl_na1[[1]]
+pl_na2[[1]]
+test1 <- pl_na1[[30]]
+test2 <- pl_na2[[30]]
+test2[c(1:4)] <- NA
+
+n_pl_na1 <- persistence_list
+n_pl_na2 <- persistence_list
+
+temp_vector[c(1:31)]
+pl_na1
+n_pl_na1
+
+pl_na2
+n_pl_na2
+for(i in 1:30) {print(length(persistence_list[[i]]))}
+
+temp_vector[c()]
+
+# remove cells that are below threshold
+if (NA_first){
+  temp_vector[c((1:(abandonment_threshold - 1)) + j)] <- NA
+} else {
+  temp_vector[c(1:(abandonment_threshold - 1))] <- NA
+}
+
+persistence_long %>% arrange(year_abn, time_abn)
+pl2[-c(1:4)]
+
+ temp_vector4 <- c(
+      if (NA_first) {rep(NA, j)
+        } else {rep(NA, 0)},
+      sapply(1:(31 - j), function(i) {
+        abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, .N]
+      }),
+      if (NA_first) {rep(NA, 0)
+      } else {rep(NA, j)}
+    )
+ 
+temp_vector %>% length
+temp_vector1 %>% length
+temp_vector2 %>% length
+temp_vector3 %>% length
+temp_vector4
+abandonment_threshold:(31 - 27)
+sapply(abandonment_threshold:(31 - 27), function(i) {
+        abn_age_dt[get(paste0("y", 1987:2017)[i + 27]) == i, .N]
+      })
+
+abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, .N]
+abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, .N]
+abn_age_dt[y1994 == 7, ]
+
+count_s <- cc_calc_persistence(abn_age_dt = s_age, 
+                               land_cover_raster = s$y2017, 
+                               stat_proportion = FALSE,
+                               NA_first = FALSE, include_wide = FALSE)
+
+
+
+proportion <- cc_calc_persistence(abn_age_dt, land_cover_raster, 
+                                  stat_proportion = TRUE,
+                                  NA_first = FALSE, include_wide = FALSE)
+
+count_na_first <- cc_calc_persistence(abn_age_dt, land_cover_raster, 
+                                      stat_proportion = FALSE,
+                                      NA_first = TRUE, include_wide = FALSE)
+
+proportion_na_first <- cc_calc_persistence(abn_age_dt, land_cover_raster, 
+                                           stat_proportion = TRUE,
+                                           NA_first = TRUE, include_wide = FALSE)
+
+
+
+
+# try the new functions
+
+n_persistence_list_s <- cc_calc_persistence_all(
+  abn_age_dt = s_age, 
+  land_cover_raster = s$y2017, 
+  include_wide = FALSE,
+  abandonment_threshold = 5
+)
+
+# doesn't work for the na_first
+
+# for NA_first = FALSE, it works
+# for NA_first = TRUE, it works
+persistence_list[[30]]
+
+temp_vector[c(1:(31 - (abandonment_threshold - 1)))]
+
+temp_vector[c()]
+
+temp_vector[c(abandonment_threshold + 1:27)]
+# try plotting:
+cc_save_plot_abn_persistence
+cc_save_plot_area_by_age_class
 ```
+
+```{r n_age-class}
+
+persistence_list_s
+
+
+ggplot(data = filter(persistence_list_s$count_na_first, age >= 5)) + 
+  theme_classic() +
+  labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
+       x = "Year", 
+       title = "Area of Abandoned Land, by Age Class",
+       subtitle = subtitle,
+       fill = "Age") + 
+  #scale_x_continuous(n.breaks = 10) + 
+  geom_col(mapping = aes(x = year, y = area_ha / 10^3, group = bins, fill = bins),
+             position = position_stack(reverse = TRUE)
+    ) +
+  scale_fill_brewer(palette = "Greens", direction = 1) + 
+  geom_line(data = filter(n_area_s, lc == "Abandoned (>5)"), mapping = aes(x = year, y = area_ha / (10^3)))
+  
+
+
+age_class_continuous <- age_class_base +
+    geom_col(mapping = aes(x = year, y = area_ha / 10^3, group = age, fill = age),
+             position = position_stack(reverse = TRUE)
+    ) + 
+    scale_fill_distiller(palette = "Greens", direction = 1)
+
+
+  
+  age_class_bins <- age_class_base +
+    geom_col(mapping = aes(x = year, y = area_ha / 10^3, group = bins, fill = bins),
+             position = position_stack(reverse = TRUE)
+    ) +
+    scale_fill_brewer(palette = "Greens", direction = 1) 
+```
+
 
 ```{r n_abn_area_change}
 abn_area_change_s
