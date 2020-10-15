@@ -16,9 +16,9 @@ source("")
 
 ```{r load-data}
 # for use on cluster:
-p_dat <- "scratch/network/clc6/abandonment_trajectories/data_derived/"
-p_dat_derived <- "scratch/network/clc6/abandonment_trajectories/data_derived/"
-p_output <- paste0("scratch/network/clc6/abandonment_trajectories/output/")
+p_dat <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
+p_dat_derived <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
+p_output <- paste0("/scratch/network/clc6/abandonment_trajectories/output/")
 list.files(p_dat_derived)
 
 
@@ -110,6 +110,9 @@ b_length[, .N, by = length]
 
 ```
 ```{r distill-length-data}
+# ------------------------------------------ #
+# ----------------- mean length ------------ #
+# ------------------------------------------ #
 s_length[, site := "shaanxi"]
 b_length[, site := "belarus"]
 
@@ -124,6 +127,9 @@ dat_mean_length
 # can also calculate the mean length from the distilled dat
 sum((b_distill$length * b_distill$freq)) / sum(b_distill$freq)
 
+# ------------------------------------------ #
+# ----------------- distill ---------------- #
+# ------------------------------------------ #
 
 # to use with ggplot, first distill the data
 
@@ -141,6 +147,32 @@ s_max_length_distill[, site := "shaanxi"]
 max_length_distill <- rbind(b_max_length_distill, s_max_length_distill)
 
 
+# ------------------------------------ #
+# ----------- mean max length -------- #
+# ------------------------------------ #
+# max length, mean, etc.
+s_length
+s_max_length[, site := "shaanxi"]
+b_max_length[, site := "belarus"]
+
+max_length_all <- rbindlist(list(s_max_length, b_max_length))
+object_size(max_length_all)
+
+dat_mean_length_max <- max_length_all[, .(mean_length = mean(max_length)), by = site]
+dat2_mean_length_max <- max_length_all[max_length >= 5, .(mean_length_thr5 = mean(max_length)), by = site]
+dat_mean_length_max <- merge(
+  dat_mean_length_max, 
+  dat2_mean_length_max, by = "site", sort = FALSE)
+
+dat_mean_length_max
+dat_mean_length
+
+# save and reload
+save(dat_mean_length, dat_mean_length_max, 
+     file = paste0(p_output, "mean_lengths.rds"))
+
+load(file = paste0(p_output, "mean_lengths.rds"), 
+     verbose = TRUE)
 ```
 
 ```{r histograms}
@@ -524,6 +556,8 @@ cc_save_plots_master(subtitle = "Shaanxi/Shanxi Provinces, China", input_site_la
 cc_save_plots_master(subtitle = "Eastern Belarus/Smolensk, Russia", input_site_label = "_b", 
                      outfile_label = "_b_all")
 
+
+
 ```
 
 # Update to implement 5 year threshold
@@ -712,14 +746,62 @@ n_persistence_list_s <- cc_calc_persistence_all(
   abn_age_dt = s_age, 
   land_cover_raster = s$y2017, 
   include_wide = FALSE,
-  abandonment_threshold = 5
+  abandonment_threshold = 5,
+  include_all_abandonment = FALSE
+)
+n_persistence_list_s$na_last %>% select(proportion) %>% summary()
+n_persistence_list_s$na_first %>% select(proportion) %>% summary()
+
+n_persistence_list_s1 <- cc_calc_persistence_all(
+  abn_age_dt = s_age, 
+  land_cover_raster = s$y2017, 
+  include_wide = FALSE,
+  abandonment_threshold = 1
 )
 
+n_persistence_list_s_all <- cc_calc_persistence_all(
+  abn_age_dt = s_age, 
+  land_cover_raster = s$y2017, 
+  include_wide = FALSE,
+  abandonment_threshold = 5,
+  include_all_abandonment = TRUE
+)
+
+n_persistence_list_s_wide <- cc_calc_persistence_all(
+  abn_age_dt = s_age, 
+  land_cover_raster = s$y2017, 
+  include_wide = TRUE,
+  abandonment_threshold = 5,
+  include_all_abandonment = TRUE
+)
+
+pl_test <- 
+  cc_calc_persistence(
+  abn_age_dt = s_age, 
+  land_cover_raster = s$y2017, 
+  stat_proportion = TRUE, # doesn't work for true
+  NA_first = TRUE, # works for false, and for true?
+  include_wide = FALSE,
+  abandonment_threshold = 5
+)
+j <- 27
+# doesn't work for 
+stat_proportion = TRUE
+NA_first = FALSE
+include_wide = FALSE
+
+stat_proportion = TRUE
+NA_first = FALSE
+include_wide = FALSE
+abandonment_threshold = 1
 # doesn't work for the na_first
 
 # for NA_first = FALSE, it works
 # for NA_first = TRUE, it works
 persistence_list[[30]]
+if(sum(persistence_list[[30]], na.rm = TRUE) == 0) {print("yes")}
+
+test <- persistence_list[[30]]/max(persistence_list[[30]], na.rm = TRUE)
 
 temp_vector[c(1:(31 - (abandonment_threshold - 1)))]
 
@@ -770,20 +852,130 @@ age_class_continuous <- age_class_base +
 
 ```{r n_abn_area_change}
 abn_area_change_s
+
+identical(s_age, abn_age_dt)
+abn_age_dt
+
+ # new. remove cells that are below threshold
+    
+abn_turnover_list
+abn_turnover_list[[1]] %>% length()
+abn_turnover_list[[1]]
+i <- 1
+j <- 3
+
+# testing grounds:
+temp_vector_diff <- c(
+      rep(0, j),
+      sapply(1:(31 - j), function(i) {
+        abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, .N]
+      })
+    )
+# need to remove cells below abandonment threshold
+temp_vector_diff[c(j + 1:(abandonment_threshold - 1))] <- 0
+
+# trim to right length
+if(length(temp_vector_diff) > 31){
+  temp_vector_diff <- temp_vector_diff[c(1:31)]
+  }
+
+# calculate diff
+temp_vector_diff <- diff(temp_vector_diff)
+
+test <- cc_calc_abn_area_diff(abn_age_dt = s_age, 
+                              land_cover_raster = s$y2017,
+                              abandonment_threshold = 5)
+cc_save_plot_area_gain_loss(
+  input_area_change_df = test, 
+  subtitle = "subtitle", 
+  outfile_label = "test")
+  
+
+temp_vector_diff %>% length
+abn_turnover_list[[30]] %>% length
+
+abn_age_dt[get(paste0("y", 1987:2017)[i+1]) == i, .N]
+abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, .N]
+
+    if (abandonment_threshold > 1) {
+      if (NA_first){
+        temp_vector[c((1:(abandonment_threshold - 1)) + j)] <- NA
+      } else {
+        temp_vector[c(1:(abandonment_threshold - 1))] <- NA
+      }
+      
+      if(length(temp_vector) > 31){
+        temp_vector <- temp_vector[c(1:31)]
+      }
+    }
 ```
 
 
-```{r test-new-functions}
+```{r run-full-functions}
 
+# ------------------------------------------ #
+# ----------------- Shaanxi ---------------- #
+# ------------------------------------------ #
 tic()
 cc_generate_dfs(
   land_cover_dt = s_dt, 
   abn_age_dt = s_age, 
   land_cover_raster = s$y2017,
-  outfile_label = "_s"
+  outfile_label = "_s",
+  abandonment_threshold = 5,
+  include_all = TRUE
   )
 toc()
 
+load(file = paste0(p_output, "abn_dat_products_s.rds"), verbose = TRUE)
+
+tic()
+cc_save_plots_master(
+  input_site_label = "_s", 
+  outfile_label = "_s",
+  subtitle = "Shaanxi/Shanxi Provinces, China", 
+  subtitle_all = "Shaanxi/Shanxi Provinces, China, all abandonment",
+  save_all = TRUE
+)
+toc()
+
+
+
+
+# ------------------------------------------ #
+# ----------------- Belarus ---------------- #
+# ------------------------------------------ #
+tic()
+cc_generate_dfs(
+  land_cover_dt = b_dt, 
+  abn_age_dt = b_age, 
+  land_cover_raster = b$y2017,
+  outfile_label = "_b",
+  abandonment_threshold = 5,
+  include_all = TRUE
+  )
+toc()
+
+
+load(file = paste0(p_output, "abn_dat_products_b.rds"), verbose = TRUE)
+
+# 
+tic()
+cc_save_plots_master(
+  input_site_label = "_b", 
+  outfile_label = "_b",
+  subtitle = "Eastern Belarus/Smolensk, Russia", 
+  subtitle_all = "Eastern Belarus/Smolensk, Russia, all abandonment", 
+  save_all = TRUE
+)
+toc()
+
+
 ```
 
+```{r clean-up}
+
+env_size(ls())
+
+```
 

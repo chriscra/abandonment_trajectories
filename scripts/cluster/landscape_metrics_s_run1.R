@@ -46,7 +46,7 @@ list_lsm() %>% arrange(level, type, name) %>% select(function_name, name, type, 
 metrics_list_c <- c(
   # by class 
   # aggregation
-  "lsm_c_ai", # aggregation index, class level
+  "lsm_c_ai", # aggregation index, class level (RS has used this one)
   "lsm_c_clumpy", # clumpiness index, class (maybe)
   "lsm_c_mesh", # effective mesh size, class
   
@@ -55,7 +55,7 @@ metrics_list_c <- c(
   "lsm_c_enn_sd", # euclidean nearest neighbor distance, sd, class
   
   "lsm_c_np", # number of patches, class
-  "lsm_c_cohesion", # patch cohesion index, class (maybe)
+  "lsm_c_cohesion", # patch cohesion index, class (RS has used this one)
   "lsm_c_pd", # patch density (maybe)
   
   # area and edge metrics
