@@ -424,6 +424,142 @@ btr_metrics <- btr_metrics %>%
 
 ```
 
+```{r stats-to-run}
+# Question: to what extent does abandonment result in older, larger, and more connected grasslands and forests? 
+
+# select landscape metrics to run:
+# what matters to species? size of patches, shape/area edge perimeter, connectivity
+list_lsm() %>% arrange(level, type, name) %>% select(function_name, name, type, level) %>% select(name) %>% unlist(use.names = FALSE) %>% grep(pattern = "total edge", ., value = TRUE)# %>% print(n = 132)
+
+list_lsm() %>% arrange(level, type, name) %>% select(function_name, name, type, level) %>% filter(name == "total edge")
+
+# ---------------------------- #
+# Wang et al. 2014, Methods in Ecology and Evolution, recommends 9 metrics, largely because they are relatively uncorrelated with habitat abundance, and have high correlation with spatial aggregation:
+
+# too complicated.
+# 1. PAFRAC (Shape) - "Perimeter Area Fractal Dimension"
+lsm_c_pafrac() # perimeter-area fractal dimension
+
+# too hard to conceptualize... and dependent on definitions of edge effects.
+# 2. CAI_CV (Core Area) - "Coefficient of Variation of Core Area Index"
+# 3. CAI_MN (Core Area) - "Mean Core Area Index"
+# 4. CAI_SD (Core Area) - "Standard Deviation of Core Area Index"
+lsm_c_cai_mn() # edge_depth by default is one cell.
+
+# 5. CORE_CV (Core Area) - "Coefficient of Variation of Core Area"
+lsm_c_core_cv() # edge_depth by default is one cell. 
+
+# 6. PROX_CV (Proximity/Isolation) - "Coefficient of Variation of Proximity Index"
+
+
+# only useful if I assign values to different classes (saying forest has less contrast with grassland than with ag land, for example)
+# 7. ECON_AM (Contrast) - "Area Weighted Mean Edge Contrast Index"
+# 8. TECI (Contrast) - "Total Edge Contrast Index"
+
+# yes
+# 9. CLUMPY (Contagion/Interspersion) - "Clumpy Index"
+
+# ---------------------------- #
+# RS has used:
+# Aggregation Index
+# Cohesion Index
+
+# ---------------------------- #
+# I think the most important metrics probably are:
+# at least one aggregation, connectivity metric
+# *1. Aggregation
+# *2. Clumpy
+# 3. Cohesion (maybe not)
+
+# Are the patches getting larger?
+# *4. Number of patches
+# *5. Mean, SD, and CV of Patch area (x3)
+# *5.1. Class area, total.
+
+# Is the amount of edge increasing, decreasing, or staying the same?
+# *6. Total edge amount.
+# *6.1. Perimeter-area ratio (x3)
+# 6.2 Perimeter area fractal dimension
+
+# probably not:
+# 7. Core area index
+# 7. Contiguity Index (x3) - may be resource intensive. 
+
+# just the basics 
+metrics_list <- c(
+  "lsm_c_ai", # aggregation index, class level (RS has used this one)
+  "lsm_c_clumpy", # clumpiness index, class (maybe)
+
+  "lsm_c_np", # number of patches, class
+  "lsm_c_area_cv", # patch area, cv, per class
+  "lsm_c_area_mn", # patch area, mean, per class
+  "lsm_c_area_sd", # patch area, sd, per class
+  "lsm_c_ca", # total (class) area
+  
+  "lsm_c_te", # total edge
+  "lsm_c_para_cv", # perimeter-area ratio, cv
+  "lsm_c_para_mn", # perimeter-area ratio, mean
+  "lsm_c_para_sd" # perimeter-area ratio, sd
+)
+
+# longer list of metrics
+# ---------------------------- #
+metrics_list_bonus_c <- c(
+  # by class 
+  # aggregation
+  "lsm_c_mesh", # effective mesh size, class
+  
+  "lsm_c_enn_cv", # euclidean nearest neighbor distance, cv, class
+  "lsm_c_enn_mn", # euclidean nearest neighbor distance, mean, class
+  "lsm_c_enn_sd", # euclidean nearest neighbor distance, sd, class
+  
+  "lsm_c_cohesion", # patch cohesion index, class (RS has used this one)
+  "lsm_c_pd", # patch density (maybe)
+  
+  "lsm_c_lpi", # largest patch index, class
+  
+  # core area metrics
+  "lsm_c_cai_cv", # core area index, cv, class
+  "lsm_c_cai_mn", # core area index, mn, class
+  "lsm_c_cai_sd", # core area index, sd, class
+  
+  # shape metric
+  "lsm_c_contig_cv", # contiguity index, class, cv
+  "lsm_c_contig_mn", # contiguity index, class, mean
+  "lsm_c_contig_sd", # contiguity index, class, sd
+  
+  "lsm_c_pafrac", # perimeter-area fractal dimension
+  
+  "lsm_c_shape_cv", # shape index, cv
+  "lsm_c_shape_mn", # shape index, mean
+  "lsm_c_shape_sd" # shape index, sd
+)
+
+metrics_list_l <- c(
+  # landscape
+  # aggregation metrics
+  "lsm_l_ai", # aggregation index, landscape level
+  "lsm_l_contag", # connectance
+  "lsm_l_mesh", # effective mesh size, landscape
+
+  "lsm_l_contig_cv", # contiguity index, landscape, cv
+  "lsm_l_contig_mn", # contiguity index, landscape, mean
+  "lsm_l_contig_sd", # contiguity index, landscape, sd
+
+  "lsm_l_cohesion", # patch cohesion index, landscape
+  "lsm_l_np", # number of patches
+  "lsm_l_pd", # patch density
+  # shape metric
+  # area and edge metrics
+  "lsm_l_area_mn", # patch area, mean, landscape overall
+  "lsm_l_lpi" # largest patch index, landscape
+)
+
+# list the metrics
+print(list_lsm(what = metrics_list_c))
+
+```
+
 
 ```{r run-lsm-full}
 names(br)
@@ -485,6 +621,189 @@ write_rds(br_metrics2, paste0(p_output, "frag/br_metrics2.rds"))
 toc()
 ```
 
+
+```{r aggregation-stats}
+aggregation <- lsm_l_ai(binary)
+aggregation2 <- lsm_l_ai(btr)
+ggplot() + 
+  geom_point(data = aggregation, mapping = aes(x = layer, y = value, col = "blue"), size = 3) + 
+  geom_point(data = aggregation2, mapping = aes(x = layer, y = value, col = "red")) + 
+  theme_classic()
+
+
+# calculate aggregation statistic 
+check_landscape(br)
+agg_br <- lsm_l_ai(br)
+ggplot(data = agg_br) + 
+  geom_point(mapping = aes(x = layer, y = value#, color = "blue"
+                           )) + 
+  geom_smooth(method = "lm", mapping = aes(x = layer, y = value)) + 
+  #geom_point(data = aggregation2, mapping = aes(x = layer, y = value, col = "red")) + 
+  labs(x = "Year", y = "Aggregation Index"#, title = "Aggregation"
+       ) + 
+  theme_classic()
+
+
+# calc patch cohesion index
+agg_cohesion <- lsm_l_cohesion(bt)
+animate(bt)
+
+```
+
+The cluster cannot handle running all of the metrics for Belarus raster, across all of the years. So far, the Shaanxi raster is running, with 150 GB of memory, but just for the first five metrics. It may not finish, since it's just through the first 2 layers. That does not look promising. So, what I need to do is either reduce the number of metrics per run, or reduce the number of years per run, or both. 
+
+```{r prep-cluster-runs}
+
+# -------------------------------------------------------- #
+# Christopher Crawford, Princeton University, October 12th, 2020
+
+# Script to calculate various landscape metrics, 
+# using the R package landscapemetrics
+# -------------------------------------------------------- #
+
+# load libraries
+cluster_packages <- c("data.table", "tictoc", "raster",
+                      "landscapemetrics", "landscapetools",
+                      "tidyverse", "rgdal")
+install_pkg <- lapply(cluster_packages, library, character.only = TRUE)
+
+# set paths:
+p_dat_derived <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
+p_output <- "/scratch/network/clc6/abandonment_trajectories/output/"
+
+# set site:
+site <- "shaanxi"
+run <- 1
+print(paste0("Calculating landscapemetrics for ", site, ", run #", run))
+
+
+tic.clearlog()
+tic("Full script")
+# load the data
+# -------------------------------------------------------- #
+
+# (re)load reprojected rasters
+tic("load the cleaned reprojected rasters")
+reprojected_r <- brick(paste0(p_dat_derived, site, "_reproj_0rm.tif"))
+toc(log = TRUE)
+
+names(reprojected_r) <- paste0("y", 1987:2017) # rename
+
+# # check_landscapes
+# tic("check landscape")
+# check_reprojected_r <- check_landscape(reprojected_r)
+# print(check_reprojected_r)
+# toc(log = TRUE)
+
+# Metrics to run
+metrics_list <- c(
+  "lsm_c_ai", # aggregation index, class level (RS has used this one)
+  "lsm_c_clumpy", # clumpiness index, class (maybe)
+
+  "lsm_c_np", # number of patches, class
+  "lsm_c_area_cv", # patch area, cv, per class
+  "lsm_c_area_mn", # patch area, mean, per class
+  "lsm_c_area_sd", # patch area, sd, per class
+  "lsm_c_ca", # total (class) area
+  
+  "lsm_c_te", # total edge
+  "lsm_c_para_cv", # perimeter-area ratio, cv
+  "lsm_c_para_mn", # perimeter-area ratio, mean
+  "lsm_c_para_sd" # perimeter-area ratio, sd
+)
+
+
+
+print(list_lsm(what = metrics_list[run]))
+
+tic(msg = paste0("calculate: ", metrics_list[run]))
+frag_metrics_temp <- reprojected_r %>%
+  calculate_lsm(
+    what = metrics_list[run],
+    classes_max = 4, # with 0 removed
+    verbose = TRUE, progress = TRUE
+  ) %>%
+  dplyr::left_join(x = .,
+                   y = lsm_abbreviations_names,
+                   by = c("metric", "level"))
+toc(log = TRUE)
+
+# rename file
+assign(paste0("frag_metrics_", site, run), frag_metrics_temp)
+
+# Save file
+tic(msg = paste0("save: ", metrics_list[run]))
+save(list = c(paste0("frag_metrics_", site, run)),
+     file = paste0(p_output, "frag_metrics_", site, run, ".rds")
+     )
+toc(log = TRUE)
+
+
+toc(log = TRUE) # final toc
+
+print(tic.log())
+
+
+
+# as a for loop:
+# 
+# frag_metrics_l <- vector(mode = "list", length = length(metrics_list))
+# names(frag_metrics_l) <- metrics_list
+# 
+# tic("calculate lsm")
+# for (i in seq_along(metrics_list)) {
+#   tic(msg = paste0("calculate: ", metrics_list[i]))
+#   frag_metrics_l[i] <- reprojected_r %>%
+#     calculate_lsm(
+#       what = metrics_list[i],
+#       classes_max = 4, # with 0 removed
+#       verbose = TRUE, progress = TRUE
+#     ) %>%
+#     dplyr::left_join(x = .,
+#                      y = lsm_abbreviations_names, 
+#                      by = c("metric", "level"))
+#   
+#   assign(paste0("area", outfile_label), area)
+#   save(frag_metrics_l, 
+#        file = paste0(p_output, "frag_", metrics_list[i], ".rds")
+#        )
+#   
+# 
+# }
+# toc(log = TRUE)
+
+
+
+```
+
+```{r highmem-lsm}
+metrics_list[8]
+lsm_c_te()
+metrics_list[9]
+lsm_c_para_cv()
+
+```
+
+
+```{r load-results}
+
+site <- "shaanxi"
+# site <- "belarus"
+for (run in 1:7) {
+  load(file = paste0(p_output, "frag_", site, run, ".rds"),
+       verbose = TRUE)
+}
+
+frag_s_l <- vector(mode = "list", length = 7)
+names(frag_metrics_l) <- metrics_list
+for (run in 1:7) {frag_s_l[[run]] <- eval(parse(text = paste0("frag_", site, run)))}
+
+frag_s <- bind_rows(frag_s_l)
+
+frag_s$metric %>% unique
+
+```
+
 ```{r plot-metrics}
 # massage dataframe
   # Original Land-use class codes:
@@ -493,7 +812,7 @@ toc()
   #       3. Cropland 
   #       4. Herbaceous land (e.g. grassland)
 
-br_metrics1 <- br_metrics1 %>% 
+frag_s <- frag_s %>% 
   mutate(land_cover = fct_recode(as_factor(class), 
                                  non_veg = "1", woody_veg = "2", 
                                  cropland = "3", grassland = "4"),
@@ -601,48 +920,5 @@ dev.off()
 
 
 ```
-
-```{r aggregation-stats}
-aggregation <- lsm_l_ai(binary)
-aggregation2 <- lsm_l_ai(btr)
-ggplot() + 
-  geom_point(data = aggregation, mapping = aes(x = layer, y = value, col = "blue"), size = 3) + 
-  geom_point(data = aggregation2, mapping = aes(x = layer, y = value, col = "red")) + 
-  theme_classic()
-
-
-# calculate aggregation statistic 
-check_landscape(br)
-agg_br <- lsm_l_ai(br)
-ggplot(data = agg_br) + 
-  geom_point(mapping = aes(x = layer, y = value#, color = "blue"
-                           )) + 
-  geom_smooth(method = "lm", mapping = aes(x = layer, y = value)) + 
-  #geom_point(data = aggregation2, mapping = aes(x = layer, y = value, col = "red")) + 
-  labs(x = "Year", y = "Aggregation Index"#, title = "Aggregation"
-       ) + 
-  theme_classic()
-
-
-# calc patch cohesion index
-agg_cohesion <- lsm_l_cohesion(bt)
-animate(bt)
-
-```
-
-The cluster cannot handle running all of the metrics for Belarus raster, across all of the years. So far, the Shaanxi raster is running, with 150 GB of memory, but just for the first five metrics. It may not finish, since it's just through the first 2 layers. That does not look promising. So, what I need to do is either reduce the number of metrics per run, or reduce the number of years per run, or both. 
-
-```{r prep-cluster-runs}
-br # input raster
-nlayers(br) # 31 layers
-metrics_list %>% length # 14 metrics
-
-# load the cleaned up raster
-
-# set the metrics
-
-
-```
-
 
 # Spatial Regression
