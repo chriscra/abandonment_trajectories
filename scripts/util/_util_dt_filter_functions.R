@@ -366,7 +366,7 @@ cc_calc_max_age <- function(dt, directory = p_dat_derived, name) {
 }
 
 
-# summary functions ---- 
+# area/persistence functions ---- 
 # -------------------------------------------------------------------------- #
 # calculate the total area in:
 # each land cover class in the original land cover data, and
@@ -396,9 +396,9 @@ cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster
     filter(lc != 0) %>% 
     mutate(lc = as_factor(lc),
            lc = recode(lc, # old = new
-                       "1" = "Non-veg", 
-                       "2" = "Woody veg",
-                       "3" = "Crop", 
+                       "1" = "Non-veg.", 
+                       "2" = "Woody veg.",
+                       "3" = "Cropland", 
                        "4" = "Grassland")
     ) %>%
     pivot_longer(cols = starts_with("y"), names_to = "year", values_to = "count") %>%
@@ -764,6 +764,106 @@ cc_calc_abn_area_diff <- function(abn_age_dt, land_cover_raster,
 }
 
 
+# generate the files needed to calculate plots
+cc_generate_dfs <- function(land_cover_dt,
+                            abn_age_dt, 
+                            land_cover_raster, 
+                            outfile_label,
+                            abandonment_threshold = 5,
+                            include_all = FALSE) {
+  # ------------- calculate total area per lc, with abandonment ---------------- #
+  area <- cc_calc_area_per_lc_abn(land_cover_dt = land_cover_dt, 
+                                  abn_age_dt = abn_age_dt, 
+                                  land_cover_raster = land_cover_raster,
+                                  abandonment_threshold = abandonment_threshold)
+  
+  # ------------------------ abandonment persistence --------------------------- #
+  persistence_list <- cc_calc_persistence_all(abn_age_dt = abn_age_dt, 
+                                              land_cover_raster = land_cover_raster,
+                                              include_wide = FALSE,
+                                              abandonment_threshold = abandonment_threshold,
+                                              include_all_abandonment = include_all)
+  
+  # -------------------- calculate the abandonment area turnover ------------------- #
+  abn_area_change <- cc_calc_abn_area_diff(abn_age_dt = abn_age_dt, 
+                                           land_cover_raster = land_cover_raster,
+                                           abandonment_threshold = abandonment_threshold)
+  
+  if(include_all) {
+    abn_area_change_all <- cc_calc_abn_area_diff(
+      abn_age_dt = abn_age_dt, 
+      land_cover_raster = land_cover_raster,
+      abandonment_threshold = 1) %>% 
+      
+      # rename columns
+      rename(count_all = count, area_ha_all = area_ha)
+    
+    # join
+    abn_area_change <- full_join(x = abn_area_change, y = abn_area_change_all, 
+                                 by = c("year", "direction"))
+  }
+  
+  # change names
+  assign(paste0("area", outfile_label), area)
+  assign(paste0("persistence_list", outfile_label), persistence_list)
+  assign(paste0("abn_area_change", outfile_label), abn_area_change)
+  
+  # save files
+  save(list = c(paste0("area", outfile_label), 
+                paste0("persistence_list", outfile_label),
+                paste0("abn_area_change", outfile_label)
+  ), 
+  file = paste0(p_output, "abn_dat_products", outfile_label, ".rds"))
+}
+
+
+# merge and clean the fragmentation results
+cc_clean_frag_results <- function(site, n_metrics = 11, drop_0 = FALSE) {
+  for (run in 1:n_metrics) {
+    load(file = paste0(p_output, "frag/frag_", site, run, ".rds"),
+         verbose = TRUE)
+  }
+  
+  frag_l <- vector(mode = "list", length = n_metrics)
+  names(frag_l) <- metrics_list[1:n_metrics]
+  
+  for (run in 1:n_metrics) {
+    frag_l[[run]] <- eval(parse(text = paste0("frag_", site, run)))
+  }
+  
+  frag <- bind_rows(frag_l)
+  
+  # ------------------- massage dataframe ------------------ #
+  # Original Land-use class codes:
+  #       1. Non-vegetated area (e.g. water, urban, barren land)
+  #       2. Woody vegetation
+  #       3. Cropland 
+  #       4. Herbaceous land (e.g. grassland)
+  
+  frag <- frag %>% 
+    mutate(land_cover = fct_recode(as_factor(class), 
+                                   non_veg = "1", woody_veg = "2", 
+                                   cropland = "3", grassland = "4"),
+           year = layer + 1986,
+           site = site)
+  
+  # if necessary, drop 0 land cover class
+  if (drop_0) {
+    frag <- frag %>%
+      filter(land_cover %in% c("non_veg", "woody_veg", "cropland", "grassland", NA))
+  }
+  
+  
+  
+  # ------------------- save cleaned df -------------------- #
+  # assign name
+  assign(paste0("frag_", site), frag)
+  
+  save(list = c(paste0("frag_", site)),
+       file = paste0(p_output, "frag/frag_", site, ".rds")
+  )
+}
+
 
 
 # plot and save functions ----
@@ -1057,93 +1157,9 @@ cc_save_plot_area_by_age_class <- function(input_list, subtitle, outfile_label,
 # ------------------------------------------------------------------------------------ #
 # save four plot types, master function
 # ------------------------------------------------------------------------------------ #
-cc_save_plots_master_old <- function(land_cover_dt,
-                                 abn_age_dt, 
-                                 land_cover_raster,
-                                 subtitle, 
-                                 outfile_label) {
-  # ------------- calculate total area per lc, with abandonment ---------------- #
-  area <- cc_calc_area_per_lc_abn(land_cover_dt = land_cover_dt, 
-                                  abn_age_dt = abn_age_dt, 
-                                  land_cover_raster = land_cover_raster)
-  
-  cc_save_plot_lc_abn_area(input_area_df = area, subtitle = subtitle, 
-                           outfile_label = outfile_label)
-  
-  # ------------------------ abandonment persistence --------------------------- #
-  persistence_list <- cc_calc_persistence_all(abn_age_dt = abn_age_dt, land_cover_raster = land_cover_raster)
-  
-  cc_save_plot_abn_persistence(input_list = persistence_list, subtitle = subtitle, outfile_label = outfile_label)
-  
-  
-  # -------------------- calculate the abandonment area turnover ------------------- #
-  abn_area_change <- cc_calc_abn_area_diff(abn_age_dt = abn_age_dt, land_cover_raster = land_cover_raster)
-  
-  cc_save_plot_area_gain_loss(input_area_change_df = abn_area_change, 
-                              subtitle = subtitle, outfile_label = outfile_label)
-  
-  # -------------------- plot abandonment area by age class ------------------- #
-  cc_save_plot_area_by_age_class(input_list = persistence_list, 
-                                 subtitle = subtitle, outfile_label = outfile_label)
-  
-  save(area, persistence_list, abn_area_change, file = paste0(p_output, "abn_dat_products", outfile_label, ".rds"))
-}
 
-
-# generate the files needed to calculate plots
-cc_generate_dfs <- function(land_cover_dt,
-                            abn_age_dt, 
-                            land_cover_raster, 
-                            outfile_label,
-                            abandonment_threshold = 5,
-                            include_all = FALSE) {
-  # ------------- calculate total area per lc, with abandonment ---------------- #
-  area <- cc_calc_area_per_lc_abn(land_cover_dt = land_cover_dt, 
-                                  abn_age_dt = abn_age_dt, 
-                                  land_cover_raster = land_cover_raster,
-                                  abandonment_threshold = abandonment_threshold)
-  
-  # ------------------------ abandonment persistence --------------------------- #
-  persistence_list <- cc_calc_persistence_all(abn_age_dt = abn_age_dt, 
-                                              land_cover_raster = land_cover_raster,
-                                              include_wide = FALSE,
-                                              abandonment_threshold = abandonment_threshold,
-                                              include_all_abandonment = include_all)
-  
-  # -------------------- calculate the abandonment area turnover ------------------- #
-  abn_area_change <- cc_calc_abn_area_diff(abn_age_dt = abn_age_dt, 
-                                           land_cover_raster = land_cover_raster,
-                                           abandonment_threshold = abandonment_threshold)
-  
-  if(include_all) {
-    abn_area_change_all <- cc_calc_abn_area_diff(
-      abn_age_dt = abn_age_dt, 
-      land_cover_raster = land_cover_raster,
-      abandonment_threshold = 1) %>% 
-      
-      # rename columns
-      rename(count_all = count, area_ha_all = area_ha)
-    
-    # join
-    abn_area_change <- full_join(x = abn_area_change, y = abn_area_change_all, 
-                                 by = c("year", "direction"))
-  }
-
-  # change names
-  assign(paste0("area", outfile_label), area)
-  assign(paste0("persistence_list", outfile_label), persistence_list)
-  assign(paste0("abn_area_change", outfile_label), abn_area_change)
-
-  # save files
-  save(list = c(paste0("area", outfile_label), 
-                paste0("persistence_list", outfile_label),
-                paste0("abn_area_change", outfile_label)
-                ), 
-       file = paste0(p_output, "abn_dat_products", outfile_label, ".rds"))
-}
-
-# save just the plots
-cc_save_plots_master <- function(input_site_label = outfile_label, 
+# save just the general intro plots
+cc_save_area_persistence_plots <- function(input_site_label = outfile_label, 
                                  outfile_label,
                                  subtitle, 
                                  subtitle_all = paste0(subtitle, ", all abandonment"), 
@@ -1175,6 +1191,202 @@ cc_save_plots_master <- function(input_site_label = outfile_label,
                                  save_all = save_all)
 }
 
+
+cc_save_frag_plots <- function(frag_dat_input = frag_dat, 
+                               outfile_label) {
+  
+  # recode and filter land cover types
+  frag_dat_input <- frag_dat_input %>%
+    mutate(land_cover = fct_recode(as_factor(land_cover), 
+                                   "Non-veg." = "non_veg",
+                                   "Woody veg." = "woody_veg",
+                                   "Cropland" = "cropland",
+                                   "Grassland" = "grassland")) %>%
+    filter(land_cover != "Non-veg.")
+  
+  land_cover_cols <- c("Non-veg." = plot_cols$color[1], 
+                       "Woody veg." = plot_cols$color[2], 
+                       "Cropland" = plot_cols$color[3], 
+                       "Grassland" = plot_cols$color[4])
+  
+  
+  # make plotting base
+  gg_frag_base <- ggplot(data = filter(frag_dat_input, metric == "ai")) +
+    theme_classic() +
+    geom_point(mapping = aes(x = year, y = value, color = land_cover)) + 
+    geom_smooth(method = "lm", mapping = aes(x = year, y = value,
+                                             fill = land_cover, 
+                                             color = land_cover)) +
+    labs(x = "Year", color = "Land Cover") + 
+    guides(fill = FALSE) +
+    facet_grid(cols = vars(site), scales = "free_y") +
+    scale_colour_manual(
+      values = land_cover_cols,
+      aesthetics = c("colour", "fill")
+    )
+  
+  # ------------------- 1. aggregation -------------------- #
+  gg_frag_ai <- gg_frag_base %+% filter(frag_dat_input, metric == "ai") + 
+    labs(title = "Aggregation Index, by land cover", y = "Index Value")
+  
+  # ------------------- 2. clumpiness -------------------- #
+  gg_frag_clumpy <- gg_frag_base %+% filter(frag_dat_input, metric == "clumpy") + 
+    labs(title = "Clumpiness Index, by land cover", y = "Index Value")
+  
+  
+  # ------------------- aggregation combo -------------------- #
+  
+  gg_frag_aggregation_combo <- gg_frag_base %+% 
+    filter(frag_dat_input, metric %in% c("ai", "clumpy")) +
+    labs(title = "Aggregation Index, by land cover", y = "Index Value") + 
+    facet_grid(cols = vars(site), rows = vars(metric), scales = "free_y")
+  
+  
+  # ------------------- 3. Number of patches -------------------- #
+  
+  gg_frag_np <- ggplot(data = filter(frag_dat_input, metric == "np")) +
+    theme_classic() +
+    geom_point(mapping = aes(x = year, y = value/(10^3), color = land_cover)) + 
+    geom_smooth(method = "lm", 
+                mapping = aes(x = year, y = value/(10^3),
+                              fill = land_cover, color = land_cover)) +
+    labs(title = "Number of patches, by land cover",
+         x = "Year", y = expression("Number of patches  (10"^{3}*")") , 
+         color = "Land Cover") + 
+    guides(fill = FALSE) +
+    facet_grid(cols = vars(site)) + 
+    scale_colour_manual(
+      values = land_cover_cols,
+      aesthetics = c("colour", "fill")
+    )
+  
+  # ------------------- 4. Patch area, coefficient of variation -------------------- #
+  gg_frag_patch_area_cv <- gg_frag_base %+% filter(frag_dat_input, metric == "area_cv") +
+    labs(title = "Patch area coefficient of variation", y = "Patch Area CV (ha)")
+  
+  # ------------------- 5. Patch area, mean -------------------- #
+  gg_frag_patch_area_mn <- gg_frag_base %+% filter(frag_dat_input, metric == "area_mn") +
+    labs(title = "Mean patch area, by land cover", y = "Patch Area mean (ha)")
+  
+  # ------------------- 6. Patch area, sd -------------------- #
+  
+  gg_frag_patch_area_sd <- gg_frag_base %+% filter(frag_dat_input, metric == "area_sd") +
+    labs(title = "Patch area standard deviation, by land cover", y = "Patch Area SD (ha)")
+  
+  # ------------------- patch area combo -------------------- #
+  
+  gg_frag_patch_area_combo <- gg_frag_base %+%
+    filter(frag_dat_input, metric %in% c("area_cv", "area_mn", "area_sd")) +
+    labs(title = "Patch Area, by land cover", y = "Patch Area (ha)") + 
+    facet_grid(cols = vars(site), rows = vars(metric), scales = "free_y",
+               labeller = labeller(metric = c(area_cv = "Coeff. Var.", 
+                                              area_mn = "Mean",  
+                                              area_sd = "Std. Dev.")))
+  
+  
+  # ------------------- 7. Total class area  -------------------- #
+  
+  gg_frag_ca <- ggplot(data = filter(frag_dat_input, metric == "ca")) +
+    theme_classic() +
+    geom_point(mapping = aes(x = year, y = value/(10^6), color = land_cover)) + 
+    geom_line(mapping = aes(x = year, y = value/(10^6), color = land_cover)) + 
+    labs(title = "Total area in each land cover type",
+         x = "Year", y = expression("Class Area (10"^{6}*" ha)"), 
+         color = "Land Cover") + 
+    guides(fill = FALSE) +
+    facet_grid(cols = vars(site), scales = "free_y") + 
+    scale_colour_manual(
+      values = land_cover_cols,
+      aesthetics = c("colour", "fill")
+    )
+  
+  
+  
+  # ------------------- 8. Total edge (meters) -------------------- #
+  gg_frag_te <- ggplot(data = filter(frag_dat_input, metric == "te")) +
+    theme_classic() +
+    geom_point(mapping = aes(x = year, y = value/(10^6), color = land_cover)) + 
+    geom_smooth(method = "lm", mapping = aes(x = year, y = value/(10^6),
+                                             fill = land_cover,
+                                             color = land_cover)) +
+    labs(title = "Total edge in each land cover type",
+         x = "Year", y = expression("Total edge (10"^{3}*" km)"), 
+         color = "Land Cover") + 
+    guides(fill = FALSE) +
+    facet_grid(cols = vars(site), scales = "free_y") + 
+    scale_colour_manual(
+      values = land_cover_cols,
+      aesthetics = c("colour", "fill")
+    )
+  
+  
+  # ------------------- 9-11. Perimeter-area ratio -------------------- #
+  
+  
+  # ------------------- perimeter-area ratio combo -------------------- #
+  gg_frag_para_combo <- gg_frag_base %+%
+    filter(frag_dat_input, metric %in% c("para_cv", "para_mn", "para_sd")) +
+    labs(title = "Perimeter-Area Ratio, by land cover", y = "Perimeter-Area Ratio") + 
+    facet_grid(cols = vars(site), rows = vars(metric), scales = "free_y",
+               labeller = labeller(metric = c(para_cv = "Coeff. Var.", 
+                                              para_mn = "Mean",  
+                                              para_sd = "Std. Dev.")))
+  
+  
+  gg_frag_para_cv <- gg_frag_base %+% filter(frag_dat_input, metric == "para_cv") +
+    labs(title = "Perimeter-Area Ratio, by land cover", y = "Perimeter-Area Ratio (cv)")
+  
+  gg_frag_para_mn <- gg_frag_base %+% filter(frag_dat_input, metric == "para_mn") +
+    labs(title = "Perimeter-Area Ratio, by land cover", y = "Perimeter-Area Ratio (mean)")
+  
+  gg_frag_para_sd <- gg_frag_base %+% filter(frag_dat_input, metric == "para_sd") +
+    labs(title = "Perimeter-Area Ratio, by land cover", y = "Perimeter-Area Ratio (sd)")
+  
+  
+  # save to png the main plots
+  # a. aggregation combo
+  # b. number of patches
+  # c. patch area combo
+  # d. total edge
+  # e. perimeter-area ratio combo
+  
+  gg_frag_aggregation_combo
+  gg_frag_np
+  gg_frag_patch_area_combo
+  gg_frag_te
+  gg_frag_para_combo
+  
+  # save
+  png(filename = paste0(p_output, "plots/frag_aggregation_combo", outfile_label, ".png"), 
+      width = 7, height = 5, units = "in", res = 400)
+  print(gg_frag_aggregation_combo)
+  dev.off()
+  
+  
+  png(filename = paste0(p_output, "plots/frag_number_patches", outfile_label, ".png"), 
+      width = 7, height = 4, units = "in", res = 400)
+  print(gg_frag_np)
+  dev.off()
+  
+  
+  png(filename = paste0(p_output, "plots/frag_patch_area_combo", outfile_label, ".png"), 
+      width = 7, height = 8, units = "in", res = 400)
+  print(gg_frag_patch_area_combo)
+  dev.off()
+  
+  
+  png(filename = paste0(p_output, "plots/frag_total_edge", outfile_label, ".png"), 
+      width = 7, height = 4, units = "in", res = 400)
+  print(gg_frag_te)
+  dev.off()
+  
+  
+  png(filename = paste0(p_output, "plots/frag_pa_ratio_combo", outfile_label, ".png"), 
+      width = 7, height = 8, units = "in", res = 400)
+  print(gg_frag_para_combo)
+  dev.off()
+  
+}
 
 # save raster functions ---- 
 

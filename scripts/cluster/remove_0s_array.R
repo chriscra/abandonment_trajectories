@@ -3,6 +3,14 @@
 
 # Script to remove 0s from rasters, rewrite to file.
 # -------------------------------------------------------- #
+args <- commandArgs(TRUE) # access the slurm array variable
+indx <- as.numeric(args[1])
+
+site_list <- c("shaanxi", "belarus") # list of all sites
+site <- site_list[indx] # set site:
+
+print("Filtering raster for: ")
+print(site)
 
 # remove 0s from the raster, which should make the whole thing run faster, with less memory
 
@@ -16,11 +24,6 @@ install_pkg <- lapply(cluster_packages, library, character.only = TRUE)
 # set paths:
 p_dat_derived <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
 p_output <- "/scratch/network/clc6/abandonment_trajectories/output/"
-
-# set site:
-site <- "belarus"
-print("Filtering raster for: ")
-print(site)
 
 
 tic.clearlog()

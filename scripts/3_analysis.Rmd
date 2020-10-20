@@ -302,7 +302,7 @@ Three levels of landscape metrics:
 5. Diversity metrics, describing the diversity of different classes in the landscape.
 6. Complexity metrics, which describe landscape complexity in new ways outside of FRAGSTATS, including: Marginal entropy [H(x)], Conditional entropy [H(y|x)], Joint entropy [H(x, y)], and Mutual information [I(y,x)]. (Not likely to use these.)
 
-### Metrics of interest
+## Metrics of interest
 
 Area and edge: what is the average patch area for each class (ag, grassland, woody vegetation, and how does this change over time? Does abandonment make the average patch area for a particular class grow over time, or not?)
 
@@ -652,8 +652,29 @@ animate(bt)
 
 The cluster cannot handle running all of the metrics for Belarus raster, across all of the years. So far, the Shaanxi raster is running, with 150 GB of memory, but just for the first five metrics. It may not finish, since it's just through the first 2 layers. That does not look promising. So, what I need to do is either reduce the number of metrics per run, or reduce the number of years per run, or both. 
 
-```{r prep-cluster-runs}
+Update (10/19/20):
+Based on the exploration in the chunk "stats-to-run" above, I narrowed down the landscape metrics to run to just 11:
+1. "lsm_c_ai", # aggregation index, class level (RS has used this one)
+2. "lsm_c_clumpy", # clumpiness index, by class
+3. "lsm_c_np", # number of patches, class
+4-6. "lsm_c_area_cv", # patch area, cv, mean, and sd, per class
+7. "lsm_c_ca", # total (class) area
 
+8. "lsm_c_te", # total edge
+9-11. "lsm_c_para_cv", # perimeter-area ratio, cv, mean, and sd
+
+I was able to calculate all 11 metrics for shaanxi, but only the first 7 for belarus. The edge calculating metrics were highly memory intensive, and couldn't be calculated, even with 350 gb allocated per node to adroit. The error was: 
+"Error: cannot allocate vector of size 184.9 Gb
+Execution halted
+Warning message:
+system call failed: Cannot allocate memory"
+
+I ended up running each metric as an individual run on adroit, making use of the array capability in SLURM. This is sort of like a manually set up parallelization. To do this, I set an array range in the SLURM script, and set the rscript up to grab that variable from the environment (), and use it to specify which metric to run from the list (`metrics_list`). I was able to do each of the first 7 using the less than 100 gb, less than 4 hours (for both shaanxi and belarus). I had to up the memory available for 8-11 to 350 gb (though according to slurm, it only utilized 136 gb, so could probably just go to 200 gb or so for next time), and it took about 2 hours (add a bit more just to be safe). 
+
+Even with this, though, Belarus wouldn't run 8-11 (edge). I tried to break this up by layer, again manually parallelizing to run each layer of the raster brick as an individual run. But, it still ran into issues allocating a vector of size 190 gb or so. I'll try again with 350 gb limit, but not likely to work. I'll likely need to either write up code to do this with google earth engine, or break up the raster to run in smaller chunks.
+
+
+```{r prep-cluster-runs}
 # -------------------------------------------------------- #
 # Christopher Crawford, Princeton University, October 12th, 2020
 
@@ -706,6 +727,8 @@ metrics_list <- c(
   "lsm_c_area_sd", # patch area, sd, per class
   "lsm_c_ca", # total (class) area
   
+  
+  # careful - these require much more memory
   "lsm_c_te", # total edge
   "lsm_c_para_cv", # perimeter-area ratio, cv
   "lsm_c_para_mn", # perimeter-area ratio, mean
@@ -782,76 +805,469 @@ lsm_c_te()
 metrics_list[9]
 lsm_c_para_cv()
 
+metrics_list[8:11]
+lsm_c_te()
+
+b$y1987 %>% ncell()
+
 ```
 
 
-```{r load-results}
-
+```{r clean-frag-results}
+# -------------------------------------------------------- #
 site <- "shaanxi"
 # site <- "belarus"
-for (run in 1:7) {
-  load(file = paste0(p_output, "frag_", site, run, ".rds"),
-       verbose = TRUE)
-}
 
-frag_s_l <- vector(mode = "list", length = 7)
-names(frag_metrics_l) <- metrics_list
-for (run in 1:7) {frag_s_l[[run]] <- eval(parse(text = paste0("frag_", site, run)))}
 
-frag_s <- bind_rows(frag_s_l)
+cc_clean_frag_results(site = "shaanxi")
+load(file = paste0(p_output, "frag/frag_", "shaanxi", ".rds"),
+         verbose = TRUE)
 
-frag_s$metric %>% unique
+cc_clean_frag_results(site = "belarus", n_metrics = 7)
+load(file = paste0(p_output, "frag/frag_", "belarus", ".rds"),
+         verbose = TRUE)
+
+frag_shaanxi %>% select(metric, name, function_name) %>% unique
+frag_belarus %>% select(metric, name, function_name) %>% unique
+
+
 
 ```
 
-```{r plot-metrics}
-# massage dataframe
-  # Original Land-use class codes:
-  #       1. Non-vegetated area (e.g. water, urban, barren land)
-  #       2. Woody vegetation
-  #       3. Cropland 
-  #       4. Herbaceous land (e.g. grassland)
+## Plot Fragmentation Metrics
+```{r load-frag-metrics}
+load(file = paste0(p_output, "frag/frag_", "shaanxi", ".rds"),
+         verbose = TRUE)
 
-frag_s <- frag_s %>% 
-  mutate(land_cover = fct_recode(as_factor(class), 
-                                 non_veg = "1", woody_veg = "2", 
-                                 cropland = "3", grassland = "4"),
-         year = layer + 1986) %>%
-  # drop 0 land cover class
-  filter(land_cover %in% c("non_veg", "woody_veg", "cropland", "grassland", NA))
+load(file = paste0(p_output, "frag/frag_", "belarus", ".rds"),
+         verbose = TRUE)
+
+frag_shaanxi %>% select(metric, name, function_name) %>% unique
+frag_belarus %>% select(metric, name, function_name) %>% unique
 
 
-br_metrics1 %>%
-  select(land_cover, level) %>%
-  unique()
-
-br_metrics1 %>% 
-  filter(level == "landscape")
-
-br_metrics1 %>% select(name, function_name) %>% unique()
-
-# four metrics:
-# 1. aggregation, class
-# 2. aggregation, landscape
-# 3. connectance, landscape
-# 4. mean contiguity index, landscape
+# combined sites into a single data.frame
+frag_dat <- bind_rows(frag_shaanxi, frag_belarus)
 
 
-# seven values per year (31 years * 7 = 217 values) [having removed 0 class]
-# 4 classes, aggregation, then each of the single landscape metrics
+# 11. metrics calculated (though not for each site)
+frag_dat %>% select(metric, name, function_name) %>% unique
+
+frag_dat %>% filter(site == "shaanxi") %>% select(metric, name, function_name) %>% unique
+frag_dat %>% filter(site == "belarus") %>% select(metric, name, function_name) %>% unique
 
 
-# 1. aggregation, class
-ggplot() +
+# ------------------------------------------ #
+# ------------ Fragmentation --------------- #
+# ------------------------------------------ #
+cc_save_frag_plots(frag_dat_input = frag_dat, outfile_label = NULL)
+```
+
+
+```{r 1-aggregation}
+frag_dat %>% select(metric, name, function_name) %>% unique
+
+# ------------------- 1. aggregation -------------------- #
+gg_frag_base <- ggplot(data = filter(frag_dat, 
+                                   metric == "ai",
+                                   land_cover != "non_veg"
+                                   )) +
   theme_classic() +
-  geom_point(data = filter(br_metrics1, function_name == "lsm_c_ai"),
-             mapping = aes(x = year, y = value, 
-                           group = land_cover, color = land_cover)
-             ) + 
+  geom_point(mapping = aes(x = year, y = value, color = land_cover)) + 
+  geom_smooth(method = "lm", mapping = aes(x = year, y = value,
+                                           fill = land_cover, 
+                                           color = land_cover)) +
+  labs(x = "Year", color = "Land Cover") + 
+  guides(fill = FALSE) +
+  facet_grid(cols = vars(site), scales = "free_y")
+
+gg_frag_ai <- gg_frag_base %+% filter(frag_dat, metric == "ai", land_cover != "non_veg") + 
   labs(title = "Aggregation Index, by land cover",
-       color = "Land Cover")
+       y = "Index Value")
 
 
+frag_dat$land_cover %>% unique
+
+
+land_cover_cols <- c("non_veg" = plot_cols$color[1], 
+                     "woody_veg" = plot_cols$color[2], 
+                     "cropland" = plot_cols$color[3], 
+                     "grassland" = plot_cols$color[4])
+gg_frag_base %+% filter(frag_dat, metric == "ai", land_cover != "non_veg") + 
+  labs(title = "Aggregation Index, by land cover",
+       y = "Index Value") +
+  scale_colour_manual(
+    values = land_cover_cols,
+    aesthetics = c("colour", "fill"), labels = plot_cols$name[2:4]
+    )
+
+
+gg_frag_ai
+
+plot_cols
+```
+
+
+```{r 2-clumpiness}
+frag_dat %>% select(metric, name, function_name) %>% unique
+
+# ------------------- 2. clumpiness -------------------- #
+gg_frag_clumpy <- gg_frag_base %+% filter(frag_dat, metric == "clumpy", land_cover != "non_veg") + 
+  labs(title = "Clumpiness Index, by land cover",
+       y = "Index Value")
+
+
+gg_frag_clumpy <- ggplot(data = filter(frag_dat, 
+                                   metric == "clumpy",
+                                   land_cover != "non_veg"
+                                   )) +
+  theme_classic() +
+  geom_point(mapping = aes(x = year, y = value, color = land_cover)) + 
+  geom_smooth(method = "lm", mapping = aes(x = year, y = value,
+                                           fill = land_cover, 
+                                           color = land_cover)) +
+  labs(title = "Clumpiness Index, by land cover",
+       x = "Year", y = "Index Value",
+       color = "Land Cover") + 
+  guides(fill = FALSE) +
+  facet_grid(cols = vars(site))
+gg_frag_clumpy
+```
+
+
+```{r aggregation-combo}
+
+# ------------------- aggregation combo -------------------- #
+
+gg_frag_aggregation_combo <- ggplot(data = filter(frag_dat, 
+                     metric %in% c("ai", "clumpy"),
+                     land_cover != "non_veg")) +
+  theme_classic() +
+  geom_point(mapping = aes(x = year, y = value, color = land_cover)) + 
+  geom_smooth(method = "lm", mapping = aes(x = year, y = value,
+                                           fill = land_cover, 
+                                           color = land_cover)) +
+  labs(title = "Aggregation Index, by land cover",
+       x = "Year", y = "Index Value",
+       color = "Land Cover") + 
+  guides(fill = FALSE) +
+  facet_grid(cols = vars(site), rows = vars(metric), scales = "free_y")
+gg_frag_aggregation_combo
+```
+
+
+```{r 3-num-patches}
+frag_dat %>% select(metric, name, function_name) %>% unique
+
+# ------------------- 3. Number of patches -------------------- #
+
+gg_frag_np <- ggplot(data = filter(frag_dat, 
+                                   metric == "np",
+                                   land_cover != "non_veg"
+                                   )) +
+  theme_classic() +
+  geom_point(mapping = aes(x = year, y = value/(10^3), color = land_cover)) + 
+  geom_smooth(method = "lm", mapping = aes(x = year, y = value/(10^3),
+                                           fill = land_cover, 
+                                           color = land_cover)) +
+  labs(title = "Number of patches, by land cover",
+       x = "Year", y = expression("Number of patches  (10"^{3}*")") , 
+       color = "Land Cover") + 
+  guides(fill = FALSE) +
+  facet_grid(cols = vars(site))
+
+gg_frag_np
+```
+
+
+```{r 4-patch-area-cv}
+# ------------------- 4. Patch area, coefficient of variation -------------------- #
+frag_dat %>%
+  filter(metric == "area_cv") %>%
+  group_by(land_cover) %>%
+  summarise(mean = mean(value))
+
+
+# https://r-spatialecology.github.io/landscapemetrics/reference/lsm_c_area_cv.html
+# units: hectares
+metrics_list
+gg_frag_patch_area_cv <- ggplot(data = filter(frag_dat, 
+                                   metric == "area_cv",
+                                   land_cover != "non_veg"
+                                   )) +
+  theme_classic() +
+  geom_point(mapping = aes(x = year, y = value, color = land_cover)) + 
+  geom_smooth(method = "lm", mapping = aes(x = year, y = value,
+                                           fill = land_cover, 
+                                           color = land_cover)) +
+  labs(title = "Patch area coefficient of variation",
+       x = "Year", y = "Patch Area CV (ha)", 
+       color = "Land Cover") + 
+  guides(fill = FALSE) +
+  facet_grid(cols = vars(site), scales = "free_y")
+
+gg_frag_patch_area_cv
+
+```
+
+```{r 5-patch-area-mn}
+# ------------------- 5. Patch area, mean -------------------- #
+frag_dat %>%
+  filter(metric == "area_mn") %>%
+  group_by(land_cover) %>%
+  summarise(mean = mean(value))
+
+
+# https://r-spatialecology.github.io/landscapemetrics/reference/lsm_c_area_mn.html
+# units: hectares
+metrics_list
+gg_frag_patch_area_mn <- ggplot(data = filter(frag_dat, 
+                                   metric == "area_mn",
+                                   land_cover != "non_veg"
+                                   )) +
+  theme_classic() +
+  geom_point(mapping = aes(x = year, y = value, color = land_cover)) + 
+  geom_smooth(method = "lm", mapping = aes(x = year, y = value,
+                                           fill = land_cover, 
+                                           color = land_cover)) +
+  labs(title = "Mean patch area, by land cover",
+       x = "Year", y = "Patch Area mean (ha)", 
+       color = "Land Cover") + 
+  guides(fill = FALSE) +
+  facet_grid(cols = vars(site), scales = "free_y")
+
+gg_frag_patch_area_mn
+
+```
+
+```{r 6-patch-area-sd}
+# ------------------- 6. Patch area, standard deviation -------------------- #
+frag_dat %>%
+  filter(metric == "area_sd") %>%
+  group_by(land_cover) %>%
+  summarise(mean = mean(value))
+
+
+# https://r-spatialecology.github.io/landscapemetrics/reference/lsm_c_area_sd.html
+# units: hectares
+metrics_list
+gg_frag_patch_area_sd <- ggplot(data = filter(frag_dat, 
+                                   metric == "area_sd",
+                                   land_cover != "non_veg"
+                                   )) +
+  theme_classic() +
+  geom_point(mapping = aes(x = year, y = value, color = land_cover)) + 
+  geom_smooth(method = "lm", mapping = aes(x = year, y = value,
+                                           fill = land_cover, 
+                                           color = land_cover)) +
+  labs(title = "Patch area standard deviation, by land cover",
+       x = "Year", y = "Patch Area sd (ha)", 
+       color = "Land Cover") + 
+  guides(fill = FALSE) +
+  facet_grid(cols = vars(site), scales = "free_y")
+
+gg_frag_patch_area_sd
+
+```
+
+```{r patch-area-combo}
+# units in hectares
+
+# ------------------- patch area combo -------------------- #
+
+gg_frag_patch_area_combo <- 
+  ggplot(data = filter(frag_dat, 
+                       metric %in% c("area_cv", "area_mn", "area_sd"),
+                       land_cover != "non_veg")) +
+  theme_classic() +
+  geom_point(mapping = aes(x = year, y = value, color = land_cover)) + 
+  geom_smooth(method = "lm", mapping = aes(x = year, y = value,
+                                           fill = land_cover, 
+                                           color = land_cover)) +
+  labs(title = "Patch Area, by land cover",
+       x = "Year", y = "Index Value",
+       color = "Land Cover") + 
+  guides(fill = FALSE) +
+  facet_grid(cols = vars(site), rows = vars(metric), scales = "free_y",
+             labeller = labeller(
+               metric = c(
+                 area_cv = "Coeff. Var.", 
+                 area_mn = "Mean",  
+                 area_sd = "Std. Dev.")
+               ))
+
+gg_frag_patch_area_combo
+
+
+gg_frag_patch_area_cv
+gg_frag_patch_area_mn
+gg_frag_patch_area_sd
+```
+
+```{r 7-class-area}
+# ------------------- 7. Total class area  -------------------- #
+frag_dat %>%
+  filter(metric == "ca") %>%
+  group_by(land_cover) %>%
+  summarise(mean = mean(value))
+
+
+# https://r-spatialecology.github.io/landscapemetrics/reference/lsm_c_ca.html
+# units: hectares
+frag_dat %>% select(metric, name, function_name) %>% unique
+
+gg_frag_ca <- ggplot(data = filter(frag_dat, 
+                                   metric == "ca",
+                                   land_cover != "non_veg"
+                                   )) +
+  theme_classic() +
+  geom_point(mapping = aes(x = year, y = value/(10^6), color = land_cover)) + 
+  geom_line(mapping = aes(x = year, y = value/(10^6), color = land_cover)) + 
+  
+  # geom_smooth(method = "lm", mapping = aes(x = year, y = value/(10^6),
+  #                                          fill = land_cover, 
+  #                                          color = land_cover)) +
+  labs(title = "Total area in each land cover type",
+       x = "Year", y = expression("Class Area (10"^{6}*" ha)"), 
+       color = "Land Cover") + 
+  guides(fill = FALSE) +
+  facet_grid(cols = vars(site), scales = "free_y")
+
+gg_frag_ca
+
+
+
+```
+
+
+```{r 8-total-edge}
+# ------------------- 8. Total edge (meters) -------------------- #
+frag_dat %>%
+  filter(metric == "te") %>%
+  group_by(land_cover) %>%
+  summarise(mean = mean(value))
+
+frag_dat %>% select(metric, name, function_name) %>% unique
+
+# https://r-spatialecology.github.io/landscapemetrics/reference/lsm_c_te.html
+# units: meters
+
+gg_frag_te <- ggplot(data = filter(frag_dat, 
+                                   metric == "te",
+                                   land_cover != "non_veg"
+                                   )) +
+  theme_classic() +
+  geom_point(mapping = aes(x = year, y = value/(10^6), color = land_cover)) + 
+  geom_smooth(method = "lm", mapping = aes(x = year, y = value/(10^6),
+                                           fill = land_cover,
+                                           color = land_cover)) +
+  labs(title = "Total edge in each land cover type",
+       x = "Year", y = expression("Total edge (10"^{3}*" km)"), 
+       color = "Land Cover") + 
+  guides(fill = FALSE) +
+  facet_grid(cols = vars(site), scales = "free_y")
+
+gg_frag_te
+
+
+```
+
+```{r 9-11-perimeter-area-ratio}
+frag_dat %>% select(metric, name, function_name) %>% unique
+
+# ------------------- 9. Perimeter-area ratio (coefficient of variation) -------------------- #
+
+# https://r-spatialecology.github.io/landscapemetrics/reference/lsm_c_area_mn.html
+# units: ratio, unitless
+
+# ------------------- perimeter-area ratio combo -------------------- #
+
+gg_frag_para_combo <- 
+  ggplot(data = filter(frag_dat, 
+                       metric %in% c("para_cv", "para_mn", "para_sd"),
+                       land_cover != "non_veg")) +
+  theme_classic() +
+  geom_point(mapping = aes(x = year, y = value, color = land_cover)) + 
+  geom_smooth(method = "lm", mapping = aes(x = year, y = value,
+                                           fill = land_cover, 
+                                           color = land_cover)) +
+  labs(title = "Perimeter-Area Ratio, by land cover",
+       x = "Year", y = "Perimeter-Area Ratio",
+       color = "Land Cover") + 
+  guides(fill = FALSE) +
+  facet_grid(cols = vars(site), rows = vars(metric), scales = "free_y",
+             labeller = labeller(
+               metric = c(
+                 para_cv = "Coeff. Var.", 
+                 para_mn = "Mean",  
+                 para_sd = "Std. Dev.")
+               ))
+
+gg_frag_para_combo
+
+
+
+gg_frag_para_cv <- ggplot(data = filter(frag_dat, 
+                                   metric == "para_cv",
+                                   land_cover != "non_veg"
+                                   )) +
+  theme_classic() +
+  geom_point(mapping = aes(x = year, y = value, color = land_cover)) + 
+  geom_smooth(method = "lm", mapping = aes(x = year, y = value,
+                                           fill = land_cover,
+                                           color = land_cover)) +
+  labs(title = "Perimeter-Area Ratio, by land cover",
+       x = "Year", y = "Perimeter-Area Ratio (cv)", 
+       color = "Land Cover") + 
+  guides(fill = FALSE) +
+  facet_grid(cols = vars(site), scales = "free_y")
+
+gg_frag_para_cv
+
+gg_frag_para_mn <- ggplot(data = filter(frag_dat, 
+                                   metric == "para_mn",
+                                   land_cover != "non_veg"
+                                   )) +
+  theme_classic() +
+  geom_point(mapping = aes(x = year, y = value, color = land_cover)) + 
+  geom_smooth(method = "lm", mapping = aes(x = year, y = value,
+                                           fill = land_cover,
+                                           color = land_cover)) +
+  labs(title = "Perimeter-Area Ratio, by land cover",
+       x = "Year", y = "Perimeter-Area Ratio (mean)", 
+       color = "Land Cover") + 
+  guides(fill = FALSE) +
+  facet_grid(cols = vars(site), scales = "free_y")
+
+gg_frag_para_mn
+
+gg_frag_para_sd <- ggplot(data = filter(frag_dat, 
+                                   metric == "para_sd",
+                                   land_cover != "non_veg"
+                                   )) +
+  theme_classic() +
+  geom_point(mapping = aes(x = year, y = value, color = land_cover)) + 
+  geom_smooth(method = "lm", mapping = aes(x = year, y = value,
+                                           fill = land_cover,
+                                           color = land_cover)) +
+  labs(title = "Perimeter-Area Ratio, by land cover",
+       x = "Year", y = "Perimeter-Area Ratio (sd)", 
+       color = "Land Cover") + 
+  guides(fill = FALSE) +
+  facet_grid(cols = vars(site), scales = "free_y")
+
+gg_frag_para_sd
+
+
+
+```
+
+
+
+
+
+```{r old-plots}
+# old
 # 2. aggregation, landscape
 gg_aggregation_index_br <- ggplot() +
   theme_classic() +
@@ -921,4 +1337,28 @@ dev.off()
 
 ```
 
+```{r aggregation-crop-vs-combo-veg}
+# It looks like woody vegetation becomes less aggregated over time, and grassland become more aggregated over time. This is possibly because the additional forest being gained may be more dispersed, in the fields that area abandoned. The grasslands may become more aggregated over time, as more and more ag land is abandoned and goes into grassland. 
+gg_frag_ai
+gg_frag_clumpy
+
+# Q. What do aggregation patterns look like if we consider woody vegetation and grassland together as a single class?
+
+
+
+```
+
+
 # Spatial Regression
+
+
+```{r load-predictor-datasets}
+# elevation
+# slope
+# soils
+
+s_dt
+s_age
+
+```
+

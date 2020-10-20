@@ -505,7 +505,7 @@ cc_save_plot_area_by_age_class(input_list = persistence_list_s,
 
 # mega function to save all four plot types
 tic()
-cc_save_plots_master(land_cover_dt = s_dt, 
+cc_save_area_persistence_plots(land_cover_dt = s_dt, 
   abn_age_dt = s_age, 
   land_cover_raster = s$y2017,
   subtitle = "Shaanxi/Shanxi Provinces, China",
@@ -539,7 +539,7 @@ abn_area_change_b <- abn_area_change
 # Belarus:
 
 tic()
-cc_save_plots_master(land_cover_dt = b_dt, 
+cc_save_area_persistence_plots(land_cover_dt = b_dt, 
   abn_age_dt = b_age, 
   land_cover_raster = b$y2017,
   subtitle = "Eastern Belarus/Smolensk, Russia",
@@ -548,12 +548,12 @@ cc_save_plots_master(land_cover_dt = b_dt,
 toc()
 
 # generate plots
-cc_save_plots_master(subtitle = "Shaanxi/Shanxi Provinces, China", outfile_label = "_s")
+cc_save_area_persistence_plots(subtitle = "Shaanxi/Shanxi Provinces, China", outfile_label = "_s")
 
-cc_save_plots_master(subtitle = "Shaanxi/Shanxi Provinces, China", input_site_label = "_s", 
+cc_save_area_persistence_plots(subtitle = "Shaanxi/Shanxi Provinces, China", input_site_label = "_s", 
                      outfile_label = "_s_all")
 
-cc_save_plots_master(subtitle = "Eastern Belarus/Smolensk, Russia", input_site_label = "_b", 
+cc_save_area_persistence_plots(subtitle = "Eastern Belarus/Smolensk, Russia", input_site_label = "_b", 
                      outfile_label = "_b_all")
 
 
@@ -930,7 +930,7 @@ toc()
 load(file = paste0(p_output, "abn_dat_products_s.rds"), verbose = TRUE)
 
 tic()
-cc_save_plots_master(
+cc_save_area_persistence_plots(
   input_site_label = "_s", 
   outfile_label = "_s",
   subtitle = "Shaanxi/Shanxi Provinces, China", 
@@ -961,7 +961,7 @@ load(file = paste0(p_output, "abn_dat_products_b.rds"), verbose = TRUE)
 
 # 
 tic()
-cc_save_plots_master(
+cc_save_area_persistence_plots(
   input_site_label = "_b", 
   outfile_label = "_b",
   subtitle = "Eastern Belarus/Smolensk, Russia", 
@@ -969,6 +969,8 @@ cc_save_plots_master(
   save_all = TRUE
 )
 toc()
+
+
 
 
 ```
