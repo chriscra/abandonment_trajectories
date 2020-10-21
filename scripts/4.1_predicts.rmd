@@ -4,20 +4,25 @@ output: html_notebook
 editor_options: 
   chunk_output_type: console
 ---
-```{r load-libraries}
+```{r start}
 source("scripts/0_start.R")
 
 env_size(ls())
+
+p_dat
 
 ```
 
 
 ```{r load-data}
-predicts <- readRDS("/Users/christophercrawford/Google Drive/_Projects/data/Bd/PREDICTS/database.rds") # PREDICTS itself
-# predicts_dt <- fread("/Users/christophercrawford/Google Drive/_Projects/data/Bd/PREDICTS/database.csv") # PREDICTS as a data.table
-sites <- readRDS("/Users/christophercrawford/Google Drive/_Projects/data/Bd/PREDICTS/sites.rds") # Site-level summaries
-columns <- read.csv("/Users/christophercrawford/Google Drive/_Projects/data/Bd/PREDICTS/columns.csv") # meta-data on variables, column names, etc.
-references <- read.csv("/Users/christophercrawford/Google Drive/_Projects/data/Bd/PREDICTS/references.csv") # references
+load()
+
+predicts <- readRDS(paste0(p_dat, "Bd/PREDICTS/database.rds")) # PREDICTS itself
+
+# predicts_dt <- fread(paste0(p_dat, "Bd/PREDICTS/database.csv")) # PREDICTS as a data.table
+sites <- readRDS(paste0(p_dat, "Bd/PREDICTS/sites.rds")) # Site-level summaries
+columns <- read.csv(paste0(p_dat, "Bd/PREDICTS/columns.csv")) # meta-data on variables, column names, etc.
+references <- read.csv(paste0(p_dat, "Bd/PREDICTS/references.csv")) # references
 
 predicts %>%
   filter(!is.na(Years_since_fragmentation_or_conversion)) %>%
@@ -190,6 +195,15 @@ names(predicts)
 levels(drop.levels(sites$Study_number))
 head(sites$N_samples)
 head(sites)
+
+sites
+nrow(predicts) #3,250,404
+
+nrow(sites) #26,114 (125x fewer than PREDICTS)
+
+str(sites)
+names(sites)
+levels()
 ```
 
 
@@ -201,17 +215,6 @@ nrow(predicts) - 2636413 # 613,991 records with information on the years since f
 
 ```
 
-
-```{r sites}
-sites
-nrow(predicts) #3,250,404
-
-nrow(sites) #26,114 (125x fewer than PREDICTS)
-
-str(sites)
-names(sites)
-levels()
-```
 
 ```{r predicts_number_samples}
 # figuring out how many samples exist in different areas:
@@ -232,7 +235,6 @@ levels(drop.levels())
 
 pre_brazil$Class %>%
   drop.levels() %>% levels()
-
 
 ```
 
@@ -750,10 +752,10 @@ names(predicts)
 
 ```{r ecoregions}
 
-ecoregions_wwf <- st_read("/Users/christophercrawford/Google Drive/_Projects/data/Habitats/TEOW/wwf_terr_ecos.shp")
+ecoregions_wwf <- st_read(paste0(p_dat, "Habitats/TEOW/wwf_terr_ecos.shp"))
 
 tic()
-ecoregions <- st_read("/Users/christophercrawford/Google Drive/_Projects/data/Habitats/terr-ecoregions-TNC/tnc_terr_ecoregions.shp") %>%
+ecoregions <- st_read(paste0(p_dat, "Habitats/terr-ecoregions-TNC/tnc_terr_ecoregions.shp")) %>%
   st_make_valid()
 toc() # 44.88
 
@@ -778,7 +780,7 @@ object_size(ecoregions)
 ```
 
 ```{r g200-ecoregions}
-g200 <- st_read("/Users/christophercrawford/Google Drive/_Projects/data/Habitats/global200ecoregions/g200_terr.shp")
+g200 <- st_read(paste0(p_dat, "Habitats/global200ecoregions/g200_terr.shp"))
 g200 <- st_make_valid(g200)
 
 
@@ -837,5 +839,6 @@ E_2 - E_1 # this is somewhat close to r
 
 
 ```
+
 
 

@@ -815,15 +815,15 @@ b$y1987 %>% ncell()
 
 ```{r clean-frag-results}
 # -------------------------------------------------------- #
-site <- "shaanxi"
-# site <- "belarus"
+# site <- "shaanxi"
+site <- "belarus"
 
 
 cc_clean_frag_results(site = "shaanxi")
 load(file = paste0(p_output, "frag/frag_", "shaanxi", ".rds"),
          verbose = TRUE)
 
-cc_clean_frag_results(site = "belarus", n_metrics = 7)
+cc_clean_frag_results(site = "belarus")
 load(file = paste0(p_output, "frag/frag_", "belarus", ".rds"),
          verbose = TRUE)
 
@@ -836,11 +836,8 @@ frag_belarus %>% select(metric, name, function_name) %>% unique
 
 ## Plot Fragmentation Metrics
 ```{r load-frag-metrics}
-load(file = paste0(p_output, "frag/frag_", "shaanxi", ".rds"),
-         verbose = TRUE)
-
-load(file = paste0(p_output, "frag/frag_", "belarus", ".rds"),
-         verbose = TRUE)
+load(file = paste0(p_output, "frag/frag_", "shaanxi", ".rds"), verbose = TRUE)
+load(file = paste0(p_output, "frag/frag_", "belarus", ".rds"), verbose = TRUE)
 
 frag_shaanxi %>% select(metric, name, function_name) %>% unique
 frag_belarus %>% select(metric, name, function_name) %>% unique
@@ -848,7 +845,8 @@ frag_belarus %>% select(metric, name, function_name) %>% unique
 
 # combined sites into a single data.frame
 frag_dat <- bind_rows(frag_shaanxi, frag_belarus)
-
+save(frag_dat, file = paste0(p_output, "frag/frag_dat.rds"))
+load(file = paste0(p_output, "frag/frag_dat.rds"), verbose = TRUE)
 
 # 11. metrics calculated (though not for each site)
 frag_dat %>% select(metric, name, function_name) %>% unique
@@ -860,7 +858,7 @@ frag_dat %>% filter(site == "belarus") %>% select(metric, name, function_name) %
 # ------------------------------------------ #
 # ------------ Fragmentation --------------- #
 # ------------------------------------------ #
-cc_save_frag_plots(frag_dat_input = frag_dat, outfile_label = NULL)
+cc_save_frag_plots(input = frag_dat, outfile_label = NULL)
 ```
 
 

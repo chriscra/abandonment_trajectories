@@ -1192,16 +1192,18 @@ cc_save_area_persistence_plots <- function(input_site_label = outfile_label,
 }
 
 
-cc_save_frag_plots <- function(frag_dat_input = frag_dat, 
+cc_save_frag_plots <- function(input = frag_dat, 
                                outfile_label) {
   
   # recode and filter land cover types
-  frag_dat_input <- frag_dat_input %>%
+  input <- input %>%
     mutate(land_cover = fct_recode(as_factor(land_cover), 
                                    "Non-veg." = "non_veg",
                                    "Woody veg." = "woody_veg",
                                    "Cropland" = "cropland",
-                                   "Grassland" = "grassland")) %>%
+                                   "Grassland" = "grassland"),
+           land_cover = fct_relevel(as_factor(land_cover), c("Non-veg.","Grassland", "Woody veg.", "Cropland")),
+           site = fct_recode(as_factor(site), "Belarus" = "belarus", "Shaanxi" = "shaanxi")) %>%
     filter(land_cover != "Non-veg.")
   
   land_cover_cols <- c("Non-veg." = plot_cols$color[1], 
@@ -1211,13 +1213,13 @@ cc_save_frag_plots <- function(frag_dat_input = frag_dat,
   
   
   # make plotting base
-  gg_frag_base <- ggplot(data = filter(frag_dat_input, metric == "ai")) +
+  gg_frag_base <- ggplot(data = filter(input, metric == "ai")) +
     theme_classic() +
     geom_point(mapping = aes(x = year, y = value, color = land_cover)) + 
     geom_smooth(method = "lm", mapping = aes(x = year, y = value,
                                              fill = land_cover, 
                                              color = land_cover)) +
-    labs(x = "Year", color = "Land Cover") + 
+    labs(x = "Year", y = "Index Value", color = "Land Cover") + 
     guides(fill = FALSE) +
     facet_grid(cols = vars(site), scales = "free_y") +
     scale_colour_manual(
@@ -1226,25 +1228,27 @@ cc_save_frag_plots <- function(frag_dat_input = frag_dat,
     )
   
   # ------------------- 1. aggregation -------------------- #
-  gg_frag_ai <- gg_frag_base %+% filter(frag_dat_input, metric == "ai") + 
-    labs(title = "Aggregation Index, by land cover", y = "Index Value")
+  gg_frag_ai <- gg_frag_base %+% filter(input, metric == "ai") + 
+    labs(title = "Aggregation Index, by land cover", y = "Aggregation Index Value")
   
   # ------------------- 2. clumpiness -------------------- #
-  gg_frag_clumpy <- gg_frag_base %+% filter(frag_dat_input, metric == "clumpy") + 
-    labs(title = "Clumpiness Index, by land cover", y = "Index Value")
+  gg_frag_clumpy <- gg_frag_base %+% filter(input, metric == "clumpy") + 
+    labs(title = "Clumpiness (Aggregation) Index, by land cover", y = "Clumpiness Index Value")
   
   
   # ------------------- aggregation combo -------------------- #
   
   gg_frag_aggregation_combo <- gg_frag_base %+% 
-    filter(frag_dat_input, metric %in% c("ai", "clumpy")) +
-    labs(title = "Aggregation Index, by land cover", y = "Index Value") + 
-    facet_grid(cols = vars(site), rows = vars(metric), scales = "free_y")
+    filter(input, metric %in% c("ai", "clumpy")) +
+    # labs(title = "Aggregation Indices, by land cover", y = "Index Value") + 
+    facet_grid(cols = vars(site), rows = vars(metric), scales = "free_y",
+               labeller = labeller(metric = c(ai = "Aggregation Index", 
+                                              clumpy = "Clumpiness Index")))
   
   
   # ------------------- 3. Number of patches -------------------- #
   
-  gg_frag_np <- ggplot(data = filter(frag_dat_input, metric == "np")) +
+  gg_frag_np <- ggplot(data = filter(input, metric == "np")) +
     theme_classic() +
     geom_point(mapping = aes(x = year, y = value/(10^3), color = land_cover)) + 
     geom_smooth(method = "lm", 
@@ -1261,32 +1265,40 @@ cc_save_frag_plots <- function(frag_dat_input = frag_dat,
     )
   
   # ------------------- 4. Patch area, coefficient of variation -------------------- #
-  gg_frag_patch_area_cv <- gg_frag_base %+% filter(frag_dat_input, metric == "area_cv") +
+  gg_frag_patch_area_cv <- gg_frag_base %+% filter(input, metric == "area_cv") +
     labs(title = "Patch area coefficient of variation", y = "Patch Area CV (ha)")
   
   # ------------------- 5. Patch area, mean -------------------- #
-  gg_frag_patch_area_mn <- gg_frag_base %+% filter(frag_dat_input, metric == "area_mn") +
+  gg_frag_patch_area_mn <- gg_frag_base %+% filter(input, metric == "area_mn") +
     labs(title = "Mean patch area, by land cover", y = "Patch Area mean (ha)")
   
   # ------------------- 6. Patch area, sd -------------------- #
   
-  gg_frag_patch_area_sd <- gg_frag_base %+% filter(frag_dat_input, metric == "area_sd") +
+  gg_frag_patch_area_sd <- gg_frag_base %+% filter(input, metric == "area_sd") +
     labs(title = "Patch area standard deviation, by land cover", y = "Patch Area SD (ha)")
   
   # ------------------- patch area combo -------------------- #
   
   gg_frag_patch_area_combo <- gg_frag_base %+%
-    filter(frag_dat_input, metric %in% c("area_cv", "area_mn", "area_sd")) +
+    filter(input, metric %in% c("area_cv", "area_mn", "area_sd")) +
     labs(title = "Patch Area, by land cover", y = "Patch Area (ha)") + 
     facet_grid(cols = vars(site), rows = vars(metric), scales = "free_y",
                labeller = labeller(metric = c(area_cv = "Coeff. Var.", 
                                               area_mn = "Mean",  
                                               area_sd = "Std. Dev.")))
   
+  gg_frag_patch_area_variation <- gg_frag_base %+%
+    filter(input, metric %in% c("area_cv", "area_sd")) +
+    labs(title = "Variation in Patch Area, by land cover", y = "Patch Area (ha)") + 
+    facet_grid(cols = vars(site), rows = vars(metric), scales = "free_y",
+               labeller = labeller(metric = c(area_cv = "Coeffient of Variation (cv = sd/mean)", 
+                                              area_mn = "Mean",  
+                                              area_sd = "Standard Deviation (sd)")))
+  
   
   # ------------------- 7. Total class area  -------------------- #
   
-  gg_frag_ca <- ggplot(data = filter(frag_dat_input, metric == "ca")) +
+  gg_frag_ca <- ggplot(data = filter(input, metric == "ca")) +
     theme_classic() +
     geom_point(mapping = aes(x = year, y = value/(10^6), color = land_cover)) + 
     geom_line(mapping = aes(x = year, y = value/(10^6), color = land_cover)) + 
@@ -1303,7 +1315,7 @@ cc_save_frag_plots <- function(frag_dat_input = frag_dat,
   
   
   # ------------------- 8. Total edge (meters) -------------------- #
-  gg_frag_te <- ggplot(data = filter(frag_dat_input, metric == "te")) +
+  gg_frag_te <- ggplot(data = filter(input, metric == "te")) +
     theme_classic() +
     geom_point(mapping = aes(x = year, y = value/(10^6), color = land_cover)) + 
     geom_smooth(method = "lm", mapping = aes(x = year, y = value/(10^6),
@@ -1325,22 +1337,32 @@ cc_save_frag_plots <- function(frag_dat_input = frag_dat,
   
   # ------------------- perimeter-area ratio combo -------------------- #
   gg_frag_para_combo <- gg_frag_base %+%
-    filter(frag_dat_input, metric %in% c("para_cv", "para_mn", "para_sd")) +
+    filter(input, metric %in% c("para_cv", "para_mn", "para_sd")) +
     labs(title = "Perimeter-Area Ratio, by land cover", y = "Perimeter-Area Ratio") + 
     facet_grid(cols = vars(site), rows = vars(metric), scales = "free_y",
-               labeller = labeller(metric = c(para_cv = "Coeff. Var.", 
+               labeller = labeller(metric = c(para_cv = "Coeffient of Variation (cv = sd/mean)", 
                                               para_mn = "Mean",  
-                                              para_sd = "Std. Dev.")))
+                                              para_sd = "Standard Deviation (sd)")))
+  
+  gg_frag_para_variation <- gg_frag_base %+%
+    filter(input, metric %in% c("para_cv", "para_sd")) +
+    labs(title = "Variation in Perimeter-Area Ratio, by land cover", y = "Perimeter-Area Ratio") + 
+    facet_grid(cols = vars(site), rows = vars(metric), scales = "free_y",
+               labeller = labeller(metric = c(para_cv = "Coefficient of Variation (cv = sd/mean)", 
+                                              para_mn = "Mean",  
+                                              para_sd = "Standard Deviation (sd)")))
   
   
-  gg_frag_para_cv <- gg_frag_base %+% filter(frag_dat_input, metric == "para_cv") +
+  gg_frag_para_cv <- gg_frag_base %+% filter(input, metric == "para_cv") +
     labs(title = "Perimeter-Area Ratio, by land cover", y = "Perimeter-Area Ratio (cv)")
   
-  gg_frag_para_mn <- gg_frag_base %+% filter(frag_dat_input, metric == "para_mn") +
+  gg_frag_para_mn <- gg_frag_base %+% filter(input, metric == "para_mn") +
     labs(title = "Perimeter-Area Ratio, by land cover", y = "Perimeter-Area Ratio (mean)")
   
-  gg_frag_para_sd <- gg_frag_base %+% filter(frag_dat_input, metric == "para_sd") +
+  gg_frag_para_sd <- gg_frag_base %+% filter(input, metric == "para_sd") +
     labs(title = "Perimeter-Area Ratio, by land cover", y = "Perimeter-Area Ratio (sd)")
+  
+  
   
   
   # save to png the main plots
@@ -1350,13 +1372,6 @@ cc_save_frag_plots <- function(frag_dat_input = frag_dat,
   # d. total edge
   # e. perimeter-area ratio combo
   
-  gg_frag_aggregation_combo
-  gg_frag_np
-  gg_frag_patch_area_combo
-  gg_frag_te
-  gg_frag_para_combo
-  
-  # save
   png(filename = paste0(p_output, "plots/frag_aggregation_combo", outfile_label, ".png"), 
       width = 7, height = 5, units = "in", res = 400)
   print(gg_frag_aggregation_combo)
@@ -1385,6 +1400,38 @@ cc_save_frag_plots <- function(frag_dat_input = frag_dat,
       width = 7, height = 8, units = "in", res = 400)
   print(gg_frag_para_combo)
   dev.off()
+  
+  # extras:
+  png(filename = paste0(p_output, "plots/frag_clumpy", outfile_label, ".png"), 
+      width = 7, height = 4, units = "in", res = 400)
+  print(gg_frag_clumpy)
+  dev.off()
+  
+  # number of patches and mean patch area
+  png(filename = paste0(p_output, "plots/frag_patch_area_num", outfile_label, ".png"), 
+      width = 7, height = 6, units = "in", res = 400)
+  print(plot_grid(gg_frag_patch_area_mn, gg_frag_np, nrow = 2))
+  dev.off()
+  
+  
+  # patch area variation
+  png(filename = paste0(p_output, "plots/frag_patch_area_var", outfile_label, ".png"), 
+      width = 7, height = 6, units = "in", res = 400)
+  print(gg_frag_patch_area_variation)
+  dev.off()
+  
+  
+  # total edge and the perimeter-area ratio 
+  png(filename = paste0(p_output, "plots/frag_para-te", outfile_label, ".png"), 
+      width = 7, height = 6, units = "in", res = 400)
+  print(plot_grid(gg_frag_para_mn, gg_frag_te, nrow = 2))
+  dev.off()
+  
+  png(filename = paste0(p_output, "plots/frag_para_var", outfile_label, ".png"), 
+      width = 7, height = 6, units = "in", res = 400)
+  print(gg_frag_para_variation)
+  dev.off()
+  
   
 }
 
