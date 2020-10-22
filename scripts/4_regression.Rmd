@@ -1,0 +1,138 @@
+---
+title: "Regression Analysis"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+# Regression Analysis
+
+Question: what factors best predict a) which pixels of agricultural land are abandoned, b) how long that land will stay abandoned for, and relatedly, c) how likely it is to be recultivated?
+
+Factors:
+- Climate variables (temperature, precipitation, growing degree days, etc.)
+    - CHELSA (Swiss Federal Institute for Forest, Snow and Landscape Research WSL) ~1 km, 1979-2013, [CHELSA website](https://chelsa-climate.org/), [Peer reviewed paper, Scientific Data, 2017](https://www.nature.com/articles/sdata2017122)
+    - Worldclim, ~1km, 1970-2000 - [website](https://www.worldclim.org/data/worldclim21.html), [bioclim](https://www.worldclim.org/data/bioclim.html),  [possibly helpful how-to](https://www.benjaminbell.co.uk/2018/01/extracting-data-and-making-climate-maps.html)
+    
+
+- Topography variables (elevation, slope, etc.) [earthenv.org](http://www.earthenv.org/topography)
+- Agricultural economic variables 
+    - soils
+    - "marginality"
+    - agricultural opportunity cost (Naidoo & Iwamura 2007)
+    
+- Socioeconomic variables
+    - population
+    - context
+    - land use decision making
+- 
+
+# Methods:
+- start with a regular OLS regression (lm)
+- check out the residuals (the model errors) - if they are clumped, or there is a clear trend in them, then, they might be spatially autocorrelated.
+- Calculating Moran's I helps identify spatial autocorrelation. 
+- see code Liang shared by Raymond Huey 2020 ("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/Spatial analysis w Depth 2020-03-20.R")
+- see code from Umesh's stats course. 
+
+
+
+Citations:
+
+```{r initialize}
+source("scripts/0_start.R")
+
+regression_packages <- c("VIF", "nlme", "MASS", "spdep")
+install_missing_packages(regression_packages)
+library(VIF) # for selecting models for a linear model. Recommended by Liang.
+
+# gls model - spatial autocorrelation
+# spdep has lots of functions for assessing spatial autocorrelation.
+
+
+```
+
+
+```{r load-data}
+
+# Land use class codes:
+#       1. Non-vegetated area (e.g. water, urban, barren land)
+#       2. Woody vegetation
+#       3. Cropland 
+#       4. Herbaceous land (e.g. grassland)
+
+# -------------------------- rasters --------------------------- #
+# raw rasters
+s <- brick(paste0(p_dat, "Abandonment/shaanxi.tif"))
+b <- brick(paste0(p_dat_derived, "belarus.tif")) # merged version
+
+# reprojected rasters:
+br <- brick(paste0(p_dat_derived, "belarus_reproj.tif"))
+
+# subset:
+bt <- brick(paste0(p_dat_derived, "belarus_subset.tif"))
+
+# age
+s_age_r <- brick(paste0(p_dat_derived, "shaanxi_age.tif"))
+b_age_r <- brick(paste0(p_dat_derived, "belarus_age.tif"))
+
+# max_length
+s_max_length_r <- brick(paste0(p_dat_derived, "shaanxi_max_length.tif"))
+b_max_length_r <- brick(paste0(p_dat_derived, "belarus_max_length.tif"))
+
+# update year names 1987 - 2017
+names(s) <- paste0("y", 1987:2017)
+names(b) <- paste0("y", 1987:2017)
+names(br) <- paste0("y", 1987:2017)
+names(s_age_r) <- paste0("y", 1987:2017)
+names(b_age_r) <- paste0("y", 1987:2017)
+
+
+
+
+
+
+# -------------------------- data.tables --------------------------- #
+
+b_age <- fread(input = paste0(p_dat_derived, "belarus_age.csv"))
+names(b_age)
+s_age <- fread(input = paste0(p_dat_derived, "shaanxi_age.csv"))
+
+
+b_length <- fread(input = paste0(p_dat_derived, "belarus_length.csv"))
+s_length <- fread(input = paste0(p_dat_derived, "shaanxi_length.csv"))
+
+b_max_length <- fread(input = paste0(p_dat_derived, "belarus_max_length.csv"))
+s_max_length <- fread(input = paste0(p_dat_derived, "shaanxi_max_length.csv"))
+
+# original data
+s_dt <- fread(input = paste0(p_dat_derived, "shaanxi.csv"))
+names(s_dt) <- gsub(pattern = "andcover", replacement = "y", names(s_dt))
+
+b_dt <- fread(input = paste0(p_dat_derived, "belarus.csv")) # caution - huge file! 8.4 GB at least.
+```
+
+```{r simple-plots}
+# crop b to a small area for testing
+plot(bt$y2017, main = "Belarus 2017, subset", 
+     col = plot_cols$color,
+     breaks = c(0, plot_cols$breaks))
+legend("bottomleft", cex = 0.7, inset = 0,
+       legend = plot_cols$name, 
+       fill = plot_cols$color)
+```
+
+
+# Spatial Regression
+
+
+```{r load-predictor-datasets}
+# elevation
+# slope
+# soils
+
+s_dt
+s_age
+
+```
+
+
+

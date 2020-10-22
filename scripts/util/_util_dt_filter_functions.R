@@ -1300,8 +1300,8 @@ cc_save_frag_plots <- function(input = frag_dat,
   
   gg_frag_ca <- ggplot(data = filter(input, metric == "ca")) +
     theme_classic() +
-    geom_point(mapping = aes(x = year, y = value/(10^6), color = land_cover)) + 
-    geom_line(mapping = aes(x = year, y = value/(10^6), color = land_cover)) + 
+    # geom_point(mapping = aes(x = year, y = value/(10^6), color = land_cover)) + 
+    geom_line(mapping = aes(x = year, y = value/(10^6), color = land_cover), size = 1.2) + 
     labs(title = "Total area in each land cover type",
          x = "Year", y = expression("Class Area (10"^{6}*" ha)"), 
          color = "Land Cover") + 
@@ -1410,9 +1410,13 @@ cc_save_frag_plots <- function(input = frag_dat,
   # number of patches and mean patch area
   png(filename = paste0(p_output, "plots/frag_patch_area_num", outfile_label, ".png"), 
       width = 7, height = 6, units = "in", res = 400)
-  print(plot_grid(gg_frag_patch_area_mn, gg_frag_np, nrow = 2))
+  print(plot_grid(gg_frag_patch_area_mn, gg_frag_np, gg_frag_ca, nrow = 3))
   dev.off()
-  
+
+  png(filename = paste0(p_output, "plots/frag_class_area", outfile_label, ".png"), 
+      width = 7, height = 4, units = "in", res = 400)
+  print(gg_frag_ca)
+  dev.off()
   
   # patch area variation
   png(filename = paste0(p_output, "plots/frag_patch_area_var", outfile_label, ".png"), 

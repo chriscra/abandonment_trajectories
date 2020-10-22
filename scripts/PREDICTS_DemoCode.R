@@ -12,7 +12,10 @@ install_github(repo = "timnewbold/predicts-demo",subdir = "predictsFunctions")
 library(predictsFunctions)
 
 # Set the path to your local copy of the database
-predicts.path <- "C:/Users/tim_n/Dropbox/PREDICTSDemonstration/database.rds"
+# predicts.path <- "C:/Users/tim_n/Dropbox/PREDICTSDemonstration/database.rds"
+predicts.path <- "/Users/christophercrawford/Google Drive/_Projects/data/Bd/PREDICTS/database.rds"
+predicts.path <- paste0(p_dat, "Bd/PREDICTS/database.rds")
+
 
 # Read in the PREDICTS data
 predicts <- ReadPREDICTS(predicts.path)
@@ -23,10 +26,10 @@ nrow(predicts)
 names(predicts)
 
 # This powerpoint explains the different types of column
-system(command = "powerpnt /S DatabaseVariables.ppsx")
+system(command = "powerpnt /S DatabaseVariables.ppsx") # cc- note doesn't work
 
 # This powerpoint gives a bit more detail on the land-use classification
-system(command = "powerpnt /S LanduseClassification.ppsx")
+system(command = "powerpnt /S LanduseClassification.ppsx") # cc- note doesn't work
 
 # Correct effort-sensitive abundance measures (assumes linear relationship between effort and recorded abundance)
 predicts <- CorrectSamplingEffort(diversity = predicts)
@@ -42,6 +45,7 @@ sites <- SiteMetrics(diversity = predicts,
 # Now install my package for building statistical models (including mixed-effects models)
 install_github("timnewbold/StatisticalModels")
 
+install.packages("callr")
 library(StatisticalModels)
 
 # Let's first try a model of site-level species richness
@@ -49,12 +53,12 @@ library(StatisticalModels)
 # First, we will rearrange the land-use classification a bit
 sites$LandUse <- paste(sites$Predominant_land_use)
 # Drop classification where land use could not be identified
-sites$LandUse[(sites$LandUse=="Cannot decide")] <- NA
+sites$LandUse[(sites$LandUse == "Cannot decide")] <- NA
 # Drop classification where the stage of recovery of secondary vegetation is unknown
-sites$LandUse[(sites$LandUse=="Secondary vegetation (indeterminate age)")] <- NA
+sites$LandUse[(sites$LandUse == "Secondary vegetation (indeterminate age)")] <- NA
 # Now make the variable a factor, and set the reference level to primary vegetation
 sites$LandUse <- factor(sites$LandUse)
-sites$LandUse <- relevel(sites$LandUse,ref="Primary vegetation")
+sites$LandUse <- relevel(sites$LandUse, ref="Primary vegetation")
 
 table(sites$LandUse)
 

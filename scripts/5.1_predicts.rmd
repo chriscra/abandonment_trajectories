@@ -6,17 +6,13 @@ editor_options:
 ---
 ```{r start}
 source("scripts/0_start.R")
+library(predictsFunctions) # Tim Newbold's R package for accessing and working with PREDICTS data.
 
 env_size(ls())
-
-p_dat
-
 ```
 
 
 ```{r load-data}
-load()
-
 predicts <- readRDS(paste0(p_dat, "Bd/PREDICTS/database.rds")) # PREDICTS itself
 
 # predicts_dt <- fread(paste0(p_dat, "Bd/PREDICTS/database.csv")) # PREDICTS as a data.table
@@ -24,8 +20,16 @@ sites <- readRDS(paste0(p_dat, "Bd/PREDICTS/sites.rds")) # Site-level summaries
 columns <- read.csv(paste0(p_dat, "Bd/PREDICTS/columns.csv")) # meta-data on variables, column names, etc.
 references <- read.csv(paste0(p_dat, "Bd/PREDICTS/references.csv")) # references
 
+# how many records are there?
+nrow(predicts) # 3.25 M rows
+names(predicts)
+# how many records have time data associated with them?
+predicts %>% filter(!is.na(Years_since_fragmentation_or_conversion)) 
+
+# summarize that subset, for a select number of variables
 predicts %>%
   filter(!is.na(Years_since_fragmentation_or_conversion)) %>%
+  select() %>% 
   summary()
 
 class(predicts)

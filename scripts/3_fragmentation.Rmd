@@ -79,10 +79,6 @@ legend("bottomleft", cex = 0.7, inset = 0,
 
 ```
 
-```{r}
-
-```
-
 
 # Fragmentation analysis
 Using the R package `landscapemetrics`, 
@@ -1343,20 +1339,6 @@ gg_frag_clumpy
 # Q. What do aggregation patterns look like if we consider woody vegetation and grassland together as a single class?
 
 
-
-```
-
-
-# Spatial Regression
-
-
-```{r load-predictor-datasets}
-# elevation
-# slope
-# soils
-
-s_dt
-s_age
 
 ```
 
