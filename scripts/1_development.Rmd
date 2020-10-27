@@ -267,6 +267,9 @@ bt
 # save as .tif
 writeRaster(bt, filename = paste0(p_dat_derived, "belarus_subset.tif"))
 
+bt <- brick(paste0(p_dat_derived, "belarus_subset.tif"))
+
+
 ```
 
 
@@ -1538,4 +1541,237 @@ getDTthreads(verbose = TRUE)
 
 ```
 
+
+```{r recultivation-threshold}
+# goal - set the recultivation threshold to be 2 consecutive years, so as to reduce the influence of classification errors
+bs
+bt
+
+dt <- cc_create_bin() # create tester
+
+# calculate age
+cc_calc_age(dt)
+
+dt[V1 >= 5, .N]
+sapply(1:15, function(i) {dt[get(paste0("V", 1:15)[i]) >= 5, .N]})
+
+dt[V5 > 0, ]
+
+
+# first, how many one year periods are there between abandonment periods?
+dt[V6 == 0, ][V5 + V7 == 2, ] # this selects rows with a 1 0 1 pattern. 
+dt <- dt[V1 > 0]
+
+
+for (i in start:ncol(dt)) {
+  # subset rows that are greater than 0 (i.e. 1, for noncrop), and
+  dt[get(names(dt)[i]) > 0, 
+    
+     # set them equal to the previous column's value in that row, plus 1.
+     names(dt)[i] := get(names(dt)[i-1]) + 1] 
+}
+
+# this calculates the number of 1 0 1 blips in each
+blips <- sapply(start:(ncol(dt) - 1), function(i) {dt[get(paste0("V", 1:ncol(dt))[i]) == 0, ][get(paste0("V", 1:ncol(dt))[i-1]) + 
+                                                                                get(paste0("V", 1:ncol(dt))[i+1]) == 2, .N]})
+sum(blips)
+dt
+rbind(dt, t(as.matrix(c(0, blips, 0))))
+i <- 2
+
+
+
+# ok, calculate the 1-0-1 periods after cleaning the dt to update lc codes:
+# start heavy processing
+dt <- fread(input = paste0(p_dat_derived, "shaanxi.csv"))
+names(dt) <- gsub(pattern = "andcover", replacement = "y", names(dt))
+
+tic.clearlog()
+tic("update land cover classes")
+cc_update_lc(dt, crop_code = 0, noncrop_code = 1)  # update land cover classes
+toc(log = TRUE)
+
+tic("remove NAs")
+dt <- na.omit(dt)   # remove NAs
+toc(log = TRUE)
+
+# tic("filter non abandonment pixels")
+# dt <- cc_remove_non_abn(dt)   # filter non abandonment pixels (i.e. all entirely crop and entirely non-crop rows)
+# toc(log = TRUE)
+
+# this calculates the number of 1 0 1 blips in each
+tic("blips")
+blips <- sapply(start:(ncol(dt) - 1), function(i) {
+  dt[get(names(dt)[i]) == 0, 
+     ][get(names(dt)[i-1]) + 
+         get(names(dt)[i+1]) == 2, .N]
+  }
+  )
+toc(log = TRUE)
+
+# 1-0-0-1 blips
+blips_2 <- sapply(start:(ncol(dt) - 2), function(i) {
+  dt[get(names(dt)[i]) == 0, 
+     ][get(names(dt)[i+1]) == 0
+       ][get(names(dt)[i-1]) + 
+           get(names(dt)[i+1]) + 
+           get(names(dt)[i+2]) == 2, .N]
+  }
+  )
+
+print(tic.log())
+
+
+blips_df <- data.frame(
+  year = 1987:2017, 
+  blips = c(0, blips, 0),
+  blips_2 = c(0, blips_2, 0, 0))
+
+length(1987:2017)
+length(blips)
+length(blips_2)
+
+blips_df$blips_2
+blips_2
+dt
+ncol(dt)
+
+sum(blips)/(nrow(dt)*31)*100 # 0.5% of all cells are the 0-1-0 blips
+sum(blips_2)/(nrow(dt)*31)*100 # 0.25% of all cells are the 0-1-0 blips
+
+blips_df
+
+c(0, blips_2, 0, 0)
+dt
+t(as.matrix(c(0, blips_2, 0, 0)))
+
+
+```
+
+```{r}
+# start here, 
+# update the blips to 1, then recalculate the age of the cells
+
+# processing rasters involves:
+
+# 1. load the raster, update layer names
+# 2. convert raster to data.table, write to file
+# 3. update land cover classes (cc_update_lc())
+# 4. remove NAs. By default, removes all rows with any missing values. 
+# 5. remove non-abandonment rows. This means removing all rows that are either continously crop or continuously non-crop. 
+# 6. calculate the age of each pixel in each year
+# 7. remove non-abandonment periods, where pixel is in non-crop from the start of the time series (i.e. those periods where the pixel is in non-crop before crop land cover status is picked up. Our definition only looks for crop -> non-crop transitions. Therefore, anything that is non-crop before crop doesn't count. Recultivation of abandoned land is only crop -> non-crop -> crop. Not strictly non-crop -> crop.). Write the age_dt, now that it is cleaned
+# 8. make a diff dt, write to file.
+# 9. extract lengths of abandonment periods, save to file. 
+# 
+# To add in calculation of the blips, I just need to put this in right before the age calculation. But, this still presents a problem, in that I get blips that occur within trajectories that start the time series as non-crop (i.e. 1 1 1 1 1 1 1 0 1 1 1 1 ). This is probably fine, since my goal here is to plug these holes, making the assumption that recultivation is only (conservatively) defined as continuously recultivated for 2 or more years. 
+recultivation_threshold <- 4
+
+run <- TRUE
+recultivation_threshold <- 3
+dt[get(names(dt)[i-1]) == 1 & 
+     get(names(dt)[i]) == 0 & 
+     if(run) {get(names(dt)[i+1]) == 0} &
+     if(run) {get(names(dt)[i+2]) == 0} &
+     get(names(dt)[i+recultivation_threshold]) == 1, 
+   .N]
+  
+# either calculate the number of blips first, fill them with 1s, and then calculate age, followed by the removal of non-abn periods at the start.
+
+dt <- cc_create_bin() # create tester
+
+
+
+dt <- cc_create_bin()
+cc_fill_blips(dt, recultivation_threshold = 3, replacement_value = 9)
+dt[]
+test <- cc_count_blips(dt, start_year = 1987, return_df = F)
+
+length(dt)
+blips1 <- data.frame(
+  year = seq(from = start_year, to = length(dt) + start_year, by = 1),
+  one = cc_count_blips(dt, recultivation_threshold = 1),
+  two = cc_count_blips(dt, recultivation_threshold = 2),
+  three = cc_count_blips(dt, recultivation_threshold = 3))
+
+identical(blips0, blips1)
+dt[get(names(dt)[i]) == 0, # subset to all rows that are 0
+       
+       # then to rows where the columns immediately before and after are both 1 (adding to 2) 
+       ][get(names(dt)[i-1]) + get(names(dt)[i+1]) == 2, ][, 
+         
+         # then, set the value in that column to 1 (plugging the hole)
+         names(dt)[i] := 5]
+    
+blips <- sapply(start:(ncol(dt) - 1), function(i) {
+      dt[get(names(dt)[i]) == 0 & 
+           get(names(dt)[i-1]) + 
+           get(names(dt)[i+1]) == 2, .N]
+      }
+      )
+
+dt
+i <-2
+
+# Or: recode the age calculation to account for a recultivation threshold.
+# right now, the age calculation works by looking at the value of the immediately preceding 
+cc_calc_age
+for (i in start:ncol(dt)) {
+    # subset rows that are greater than 0 (i.e. 1, for noncrop), and
+    dt[get(names(dt)[i]) > 0, 
+       # set them equal to the previous column's value in that row, plus 1.
+       names(dt)[i] := get(names(dt)[i-1]) + 1] 
+  }
+
+
+
+# calculate age
+cc_calc_age(dt)
+
+
+```
+
+
+
+```{r fill-blips}
+dt <- cc_create_bin()
+blips_count <- cc_count_blips(dt)
+# cc_count_blips_ind(dt, recultivation_threshold = 1)
+
+
+# tic("write out blips_count")
+# print("writing out blips_count data.frame")
+# fwrite(blips_count, file = paste0(path_out, name, "_blips_count.csv"))
+# toc(log = TRUE)
+dt <- cc_create_bin()
+cc_fill_blips(dt, recultivation_threshold = 3, replacement_value = 1)
+cc_calc_age(dt)
+dt3 <- dt
+
+dt0
+dt1
+dt2
+dt3
+
+s
+str_detect(class(s), "Raster")
+grep("Raster", class(s)[1]) > 0
+
+cc_process_rasters(site = "shaanxi",
+                   path = p_dat_derived,
+                   label = "blip1",
+                   clean_blips = TRUE)
+
+```
+
+
+
+```{r clean-up}
+env_size(ls())
+
+
+
+
+
+```
 

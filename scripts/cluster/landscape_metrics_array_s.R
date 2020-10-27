@@ -39,6 +39,8 @@ names(reprojected_r) <- paste0("y", 1987:2017) # rename
 # print(check_reprojected_r)
 # toc(log = TRUE)
 
+# note, metrics 8 (total edge), 9-11 (perimeter-area ratio) and 12 (cohesion) require more memory than the others.
+
 # Metrics to run
 metrics_list <- c(
   "lsm_c_ai", # aggregation index, class level (RS has used this one)
@@ -53,7 +55,16 @@ metrics_list <- c(
   "lsm_c_te", # total edge
   "lsm_c_para_cv", # perimeter-area ratio, cv
   "lsm_c_para_mn", # perimeter-area ratio, mean
-  "lsm_c_para_sd" # perimeter-area ratio, sd
+  "lsm_c_para_sd", # perimeter-area ratio, sd
+  
+  # new additions, # 12-15
+  "lsm_c_cohesion", # COHESION is an 'Aggregation metric'. It characterises the connectedness of patches belonging to class i. 
+                    # It can be used to asses if patches of the same class are located aggregated or rather isolated and thereby 
+                    # COHESION gives information about the configuration of the landscape. 
+  
+  "lsm_c_contig_mn", # Shape metric - Measures the "contiguity" of cells within patches (the class level metric is the mean across all patches in a class)
+  "lsm_c_contig_cv",
+  "lsm_c_contig_sd"
 )
 
 print("Calculating the following metric:")
@@ -86,31 +97,3 @@ toc(log = TRUE) # final toc
 
 print(tic.log())
 
-
-
-# as a for loop:
-# 
-# frag_metrics_l <- vector(mode = "list", length = length(metrics_list))
-# names(frag_metrics_l) <- metrics_list
-# 
-# tic("calculate lsm")
-# for (i in seq_along(metrics_list)) {
-#   tic(msg = paste0("calculate: ", metrics_list[i]))
-#   frag_metrics_l[i] <- reprojected_r %>%
-#     calculate_lsm(
-#       what = metrics_list[i],
-#       classes_max = 4, # with 0 removed
-#       verbose = TRUE, progress = TRUE
-#     ) %>%
-#     dplyr::left_join(x = .,
-#                      y = lsm_abbreviations_names, 
-#                      by = c("metric", "level"))
-#   
-#   assign(paste0("area", outfile_label), area)
-#   save(frag_metrics_l, 
-#        file = paste0(p_output, "frag_", metrics_list[i], ".rds")
-#        )
-#   
-# 
-# }
-# toc(log = TRUE)

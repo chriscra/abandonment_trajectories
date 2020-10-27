@@ -108,7 +108,7 @@ cc_make_dt_binary <- function(dt) {
       dt[, c(names(dt)[i]) := get(names(dt)[i]) - 1]
     }
   } else {
-    for (i in seq_len(length(dt))) {
+    for (i in seq_len(length(dt))) { # iterating across columns
       dt[, c(names(dt)[i]) := get(names(dt)[i]) - 1] 
     }
   }
@@ -135,6 +135,241 @@ cc_remove_non_abn <- function(dt) {
 }
 
 
+
+# -------------------------------------------------------------------------- #
+# Count number of periods of recultivation that fall below a continuous recultivation threshold.
+# -------------------------------------------------------------------------- #
+cc_count_blips <- function(dt, start_year = 1987) {
+  # use as follows:
+  # df <- cc_count_blips(dt)
+  # This function counts the number of short recultivation periods that fall
+  # below a specified threshold of continuous recultivation, in each year.
+  
+  if (length(grep("[xy]$", names(dt))) > 0) {
+    if (!identical(names(dt)[1:2], c("x", "y"))) {
+      stop("x and y must be the first two columns in the data.table")
+    } else {
+      start <- 4
+    }
+  } else {
+    start <- 2
+  }
+  
+  # 1-0-1 blips
+  blips_1 <- sapply(start:(ncol(dt) - 1), function(i) {
+    dt[get(names(dt)[i-1]) == 1 & 
+         get(names(dt)[i]) == 0 & 
+         get(names(dt)[i+1]) == 1, 
+       .N]
+  }
+  )
+
+  # 1-0-0-1 blips
+  blips_2 <- sapply(start:(ncol(dt) - 2), function(i) {
+    dt[get(names(dt)[i-1]) == 1 & 
+         get(names(dt)[i]) == 0 & 
+         get(names(dt)[i+1]) == 0 & 
+         get(names(dt)[i+2]) == 1, 
+       .N]
+  }
+  )
+  
+  # 1-0-0-0-1 blips
+  blips_3 <- sapply(start:(ncol(dt) - 3), function(i) {
+    dt[get(names(dt)[i-1]) == 1 & 
+         get(names(dt)[i]) == 0 & 
+         get(names(dt)[i+1]) == 0 & 
+         get(names(dt)[i+2]) == 0 & 
+         get(names(dt)[i+3]) == 1, .N]
+  }
+  )
+
+  blips_df <- data.frame(
+    year = seq_along(dt) - 1 + start_year,
+    one = c(0, blips_1, rep.int(0, 1)),
+    two = c(0, blips_2, rep.int(0, 2)),
+    three = c(0, blips_3, rep.int(0, 3)))
+  
+  blips_df
+}
+
+
+cc_count_blips_ind <- function(dt, 
+                               recultivation_threshold = 1,
+                               return_df = TRUE,
+                               start_year = 1987
+) {
+  # use as follows:
+  # cc_count_blips(dt)
+  # This function counts the number of short recultivation periods that fall
+  # below a specified threshold of continuous recultivation, in each year.
+  
+  # error if incompatible threshold
+  stopifnot("Function currently only accepts recultivation thresholds of 1 through 3." =
+              {recultivation_threshold >= 1
+                recultivation_threshold <= 3
+              })
+  
+  if (length(grep("[xy]$", names(dt))) > 0) {
+    if (!identical(names(dt)[1:2], c("x", "y"))) {
+      stop("x and y must be the first two columns in the data.table")
+    } else {
+      start <- 4
+    }
+  } else {
+    start <- 2
+  }
+  
+  # 1-0-1
+  if(recultivation_threshold == 1) {
+  blips <- sapply(start:(ncol(dt) - recultivation_threshold), function(i) {
+    dt[get(names(dt)[i-1]) == 1 & 
+         get(names(dt)[i]) == 0 & 
+         get(names(dt)[i+1]) == 1, 
+       .N]
+  }
+  )
+  }
+  
+  # 1-0-0-1 blips
+  if(recultivation_threshold == 2) {
+  blips <- sapply(start:(ncol(dt) - recultivation_threshold), function(i) {
+    dt[get(names(dt)[i-1]) == 1 & 
+         get(names(dt)[i]) == 0 & 
+         get(names(dt)[i+1]) == 0 & 
+         get(names(dt)[i+2]) == 1, 
+       .N]
+  }
+  )
+  }
+  
+  # 1-0-0-0-1 blips
+  if(recultivation_threshold == 3) {
+  blips <- sapply(start:(ncol(dt) - recultivation_threshold), function(i) {
+    dt[get(names(dt)[i-1]) == 1 & 
+         get(names(dt)[i]) == 0 & 
+         get(names(dt)[i+1]) == 0 & 
+         get(names(dt)[i+2]) == 0 & 
+         get(names(dt)[i+3]) == 1, .N]
+  }
+  )
+  }
+  
+  blips <- c(0, blips, rep.int(0, recultivation_threshold))
+  blips_df <- data.frame(
+    year = seq_along(dt) - 1 + start_year,
+    count = blips
+    )
+  
+  ifelse(return_df, 
+         return(blips_df), 
+         return(blips))
+}
+
+# -------------------------------------------------------------------------- #
+# Fill short periods of recultivation that fall below a continuous recultivation threshold.
+# -------------------------------------------------------------------------- #
+cc_fill_blips <- function(dt, recultivation_threshold = 1, replacement_value = 1) {
+  # notes:
+  # This function fills short periods of recultivation that fall below a recultivation threshold.
+  # It recodes from crop back to non-crop, based on how many continuous years 
+  # of crop classification are required by the threshold.
+  # This cleaning step should occur before calculating the age.
+  # Use as follows:
+  # cc_fill_blips(dt)
+  
+  stopifnot("Function currently only accepts recultivation thresholds of 1 through 3." = 
+              {recultivation_threshold >= 1
+                recultivation_threshold <= 3
+              })
+  
+  if (length(grep("[xy]$", names(dt))) > 0) {
+    if (!identical(names(dt)[1:2], c("x", "y"))) {
+      stop("x and y must be the first two columns in the data.table")
+    } else {
+      start <- 4
+    }
+  } else {
+    start <- 2
+  }
+  
+  # 1-0-1
+  if(recultivation_threshold == 1) {
+    for (i in start:(ncol(dt) - recultivation_threshold)) {
+      dt[get(names(dt)[i-1]) == 1 & 
+           get(names(dt)[i]) == 0 & 
+           get(names(dt)[i+1]) == 1, # subset to 1-0-1
+         
+         # then, set the value in those columns to 1 (plugging the hole)
+         names(dt)[i] := replacement_value]
+    }
+  }
+  
+  # 1-0-0-1 blips
+  if(recultivation_threshold == 2) {
+    # fill 1-0-1 first, 
+    for (i in start:(ncol(dt) - recultivation_threshold)) {
+      dt[get(names(dt)[i-1]) == 1 & 
+           get(names(dt)[i]) == 0 & 
+           get(names(dt)[i+1]) == 1, # subset to 1-0-1
+         
+         # then, set the value in those columns to 1 (plugging the hole)
+         names(dt)[i] := replacement_value]
+    }
+    
+    # then fill 1-0-0-1
+    for (i in start:(ncol(dt) - recultivation_threshold)) {
+      dt[get(names(dt)[i-1]) == 1 & 
+           get(names(dt)[i]) == 0 & 
+           get(names(dt)[i+1]) == 0 & 
+           get(names(dt)[i+2]) == 1, # subset to 1-0-0-1
+         
+         # then, set the value in those columns to 1 (plugging the hole)
+         c(names(dt)[i], 
+           names(dt)[i+1]) := replacement_value]
+    }
+  }
+  
+  
+  # 1-0-0-0-1 blips
+  if(recultivation_threshold == 3) {
+    # fill 1-0-1 first, 
+    for (i in start:(ncol(dt) - recultivation_threshold)) {
+      dt[get(names(dt)[i-1]) == 1 & 
+           get(names(dt)[i]) == 0 & 
+           get(names(dt)[i+1]) == 1, # subset to 1-0-1
+         
+         # then, set the value in those columns to 1 (plugging the hole)
+         names(dt)[i] := replacement_value]
+    }
+    
+    # then fill 1-0-0-1
+    for (i in start:(ncol(dt) - recultivation_threshold)) {
+      dt[get(names(dt)[i-1]) == 1 & 
+           get(names(dt)[i]) == 0 & 
+           get(names(dt)[i+1]) == 0 & 
+           get(names(dt)[i+2]) == 1, # subset to 1-0-0-1
+         
+         # then, set the value in those columns to 1 (plugging the hole)
+         c(names(dt)[i], 
+           names(dt)[i+1]) := replacement_value]
+    }
+    
+    # then fill 1-0-0-0-1
+    for (i in start:(ncol(dt) - recultivation_threshold)) {
+      dt[get(names(dt)[i-1]) == 1 & 
+           get(names(dt)[i]) == 0 & 
+           get(names(dt)[i+1]) == 0 & 
+           get(names(dt)[i+2]) == 0 & 
+           get(names(dt)[i+3]) == 1, # subset to 1-0-0-0-1
+         
+         # then, set the value in that column to 1 (plugging the hole)
+         c(names(dt)[i], 
+           names(dt)[i+1],
+           names(dt)[i+2]) := replacement_value]
+    }
+  }
+}
 
 # -------------------------------------------------------------------------- #
 # Calculate age of each noncrop cell
@@ -233,20 +468,21 @@ cc_extract_length <- function(dt_diff) {
 #     DT[is.na(get(i)), (i):=0]
 # }
 
-
 # -------------------------------------------------------------------------- #
-# Extract lengths of all abandonment periods
+# Save raw raster as data.table
 # -------------------------------------------------------------------------- #
-
-cc_process_rasters <- function(input_raster_file, name, path_out = p_dat_derived,
-                               gsub_pattern = "andcover") {
+cc_r_to_dt <- function(site, path = p_dat_derived) {
   # requires raster, data.table, devtools, tictoc, dtraster
   tic.clearlog()
   
   tic("full script processing time")
+  print("Processing raster for site: ", site)
+  print("Path: ", path)
+  
+  print("Start by processing input raster")
   # load raster
   tic("load raster")
-  r <- brick(input_raster_file)
+  r <- brick(paste0(path, site, ".tif"))
   if (nlayers(r) != 31) {
     stop("Raster does not have 31 layers.")
   }
@@ -256,6 +492,7 @@ cc_process_rasters <- function(input_raster_file, name, path_out = p_dat_derived
   tic("update raster layer names")
   # names(r) <- gsub(gsub_pattern, "y", names(r))
   names(r) <- paste0("y", 1987:2017) # 
+  
   toc(log = TRUE)
   
   # load as a data.table - warning, this is very slow
@@ -268,8 +505,48 @@ cc_process_rasters <- function(input_raster_file, name, path_out = p_dat_derived
   # write out data.table as a csv
   tic("write out data.table as a csv")
   print("writing data.table to csv")
-  fwrite(dt, file = paste0(path_out, name, ".csv"))
+  fwrite(dt, file = paste0(path, site, ".csv"))
   toc(log = TRUE)
+  
+  toc(log = TRUE) # final toc
+  
+  print(paste0("Done converting raster to dt: ", site))
+  print(tic.log())
+}
+
+
+# -------------------------------------------------------------------------- #
+# Process data.tables to calculate and extract abandonment periods
+# -------------------------------------------------------------------------- #
+
+cc_filter_abn_dt <- function(site, 
+                             path = p_dat_derived,
+                             label = NULL,
+                             clean_blips = NULL,
+                             recultivation_threshold = 1,
+                             replacement_value = 1) {
+  # requires raster, data.table, devtools, tictoc, dtraster
+  tic.clearlog()
+  
+  tic("full script processing time")
+  print("Processing data.table for site: ", site)
+  print("Path: ", path)
+  print("Label: ", label)
+    
+  print("Start by loading raw data.table")
+  # -------------------------------------------------------- #
+  # (re)load raw dt
+  tic("load the raw data.table")
+  dt <- fread(input = paste0(path, site,".csv"))
+  toc(log = TRUE)
+  
+  # update names
+  if (length(grep("x$|y$", invert = TRUE, names(dt))) != 31) {
+    stop("data.table does not have 31 year columns (in addition to x and y)")
+  }
+  names(dt) <- paste0("y", 1987:2017) # rename
+  # seq_along(dt) - 1 + start_year
+
   
   # start heavy processing
   tic("update land cover classes")
@@ -284,6 +561,24 @@ cc_process_rasters <- function(input_raster_file, name, path_out = p_dat_derived
   dt <- cc_remove_non_abn(dt)   # filter non abandonment pixels
   toc(log = TRUE)
   
+  if(clean_blips) {
+    tic("count and write blips_count")
+    print("counting blips, writing out blips_count data.frame")
+    blips_count <- cc_count_blips(dt)
+    fwrite(blips_count, file = paste0(path, site, "_blips_count.csv"))
+    toc(log = TRUE)
+    
+    tic("fill recultivation blips")
+    print("filling recultivation blips")
+    print("recultivation threshold: ", recultivation_threshold)
+    print("replacement value: ", replacement_value)
+    cc_fill_blips(dt, recultivation_threshold = recultivation_threshold, 
+                  replacement_value = replacement_value)
+    toc(log = TRUE)
+  } else {
+    print("Note: did not count or fill recultivation blips.")
+    }
+  
   tic("calculate age")
   cc_calc_age(dt)  # calculate age
   toc(log = TRUE)
@@ -295,7 +590,7 @@ cc_process_rasters <- function(input_raster_file, name, path_out = p_dat_derived
   # write out cleaned abandonment age data.table
   tic("write out cleaned abandonment age data.table")
   print("writing out cleaned abandonment age data.table")
-  fwrite(dt, file = paste0(path_out, name, "_age.csv"))
+  fwrite(dt, file = paste0(path, site, "_age", label,".csv"))
   toc(log = TRUE)
   
   # make diff
@@ -306,7 +601,7 @@ cc_process_rasters <- function(input_raster_file, name, path_out = p_dat_derived
   # write out dt_diff
   tic("write out dt_diff")
   print("writing out dt_diff")
-  fwrite(dt_diff, file = paste0(path_out, name, "_diff.csv"))
+  fwrite(dt_diff, file = paste0(path, site, "_diff", label,".csv"))
   toc(log = TRUE)
   
   # extract length
@@ -321,13 +616,13 @@ cc_process_rasters <- function(input_raster_file, name, path_out = p_dat_derived
   
   tic("write out length data.table")
   print("writing out length data.table")
-  fwrite(length, file = paste0(path_out, name, "_length.csv"))
+  fwrite(length, file = paste0(path, site, "_length", label,".csv"))
   toc(log = TRUE)
   
   
   toc(log = TRUE) # final toc
   
-  print(paste0("Done: ", name))
+  print(paste0("Done: ", site))
   print(tic.log())
 }
 
@@ -364,6 +659,7 @@ cc_calc_max_age <- function(dt, directory = p_dat_derived, name) {
   fwrite(dt[, .(x, y, max_length)], file = paste0(directory, name, "_max_length.csv"))
   
 }
+
 
 
 # area/persistence functions ---- 

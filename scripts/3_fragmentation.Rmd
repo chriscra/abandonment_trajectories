@@ -424,6 +424,8 @@ btr_metrics <- btr_metrics %>%
 # Question: to what extent does abandonment result in older, larger, and more connected grasslands and forests? 
 
 # select landscape metrics to run:
+list_lsm() %>% arrange(level, type, name) %>% select(function_name, name, type, level) %>% print(n = 132)
+
 # what matters to species? size of patches, shape/area edge perimeter, connectivity
 list_lsm() %>% arrange(level, type, name) %>% select(function_name, name, type, level) %>% select(name) %>% unlist(use.names = FALSE) %>% grep(pattern = "total edge", ., value = TRUE)# %>% print(n = 132)
 

@@ -17,7 +17,7 @@ needed_packages <- c(
   "data.table", "raster", "rgdal", "sp", "sf", "mapview", 
   "gdalUtils", "gdata", "GISTools", "rgeos", "lwgeom", "fasterize",
   
-  "tidyverse", "lobstr", "pryr", "reshape2",
+  "tidyverse", "lobstr", "pryr", "reshape2", "rlang",
   # tidyverse includes ggplot2, dplyr, tidyr, readr, purrr, tibble, stringr, and forcats
   
   # visualization:

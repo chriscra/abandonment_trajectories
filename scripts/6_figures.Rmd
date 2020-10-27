@@ -28,7 +28,12 @@ list.files(p_dat_derived)
 #       3. Cropland 
 #       4. Herbaceous land (e.g. grassland)
 
+# testers:
 bs <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
+bt <- brick(paste0(p_dat_derived, "belarus_subset.tif"))
+names(bs) <- paste0("y", 1987:2017)
+names(bt) <- paste0("y", 1987:2017)
+
 
 # -------------------------- rasters --------------------------- #
 # raw rasters

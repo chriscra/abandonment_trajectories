@@ -5,9 +5,11 @@
 # using the R package landscapemetrics
 # -------------------------------------------------------- #
 args <- commandArgs(TRUE) # access the slurm array variable
-run <- as.numeric(args[1])
-# run <- 1
-site <- "belarus"
+indx <- as.numeric(args[1])
+site_list <- c("shaanxi", "belarus") # list of all sites
+site <- site_list[indx] # set site:
+
+run <- 12
 
 
 # -------------------------------------------------------- #

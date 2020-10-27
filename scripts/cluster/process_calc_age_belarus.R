@@ -17,8 +17,11 @@ install_clpkg <- lapply(cluster_dev_packages, library, character.only = TRUE) # 
 
 
 # set paths
+p_dat_derived <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
+p_output <- "/scratch/network/clc6/abandonment_trajectories/output/"
+
 file_in <- "/scratch/network/clc6/abandonment_trajectories/data_derived/belarus.tif"
-path_out <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
+
 
 # load functions
 source("/home/clc6/abandonment_trajectories/scripts/util/_util_dt_filter_functions.R")
@@ -26,5 +29,5 @@ source("/home/clc6/abandonment_trajectories/scripts/util/_util_dt_filter_functio
 # run function
 cc_process_rasters(input_raster_file = file_in,
                    name = "belarus", 
-                   path_out = path_out,
+                   path = p_dat_derived,
                    gsub_pattern = "smolensk")
