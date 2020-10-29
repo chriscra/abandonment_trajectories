@@ -487,7 +487,7 @@ lsm_c_core_cv() # edge_depth by default is one cell.
 metrics_list <- c(
   "lsm_c_ai", # aggregation index, class level (RS has used this one)
   "lsm_c_clumpy", # clumpiness index, class (maybe)
-
+  
   "lsm_c_np", # number of patches, class
   "lsm_c_area_cv", # patch area, cv, per class
   "lsm_c_area_mn", # patch area, mean, per class
@@ -497,7 +497,16 @@ metrics_list <- c(
   "lsm_c_te", # total edge
   "lsm_c_para_cv", # perimeter-area ratio, cv
   "lsm_c_para_mn", # perimeter-area ratio, mean
-  "lsm_c_para_sd" # perimeter-area ratio, sd
+  "lsm_c_para_sd", # perimeter-area ratio, sd
+  
+  # new additions, # 12-15
+  "lsm_c_cohesion", # COHESION is an 'Aggregation metric'. It characterises the connectedness of patches belonging to class i. 
+                    # It can be used to asses if patches of the same class are located aggregated or rather isolated and thereby 
+                    # COHESION gives information about the configuration of the landscape. 
+  
+  "lsm_c_contig_mn", # Shape metric - Measures the "contiguity" of cells within patches (the class level metric is the mean across all patches in a class)
+  "lsm_c_contig_cv",
+  "lsm_c_contig_sd"
 )
 
 # longer list of metrics
@@ -817,11 +826,11 @@ b$y1987 %>% ncell()
 site <- "belarus"
 
 
-cc_clean_frag_results(site = "shaanxi")
+cc_clean_frag_results(site = "shaanxi", n_metrics = 15)
 load(file = paste0(p_output, "frag/frag_", "shaanxi", ".rds"),
          verbose = TRUE)
 
-cc_clean_frag_results(site = "belarus")
+cc_clean_frag_results(site = "belarus", n_metrics = 15)
 load(file = paste0(p_output, "frag/frag_", "belarus", ".rds"),
          verbose = TRUE)
 

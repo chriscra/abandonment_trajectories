@@ -1733,34 +1733,66 @@ cc_calc_age(dt)
 
 
 
-```{r fill-blips}
-dt <- cc_create_bin()
-blips_count <- cc_count_blips(dt)
-# cc_count_blips_ind(dt, recultivation_threshold = 1)
+```{r explore-blips}
+p_dat_derived
+site <- "shaanxi"
+site <- "belarus"
+site_label <- "_s"
+blip_label <- "_blip1"
+
+# explore results
+s_blip_count <- read_csv(paste0(p_dat_derived, "shaanxi", "_blips_count", blip_label, ".csv"))
+b_blip_count <- read_csv(paste0(p_dat_derived, "belarus", "_blips_count", blip_label, ".csv"))
+s_blip_count
+b_blip_count
 
 
-# tic("write out blips_count")
-# print("writing out blips_count data.frame")
-# fwrite(blips_count, file = paste0(path_out, name, "_blips_count.csv"))
-# toc(log = TRUE)
-dt <- cc_create_bin()
-cc_fill_blips(dt, recultivation_threshold = 3, replacement_value = 1)
-cc_calc_age(dt)
-dt3 <- dt
+# load the full processed data.tables
+s_length_blip1 <- fread(input = paste0(p_dat_derived, "shaanxi", "_length", blip_label, ".csv"))
+b_length_blip1 <- fread(input = paste0(p_dat_derived, "belarus", "_length", blip_label, ".csv"))
+s_diff_blip1 <- fread(input = paste0(p_dat_derived, "shaanxi", "_diff", blip_label, ".csv"))
+b_diff_blip1 <- fread(input = paste0(p_dat_derived, "belarus", "_diff", blip_label, ".csv"))
+s_age_blip1 <- fread(input = paste0(p_dat_derived, "shaanxi", "_age", blip_label, ".csv"))
+s_age <- fread(input = paste0(p_dat_derived, "shaanxi", "_age", ".csv"))
+b_age_blip1 <- fread(input = paste0(p_dat_derived, "belarus", "_age", blip_label, ".csv"))
 
-dt0
-dt1
-dt2
-dt3
+# explore some stats:
+s_length_blip1[, site := "shaanxi"]
+b_length_blip1[, site := "belarus"]
 
-s
-str_detect(class(s), "Raster")
-grep("Raster", class(s)[1]) > 0
 
-cc_process_rasters(site = "shaanxi",
-                   path = p_dat_derived,
-                   label = "blip1",
-                   clean_blips = TRUE)
+length_blip1_all <- rbindlist(list(s_length_blip1, b_length_blip1))
+
+# summarize the mean length
+blip1_dat <- length_blip1_all[, .(mean_length = mean(length)), by = site]
+blip1_dat2 <- length_blip1_all[length >= 5, .(mean_length_thr5 = mean(length)), by = site]
+blip1_dat <- merge(blip1_dat, blip1_dat2, by = "site", sort = FALSE)
+blip1_dat
+
+# distill for histogram - see _figures.Rmd
+
+# test the blip data
+
+# try running the shaanxi summarize_abn_dts
+
+
+# summarize the blips, in context of how many cells are abandoned at some point:
+s_blip_count
+s_age
+s_age_blip1
+
+
+test <- cc_remove_non_abn(s_age) 
+test1 <- cc_remove_non_abn(s_age_blip1) 
+
+nrow(test)
+nrow(test1)
+nrow(test) - nrow(test1)
+# reduces the number of pixels that are abandoned by 215,263 pixels, including the blips
+
+(nrow(test) - nrow(test1))/nrow(test) * 100 # 6% of all cells that are abandoned!
+
+s_blip_count %>% colSums()
 
 ```
 
@@ -1768,10 +1800,6 @@ cc_process_rasters(site = "shaanxi",
 
 ```{r clean-up}
 env_size(ls())
-
-
-
-
 
 ```
 

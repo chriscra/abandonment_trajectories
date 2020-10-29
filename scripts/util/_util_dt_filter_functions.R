@@ -185,7 +185,7 @@ cc_count_blips <- function(dt, start_year = 1987) {
   )
 
   blips_df <- data.frame(
-    year = seq_along(dt) - 1 + start_year,
+    year = 1:length(grep("x$|y$", invert = T, names(dt))) - 1 + start_year,
     one = c(0, blips_1, rep.int(0, 1)),
     two = c(0, blips_2, rep.int(0, 2)),
     three = c(0, blips_3, rep.int(0, 3)))
@@ -194,6 +194,7 @@ cc_count_blips <- function(dt, start_year = 1987) {
 }
 
 
+# --------------------- count blips of just one individual type ---------------------- #
 cc_count_blips_ind <- function(dt, 
                                recultivation_threshold = 1,
                                return_df = TRUE,
@@ -476,8 +477,8 @@ cc_r_to_dt <- function(site, path = p_dat_derived) {
   tic.clearlog()
   
   tic("full script processing time")
-  print("Processing raster for site: ", site)
-  print("Path: ", path)
+  print(paste0("Processing raster for site: ", site))
+  print(paste0("Path: ", path))
   
   print("Start by processing input raster")
   # load raster
@@ -529,9 +530,9 @@ cc_filter_abn_dt <- function(site,
   tic.clearlog()
   
   tic("full script processing time")
-  print("Processing data.table for site: ", site)
-  print("Path: ", path)
-  print("Label: ", label)
+  print(paste0("Processing data.table for site: ", site))
+  print(paste0("Path: ", path))
+  print(paste0("Label: ", label))
     
   print("Start by loading raw data.table")
   # -------------------------------------------------------- #
@@ -544,7 +545,7 @@ cc_filter_abn_dt <- function(site,
   if (length(grep("x$|y$", invert = TRUE, names(dt))) != 31) {
     stop("data.table does not have 31 year columns (in addition to x and y)")
   }
-  names(dt) <- paste0("y", 1987:2017) # rename
+  names(dt) <- c("x", "y", paste0("y", 1987:2017)) # rename
   # seq_along(dt) - 1 + start_year
 
   
@@ -565,7 +566,7 @@ cc_filter_abn_dt <- function(site,
     tic("count and write blips_count")
     print("counting blips, writing out blips_count data.frame")
     blips_count <- cc_count_blips(dt)
-    fwrite(blips_count, file = paste0(path, site, "_blips_count.csv"))
+    fwrite(blips_count, file = paste0(path, site, "_blips_count", label, ".csv"))
     toc(log = TRUE)
     
     tic("fill recultivation blips")
@@ -651,12 +652,21 @@ cc_save_age_rasters <- function(name, directory = p_dat_derived) {
 # -------------------------------------------------------------------------- #
 # calculate the maximum length of time abandoned (max age) for each pixel 
 # -------------------------------------------------------------------------- #
-cc_calc_max_age <- function(dt, directory = p_dat_derived, name) {
+cc_calc_max_age <- function(directory = p_dat_derived, site, blip_label, label = NULL) {
   
-  dt[, max_length := max(.SD), .SDcols = -c("x", "y"), by = .(x, y)]
+  tic("load data")
+  abn_age_dt <- fread(file = paste0(p_dat_derived, site, "_age", blip_label, ".csv"))
+  toc(log = TRUE)
   
-  # write out just the max dt.
-  fwrite(dt[, .(x, y, max_length)], file = paste0(directory, name, "_max_length.csv"))
+  
+  tic("calculate max age in abn_age_dt")
+  abn_age_dt[, max_length := max(.SD), .SDcols = -c("x", "y"), by = .(x, y)]
+  toc(log = TRUE)
+  
+  
+  tic("write out max age dt")
+  fwrite(abn_age_dt[, .(x, y, max_length)], file = paste0(directory, site, "_max_length", blip_label, label, ".csv"))
+  toc(log = TRUE)
   
 }
 
@@ -670,6 +680,7 @@ cc_calc_max_age <- function(dt, directory = p_dat_derived, name) {
 # -------------------------------------------------------------------------- #
 cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster, 
                                     abandonment_threshold = 5) {
+  # names(abn_age_dt) <- c("x","y", paste0("y", 1987:2017))
   col_names <- grep("x$|y$", names(land_cover_dt), value = TRUE, invert = TRUE)
   area_raster <- raster::area(land_cover_raster) # calculate area in km2
   median_cell_area_km2 <- median(getValues(area_raster))
@@ -1060,19 +1071,27 @@ cc_calc_abn_area_diff <- function(abn_age_dt, land_cover_raster,
 }
 
 
-# generate the files needed to calculate plots
-cc_generate_dfs <- function(land_cover_dt,
-                            abn_age_dt, 
-                            land_cover_raster, 
-                            outfile_label,
-                            abandonment_threshold = 5,
-                            include_all = FALSE) {
+
+# -------------------------------------------------------------------------- #
+# Summarize abandonment data.tables, generating data.frames to use for plotting
+# -------------------------------------------------------------------------- #
+
+# formerly: cc_generate_dfs()
+cc_summarize_abn_dts <- function(land_cover_dt,
+                                 abn_age_dt, 
+                                 land_cover_raster, 
+                                 outfile_label,
+                                 abandonment_threshold = 5,
+                                 include_all = FALSE) {
+  
+  print("calculating total area per lc, with abandonment")
   # ------------- calculate total area per lc, with abandonment ---------------- #
   area <- cc_calc_area_per_lc_abn(land_cover_dt = land_cover_dt, 
                                   abn_age_dt = abn_age_dt, 
                                   land_cover_raster = land_cover_raster,
                                   abandonment_threshold = abandonment_threshold)
   
+  print("calculate abandonment persistence")
   # ------------------------ abandonment persistence --------------------------- #
   persistence_list <- cc_calc_persistence_all(abn_age_dt = abn_age_dt, 
                                               land_cover_raster = land_cover_raster,
@@ -1080,6 +1099,7 @@ cc_generate_dfs <- function(land_cover_dt,
                                               abandonment_threshold = abandonment_threshold,
                                               include_all_abandonment = include_all)
   
+  print("calculate abandonment area turnover")
   # -------------------- calculate the abandonment area turnover ------------------- #
   abn_area_change <- cc_calc_abn_area_diff(abn_age_dt = abn_age_dt, 
                                            land_cover_raster = land_cover_raster,
@@ -1099,17 +1119,20 @@ cc_generate_dfs <- function(land_cover_dt,
                                  by = c("year", "direction"))
   }
   
+  print("updating names")
   # change names
   assign(paste0("area", outfile_label), area)
   assign(paste0("persistence_list", outfile_label), persistence_list)
   assign(paste0("abn_area_change", outfile_label), abn_area_change)
   
+  print("saving files")
   # save files
   save(list = c(paste0("area", outfile_label), 
                 paste0("persistence_list", outfile_label),
                 paste0("abn_area_change", outfile_label)
-  ), 
-  file = paste0(p_output, "abn_dat_products", outfile_label, ".rds"))
+                ), 
+       file = paste0(p_output, "abn_dat_products", outfile_label, ".rds")
+       )
 }
 
 
@@ -1119,6 +1142,32 @@ cc_clean_frag_results <- function(site, n_metrics = 11, drop_0 = FALSE) {
     load(file = paste0(p_output, "frag/frag_", site, run, ".rds"),
          verbose = TRUE)
   }
+  
+  # make sure metrics_list is up-to-date
+  metrics_list <- c(
+    "lsm_c_ai", # aggregation index, class level (RS has used this one)
+    "lsm_c_clumpy", # clumpiness index, class (maybe)
+    
+    "lsm_c_np", # number of patches, class
+    "lsm_c_area_cv", # patch area, cv, per class
+    "lsm_c_area_mn", # patch area, mean, per class
+    "lsm_c_area_sd", # patch area, sd, per class
+    "lsm_c_ca", # total (class) area
+    
+    "lsm_c_te", # total edge
+    "lsm_c_para_cv", # perimeter-area ratio, cv
+    "lsm_c_para_mn", # perimeter-area ratio, mean
+    "lsm_c_para_sd", # perimeter-area ratio, sd
+    
+    # new additions, # 12-15
+    "lsm_c_cohesion", # COHESION is an 'Aggregation metric'. It characterises the connectedness of patches belonging to class i. 
+    # It can be used to asses if patches of the same class are located aggregated or rather isolated and thereby 
+    # COHESION gives information about the configuration of the landscape. 
+    
+    "lsm_c_contig_mn", # Shape metric - Measures the "contiguity" of cells within patches (the class level metric is the mean across all patches in a class)
+    "lsm_c_contig_cv",
+    "lsm_c_contig_sd"
+  )
   
   frag_l <- vector(mode = "list", length = n_metrics)
   names(frag_l) <- metrics_list[1:n_metrics]
@@ -1148,8 +1197,6 @@ cc_clean_frag_results <- function(site, n_metrics = 11, drop_0 = FALSE) {
     frag <- frag %>%
       filter(land_cover %in% c("non_veg", "woody_veg", "cropland", "grassland", NA))
   }
-  
-  
   
   # ------------------- save cleaned df -------------------- #
   # assign name
@@ -1214,6 +1261,7 @@ cc_save_plot_abn_persistence <- function(input_list, subtitle, outfile_label,
                                          width = 7, height = 5,
                                          save_all = TRUE, subtitle_all = NULL) {
   
+  input_list <- persistence_list_b
   # raw area
   gg_persistence_count <- ggplot(data = input_list$na_last) + 
     theme_classic() + 
@@ -1225,8 +1273,9 @@ cc_save_plot_abn_persistence <- function(input_list, subtitle, outfile_label,
          title = "Persistence of Abandoned Land",
          subtitle = subtitle,
          color = "Year Abandoned") + 
-    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom")
-  
+    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
+    
   # as percentage
   gg_persistence_proportion <- ggplot(data = input_list$na_last) + 
     theme_classic() + 
@@ -1239,7 +1288,8 @@ cc_save_plot_abn_persistence <- function(input_list, subtitle, outfile_label,
          title = "Persistence of Abandoned Land",
          subtitle = subtitle,
          color = "Year Abandoned") + 
-    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom")
+    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
   
   # na_first ----------- #
   gg_persistence_count_na_first <- ggplot(data = input_list$na_first) + 
@@ -1253,7 +1303,8 @@ cc_save_plot_abn_persistence <- function(input_list, subtitle, outfile_label,
          title = "Persistence of Abandoned Land",
          subtitle = subtitle,
          color = "Year Abandoned") + 
-    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom")
+    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
   
   gg_persistence_proportion_na_first <- ggplot(data = input_list$na_first) + 
     theme_classic() + 
@@ -1266,7 +1317,8 @@ cc_save_plot_abn_persistence <- function(input_list, subtitle, outfile_label,
          title = "Persistence of Abandoned Land",
          subtitle = subtitle,
          color = "Year Abandoned") + 
-    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom")
+    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
   
   
   # save
@@ -1455,34 +1507,39 @@ cc_save_plot_area_by_age_class <- function(input_list, subtitle, outfile_label,
 # ------------------------------------------------------------------------------------ #
 
 # save just the general intro plots
-cc_save_area_persistence_plots <- function(input_site_label = outfile_label, 
-                                 outfile_label,
-                                 subtitle, 
-                                 subtitle_all = paste0(subtitle, ", all abandonment"), 
-                                 save_all = TRUE) {
+cc_save_area_persistence_plots <- function(
+  input_site_label, 
+  blip_label,
+  outfile_label,
+  subtitle, 
+  subtitle_all = paste0(subtitle, ", all abandonment"), 
+  save_all = TRUE) {
+  
+  # load the data
+  load(file = paste0(p_output, "abn_dat_products", blip_label, input_site_label, ".rds"), verbose = TRUE)
   
   
   # ------------- calculate total area per lc, with abandonment ---------------- #
-  cc_save_plot_lc_abn_area(input_area_df = eval(parse(text = paste0("area", input_site_label))), 
+  cc_save_plot_lc_abn_area(input_area_df = eval(parse(text = paste0("area", blip_label, input_site_label))), 
                            subtitle = subtitle, outfile_label = outfile_label,
                            save_all = save_all)
   
   
   # ------------------------ abandonment persistence --------------------------- #
-  cc_save_plot_abn_persistence(input_list = eval(parse(text = paste0("persistence_list", input_site_label))), 
+  cc_save_plot_abn_persistence(input_list = eval(parse(text = paste0("persistence_list", blip_label, input_site_label))), 
                                subtitle = subtitle, outfile_label = outfile_label,
                                save_all = save_all, subtitle_all = subtitle_all)
   
   
   # -------------------- calculate the abandonment area turnover ------------------- #
-  cc_save_plot_area_gain_loss(input_area_change_df = eval(parse(text = paste0("abn_area_change", input_site_label))), 
+  cc_save_plot_area_gain_loss(input_area_change_df = eval(parse(text = paste0("abn_area_change", blip_label, input_site_label))), 
                               subtitle = subtitle, outfile_label = outfile_label,
                               save_all = save_all,
                               subtitle_all = subtitle_all)
   
   
   # -------------------- plot abandonment area by age class ------------------- #
-  cc_save_plot_area_by_age_class(input_list = eval(parse(text = paste0("persistence_list", input_site_label))), 
+  cc_save_plot_area_by_age_class(input_list = eval(parse(text = paste0("persistence_list", blip_label, input_site_label))), 
                                  subtitle = subtitle, outfile_label = outfile_label,
                                  save_all = save_all)
 }
@@ -1630,7 +1687,6 @@ cc_save_frag_plots <- function(input = frag_dat,
   
   # ------------------- 9-11. Perimeter-area ratio -------------------- #
   
-  
   # ------------------- perimeter-area ratio combo -------------------- #
   gg_frag_para_combo <- gg_frag_base %+%
     filter(input, metric %in% c("para_cv", "para_mn", "para_sd")) +
@@ -1657,7 +1713,24 @@ cc_save_frag_plots <- function(input = frag_dat,
   
   gg_frag_para_sd <- gg_frag_base %+% filter(input, metric == "para_sd") +
     labs(title = "Perimeter-Area Ratio, by land cover", y = "Perimeter-Area Ratio (sd)")
+
+    
+  # ------------------- 12. Cohesion Index -------------------- #
+  # this measures the connectedness of patches in each class.
+  gg_frag_cohesion <- gg_frag_base %+% filter(input, metric == "cohesion") +
+    labs(title = "Patch Cohesion Index, by land cover", y = "Cohesion Index Value")
   
+  
+  
+  # ------------------- 13-15. Contiguity -------------------- #
+  gg_frag_contig_combo <- gg_frag_base %+%
+    filter(input, metric %in% c("contig_cv", "contig_mn", "contig_sd")) +
+    labs(title = "Contiguity Index, by land cover", y = "Contiguity Index") + 
+    facet_grid(cols = vars(site), rows = vars(metric), scales = "free_y",
+               labeller = labeller(metric = c(contig_cv = "Coeffient of Variation (cv = sd/mean)", 
+                                              contig_mn = "Mean",  
+                                              contig_sd = "Standard Deviation (sd)")))
+
   
   
   
@@ -1732,6 +1805,17 @@ cc_save_frag_plots <- function(input = frag_dat,
   print(gg_frag_para_variation)
   dev.off()
   
+  # cohesion index
+  png(filename = paste0(p_output, "plots/frag_cohesion", outfile_label, ".png"), 
+      width = 7, height = 4, units = "in", res = 400)
+  print(gg_frag_cohesion)
+  dev.off()
+  
+  # contiguity index
+  png(filename = paste0(p_output, "plots/frag_contig_combo", outfile_label, ".png"), 
+      width = 7, height = 8, units = "in", res = 400)
+  print(gg_frag_contig_combo)
+  dev.off()
   
 }
 

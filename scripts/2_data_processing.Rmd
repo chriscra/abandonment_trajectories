@@ -596,6 +596,7 @@ b_length_merge <- rbindlist(list(b1_length,
                                  b4_length,
                                  b5_length,
                                  b6_length))
+
 # load the full belarus length file
 b_length <- fread(input = paste0(p_dat_derived, "belarus_length.csv"))
 # the order is off, because of the way the length extraction code works, extracting each year's column individually, and rbinding those.
@@ -626,11 +627,6 @@ dat <- length_all[, .(mean_length = mean(length)), by = site]
 dat2 <- length_all[length >= 5, .(mean_length_thr5 = mean(length)), by = site]
 dat <- merge(dat, dat2, by = "site", sort = FALSE)
 dat
-
-# Doesn't work
-dat[, mean_length2 := length_all[length >= 5, mean(length), by = site]]
-# mean time abandoned, if using 5 year abandonment definition threshold, following Yin et al. 2020
-
 
 # max length
 ```
@@ -671,6 +667,7 @@ max_distill <- rbind(b_max_distill, s_max_distill)
 # ggplots
 # both site histograms
 dat
+
 length_plot <- ggplot(data = distill) + 
   labs(title = "Histogram of all periods of abandonment") +
   geom_col(mapping = aes(x = length, y = freq), fill = "gray50") +

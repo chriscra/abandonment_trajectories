@@ -138,12 +138,23 @@ sum((b_distill$length * b_distill$freq)) / sum(b_distill$freq)
 
 # to use with ggplot, first distill the data
 
+# regular, no thresholds
 b_length_distill <- b_length[, .(freq = .N), by = length]
 b_length_distill[, site := "belarus"]
 s_length_distill <- s_length[, .(freq = .N), by = length]
 s_length_distill[, site := "shaanxi"]
 
 length_distill <- rbind(b_length_distill, s_length_distill)
+
+# blip1
+b_length_blip1_distill <- b_length_blip1[, .(freq = .N), by = length]
+b_length_blip1_distill[, site := "belarus"]
+s_length_blip1_distill <- s_length_blip1[, .(freq = .N), by = length]
+s_length_blip1_distill[, site := "shaanxi"]
+
+length_blip1_distill <- rbind(b_length_blip1_distill, s_length_blip1_distill)
+
+# max_length
 
 b_max_length_distill <- b_max_length[, .(freq = .N), by = max_length]
 b_max_length_distill[, site := "belarus"]
@@ -212,11 +223,24 @@ length_plot <- ggplot(data = length_distill) +
   xlab("Time abandoned (years)") + ylab(expression("Count  (10"^{6}*" pixels)")) +
   geom_col(mapping = aes(x = length, y = freq/(10^6)), fill = "gray50") +
   facet_grid(rows = vars(site), scales = "free") +
-  geom_vline(xintercept=5, linetype="dashed", 
+  geom_vline(xintercept = 5, linetype="dashed", 
              color = "red", size = 0.75) +
   # geom_vline(xintercept = dat_mean_length$mean_length, linetype="dashed", color = "pink", size = 0.75,
   #            show.legend = TRUE, le) +
-  geom_vline(xintercept=20, linetype="dashed", color = "forest green", size = 0.75) +
+  geom_vline(xintercept = 20, linetype="dashed", color = "forest green", size = 0.75) +
+  theme_classic()
+
+length_blip1_plot <- ggplot(data = length_blip1_distill) + 
+  labs(title = "Histogram of time abandoned across all individual periods of abandonment",
+       subtitle = "Counting only recultivation of 2 or more continuous years") +
+  xlab("Time abandoned (years)") + ylab(expression("Count  (10"^{6}*" pixels)")) +
+  geom_col(mapping = aes(x = length, y = freq/(10^6)), fill = "gray50") +
+  facet_grid(rows = vars(site), scales = "free") +
+  geom_vline(xintercept = 5, linetype="dashed", 
+             color = "red", size = 0.75) +
+  # geom_vline(xintercept = dat_mean_length$mean_length, linetype="dashed", color = "pink", size = 0.75,
+  #            show.legend = TRUE, le) +
+  geom_vline(xintercept = 20, linetype="dashed", color = "forest green", size = 0.75) +
   theme_classic()
 
 
@@ -261,6 +285,15 @@ png(filename = paste0(p_output, "plots/length_hist.png"),
     width = 7, height = 5, units = "in", res = 400)
 print(length_plot)
 dev.off()
+
+
+# all lengths, blip1
+png(filename = paste0(p_output, "plots/length_hist_blip1.png"), 
+    width = 7, height = 5, units = "in", res = 400)
+print(length_blip1_plot)
+dev.off()
+
+
 
 # max lengths
 png(filename = paste0(p_output, "plots/max_length_hist.png"), 
@@ -922,7 +955,7 @@ abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, .N]
 # ----------------- Shaanxi ---------------- #
 # ------------------------------------------ #
 tic()
-cc_generate_dfs(
+cc_summarize_abn_dts(
   land_cover_dt = s_dt, 
   abn_age_dt = s_age, 
   land_cover_raster = s$y2017,
@@ -932,26 +965,26 @@ cc_generate_dfs(
   )
 toc()
 
-load(file = paste0(p_output, "abn_dat_products_s.rds"), verbose = TRUE)
+# load(file = paste0(p_output, "abn_dat_products_s.rds"), verbose = TRUE) # now happens inside the function
+
 
 tic()
 cc_save_area_persistence_plots(
   input_site_label = "_s", 
-  outfile_label = "_s",
-  subtitle = "Shaanxi/Shanxi Provinces, China", 
-  subtitle_all = "Shaanxi/Shanxi Provinces, China, all abandonment",
+  blip_label = "_blip1",
+  outfile_label = "_s_blip1",
+  subtitle = "Shaanxi/Shanxi Provinces, China (recult. >= 2)", 
+  subtitle_all = "Shaanxi/Shanxi Provinces, China, all abandonment (recult. >= 2)",
   save_all = TRUE
 )
 toc()
-
-
 
 
 # ------------------------------------------ #
 # ----------------- Belarus ---------------- #
 # ------------------------------------------ #
 tic()
-cc_generate_dfs(
+cc_summarize_abn_dts(
   land_cover_dt = b_dt, 
   abn_age_dt = b_age, 
   land_cover_raster = b$y2017,
@@ -968,14 +1001,19 @@ load(file = paste0(p_output, "abn_dat_products_b.rds"), verbose = TRUE)
 tic()
 cc_save_area_persistence_plots(
   input_site_label = "_b", 
-  outfile_label = "_b",
-  subtitle = "Eastern Belarus/Smolensk, Russia", 
-  subtitle_all = "Eastern Belarus/Smolensk, Russia, all abandonment", 
+  blip_label = "_blip1",
+  outfile_label = "_b_blip1",
+  subtitle = "Eastern Belarus/Smolensk, Russia (recult. >= 2)", 
+  subtitle_all = "Eastern Belarus/Smolensk, Russia, all abandonment (recult. >= 2)", 
   save_all = TRUE
 )
 toc()
 
 
+# ------------------------------------------ #
+# ------------ Fragmentation --------------- #
+# ------------------------------------------ #
+cc_save_frag_plots(input = frag_dat, outfile_label = NULL)
 
 
 ```

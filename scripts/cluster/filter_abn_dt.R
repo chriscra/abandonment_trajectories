@@ -19,7 +19,7 @@ site <- site_list[indx] # set site:
 
 # -------------------------------------------------------- #
 # load libraries
-cluster_packages <- c("data.table", "tictoc", "raster",
+cluster_packages <- c("data.table", "tictoc", "raster", "sp",
                       "tidyverse", "rgdal", "devtools")
 cluster_dev_packages <- c("dtraster")
 
@@ -32,15 +32,10 @@ source("/home/clc6/abandonment_trajectories/scripts/util/_util_dt_filter_functio
 # set paths:
 p_dat_derived <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
 
-print(paste0("Processing raw data.table for ", site, ", run #", run))
-
 # run function
-
-p_dat_derived
-site <- "shaanxi"
 cc_filter_abn_dt(site = site,
                  path = p_dat_derived,
-                 label = "blip1",
+                 label = "_blip1",
                  clean_blips = TRUE)
 
 
