@@ -17,9 +17,10 @@ cc_update_lc <- function(dt, crop_code = 0, noncrop_code = 1) {
   #       3. Cropland 
   #       4. Herbaceous land (e.g. grassland)
   
-  # this function updates these land cover classes to:
-  #       1. for crop
-  #       2. for noncrop
+  # this function updates these land cover classes to the codes provided, 
+  # which are be default:
+  #       0. for crop
+  #       1. for noncrop (woody vegetation and grassland)
   
   # check if data.table contains x, y columns
   if (length(grep("[xy]$", names(dt))) > 0) {
@@ -1261,7 +1262,6 @@ cc_save_plot_abn_persistence <- function(input_list, subtitle, outfile_label,
                                          width = 7, height = 5,
                                          save_all = TRUE, subtitle_all = NULL) {
   
-  input_list <- persistence_list_b
   # raw area
   gg_persistence_count <- ggplot(data = input_list$na_last) + 
     theme_classic() + 
@@ -1507,13 +1507,12 @@ cc_save_plot_area_by_age_class <- function(input_list, subtitle, outfile_label,
 # ------------------------------------------------------------------------------------ #
 
 # save just the general intro plots
-cc_save_area_persistence_plots <- function(
-  input_site_label, 
-  blip_label,
-  outfile_label,
-  subtitle, 
-  subtitle_all = paste0(subtitle, ", all abandonment"), 
-  save_all = TRUE) {
+cc_save_area_persistence_plots <- function(input_site_label,
+                                           blip_label,
+                                           outfile_label,
+                                           subtitle, 
+                                           subtitle_all = paste0(subtitle, ", all abandonment"), 
+                                           save_all = TRUE) {
   
   # load the data
   load(file = paste0(p_output, "abn_dat_products", blip_label, input_site_label, ".rds"), verbose = TRUE)

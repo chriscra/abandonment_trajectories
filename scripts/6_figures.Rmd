@@ -37,8 +37,8 @@ names(bt) <- paste0("y", 1987:2017)
 
 # -------------------------- rasters --------------------------- #
 # raw rasters
-s <- brick(paste0(p_dat, "Abandonment/shaanxi.tif"))
-b <- brick(paste0(p_dat_derived, "belarus.tif")) # merged version
+s <- brick(paste0(p_dat_derived, "input_rasters/shaanxi.tif"))
+b <- brick(paste0(p_dat_derived, "input_rasters/belarus.tif")) # merged version
 
 # age
 s_age_r <- brick(paste0(p_dat_derived, "shaanxi_age.tif"))
@@ -447,6 +447,74 @@ ggplot(data = filter(persistence_list_s$count, time_abn == 1)) +
 cc_save_plot_abn_persistence(input_list = persistence_list_s, subtitle = "Shaanxi/Shanxi Provinces, China", outfile_label = "_s")
 ```
 
+```{r half-life}
+persistence_list_s <- cc_calc_persistence_all(abn_age_dt = s_age, land_cover_raster = s$y2017)
+
+df <- persistence_list_s$na_last %>%
+  mutate(year_abn = as_factor(year_abn))
+df_av <- df %>%
+  group_by(time_abn) %>%
+  summarise(count = n(),
+            sd = sd(proportion, na.rm = TRUE), 
+            se = sd/sqrt(count),
+            proportion = mean(proportion), 
+            year_abn = as_factor("mean"))
+df_av
+
+test <- bind_rows(df, df_av)
+
+# as percentage
+base <- ggplot(data = persistence_list_s$na_last) + 
+    theme_classic() + 
+    geom_line(mapping = aes(x = time_abn, y = proportion,
+                            group = year_abn, color = year_abn), 
+              size = 1.25
+    ) + 
+    labs(y = "Proportion remaining abandoned", 
+         x = "Years since initial abandonment", 
+         title = "Persistence of Abandoned Land",
+         subtitle = NULL, #subtitle,
+         color = "Year Abandoned") + 
+    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
+
+base + geom_line(data = df_av, mapping = aes(x = time_abn, y = proportion),
+              size = 3)
+base %+% test
+
+ggplot(data = persistence_list_s$na_last) + 
+  theme_classic() + 
+  geom_hline(yintercept=0.5, linetype="dashed", 
+             color = "red", size = 0.75) +
+  geom_line(mapping = aes(x = time_abn, y = proportion,
+                           group = year_abn, color = year_abn), 
+             size = 1) + 
+  # geom_smooth(method = "lm", formula = y ~ poly(x, 2),
+  #             mapping = aes(x = time_abn, y = proportion), 
+  #             color = "dark blue", fill = "blue", size = 1.5) +
+  geom_line(data = df_av, mapping = aes(x = time_abn, y = proportion),
+              size = 2, color = "black") +
+  
+  geom_ribbon(data = df_av, aes(x = time_abn, ymin = proportion - 1.96*se, ymax=proportion + 1.96*se), 
+              color = "gray", fill = "gray", alpha=0.5) + 
+  
+  labs(y = "Proportion remaining abandoned", 
+         x = "Years since initial abandonment", 
+         title = "Persistence of Abandoned Land",
+         subtitle = NULL, #subtitle,
+         color = "Year Abandoned") + 
+  scale_color_distiller(palette = "Greens") + 
+  theme(legend.position = "bottom",
+        legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
+
+poly(1:10, 2)
+
+lm(proportion ~ poly(time_abn, 2), data = persistence_list_s$na_last)
+
+
+```
+
+
 ```{r abn-gain-loss-area}
 # calculate the abandonment area turnover
 abn_area_change_s <- cc_calc_abn_area_diff(abn_age_dt = s_age, area_raster = s_area)
@@ -507,6 +575,9 @@ cc_save_map_pnv_hab_lc_abn(maxpixels = 3000000)
 cc_save_map_lc_age_rasters(maxpixels = 3000000)
 
 ```
+
+
+
 
 
 

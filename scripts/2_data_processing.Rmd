@@ -56,7 +56,7 @@ b_files <- list.files(paste0(p_dat, "Abandonment/belarus_tiles/"))
 #   grep("belarus", ., value = TRUE)
 
 b1 <- brick(paste0(p_dat, "Abandonment/belarus_tiles/", b_files[1]))
-s <- brick(paste0(p_dat, "Abandonment/shaanxi.tif"))
+s <- brick(paste0(p_dat_derived, "input_rasters/shaanxi.tif"))
 
 s
 plot(s[[1]])
@@ -128,6 +128,266 @@ b_age_r <- brick(paste0(p_dat_derived, "belarus_age.tif"))
 
 ```
 
+```{r load-all-sites}
+# Primary sites
+# 1. Shaanxi - He
+# 2. Belarus (Smolensk) - He
+# 3. Chongqing - Yanhua (not great -fields are small, mountainous, and lots of clouds) - look at the data to see. 
+# 4. Goias - Ben
+# 5. Mato Grasso - Amintas
+# 6. Nebraska - Seth
+# 7. Wisconsin - David
+# 
+# ok
+# 8. Volgograd - Natalia
+# 9. Orenburg - Natalia
+# 10. Bosnia & Herzegovina (medium)
+# 11. Iraq (medium good, low accuracy over years, but good single accuracy)
+# 
+# exclude 
+# 12. Nepal - Johanna
+# 13. Sardinia - Kasia
+# 14. Uganda - Niwaeli
+
+# CAREFUL!!!!! Land Cover codes are different for each file:
+# Land use class codes: (for He's site, Shaanxi and Belarus)
+#       1. Non-vegetated area (e.g. water, urban, barren land)
+#       2. Woody vegetation
+#       3. Cropland 
+#       4. Herbaceous land (e.g. grassland)
+
+# Shaanxi (China):  1 others;     2 forest,     3 cropland;     4 grassland
+# Belarus - Russia: 1 others;     2 forest,     3 cropland;     4 grassland
+# Brazil Goias:     1 others;     2 forest,     3 cropland;     4 grassland
+# Brazil Amazon:    1 others;     2 forest;     3 cropland;     4 grassland
+# Bosnia:           1 others;     2 forest;     3 cropland;     4 grassland
+# Chongqing:        1 others;     2 forest;     3 cropland;     4 grassland
+
+# Iraq:             1 others;     2 cropland;   3 forest;       4 grassland
+# Nebraska:         1 cropland;   2 forest;     3 others;       4 grassland
+# Russia Orenburg:  1 others;     2 cropland;   3 grassland;    4 forest
+# Russia Volgograd: 1 others;     2 cropland;   3 grassland;    4 forest
+# Wisconsin:        1 cropland;   2 grassland;  3 forest;       4 others
+
+# list of all sites
+site_list <- sort(
+  c("shaanxi", "belarus", 
+    "chongqing", "goias", "mato_grosso",
+    "nebraska", "wisconsin", "volgograd",
+    "orenburg", "bosnia_herzegovina", "iraq") 
+  )
+
+site_label_list <- sort(
+  c("_s", "_b", 
+    "_c", "_g", "_mg", 
+    "_n", "_w", "_v", 
+    "_o", "_bh", "_i")
+  )
+
+site_merge_layers <- site_list[c(3, 4, 5, 7, 8, 10)]
+c("chongqing", "goias", "iraq", "nebraska", "orenburg", "volgograd")
+
+site_update_lc <- site_list[c(5, 7, 8, 10, 11)]
+c("iraq", "nebraska", "orenburg", "volgograd", "wisconsin")
+
+
+# make a data.frame outlining site names, labels, whether to update land cover, whether to merge, original land cover codes etc. 
+site_df <- data.frame(site = site_list,
+                      label = site_label_list) %>% 
+  mutate(merge_layers = ifelse(site %in% site_merge_layers, "Yes", "No"),
+         update_lc = ifelse(site %in% site_update_lc, "Yes", "No"),
+         other = 1, 
+         woody_veg = 2,
+         cropland = 3,
+         grassland = 4
+         )
+
+# Update the following:
+# Iraq:             1 others;     2 cropland;   3 forest;       4 grassland
+# Nebraska:         1 cropland;   2 forest;     3 others;       4 grassland
+# Russia Orenburg:  1 others;     2 cropland;   3 grassland;    4 forest
+# Russia Volgograd: 1 others;     2 cropland;   3 grassland;    4 forest
+# Wisconsin:        1 cropland;   2 grassland;  3 forest;       4 others
+
+site_df[site_df$site == "iraq", 
+        c("other", "cropland", "woody_veg", "grassland")] <- 1:4
+
+site_df[site_df$site == "nebraska", 
+        c("cropland", "woody_veg", "other", "grassland")] <- 1:4
+
+site_df[site_df$site == "orenburg", 
+        c("other", "cropland", "grassland", "woody_veg")] <- 1:4
+
+site_df[site_df$site == "volgograd", 
+        c("other", "cropland", "grassland", "woody_veg")] <- 1:4
+
+site_df[site_df$site == "wisconsin", 
+        c("cropland", "grassland", "woody_veg", "other")] <- 1:4
+
+site_df
+
+# save site_df
+write_csv(site_df, path = paste0(p_dat_derived, "site_df.csv"))
+
+
+
+
+
+
+# ---------------------------------------------------
+# load final tifs 
+# ---------------------------------------------------
+
+# year of first abandonment maps
+yoa_files <- list.files(paste0(p_dat, "Abandonment/year_of_abandonment/"))
+map_files <- list.files(paste0(p_dat, "Abandonment/final_maps/"))
+
+r
+r <- vector(mode = "list", length = length(map_files)# + 2
+            )
+r[[1]] <- brick(paste0(p_dat, "Abandonment/shaanxi.tif"))
+r[[2]] <- brick(paste0(p_dat_derived, "input_rasters/belarus.tif")) # merged version
+
+
+r <- lapply(seq_along(map_files), function(i) {
+  brick(paste0(p_dat, "Abandonment/Final_maps/", map_files[i]))
+  }
+  )
+
+names(r) <- map_files #site_list
+
+
+plot(c(ncell(b), ncell(s), sapply(seq_along(r), FUN = function(i) ncell(r[[i]]))))
+
+test <- brick(paste0("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/Final_maps/", map_files[2]))
+test
+cellStats(test, "mean")
+cellStats(test, )
+freq(test)
+
+
+b
+plot(b[[1]])
+
+plot(test)
+ncell(test)
+# GEE
+
+# just belarus files, but not necessary
+# b_files <- list.files(paste0(p_dat, "Abandonment/belarus_tiles/")) %>%
+#   grep("belarus", ., value = TRUE)
+
+b1 <- brick(paste0(p_dat, "Abandonment/belarus_tiles/", b_files[1]))
+s <- brick(paste0(p_dat_derived, "input_rasters/shaanxi.tif"))
+s
+
+plot(s[[1]], main = "Shaanxi 1987", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+
+b_tiles <- lapply(1:6, function(i) {
+    brick(paste0(p_dat, "Abandonment/belarus_tiles/", b_files[i]))})
+names(b_tiles) <- b_files
+
+
+# useful, but not necessary:
+
+# filling things in conditionally, using dplyr or just base R
+site_df[site_df$update_lc == "No", c("other", "woody_veg", "cropland", "grassland")] <- 1:4
+
+site_df <- site_df %>% 
+  mutate(other = ifelse(update_lc == "No" , 1, other),
+         woody_veg = ifelse(update_lc == "No" , 2, woody_veg),
+         cropland = ifelse(update_lc == "No" , 3, cropland),
+         grassland = ifelse(update_lc == "No" , 4, grassland)
+         )
+
+```
+
+```{r combine-years-brick}
+# 1. if necessary combine individual years into a single brick (Chongqing, Goias, Iraq, Nebraska, Orenburg, and Volgograd)
+# 2. write out the combined file back to the original folder, if it didn't exist already
+# 3. update the land cover codes for those sites that follow different conventions, so that all match the following:
+# Land use class codes: (for He's site, Shaanxi and Belarus)
+#       1. Non-vegetated area (e.g. water, urban, barren land)
+#       2. Woody vegetation
+#       3. Cropland 
+#       4. Herbaceous land (e.g. grassland)
+
+
+# 4. write out final input raster to paste0(p_dat_derived, "input_rasters/"), to the 
+
+# sites
+site_df
+merge_files <- lapply(site_merge_layers, FUN = function(i) {
+  list.files(paste0(p_dat, "Abandonment/final_maps_raw/", i), full.names = TRUE)
+})
+
+names(merge_files) <- site_merge_layers
+
+
+v <- lapply(merge_files$volgograd, FUN = function(i){
+  raster(i)
+})
+v <- lapply(merge_files$volgograd, function(i) raster(i))
+
+
+plot(v[[1]], maxpixels = 5000)
+v
+class(v)
+tic()
+v1 <- stack(v)
+toc()
+
+tic()
+writeRaster(v1, filename = paste0(p_dat, "Abandonment/final_maps_raw/volgograd/volgograd.tif"))
+toc()
+warnings()
+"/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/final_maps_raw/volgograd/volgograd.tif"
+
+map_files <- list.files(paste0(p_dat, "Abandonment/final_maps/"))
+
+r
+r <- vector(mode = "list", length = length(map_files)# + 2
+            )
+r[[1]] <- brick(paste0(p_dat, "Abandonment/shaanxi.tif"))
+r[[2]] <- brick(paste0(p_dat_derived, "input_rasters/belarus.tif")) # merged version
+
+
+r <- lapply(seq_along(map_files), function(i) {
+  brick(paste0(p_dat, "Abandonment/Final_maps/", map_files[i]))
+  }
+  )
+
+names(r) <- map_files #site_list
+
+b_tiles <- lapply(1:6, function(i) {
+    brick(paste0(p_dat, "Abandonment/belarus_tiles/", b_files[i]))})
+names(b_tiles) <- b_files
+
+```
+
+```{r recode-lc}
+bt <- brick(paste0(p_dat_derived, "belarus_subset.tif"))
+names(bt) <- paste0("y", 1987:2017)
+plot(bt$y1987)
+plot(input_raster$y1987)
+
+input_raster <- bt
+
+original_codes <- site_dt %>% filter(site == site)
+
+other_original_code <- original_codes %>% select(other) %>% unlist(use.names = FALSE)
+woody_original_code <- original_codes %>% select(woody_veg) %>% unlist(use.names = FALSE)
+cropland_original_code <- original_codes %>% select(cropland) %>% unlist(use.names = FALSE)
+grassland_original_code <- original_codes %>% select(grassland) %>% unlist(use.names = FALSE)
+
+input_raster <- input_raster + 10 # add 10 to the input raster, to facilitate recoding
+
+input_raster[input_raster == 10] <- NA
+input_raster[input_raster == other_original_code + 10] <- 1 # set other to 1
+input_raster[input_raster == woody_original_code + 10] <- 2 # set woody veg to 2
+input_raster[input_raster == cropland_original_code + 10] <- 3 # set cropland to 3
+input_raster[input_raster == grassland_original_code + 10] <- 4 # set grassland to 4
+```
 
 
 

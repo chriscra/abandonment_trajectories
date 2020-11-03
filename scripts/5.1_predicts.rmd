@@ -16,238 +16,6 @@ library(StatisticalModels) # Tim Newbold's R package for calculating statistical
 env_size(ls())
 ```
 
-```{r tim-newbold's-demo}
-# --------------------------------------------------------------- #
-# PREDICTS Database demonstration code
-# Author: Tim Newbold 
-# Shared with Chris Crawford: January 9th, 2020
-# --------------------------------------------------------------- #
-
-library(devtools)
-
-# Install my package for simple manipulation of PREDICTS data
-install_github(repo = "timnewbold/predicts-demo", 
-               subdir = "predictsFunctions")
-
-library(predictsFunctions)
-
-# Set the path to your local copy of the database
-# predicts.path <- "C:/Users/tim_n/Dropbox/PREDICTSDemonstration/database.rds"
-predicts.path <- "/Users/christophercrawford/Google Drive/_Projects/data/Bd/PREDICTS/database.rds"
-
-
-# --------------------------------------------------------------- #
-# Read in the PREDICTS data
-# --------------------------------------------------------------- #
-predicts <- ReadPREDICTS(path = "/Users/christophercrawford/Google Drive/_Projects/data/Bd/PREDICTS/database.rds")
-
-# predicts <- readRDS(paste0(p_dat, "Bd/PREDICTS/database.rds")) # PREDICTS itself
-
-nrow(predicts)
-
-# Let's look at the column names - there are a lot
-names(predicts)
-
-# This powerpoint explains the different types of column
-system(command = "powerpnt /S DatabaseVariables.ppsx") # cc- note doesn't work
-
-# This powerpoint gives a bit more detail on the land-use classification
-system(command = "powerpnt /S LanduseClassification.ppsx") # cc- note doesn't work
-
-# Correct effort-sensitive abundance measures (assumes linear relationship between effort and recorded abundance)
-predicts <- CorrectSamplingEffort(diversity = predicts)
-predicts %>% select(Measurement, Effort_corrected_measurement) %>% head() # essentially this updated "Measurement" to match the column "Effort_corrected_measurement"
-
-# Merge sites that have the same coordinates (e.g. multiple traps on a single transect)
-nrow(predicts) # 3.25 M rows before, 2.9 M after
-predicts <- MergeSites(diversity = predicts)
-# Dropping 343410 measurements that have been merged
-# Dropping unused factor levels
-## (cc- note: this matches with the before and after row count)
-
-names(predicts)
-predicts %>% select(Source_ID) %>% unique() %>% unlist(use.names = FALSE) %>% length() # 480
-predicts %>% select(Site_name) %>% unique() %>% unlist(use.names = FALSE) %>% length() # 16,496
-
-# --------------------------------------------------------------- #
-# Calculate site metrics of diversity - currently only species richness and total abundance
-# --------------------------------------------------------------- #
-sites <- SiteMetrics(diversity = predicts,
-                     extra.cols = c("Predominant_land_use",
-                                    "SSB","SSBS", 
-                                    # cc additions
-                                    "Country", "Biome", "Ecoregion",
-                                    "Years_since_fragmentation_or_conversion"))
-nrow(sites) # 22678
-names(sites)
-names(predicts)
-
-
-sites %>% select(Source_ID, 
-                 Diversity_metric_type,
-                 Predominant_land_use, Use_intensity,
-                 Biome, Country, Ecoregion, Years_since_fragmentation_or_conversion,
-                 Total_abundance, Species_richness) %>% summary()
-
-sites$Predominant_land_use %>% levels()
-
-# Now install my package for building statistical models (including mixed-effects models)
-install_github("timnewbold/StatisticalModels")
-library(StatisticalModels)
-
-# Let's first try a model of site-level species richness
-
-# First, we will rearrange the land-use classification a bit
-sites$LandUse <- paste(sites$Predominant_land_use)
-# Drop classification where land use could not be identified
-sites$LandUse[(sites$LandUse == "Cannot decide")] <- NA
-# Drop classification where the stage of recovery of secondary vegetation is unknown
-sites$LandUse[(sites$LandUse == "Secondary vegetation (indeterminate age)")] <- NA
-# Now make the variable a factor, and set the reference level to primary vegetation
-sites$LandUse <- factor(sites$LandUse)
-sites$LandUse <- relevel(sites$LandUse, ref="Primary vegetation")
-
-table(sites$LandUse)
-
-
-# We will compare some random-effects structures
-# We must always consider study identity, because of major differences in sampling
-r1 <- GLMER(modelData = sites, responseVar = "Species_richness",
-            fitFamily = "poisson", fixedStruct = "LandUse",
-            randomStruct = "(1|SS)", REML = FALSE)
-r1$model
-
-# Try adding spatial block to account for spatial differences among sites within studies
-r2 <- GLMER(modelData = sites, responseVar = "Species_richness",
-            fitFamily = "poisson", fixedStruct = "LandUse",
-            randomStruct = "(1|SS)+(1|SSB)", REML = FALSE)
-r2$model
-
-# Is the second random-effects structure better?
-AIC(r1$model, r2$model)
-glmer() # from lme4
-lmer() # from lme4
-
-
-# Species richness models are often overdispersed - is this the case?
-GLMEROverdispersion(model = r2$model)
-
-# We can control for this by fitting an observation-level random effect
-r3 <- GLMER(modelData = sites, responseVar = "Species_richness",
-            fitFamily = "poisson", fixedStruct = "LandUse",
-            randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)", REML = FALSE)
-
-# Is this better than the previous random-effects structure?
-AIC(r2$model,r3$model)
-
-# Has it removed the overdispersion?
-GLMEROverdispersion(model = r3$model)
-
-# Now we will run backward stepwise selection to see if land use has a significant effect
-sr1 <- GLMERSelect(modelData = sites, responseVar = "Species_richness",
-                   fitFamily = "poisson", fixedFactors = "LandUse",
-                   randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)")
-
-# A statistics table is produced
-sr1$stats
-
-# And the model itself is shown by:
-sr1$model
-
-# Now try plotting this model
-PlotGLMERFactor(model = sr1$model, data = sr1$data,
-                responseVar = "Species richness", seMultiplier = 1.96,
-                logLink = "e", catEffects = "LandUse")
-
-# We can rotate the x-axis labels by adding xtext.srt=45
-PlotGLMERFactor(model = sr1$model,data = sr1$data,
-                responseVar = "Species richness",seMultiplier = 1.96,
-                logLink = "e",catEffects = "LandUse",xtext.srt=45)
-
-# Increase the bottom and right margins using 
-# params=list(mar = c(1.2, 3.5, 0.2, 1.2))
-PlotGLMERFactor(model = sr1$model,data = sr1$data,
-                responseVar = "Species richness",seMultiplier = 1.96,
-                logLink = "e",catEffects = "LandUse",xtext.srt=45,
-                params=list(mar = c(2.2, 3.5, 0.2, 1.2)))
-
-# Reorder the land uses into a logical order, using
-# order=c(1,4,3,8,6,2,5,7)
-sites$LandUse %>% levels() # to be reordered.
-class(sites$LandUse)
-sites <- sites %>% mutate(LandUse = fct_relevel(LandUse, levels(sites$LandUse)[c(1, 4, 3, 8, 6, 2, 5, 7)]))
-
-PlotGLMERFactor(model = sr1$model,data = sr1$data,
-                responseVar = "Species richness",seMultiplier = 1.96,
-                logLink = "e",catEffects = "LandUse",xtext.srt=45,
-                params=list(mar = c(2.2, 3.5, 0.2, 1.2)),
-                order=c(1,4,3,8,6,2,5,7))
-
-# Make some predictions from the model
-nd <- data.frame(
-  LandUse=factor(x = levels(sr1$data$LandUse),
-                 levels = levels(sr1$data$LandUse)), # with added reordering vector
-  Species_richness=0)
-
-preds <- PredictGLMER(model = sr1$model, data = nd, se.fit = TRUE,
-                      seMultiplier = 1.96, randEffs = FALSE)
-preds <- exp(preds)
-
-errbar(x = levels(sr1$data$LandUse), y = preds$y,
-       yplus = preds$yplus, yminus = preds$yminus)
-abline(v = preds$y[1])
-
-
-
-
-# We can also build models at the species level using the raw database
-
-# First, we will rearrange the land uses as before
-predicts$LandUse <- paste(predicts$Predominant_land_use)
-# Drop classification where land use could not be identified
-predicts$LandUse[(predicts$LandUse=="Cannot decide")] <- NA
-# For these models we will group all secondary vegetation together
-predicts$LandUse[(predicts$LandUse=="Secondary vegetation (indeterminate age)")] <- "Secondary vegetation"
-predicts$LandUse[(predicts$LandUse=="Mature secondary vegetation")] <- "Secondary vegetation"
-predicts$LandUse[(predicts$LandUse=="Intermediate secondary vegetation")] <- "Secondary vegetation"
-predicts$LandUse[(predicts$LandUse=="Young secondary vegetation")] <- "Secondary vegetation"
-# We will also group cropland and pasture together into an 'agriculture' class
-predicts$LandUse[(predicts$LandUse=="Cropland")] <- "Agriculture"
-predicts$LandUse[(predicts$LandUse=="Pasture")] <- "Agriculture"
-# Now make the variable a factor, and set the reference level to primary vegetation
-predicts$LandUse <- factor(predicts$LandUse)
-predicts$LandUse <- relevel(predicts$LandUse,ref="Primary vegetation")
-
-# Now create a column for species presence or absence
-predicts$Occurrence <- ifelse(predicts$Measurement > 0, 1, 0)
-
-# Because these models take a long time to run, we will focus on reptiles
-nrow(predicts)
-reptiles <- predicts[(predicts$Class=="Reptilia"),]
-nrow(reptiles)
-
-# Now we will try a model of species presence or absence as a function of land use
-# We will add additional random effects of species identity and site
-# to control for additional likely random variation
-occ1 <- GLMERSelect(modelData = reptiles, responseVar = "Occurrence",
-                    fitFamily = "binomial", fixedFactors = "LandUse",
-                    randomStruct = "(1|SS)+(1|SSBS)+(1|Taxon_name_entered)")
-
-# Stats as before
-occ1$stats
-names(occ1$model)
-names(occ1$stats)
-
-# Now we will plot this model using the same parameters as above
-PlotGLMERFactor(model = occ1$model, data = occ1$data,
-                responseVar = "Occurrence", seMultiplier = 1.96,
-                logLink = "b", catEffects = "LandUse", xtext.srt = 45,
-                params = list(mar = c(2.2, 3.5, 0.2, 1.2)),
-                order = c(1, 4, 3, 2))
-
-```
-
-
 ```{r load-data}
 predicts <- readRDS(paste0(p_dat, "Bd/PREDICTS/database.rds")) # PREDICTS itself
 
@@ -1141,9 +909,250 @@ E_2 - E_1 # this is somewhat close to r
 ```
 
 
-# PREDICTS Demo Code Next steps
+# PREDICTS Demo Code
+```{r demo-load}
+# --------------------------------------------------------------- #
+# PREDICTS Database demonstration code
+# Author: Tim Newbold 
+# Shared with Chris Crawford: January 9th, 2020
+# --------------------------------------------------------------- #
 
-1. Subset to biome
+library(devtools)
+
+# Install my package for simple manipulation of PREDICTS data
+install_github(repo = "timnewbold/predicts-demo", 
+               subdir = "predictsFunctions")
+
+library(predictsFunctions)
+
+# Set the path to your local copy of the database
+# predicts.path <- "C:/Users/tim_n/Dropbox/PREDICTSDemonstration/database.rds"
+predicts.path <- "/Users/christophercrawford/Google Drive/_Projects/data/Bd/PREDICTS/database.rds"
+
+
+# --------------------------------------------------------------- #
+# Read in the PREDICTS data
+# --------------------------------------------------------------- #
+predicts <- ReadPREDICTS(path = "/Users/christophercrawford/Google Drive/_Projects/data/Bd/PREDICTS/database.rds")
+
+# predicts <- readRDS(paste0(p_dat, "Bd/PREDICTS/database.rds")) # PREDICTS itself
+
+nrow(predicts)
+
+# Let's look at the column names - there are a lot
+names(predicts)
+
+# This powerpoint explains the different types of column
+system(command = "powerpnt /S DatabaseVariables.ppsx") # cc- note doesn't work
+
+# This powerpoint gives a bit more detail on the land-use classification
+system(command = "powerpnt /S LanduseClassification.ppsx") # cc- note doesn't work
+
+# Correct effort-sensitive abundance measures (assumes linear relationship between effort and recorded abundance)
+predicts <- CorrectSamplingEffort(diversity = predicts)
+predicts %>% select(Measurement, Effort_corrected_measurement) %>% head() # essentially this updated "Measurement" to match the column "Effort_corrected_measurement"
+
+# Merge sites that have the same coordinates (e.g. multiple traps on a single transect)
+nrow(predicts) # 3.25 M rows before, 2.9 M after
+predicts <- MergeSites(diversity = predicts)
+# 343410 measurements that have been merged
+# Dropping unused factor levels
+## (cc- note: this matches with the before and after row count)
+
+names(predicts)
+predicts %>% select(Source_ID) %>% unique() %>% unlist(use.names = FALSE) %>% length() # 480
+predicts %>% select(Site_name) %>% unique() %>% unlist(use.names = FALSE) %>% length() # 16,496
+
+# --------------------------------------------------------------- #
+# Calculate site metrics of diversity - currently only species richness and total abundance
+# Note that Biodiversity Intactness Index for a particular land use is the ratio of the current average abundance in that land use to the abundance in an intact land use. So, I think you can calculate it straightforwardly by dividing the richness ratio by 
+# --------------------------------------------------------------- #
+sites <- SiteMetrics(diversity = predicts,
+                     extra.cols = c("Predominant_land_use",
+                                    "SSB","SSBS", 
+                                    # cc additions
+                                    "Country", "Biome", "Ecoregion",
+                                    "Years_since_fragmentation_or_conversion"))
+nrow(sites) # 22678
+names(sites)
+names(predicts)
+
+
+sites %>% select(Source_ID, 
+                 Diversity_metric_type,
+                 Predominant_land_use, Use_intensity,
+                 Biome, Country, Ecoregion, Years_since_fragmentation_or_conversion,
+                 Total_abundance, Species_richness) %>% summary()
+
+sites$Predominant_land_use %>% levels()
+
+# Now install my package for building statistical models (including mixed-effects models)
+install_github("timnewbold/StatisticalModels")
+library(StatisticalModels)
+
+# Let's first try a model of site-level species richness
+
+# First, we will rearrange the land-use classification a bit
+sites$LandUse <- paste(sites$Predominant_land_use)
+# Drop classification where land use could not be identified
+sites$LandUse[(sites$LandUse == "Cannot decide")] <- NA
+# Drop classification where the stage of recovery of secondary vegetation is unknown
+sites$LandUse[(sites$LandUse == "Secondary vegetation (indeterminate age)")] <- NA
+# Now make the variable a factor, and set the reference level to primary vegetation
+sites$LandUse <- factor(sites$LandUse)
+sites$LandUse <- relevel(sites$LandUse, ref="Primary vegetation")
+
+table(sites$LandUse)
+```
+
+
+```{r demo-models}
+# We will compare some random-effects structures
+# We must always consider study identity, because of major differences in sampling
+r1 <- GLMER(modelData = sites, responseVar = "Species_richness",
+            fitFamily = "poisson", fixedStruct = "LandUse",
+            randomStruct = "(1|SS)", REML = FALSE)
+r1$model
+
+# Try adding spatial block to account for spatial differences among sites within studies
+r2 <- GLMER(modelData = sites, responseVar = "Species_richness",
+            fitFamily = "poisson", fixedStruct = "LandUse",
+            randomStruct = "(1|SS)+(1|SSB)", REML = FALSE)
+r2$model
+
+# Is the second random-effects structure better?
+AIC(r1$model, r2$model)
+glmer() # from lme4
+lmer() # from lme4
+
+
+# Species richness models are often overdispersed - is this the case?
+GLMEROverdispersion(model = r2$model)
+
+# We can control for this by fitting an observation-level random effect
+r3 <- GLMER(modelData = sites, responseVar = "Species_richness",
+            fitFamily = "poisson", fixedStruct = "LandUse",
+            randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)", REML = FALSE)
+
+# Is this better than the previous random-effects structure?
+AIC(r2$model,r3$model)
+
+# Has it removed the overdispersion?
+GLMEROverdispersion(model = r3$model)
+
+# Now we will run backward stepwise selection to see if land use has a significant effect
+sr1 <- GLMERSelect(modelData = sites, responseVar = "Species_richness",
+                   fitFamily = "poisson", fixedFactors = "LandUse",
+                   randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)")
+
+# A statistics table is produced
+sr1$stats # this just shows that land use has a significant effect as a factor. 
+
+# And the model itself is shown by:
+sr1$model
+r3$model # same as r3
+```
+
+
+```{r demo-plot}
+# Now try plotting this model
+PlotGLMERFactor(model = sr1$model, data = sr1$data,
+                responseVar = "Species richness", seMultiplier = 1.96,
+                logLink = "e", catEffects = "LandUse")
+
+# We can rotate the x-axis labels by adding xtext.srt=45
+PlotGLMERFactor(model = sr1$model,data = sr1$data,
+                responseVar = "Species richness",seMultiplier = 1.96,
+                logLink = "e", catEffects = "LandUse", xtext.srt=320)
+
+# Increase the bottom and right margins using 
+# params=list(mar = c(1.2, 3.5, 0.2, 1.2))
+PlotGLMERFactor(model = sr1$model,data = sr1$data,
+                responseVar = "Species richness",seMultiplier = 1.96,
+                logLink = "e",catEffects = "LandUse",xtext.srt=320,
+                params=list(mar = c(2.2, 3.5, 0.2, 1.2)))
+
+# Reorder the land uses into a logical order, using
+# order=c(1,4,3,8,6,2,5,7)
+sites$LandUse %>% levels() # to be reordered.
+class(sites$LandUse)
+sites <- sites %>% mutate(LandUse = fct_relevel(LandUse, levels(sites$LandUse)[c(1, 4, 3, 8, 6, 2, 5, 7)]))
+
+PlotGLMERFactor(model = sr1$model,data = sr1$data,
+                responseVar = "Species richness",seMultiplier = 1.96,
+                logLink = "e",catEffects = "LandUse",xtext.srt=320,
+                params=list(mar = c(2.2, 3.5, 0.2, 1.2)),
+                order=c(1,4,3,8,6,2,5,7))
+```
+
+
+```{r demo-predictions+species-occ}
+# Make some predictions from the model
+nd <- data.frame(
+  LandUse=factor(x = levels(sr1$data$LandUse),
+                 levels = levels(sr1$data$LandUse)), # with added reordering vector
+  Species_richness=0)
+
+preds <- PredictGLMER(model = sr1$model, data = nd, se.fit = TRUE,
+                      seMultiplier = 1.96, randEffs = FALSE)
+preds <- exp(preds)
+
+errbar(x = levels(sr1$data$LandUse), y = preds$y,
+       yplus = preds$yplus, yminus = preds$yminus)
+abline(v = preds$y[1])
+
+
+
+
+# We can also build models at the species level using the raw database
+
+# First, we will rearrange the land uses as before
+predicts$LandUse_cond <- paste(predicts$Predominant_land_use)
+# Drop classification where land use could not be identified
+predicts$LandUse_cond[(predicts$LandUse_cond=="Cannot decide")] <- NA
+# For these models we will group all secondary vegetation together
+predicts$LandUse_cond[(predicts$LandUse_cond=="Secondary vegetation (indeterminate age)")] <- "Secondary vegetation"
+predicts$LandUse_cond[(predicts$LandUse_cond=="Mature secondary vegetation")] <- "Secondary vegetation"
+predicts$LandUse_cond[(predicts$LandUse_cond=="Intermediate secondary vegetation")] <- "Secondary vegetation"
+predicts$LandUse_cond[(predicts$LandUse_cond=="Young secondary vegetation")] <- "Secondary vegetation"
+# We will also group cropland and pasture together into an 'agriculture' class
+predicts$LandUse_cond[(predicts$LandUse_cond=="Cropland")] <- "Agriculture"
+predicts$LandUse_cond[(predicts$LandUse_cond=="Pasture")] <- "Agriculture"
+# Now make the variable a factor, and set the reference level to primary vegetation
+predicts$LandUse_cond <- factor(predicts$LandUse_cond)
+predicts$LandUse_cond <- relevel(predicts$LandUse_cond,ref="Primary vegetation")
+
+# Now create a column for species presence or absence
+predicts$Occurrence <- ifelse(predicts$Measurement > 0, 1, 0)
+
+# Because these models take a long time to run, we will focus on reptiles
+nrow(predicts)
+reptiles <- predicts[(predicts$Class=="Reptilia"),]
+nrow(reptiles)
+
+# Now we will try a model of species presence or absence as a function of land use
+# We will add additional random effects of species identity and site
+# to control for additional likely random variation
+occ1 <- GLMERSelect(modelData = reptiles, responseVar = "Occurrence",
+                    fitFamily = "binomial", fixedFactors = "LandUse_cond",
+                    randomStruct = "(1|SS)+(1|SSBS)+(1|Taxon_name_entered)")
+
+# Stats as before
+occ1$stats
+names(occ1$model)
+names(occ1$stats)
+
+# Now we will plot this model using the same parameters as above
+PlotGLMERFactor(model = occ1$model, data = occ1$data,
+                responseVar = "Occurrence", seMultiplier = 1.96,
+                logLink = "b", catEffects = "LandUse_cond", xtext.srt = 45,
+                params = list(mar = c(2.2, 3.5, 0.2, 1.2)),
+                order = c(1, 4, 3, 2))
+
+```
+
+## Next steps
+### 1. Subset to biome
 ```{r subset-biome}
 # load biomes - see above
 
@@ -1384,7 +1393,7 @@ PlotGLMERFactor(model = sr1_tg$model, data = sr1_tg$data,
 
 ```
 
-```{r PREDICTS-figures}
+```{r biome-PREDICTS-figures}
 
 # all
 PlotGLMERFactor(model = sr1_all$model, data = sr1_all$data,
@@ -1511,6 +1520,370 @@ dev.off()
 ```
 
 
-2. Try to put together a figure showing the evolution of species richness coefficient as a function of years since fragmentation
+### 2. Abundance
+```{r abundance}
+names(sites)
+tibble(sites)
+ggplot(data = sites) + 
+  theme_classic() + 
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  geom_boxplot(mapping = aes(x = LandUse, y = Species_richness))
 
+r1_ab <- GLMER(modelData = sites, responseVar = "Total_abundance",
+               fitFamily = "poisson", fixedStruct = "LandUse",
+               randomStruct = "(1|SS)", REML = FALSE)
+warnings() # In (function (fr, X, reTrms, family, nAGQ = 1L, verbose = 0L,  ... : non-integer x = 252.375000
+
+sites$Total_abundance # note, this has to be integer values, I think. 
+round(sites$Total_abundance[1:100], digits = 1)
+
+sites <- sites %>% mutate(
+  Adj_abundance = round(Total_abundance, digits = 2))
+
+r1_adj_ab <- GLMER(modelData = sites, responseVar = "Adj_abundance",
+                   fitFamily = "poisson", fixedStruct = "LandUse",
+                   randomStruct = "(1|SS)", REML = FALSE)
+warnings()
+sites$Species_richness
+sites$Adj_abundance
+
+r3_adj_ab <- GLMER(modelData = sites, responseVar = "Adj_abundance",
+                   fitFamily = "poisson", 
+                   fixedStruct = "LandUse",
+                   randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)", 
+                   REML = FALSE)
+
+r3 <- GLMER(modelData = sites, responseVar = "Species_richness",
+            fitFamily = "poisson", fixedStruct = "LandUse",
+            randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)", REML = FALSE)
+
+r3$model
+modelData = sites
+responseVar = "Total_abundance"
+fitFamily = "poisson"
+fixedStruct = "LandUse"
+randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)"
+
+# modelData, responseVar, fitFamily, fixedStruct, randomStruct, 
+#     saveVars = character(0), REML = TRUE, optimizer = "bobyqa", 
+#     maxIters = 10000, ADMB = FALSE
+
+# "Species_richness ~ LandUse + (1 | SS) + (1 | SSB) + (1 | SSBS)"
+.ConstructCall <- function(responseVar,fixedStruct,randomStruct){
+  return(paste(responseVar,"~",fixedStruct,"+",randomStruct,sep=""))
+}
+call.best <- .ConstructCall(responseVar, fixedStruct, randomStruct)
+allTerms <- unlist(strsplit(call.best, "[+]"))
+allTerms <- unlist(strsplit(allTerms, "[-]"))
+allTerms <- unlist(strsplit(allTerms, "[~]"))
+allTerms <- unlist(strsplit(allTerms, "[(]"))
+allTerms <- unlist(strsplit(allTerms, "[)]"))
+allTerms <- unlist(strsplit(allTerms, "[|]"))
+allTerms <- unlist(strsplit(allTerms, "[:]"))
+allTerms <- unlist(strsplit(allTerms, "[*]"))
+allTerms <- unique(allTerms)
+allTerms <- gsub(" ", "", allTerms)
+allTerms <- allTerms[allTerms != ""]
+allTerms <- allTerms[allTerms != "1"]
+allTerms <- allTerms[allTerms != "0"]
+allTerms <- allTerms[!grepl("poly", allTerms)]
+allTerms <- gsub("[,][0-9]", "", allTerms)
+saveVars <- character(0)
+allTerms <- c(allTerms, saveVars)
+allTerms <- unique(allTerms)
+
+modelData <- subset(modelData, select = c(allTerms))
+modelData <- na.omit(modelData)
+
+eval(substitute(m <- glmer(cb, family = "poisson", 
+                data = modelData, control = glmerControl(optimizer = "bobyqa", 
+                  optCtrl = list(maxfun = 10000))), list(cb = call.best)))
+
+
+m <- glmer(Total_abundance ~ LandUse + (1|SS) + (1|SSB) + (1|SSBS), 
+           family = "poisson", 
+           data = sites, 
+           control = glmerControl(optimizer = "bobyqa", 
+                                  optCtrl = list(maxfun = 10000))
+           )
+
+m1 <- glmer(Adj_abundance ~ LandUse + (1|SS), #, 
+           family = "poisson", 
+           data = sites, 
+           control = glmerControl(optimizer = "bobyqa", 
+                                  optCtrl = list(maxfun = 10000))
+           )
+
+
+# This doesn't work, shows the following error:
+# Error in (function (fr, X, reTrms, family, nAGQ = 1L, verbose = 0L, maxit = 100L,  : 
+#   (maxstephalfit) PIRLS step-halvings failed to reduce deviance in pwrssUpdate
+
+
+# Is this better than the previous random-effects structure?
+AIC(r2$model,r3$model)
+
+# Has it removed the overdispersion?
+GLMEROverdispersion(model = r3$model)
+
+# Now we will run backward stepwise selection to see if land use has a significant effect
+sr1 <- GLMERSelect(modelData = sites, responseVar = "Species_richness",
+                   fitFamily = "poisson", 
+                   fixedFactors = "LandUse",
+                   randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)")
+
+# A statistics table is produced
+sr1$stats # this just shows that land use has a significant effect as a factor. 
+
+# And the model itself is shown by:
+sr1$model
+r3$model # same as r3
+
+
+# Reorder the land uses into a logical order, using
+# order=c(1,4,3,8,6,2,5,7)
+sites$LandUse %>% levels() # to be reordered.
+class(sites$LandUse)
+sites <- sites %>% mutate(LandUse = fct_relevel(LandUse, levels(sites$LandUse)[c(1, 4, 3, 8, 6, 2, 5, 7)]))
+
+# plot
+PlotGLMERFactor(model = sr1$model,data = sr1$data,
+                responseVar = "Species richness",seMultiplier = 1.96,
+                logLink = "e",catEffects = "LandUse",xtext.srt=320,
+                params=list(mar = c(2.2, 3.5, 0.2, 1.2)),
+                order=c(1,4,3,8,6,2,5,7))
+
+
+```
+
+
+### 3. Years
+Try to put together a figure showing the evolution of species richness coefficient as a function of years since fragmentation
+
+```{r years}
+names(sites)
+
+m0 <- glmer(Species_richness ~ LandUse:Years_since_fragmentation_or_conversion + (1|SS) + (1|SSB) + (1|SSBS), 
+           family = "poisson", 
+           data = sites, 
+           control = glmerControl(optimizer = "bobyqa", 
+                                  optCtrl = list(maxfun = 10000))
+           )
+
+sites$LandUse %>% levels() %>% grep("sec", ., value = T)
+sites_2nd <- sites %>% 
+  filter(LandUse %in% c("Mature secondary vegetation", 
+                        "Intermediate secondary vegetation",
+                        "Young secondary vegetation"))
+
+sites$LandUse %>% class()
+sites_2nd_ln <- sites %>% 
+  filter(LandUse %in% c("Mature secondary vegetation", 
+                        "Intermediate secondary vegetation",
+                        "Young secondary vegetation"),
+         Years_since_fragmentation_or_conversion > 0) %>%
+  mutate(years_ln = log(Years_since_fragmentation_or_conversion))
+
+sites_ln <- sites %>% 
+  filter(Years_since_fragmentation_or_conversion > 0,
+         LandUse != "Secondary vegetation (indeterminate age)") %>%
+  mutate(years_ln = log(Years_since_fragmentation_or_conversion),
+         LandUse_cond = recode(LandUse, # old = new
+                               "Mature secondary vegetation" = "Secondary vegetation", 
+                               "Intermediate secondary vegetation" = "Secondary vegetation", 
+                               "Young secondary vegetation" = "Secondary vegetation",
+                               "Cropland" = "Agriculture",
+                               "Pasture" = "Agriculture"))
+
+filter(sites_ln, LandUse == "Secondary vegetation (indeterminate age)")
+
+table(sites_ln$LandUse_cond)
+  
+# Drop classification where land use could not be identified
+sites_2nd_ln$LandUse_cond[(sites_2nd_ln$LandUse_cond=="Cannot decide")] <- NA
+
+# For these models we will group all secondary vegetation together
+sites_2nd_ln$LandUse_cond[(sites_2nd_ln$LandUse_cond=="Secondary vegetation (indeterminate age)")] <- "Secondary vegetation"
+sites_2nd_ln$LandUse_cond[(sites_2nd_ln$LandUse_cond=="Mature secondary vegetation")] <- "Secondary vegetation"
+sites_2nd_ln$LandUse_cond[(sites_2nd_ln$LandUse_cond=="Intermediate secondary vegetation")] <- "Secondary vegetation"
+sites_2nd_ln$LandUse_cond[(sites_2nd_ln$LandUse_cond=="Young secondary vegetation")] <- "Secondary vegetation"
+# We will also group cropland and pasture together into an 'agriculture' class
+sites_2nd_ln$LandUse_cond[(sites_2nd_ln$LandUse_cond=="Cropland")] <- "Agriculture"
+sites_2nd_ln$LandUse_cond[(sites_2nd_ln$LandUse_cond=="Pasture")] <- "Agriculture"
+# Now make the variable a factor, and set the reference level to primary vegetation
+sites_2nd_ln$LandUse_cond <- factor(sites_2nd_ln$LandUse_cond)
+sites_2nd_ln$LandUse_cond <- relevel(sites_2nd_ln$LandUse_cond,ref="Primary vegetation")
+
+nrow(sites) # 22678
+nrow(sites_2nd) # 3788
+nrow(sites_2nd_ln) # 1850
+
+hist(sites_2nd$Years_since_fragmentation_or_conversion)
+
+table(sites_2nd$Years_since_fragmentation_or_conversion)
+
+m1 <- glmer(Species_richness ~ Years_since_fragmentation_or_conversion + (1|SS) + (1|SSB) + (1|SSBS), 
+           family = "poisson", 
+           data = sites_2nd, 
+           control = glmerControl(optimizer = "bobyqa", 
+                                  optCtrl = list(maxfun = 10000))
+           )
+# Warning message:
+# In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+#   Model is nearly unidentifiable: very large eigenvalue
+#  - Rescale variables?
+
+m2 <- glmer(Species_richness ~ log(Years_since_fragmentation_or_conversion) + (1|SS) + (1|SSB) + (1|SSBS), 
+           family = "poisson", 
+           data = sites_2nd_ln, 
+           control = glmerControl(optimizer = "bobyqa", 
+                                  optCtrl = list(maxfun = 10000))
+           )
+
+m3 <- GLMER(modelData = sites_2nd_ln, responseVar = "Species_richness",
+            fitFamily = "poisson", fixedStruct = "years_ln",
+            randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)", REML = FALSE)
+m3$model
+
+LandUse_cond
+m4 <- GLMER(modelData = sites_ln, responseVar = "Species_richness",
+            fitFamily = "poisson", fixedStruct = "LandUse_cond + years_ln",
+            randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)", REML = FALSE)
+m4$model
+
+m5 <- GLMER(modelData = sites_ln, responseVar = "Species_richness",
+            fitFamily = "poisson", fixedStruct = "LandUse_cond:years_ln",
+            randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)", REML = FALSE)
+m5$model
+
+m6 <- GLMER(modelData = sites_ln, responseVar = "Species_richness",
+            fitFamily = "poisson", fixedStruct = "LandUse_cond:years_ln + LandUse_cond",
+            randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)", REML = FALSE)
+m6$model
+
+
+# just young secondary vegetation
+m_ysv <- GLMER(modelData = filter(sites_2nd_ln, LandUse == "Young secondary vegetation"), responseVar = "Species_richness",
+            fitFamily = "poisson", fixedStruct = "Years_since_fragmentation_or_conversion",
+            randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)", REML = FALSE)
+m_ysv$model
+plot(Species_richness ~ Years_since_fragmentation_or_conversion, 
+     data = filter(sites_2nd_ln, LandUse == "Young secondary vegetation"),
+     main = "Species richness as a function of Age", 
+     xlab = "log(Age in Years)", ylab = "log(Species Richness)")
+abline(a = fixef(m_ysv$model)[1], b = fixef(m_ysv$model)[2], lwd = 3, col = "red")
+
+
+plot(Species_richness ~ Years_since_fragmentation_or_conversion, 
+     data = filter(sites_2nd_ln, LandUse == "Young secondary vegetation"),
+     main = "Species richness as a function of Age", 
+     xlab = "log(Age in Years)", ylab = "log(Species Richness)")
+abline(a = fixef(m_ysv$model)[1], b = fixef(m_ysv$model)[2], lwd = 3, col = "red")
+
+
+
+PlotGLMERFactor(model = m_ysv$model, data = m_ysv$data,
+                responseVar = "Species richness", seMultiplier = 1.96,
+                logLink = "e", catEffects = "Years_since_fragmentation_or_conversion",
+                main = "Species richness as a function of Time",
+                xtext.srt=45,
+                plotLabels = T, add = FALSE, offset = 0.6,
+                errbar.cols = 259,
+                params = list(mar = c(2.2, 3.5, 0.2, 1.2)), order = c(1,4,3,8,6,2,5,7)
+                )
+
+
+
+m2
+m3$model
+
+
+#
+m3$model
+plot(fixef(m3$model))
+abline(fixef(m3$model), lwd = 3)
+plot.new()
+
+names(sites_2nd_ln)
+plot(log(Species_richness) ~ log(Years_since_fragmentation_or_conversion), data = sites_2nd_ln,
+     main = "Species richness as a function of Age", xlab = "log(Age in Years)", ylab = "log(Species Richness)")
+abline(a = fixef(m3$model)[1], b = fixef(m3$model)[2], lwd = 3, col = "red")
+
+dev.off()
+hist(sites_2nd_ln$Years_since_fragmentation_or_conversion, breaks = 30, main = "Histogram of Age of Secondary Veg.", xlab = "Age (Years)", right = TRUE) # including the right side of the bin - 0 < x <= 10, 10 < x <= 20,
+table(sites_2nd_ln$Years_since_fragmentation_or_conversion)
+
+
+PlotGLMERFactor(model = m3$model, data = m3$data,
+                responseVar = "Species richness", seMultiplier = 1.96,
+                logLink = "e", catEffects = "years_ln",
+                main = "Land Use and Length of Time",
+                xtext.srt=45,
+                plotLabels = T, add = FALSE, offset = 0.6,
+                errbar.cols = 259,
+                params = list(mar = c(2.2, 3.5, 0.2, 1.2)),
+                order = c(1,4,3,8,6,2,5,7))
+
+fixef(m6$model)
+
+ggplot(data = filter(df, subset == "all")) +
+  theme_classic() + 
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  xlab("Land Use") + ylab("Species richness difference (%)") +
+  labs(title = "Coefficients for different biome subsets of PREDICTS") +
+  geom_pointrange(mapping = aes(x = land_use,
+                                y = y,
+                              ymin = yminus, 
+                              ymax = yplus),
+                fatten = 2, position = position_dodge(width = 0.4)) +
+  geom_hline(yintercept = 0, linetype="dashed", 
+             color = "grey", size = 0.75)
+
+png(filename = paste0(p_output, "plots/predicts_coeff_all.png"), 
+    width = 7, height = 5, units = "in", res = 400)
+print(gg_predicts_all)
+dev.off()
+
+
+
+```
+
+```{r basic-plots}
+
+
+gg_richness_ysv <- ggplot(data = filter(sites_2nd_ln#, LandUse == "Young secondary vegetation"
+                     )) +
+  theme_classic() +
+  geom_point(mapping = aes(x = Years_since_fragmentation_or_conversion, 
+                           y = Species_richness#, color = land_cover
+                           ), alpha = 0.3) + 
+  geom_smooth(method = "lm", mapping = aes(x = Years_since_fragmentation_or_conversion, y = Species_richness#,
+                                           #fill = land_cover, 
+                                           #color = land_cover
+                                           )) +
+  labs(x = "Age (Years)", #color = "Land Cover",
+       #title = "Constrained to just 'Young Secondary Vegetation'",
+       title = "Species richness as a function of age (in years)",
+       y = "Species Richness") #+ guides(fill = FALSE) #+ facet_grid(cols = vars(site), scales = "free_y")
+
+
+png(filename = paste0(p_output, "plots/predicts_richness_age_ysv", ".png"), 
+      width = 7, height = 5, units = "in", res = 400)
+print(gg_richness_ysv)
+dev.off()
+
+sites_2nd_ln$Biome %>% unique()
+p2 <- gg_richness_ysv %+% filter(sites_2nd_ln, Biome == "Montane Grasslands & Shrublands") + labs(title = "Montane Grasslands & Shrublands")
+
+p3 <- gg_richness_ysv %+% filter(sites_2nd_ln, Biome == "Temperate Broadleaf & Mixed Forests") + labs(title = "Temperate Broadleaf & Mixed Forests")
+
+p4 <- gg_richness_ysv %+% filter(sites_2nd_ln, Biome == "Temperate Grasslands, Savannas & Shrublands") + labs(title = "Temperate Grasslands, Savannas & Shrublands")
+
+
+png(filename = paste0(p_output, "plots/predicts_richness_age_ysv_grid", ".png"), 
+      width = 9, height = 7, units = "in", res = 400)
+plot_grid(gg_richness_ysv, p2, p3, p4)
+dev.off()
+
+```
 
