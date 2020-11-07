@@ -13,9 +13,13 @@
 
 # array set up
 args <- commandArgs(TRUE) # access the slurm array variable
-indx <- as.numeric(args[1])
+indx <- as.numeric(args[1]) # 1:9, or whatever the array variable is 
 
-site_list <- c("shaanxi", "belarus") # list of all sites
+site_list <- c("bosnia_herzegovina", "chongqing", "goias", 
+               "iraq", "mato_grosso", "nebraska",
+               "orenburg", "volgograd", "wisconsin") # list of all sites
+
+
 site <- site_list[indx] # set site:
 
 # -------------------------------------------------------- #
@@ -32,9 +36,30 @@ source("/home/clc6/abandonment_trajectories/scripts/util/_util_dt_filter_functio
 
 # set paths:
 p_dat_derived <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
+raw_dir_path <- "/scratch/network/clc6/abandonment_trajectories/final_maps_raw/"
+
+
+# load site_df
+site_df <- read_csv(file = paste0(p_dat_derived, "site_df.csv"))
+
+
 
 print(paste0("Processing raw raster for ", site))
 
 # run function
-cc_r_to_dt(site = site, path = p_dat_derived)
+
+tic("merge rasters")
+cc_merge_rasters(site = site, site_df = site_df, input_path = raw_dir_path)
+toc(log = TRUE)
+
+
+
+tic("recode rasters")
+cc_recode_rasters(site = site, site_df = site_df, input_path = raw_dir_path, 
+                  output_path = paste0(p_dat_derived, "input_rasters/"))
+toc(log = TRUE)
+
+
+
+
 

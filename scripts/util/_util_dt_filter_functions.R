@@ -1,8 +1,107 @@
 # --------------------------------------------------------------- #
 #
-# abandonment data.table filtering functions
+# abandonment trajectories custom functions
 # 
 # --------------------------------------------------------------- #
+
+
+# raster prep functions ----
+
+# -------------------------------------------------------------------------- #
+# Load individual raster layers and merge into a single raster brick
+# -------------------------------------------------------------------------- #
+cc_merge_rasters <- function(site, site_df,
+                             input_path){
+  print(paste0("Merging raw raster layers for ", site))
+  
+  tic.clearlog()
+  site_files <- list.files(paste0(input_path, site), full.names = TRUE)
+  
+  if (site_df[site_df$site == site, "merge_layers"] == "Yes") {
+    
+    # load raster layers
+    raster_layers_list <- lapply(site_files, function(i) raster(i))
+    
+    # create raster stack
+    tic("create raster stack")
+    raster_stack <- stack(raster_layers_list)
+    toc(log = TRUE)
+    
+  } else {
+    
+    # load raster stack
+    tic("load raster stack")
+    raster_stack <- brick(site_files)
+    toc(log = TRUE)
+    
+  }
+  
+  # print and save names of the raster stack
+  print(names(raster_stack))
+  fwrite(data.frame(names(raster_stack)), file = paste0(input_path, site, ".csv"))
+  
+  # write to file
+  tic("write raster_stack to file")
+  writeRaster(raster_stack, 
+              filename = paste0(input_path, site, "_raw.tif"),
+              overwrite = TRUE)
+  toc(log = TRUE)
+  
+  print(paste0("Done! Merged and saved raw raster brick for: ", site))
+  print(tic.log())
+  
+}
+
+
+
+
+# -------------------------------------------------------------------------- #
+# Recode land cover classes in raw rasters, writing to data_derived
+# -------------------------------------------------------------------------- #
+cc_recode_rasters <- function(site, site_df, input_path, 
+                              output_path){
+  print(paste0("Recoding land cover classes for ", site))
+  
+  tic.clearlog()
+  
+  tic("load input raster")
+  input_raster <- brick(paste0(input_path, site, "_raw.tif"))
+  toc(log = TRUE)
+  
+  if (site_df[site_df$site == site, "update_lc"] == "Yes") {
+    # recode the raw input raster, if necessary:
+    
+    tic("add 10 to input raster")
+    input_raster <- input_raster + 10 # add 10 to the input raster, to facilitate recoding
+    toc(log = TRUE)
+    # ^ without this, we risk lumping land cover classes together 
+    # based on the order in which things are recoded
+    
+    original_codes <- site_df[site_df$site == site, ]
+    
+    tic("recode land cover classes")
+    input_raster[input_raster == 10] <- NA # remove 0s
+    input_raster[input_raster == original_codes[, "other"] + 10] <- 1 # set other to 1
+    input_raster[input_raster == original_codes[, "woody_veg"] + 10] <- 2 # set woody_veg to 2
+    input_raster[input_raster == original_codes[, "cropland"] + 10] <- 3 # set cropland to 3
+    input_raster[input_raster == original_codes[, "grassland"] + 10] <- 4 # set grassland to 4
+    toc(log = TRUE)
+  } 
+  
+  # write to file
+  tic("write recoded raster to file")
+  writeRaster(input_raster, 
+              filename = paste0(output_path, site, ".tif"),
+              overwrite = TRUE)
+  toc(log = TRUE)
+  
+  print(paste0("Done. Raster land cover recoded for: ", site))
+  print("Here's the tic.log:")
+  print(tic.log())
+  
+}
+
+
 
 
 # data.table filtering functions ----
@@ -474,6 +573,12 @@ cc_extract_length <- function(dt_diff) {
 # Save raw raster as data.table
 # -------------------------------------------------------------------------- #
 cc_r_to_dt <- function(site, path = p_dat_derived) {
+  # Convert raw rasters to data.tables, involving:
+  # 1) loading raster
+  # 2) updating names
+  # 3) converting raster to data.table,
+  # 4) writing dt to csv.
+  
   # requires raster, data.table, devtools, tictoc, dtraster
   tic.clearlog()
   
@@ -1081,35 +1186,46 @@ cc_calc_abn_area_diff <- function(abn_age_dt, land_cover_raster,
 cc_summarize_abn_dts <- function(land_cover_dt,
                                  abn_age_dt, 
                                  land_cover_raster, 
+                                 input_path,
+                                 site,
+                                 blip_label = "_blip1",
                                  outfile_label,
                                  abandonment_threshold = 5,
                                  include_all = FALSE) {
   
+  # load files:
+  lc_raster <- brick(paste0(input_path, site, ".tif")) 
+  names(lc_raster) <- paste0("y", 1987:2017)
+  
+  lc_dt <- fread(input = paste0(input_path, site, ".csv")) 
+  
+  age_dt <- fread(input = paste0(input_path, site, "_age", blip_label, ".csv"))
+  
   print("calculating total area per lc, with abandonment")
   # ------------- calculate total area per lc, with abandonment ---------------- #
-  area <- cc_calc_area_per_lc_abn(land_cover_dt = land_cover_dt, 
-                                  abn_age_dt = abn_age_dt, 
-                                  land_cover_raster = land_cover_raster,
+  area <- cc_calc_area_per_lc_abn(land_cover_dt = lc_dt, 
+                                  abn_age_dt = age_dt, 
+                                  land_cover_raster = lc_raster,
                                   abandonment_threshold = abandonment_threshold)
   
   print("calculate abandonment persistence")
   # ------------------------ abandonment persistence --------------------------- #
-  persistence_list <- cc_calc_persistence_all(abn_age_dt = abn_age_dt, 
-                                              land_cover_raster = land_cover_raster,
+  persistence_list <- cc_calc_persistence_all(abn_age_dt = age_dt, 
+                                              land_cover_raster = lc_raster,
                                               include_wide = FALSE,
                                               abandonment_threshold = abandonment_threshold,
                                               include_all_abandonment = include_all)
   
   print("calculate abandonment area turnover")
   # -------------------- calculate the abandonment area turnover ------------------- #
-  abn_area_change <- cc_calc_abn_area_diff(abn_age_dt = abn_age_dt, 
-                                           land_cover_raster = land_cover_raster,
+  abn_area_change <- cc_calc_abn_area_diff(abn_age_dt = age_dt, 
+                                           land_cover_raster = lc_raster,
                                            abandonment_threshold = abandonment_threshold)
   
   if(include_all) {
     abn_area_change_all <- cc_calc_abn_area_diff(
-      abn_age_dt = abn_age_dt, 
-      land_cover_raster = land_cover_raster,
+      abn_age_dt = age_dt, 
+      land_cover_raster = lc_raster,
       abandonment_threshold = 1) %>% 
       
       # rename columns

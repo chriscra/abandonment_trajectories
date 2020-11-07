@@ -155,6 +155,8 @@ b_age_r <- brick(paste0(p_dat_derived, "belarus_age.tif"))
 #       2. Woody vegetation
 #       3. Cropland 
 #       4. Herbaceous land (e.g. grassland)
+# 
+# Also be careful of years: Nebraska runs from 1986-2018, while all other sites run 1987-2017.
 
 # Shaanxi (China):  1 others;     2 forest,     3 cropland;     4 grassland
 # Belarus - Russia: 1 others;     2 forest,     3 cropland;     4 grassland
@@ -317,76 +319,64 @@ site_df <- site_df %>%
 
 # sites
 site_df
-merge_files <- lapply(site_merge_layers, FUN = function(i) {
-  list.files(paste0(p_dat, "Abandonment/final_maps_raw/", i), full.names = TRUE)
-})
 
-names(merge_files) <- site_merge_layers
+# set site
+site <- site_merge_layers[2]
+site <- "wisconsin"
+i
 
-
-v <- lapply(merge_files$volgograd, FUN = function(i){
-  raster(i)
-})
-v <- lapply(merge_files$volgograd, function(i) raster(i))
-
-
-plot(v[[1]], maxpixels = 5000)
-v
-class(v)
-tic()
-v1 <- stack(v)
-toc()
-
-tic()
-writeRaster(v1, filename = paste0(p_dat, "Abandonment/final_maps_raw/volgograd/volgograd.tif"))
-toc()
-warnings()
-"/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/final_maps_raw/volgograd/volgograd.tif"
-
-map_files <- list.files(paste0(p_dat, "Abandonment/final_maps/"))
-
-r
-r <- vector(mode = "list", length = length(map_files)# + 2
-            )
-r[[1]] <- brick(paste0(p_dat, "Abandonment/shaanxi.tif"))
-r[[2]] <- brick(paste0(p_dat_derived, "input_rasters/belarus.tif")) # merged version
-
-
-r <- lapply(seq_along(map_files), function(i) {
-  brick(paste0(p_dat, "Abandonment/Final_maps/", map_files[i]))
+folder_paths <- list.dirs(path = paste0(p_dat, "Abandonment/final_maps_raw"), 
+                       full.names = TRUE, recursive = FALSE)
+  
+folder_names <- sapply(seq_along(folder_paths), FUN = function(i) {
+  folders_l <- unlist(strsplit(folder_paths[[i]], "[/]"))
+  folders_l <- folders_l[length(folders_l)]
   }
   )
 
-names(r) <- map_files #site_list
+merge_files <- lapply(site_merge_layers, FUN = function(i) {
+      list.files(paste0(p_dat, "Abandonment/final_maps_raw/", i), full.names = TRUE)
+    })
 
-b_tiles <- lapply(1:6, function(i) {
-    brick(paste0(p_dat, "Abandonment/belarus_tiles/", b_files[i]))})
-names(b_tiles) <- b_files
+names(merge_files) <- site_merge_layers
+for (i in 1:6) {
+  print(paste0(length(merge_files[[i]]), ": ", names(merge_files[i])))
+  }
 
+site_df[site_df$merge_layers == "Yes", "site"]
+
+
+
+964/60 # 16 minutes. Better upload the data and go from there. 
+cc_merge_rasters(site = "wisconsin", site_df = site_df)
+
+
+
+
+gsub("X5_Volg_172_026_landcover", "y", names(v))
+
+l <- lapply(merge_files, function(i) raster(i))
+
+merge_files[[1]][1]
+length(merge_files)
 ```
 
-```{r recode-lc}
-bt <- brick(paste0(p_dat_derived, "belarus_subset.tif"))
-names(bt) <- paste0("y", 1987:2017)
-plot(bt$y1987)
-plot(input_raster$y1987)
 
-input_raster <- bt
+```{r explore-test-merged-rasters}
 
-original_codes <- site_dt %>% filter(site == site)
+rasters <- lapply(site_list, function(site) {
+  brick(paste0(p_dat_derived, "input_rasters/", site, ".tif"))
+  }
+  )
+names(rasters) <- site_list
 
-other_original_code <- original_codes %>% select(other) %>% unlist(use.names = FALSE)
-woody_original_code <- original_codes %>% select(woody_veg) %>% unlist(use.names = FALSE)
-cropland_original_code <- original_codes %>% select(cropland) %>% unlist(use.names = FALSE)
-grassland_original_code <- original_codes %>% select(grassland) %>% unlist(use.names = FALSE)
+test <- read.csv(paste0(p_dat, "Abandonment/final_maps_raw/", site, ".csv"))
+unlist(test, use.names = F) == names(raster_stack)
 
-input_raster <- input_raster + 10 # add 10 to the input raster, to facilitate recoding
 
-input_raster[input_raster == 10] <- NA
-input_raster[input_raster == other_original_code + 10] <- 1 # set other to 1
-input_raster[input_raster == woody_original_code + 10] <- 2 # set woody veg to 2
-input_raster[input_raster == cropland_original_code + 10] <- 3 # set cropland to 3
-input_raster[input_raster == grassland_original_code + 10] <- 4 # set grassland to 4
+# test that the recoding worked
+freq(raster_stack[[1]])
+
 ```
 
 
