@@ -128,7 +128,9 @@ b_age_r <- brick(paste0(p_dat_derived, "belarus_age.tif"))
 
 ```
 
-```{r load-all-sites}
+```{r set-site-params}
+# Make data.frame containing site names, labels, original land cover codes, and noting whether to 1) merge layers into a stack, 2) update land cover codes, or 3) trim extra years
+
 # Primary sites
 # 1. Shaanxi - He
 # 2. Belarus (Smolensk) - He
@@ -193,18 +195,27 @@ site_update_lc <- site_list[c(5, 7, 8, 10, 11)]
 c("iraq", "nebraska", "orenburg", "volgograd", "wisconsin")
 
 
-# make a data.frame outlining site names, labels, whether to update land cover, whether to merge, original land cover codes etc. 
+# make a data.frame outlining site names, labels, whether to update land cover, whether to merge, whether to trim years, original land cover codes etc. 
 site_df <- data.frame(site = site_list,
                       label = site_label_list) %>% 
-  mutate(merge_layers = ifelse(site %in% site_merge_layers, "Yes", "No"),
-         update_lc = ifelse(site %in% site_update_lc, "Yes", "No"),
+  mutate(merge_layers = ifelse(site %in% 
+                                 c("chongqing", "goias", "iraq", 
+                                   "nebraska", "orenburg", "volgograd"), 
+                               "Yes", "No"),
+         update_lc = ifelse(site %in% 
+                              c("iraq", "nebraska", "orenburg", 
+                                "volgograd", "wisconsin"), 
+                            "Yes", "No"),
+         trim_years = ifelse(site %in% 
+                               c("nebraska", "wisconsin"), 
+                             "Yes", "No"),
          other = 1, 
          woody_veg = 2,
          cropland = 3,
          grassland = 4
          )
 
-# Update the following:
+# Update land cover classes for the following sites:
 # Iraq:             1 others;     2 cropland;   3 forest;       4 grassland
 # Nebraska:         1 cropland;   2 forest;     3 others;       4 grassland
 # Russia Orenburg:  1 others;     2 cropland;   3 grassland;    4 forest
@@ -228,21 +239,26 @@ site_df[site_df$site == "wisconsin",
 
 site_df
 
+
+
+
+
 # save site_df
 write_csv(site_df, path = paste0(p_dat_derived, "site_df.csv"))
+```
 
 
-
-
-
-
+```{r load-all-sites}
 # ---------------------------------------------------
 # load final tifs 
 # ---------------------------------------------------
 
 # year of first abandonment maps
 yoa_files <- list.files(paste0(p_dat, "Abandonment/year_of_abandonment/"))
-map_files <- list.files(paste0(p_dat, "Abandonment/final_maps/"))
+# map_files <- list.files(paste0(p_dat, "Abandonment/final_maps/"))
+map_files <- list.files(paste0(p_dat_derived, "input_rasters/raw_merged/")) %>%
+  grep(".tif", ., value = TRUE)
+
 
 r
 r <- vector(mode = "list", length = length(map_files)# + 2
@@ -252,7 +268,8 @@ r[[2]] <- brick(paste0(p_dat_derived, "input_rasters/belarus.tif")) # merged ver
 
 
 r <- lapply(seq_along(map_files), function(i) {
-  brick(paste0(p_dat, "Abandonment/Final_maps/", map_files[i]))
+  # brick(paste0(p_dat, "Abandonment/Final_maps/", map_files[i]))
+  brick(paste0(p_dat_derived, "input_rasters/raw_merged/", map_files[i]))
   }
   )
 
@@ -260,6 +277,28 @@ names(r) <- map_files #site_list
 
 
 plot(c(ncell(b), ncell(s), sapply(seq_along(r), FUN = function(i) ncell(r[[i]]))))
+
+num_cells <- sapply(seq_along(r), FUN = function(i) ncell(r[[i]]))
+num_cells
+names(r)
+num_cells[1:7]
+names(r)[1:7]
+site_df$site[2:8]
+site_df
+
+site_df_w_size <- site_df %>%
+  mutate(ncell = c(ncell(b), 
+                   num_cells[1:7], 
+                   ncell(s), 
+                   num_cells[8:9])
+         ) %>% arrange(ncell)
+
+# 
+ggplot(data = site_df_w_size) + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  geom_col(mapping = aes(x = reorder(site, ncell), y = ncell))
+
 
 test <- brick(paste0("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/Final_maps/", map_files[2]))
 test
@@ -362,13 +401,156 @@ length(merge_files)
 ```
 
 
-```{r explore-test-merged-rasters}
+```{r update-lc-codes-func}
+# cc_recode_rasters <- function(site, site_df, input_path, output_path){
+w_og <- brick(paste0(p_dat, "Abandonment/final_maps_raw/wisconsin/centralWI_landCover_87_17.tif"))
+w <- brick(paste0(p_dat_derived, "input_rasters/test/wisconsin.tif"))
+w_raw_merged <- brick(paste0(p_dat_derived, "input_rasters/raw_merged/wisconsin_raw.tif"))
 
-rasters <- lapply(site_list, function(site) {
-  brick(paste0(p_dat_derived, "input_rasters/", site, ".tif"))
+names(w_og)
+names(w)
+names(w_raw_merged)
+
+freq(w_og[[1]])
+#      value    count
+# [1,]     0    55327 # 0
+# [2,]     1 27011502 # cropland
+# [3,]     2  7793180 # grassland
+# [4,]     3 33690461 # forest
+# [5,]     4  2323550 # others
+
+# updating LC to: 1 others;     2 forest,     3 cropland;     4 grassland
+# wisconsin og codes: 1 cropland;   2 grassland;  3 forest;       4 others
+site_df %>% filter(site == "wisconsin")
+
+freq(w[[1]])
+#      value    count
+# [1,]    11 27011502 # looks like the same as the 1s in the og raster
+# [2,]    12  7793180 # looks like the recoding just didn't work! 
+# [3,]    13 33690461
+# [4,]    14  2323550
+# [5,]    NA    55327
+
+freq(w_raw_merged[[1]])
+#      value    count
+# [1,]     0    55327 # 0 
+# [2,]     1 27011502 # cropland
+# [3,]     2  7793180
+# [4,]     3 33690461
+# [5,]     4  2323550
+
+identical(w, w_og)
+p_dat
+p_dat_derived
+
+site <- "wisconsin"
+site_df
+input_path <- paste0(p_dat_derived, "input_rasters/raw_merged/")
+
+print(paste0("Recoding land cover classes for ", site))
+
+tic.clearlog()
+
+tic("load input raster")
+input_raster <- brick(paste0(input_path, site, "_raw.tif"))
+toc(log = TRUE)
+
+# crop to a small test size
+plot(input_raster[[1]], main = "Year 1", col = plot_cols$color, breaks = c(0, plot_cols$breaks))
+
+ext_1 <- drawExtent(show = TRUE, col = "red")
+plot(input_raster[[1]], main = "Year 1, subset 1", col = plot_cols$color, breaks = c(0, plot_cols$breaks), ext = ext_1)
+
+ext_2 <- drawExtent(show = TRUE, col = "red")
+plot(input_raster[[1]], main = "Year 1, subset 2", col = plot_cols$color, breaks = c(0, plot_cols$breaks), ext = ext_2)
+
+# crop
+input_raster <- crop(input_raster, ext_2)
+plot(input_raster[[1]], main = "Year 1, subset 2", col = plot_cols$color, breaks = c(0, plot_cols$breaks))
+freq(input_raster[[1]])
+
+# test_save <- input_raster
+plot(test_save)
+# input_raster <- test_save
+writeRaster(input_raster, 
+            filename = paste0("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/input_rasters/func_test/", site, "_raw.tif"),
+            overwrite = TRUE)
+
+freq(input_raster[[1]]) # before
+if (site_df[site_df$site == site, "update_lc"] == "Yes") {
+  # recode the raw input raster, if necessary:
+  
+  tic("add 10 to input raster")
+  input_raster <- input_raster + 10 # add 10 to the input raster, to facilitate recoding
+  toc(log = TRUE)
+  # ^ without this, we risk lumping land cover classes together 
+  # based on the order in which things are recoded
+  
+  original_codes <- site_df[site_df$site == site, ]
+  
+  tic("recode land cover classes")
+  freq(input_raster[[1]]) # before
+  input_raster[input_raster == 10] <- NA # remove 0s
+  freq(input_raster[[1]]) # after
+  
+  input_raster[input_raster == original_codes[, "other"] + 10] <- 1 # set other to 1
+  input_raster[input_raster == original_codes[, "woody_veg"] + 10] <- 2 # set woody_veg to 2
+  input_raster[input_raster == original_codes[, "cropland"] + 10] <- 3 # set cropland to 3
+  input_raster[input_raster == original_codes[, "grassland"] + 10] <- 4 # set grassland to 4
+  toc(log = TRUE)
+}
+freq(input_raster[[1]]) # before
+
+
+# write to file
+tic("write recoded raster to file")
+writeRaster(input_raster, 
+            # filename = paste0(output_path, site, ".tif"),
+            filename = paste0("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/input_rasters/func_test/", site, ".tif"),
+            overwrite = TRUE)
+toc(log = TRUE)
+
+print(paste0("Done. Raster land cover recoded for: ", site))
+print("Here's the tic.log:")
+print(tic.log())
+
+# }
+
+
+# test the function again:
+# write out the testing small subset of wisconsin:
+cc_recode_rasters(site = site,  # wisconsin
+                  site_df = site_df, 
+                  input_path = "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/input_rasters/func_test/", 
+                  output_path = "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/input_rasters/func_test/")
+
+
+w_t <- brick(paste0(p_dat_derived, "input_rasters/func_test/", site, ".tif"))
+freq(w_t[[1]])
+freq(test_save[[1]])
+freq(input_raster[[1]])
+```
+
+
+
+```{r explore-prepped-rasters}
+site_df
+
+w <- brick("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/final_maps_raw/wisconsin/centralWI_landCover_87_17.tif")
+w
+names(w) # wisconsin actually has 32 layers, including 2018.
+
+rasters <- lapply(site_list[-c(1, 7, 9)], function(site) {
+  brick(paste0(p_dat_derived, "input_rasters/test/input_rasters/", site, ".tif"))
   }
   )
-names(rasters) <- site_list
+list.files(paste0(p_dat_derived, "input_rasters/test/input_rasters"), full.names = TRUE)
+names(rasters) <- site_list[-c(1, 7, 9)]
+
+names(rasters)
+for (i in seq_along(rasters)) {print(nlayers(rasters[[i]]))}
+
+
 
 test <- read.csv(paste0(p_dat, "Abandonment/final_maps_raw/", site, ".csv"))
 unlist(test, use.names = F) == names(raster_stack)
@@ -377,6 +559,39 @@ unlist(test, use.names = F) == names(raster_stack)
 # test that the recoding worked
 freq(raster_stack[[1]])
 
+```
+
+```{r iraq}
+i_og <- brick(paste0(p_dat, "Abandonment/final_maps_raw/iraq/centralWI_landCover_87_17.tif"))
+i <- brick(paste0(p_dat_derived, "input_rasters/test/iraq.tif"))
+i_raw_merged <- brick(paste0(p_dat_derived, "input_rasters/raw_merged/iraq_raw.tif"))
+
+names(i)
+names(i_raw_merged)
+
+
+freq(i_raw_merged[[1]])
+freq(i[[1]])
+
+# updating LC to: 1 others;     2 forest,     3 cropland;     4 grassland
+# iraq og codes: 1 others;   2 cropland;  3 forest;       4 grassland
+site_df %>% filter(site == "iraq")
+
+
+
+list.files(paste0(p_dat_derived, "input_rasters/func_test/"))
+
+i2 <- brick(paste0(p_dat_derived, "input_rasters/func_test/iraq.tif"))
+
+names(i2)
+
+plot(i[[1]], maxpixels = 50000)
+plot(i2[[1]], maxpixels = 50000)
+
+
+freq(i[[1]])
+freq(i2[[1]])
+freq(i_raw_merged[[1]])
 ```
 
 

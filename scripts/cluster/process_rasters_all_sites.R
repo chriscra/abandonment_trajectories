@@ -9,13 +9,28 @@
 args <- commandArgs(TRUE) # access the slurm array variable
 indx <- as.numeric(args[1])
 
-site_list <- c("shaanxi", "belarus") # list of all sites
-site_label_list <- c("_s", "_b")
+
+# set up parameters:
+# list of all sites
+site_list <- sort(
+  c("shaanxi", "belarus", 
+    "chongqing", "goias", "mato_grosso",
+    "nebraska", "wisconsin", "volgograd",
+    "orenburg", "bosnia_herzegovina", "iraq") 
+)
+
+site_label_list <- sort(
+  c("_s", "_b", 
+    "_c", "_g", "_mg", 
+    "_n", "_w", "_v", 
+    "_o", "_bh", "_i")
+)
 
 site <- site_list[indx] # set site:
 site_label <- site_label_list[indx] # set label
 
 blip_label <- "_blip1"
+label <- NULL # for calculating the max age
 
 # load libraries
 cluster_packages <- c("data.table", "tictoc", "raster",
@@ -25,6 +40,7 @@ install_pkg <- lapply(cluster_packages, library, character.only = TRUE)
 
 # set paths:
 p_dat_derived <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
+p_input <- paste0(p_dat_derived, "input_rasters/")
 p_output <- "/scratch/network/clc6/abandonment_trajectories/output/"
 
 # source functions:
@@ -34,7 +50,7 @@ source("/home/clc6//abandonment_trajectories/scripts/util/_util_dt_filter_functi
 
 # 1. Convert raw rasters into data.tables
 print(paste0("Converting raw rasters to data.tables: ", site))
-cc_r_to_dt(site = site, path = p_dat_derived)
+cc_r_to_dt(site = site, path = p_input)
 
 # 2. Process raw data.tables in order to calculate the length of agricultural abandonment periods.
       # Steps include:
@@ -45,29 +61,27 @@ cc_r_to_dt(site = site, path = p_dat_derived)
 print(paste0("Filter data.tables for abandonment raw rasters to data.tables: ", site))
 
 cc_filter_abn_dt(site = site,
-                 path = p_dat_derived,
+                 path = p_input,
                  label = blip_label,
                  clean_blips = TRUE)
 
-# 3. 
+# 3 Calculate maximum age, serial
+cc_calc_max_age(directory = p_input, 
+                site = site, 
+                blip_label = blip_label,
+                label = label) 
 
-# 4. 
-lc_raster <- brick(paste0(p_dat_derived, site, ".tif")) # merged version
-names(lc_raster) <- paste0("y", 1987:2017)
 
-lc_dt <- fread(input = paste0(p_dat_derived, site, ".csv")) 
-
-age_dt <- fread(input = paste0(p_dat_derived, site, "_age", blip_label, ".csv"))
-
+# 4. Summarize the abandonment datatables into dataframes for plotting purposes
 print(paste0("Summarizing abandonment data.tables for: ", site))
-tic()
+
 cc_summarize_abn_dts(
-  land_cover_dt = lc_dt, 
-  abn_age_dt = age_dt, 
-  land_cover_raster = lc_raster$y2017,
+  input_path = p_input,
+  site = site,
+  blip_label = blip_label,
   outfile_label = paste0(blip_label, site_label),
   abandonment_threshold = 5,
   include_all = TRUE
 )
-toc()
+
 

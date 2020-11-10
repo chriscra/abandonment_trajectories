@@ -73,6 +73,8 @@ s_max_length <- fread(input = paste0(p_dat_derived, "shaanxi_max_length.csv"))
 s_dt <- fread(input = paste0(p_dat_derived, "shaanxi.csv"))
 names(s_dt) <- gsub(pattern = "andcover", replacement = "y", names(s_dt))
 
+s_dt + 1
+
 b_dt <- fread(input = paste0(p_dat_derived, "belarus.csv")) # caution - huge file! 8.4 GB at least. 
 ```
 

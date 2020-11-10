@@ -12,6 +12,7 @@
 # -------------------------------------------------------------------------- #
 cc_merge_rasters <- function(site, site_df,
                              input_path){
+  print("Updated function, testing 11/9, 10:20 pm")
   print(paste0("Merging raw raster layers for ", site))
   
   tic.clearlog()
@@ -58,6 +59,7 @@ cc_merge_rasters <- function(site, site_df,
 # -------------------------------------------------------------------------- #
 # Recode land cover classes in raw rasters, writing to data_derived
 # -------------------------------------------------------------------------- #
+# note, this does not work, as of 11/10/20. Recode directly in data.tables instead.
 cc_recode_rasters <- function(site, site_df, input_path, 
                               output_path){
   print(paste0("Recoding land cover classes for ", site))
@@ -67,6 +69,9 @@ cc_recode_rasters <- function(site, site_df, input_path,
   tic("load input raster")
   input_raster <- brick(paste0(input_path, site, "_raw.tif"))
   toc(log = TRUE)
+  
+  print("freq(input_raster[[1]]): before")
+  print(freq(input_raster[[1]]))
   
   if (site_df[site_df$site == site, "update_lc"] == "Yes") {
     # recode the raw input raster, if necessary:
@@ -78,15 +83,35 @@ cc_recode_rasters <- function(site, site_df, input_path,
     # based on the order in which things are recoded
     
     original_codes <- site_df[site_df$site == site, ]
+    print(original_codes)
     
-    tic("recode land cover classes")
+    tic("recode land cover classes: 10 -> NA")
     input_raster[input_raster == 10] <- NA # remove 0s
+    toc(log = TRUE)
+    
+    tic("recode land cover classes: other -> 1")
+    print(paste0("original other code: ", original_codes[, "other"]))
     input_raster[input_raster == original_codes[, "other"] + 10] <- 1 # set other to 1
+    toc(log = TRUE)
+    
+    tic("recode land cover classes: woody_veg -> 2")
+    print(paste0("original woody_veg code: ", original_codes[, "woody_veg"]))
     input_raster[input_raster == original_codes[, "woody_veg"] + 10] <- 2 # set woody_veg to 2
+    toc(log = TRUE)
+    
+    tic("recode land cover classes: cropland -> 3")
+    print(paste0("original cropland code: ", original_codes[, "cropland"]))
     input_raster[input_raster == original_codes[, "cropland"] + 10] <- 3 # set cropland to 3
+    toc(log = TRUE)
+    
+    tic("recode land cover classes: grassland -> 4")
+    print(paste0("original grassland code: ", original_codes[, "grassland"]))
     input_raster[input_raster == original_codes[, "grassland"] + 10] <- 4 # set grassland to 4
     toc(log = TRUE)
   } 
+  
+  print("freq(input_raster[[1]]): after")
+  print(freq(input_raster[[1]]))
   
   # write to file
   tic("write recoded raster to file")
@@ -96,17 +121,25 @@ cc_recode_rasters <- function(site, site_df, input_path,
   toc(log = TRUE)
   
   print(paste0("Done. Raster land cover recoded for: ", site))
+  
   print("Here's the tic.log:")
   print(tic.log())
   
 }
 
 
+# recode 
+cc_recode_lc_dt <- function(dt, crop_code = 0, noncrop_code = 1) {
+  
+  
+}
+
 
 
 # data.table filtering functions ----
 # -------------------------------------------------------------------------- #
-# Update land cover classes values
+# Update land cover classes values to lump grassland and woody vegetation into 
+# a single "noncrop" category, and make binary
 # -------------------------------------------------------------------------- #
 cc_update_lc <- function(dt, crop_code = 0, noncrop_code = 1) {
   
@@ -572,7 +605,8 @@ cc_extract_length <- function(dt_diff) {
 # -------------------------------------------------------------------------- #
 # Save raw raster as data.table
 # -------------------------------------------------------------------------- #
-cc_r_to_dt <- function(site, path = p_dat_derived) {
+cc_r_to_dt <- function(site, path = p_dat_derived,
+                       raw_label = NULL) {
   # Convert raw rasters to data.tables, involving:
   # 1) loading raster
   # 2) updating names
@@ -590,16 +624,31 @@ cc_r_to_dt <- function(site, path = p_dat_derived) {
   # load raster
   tic("load raster")
   r <- brick(paste0(path, site, ".tif"))
+  
+  # update the year column names, not trim... the raw data.tables should have all years of data.
+  # trim years from Wisconsin and Nebraska:
+  if (site == "wisconsin") {
+    print(names(r))
+    print("trim years from wisconsin")
+    r <- r[[1:31]]
+    }
+  
+  if (site == "nebraska") {
+    print(names(r))
+    print("trim years from nebraska")
+    r <- r[[2:32]]
+    }
+  
   if (nlayers(r) != 31) {
     stop("Raster does not have 31 layers.")
   }
+  
   toc(log = TRUE)
   
   # update raster layer names
   tic("update raster layer names")
   # names(r) <- gsub(gsub_pattern, "y", names(r))
   names(r) <- paste0("y", 1987:2017) # 
-  
   toc(log = TRUE)
   
   # load as a data.table - warning, this is very slow
@@ -609,10 +658,12 @@ cc_r_to_dt <- function(site, path = p_dat_derived) {
   print("done: data.table converted")
   toc(log = TRUE)
   
+  print(names(dt))
+  
   # write out data.table as a csv
   tic("write out data.table as a csv")
   print("writing data.table to csv")
-  fwrite(dt, file = paste0(path, site, ".csv"))
+  fwrite(dt, file = paste0(path, site, raw_label, ".csv"))
   toc(log = TRUE)
   
   toc(log = TRUE) # final toc
@@ -647,12 +698,17 @@ cc_filter_abn_dt <- function(site,
   dt <- fread(input = paste0(path, site,".csv"))
   toc(log = TRUE)
   
+  dt[]
+  
+  # update this code to select just 1987:2017, with a switch
   # update names
   if (length(grep("x$|y$", invert = TRUE, names(dt))) != 31) {
     stop("data.table does not have 31 year columns (in addition to x and y)")
   }
   names(dt) <- c("x", "y", paste0("y", 1987:2017)) # rename
   # seq_along(dt) - 1 + start_year
+  
+  dt[]
 
   
   # start heavy processing
@@ -669,59 +725,63 @@ cc_filter_abn_dt <- function(site,
   toc(log = TRUE)
   
   if(clean_blips) {
-    tic("count and write blips_count")
+    
+    tic("counted and write blips_count")
     print("counting blips, writing out blips_count data.frame")
     blips_count <- cc_count_blips(dt)
     fwrite(blips_count, file = paste0(path, site, "_blips_count", label, ".csv"))
     toc(log = TRUE)
     
-    tic("fill recultivation blips")
+    tic("filled recultivation blips")
     print("filling recultivation blips")
     print("recultivation threshold: ", recultivation_threshold)
     print("replacement value: ", replacement_value)
     cc_fill_blips(dt, recultivation_threshold = recultivation_threshold, 
                   replacement_value = replacement_value)
     toc(log = TRUE)
+    
   } else {
+    
     print("Note: did not count or fill recultivation blips.")
+    
     }
   
-  tic("calculate age")
+  tic("calculated age")
   cc_calc_age(dt)  # calculate age
   toc(log = TRUE)
   
-  tic("erase non abandonment periods")
+  tic("erased non abandonment periods")
   cc_erase_non_abn_periods(dt)  # erase non abandonment periods
   toc(log = TRUE)
   
   # write out cleaned abandonment age data.table
-  tic("write out cleaned abandonment age data.table")
+  tic("wrote out cleaned abandonment age data.table")
   print("writing out cleaned abandonment age data.table")
   fwrite(dt, file = paste0(path, site, "_age", label,".csv"))
   toc(log = TRUE)
   
   # make diff
-  tic("make diff")
+  tic("made diff")
   dt_diff <- cc_diff_dt(dt)
   toc(log = TRUE)
   
   # write out dt_diff
-  tic("write out dt_diff")
+  tic("wrote out dt_diff")
   print("writing out dt_diff")
   fwrite(dt_diff, file = paste0(path, site, "_diff", label,".csv"))
   toc(log = TRUE)
   
   # extract length
-  tic("extract length")
+  tic("extracted length")
   length <- cc_extract_length(dt_diff)
   toc(log = TRUE)
   
   # write out length
-  tic("write out length")
+  tic("wrote out length")
   length <- data.table(length = length)
   toc(log = TRUE)
   
-  tic("write out length data.table")
+  tic("wrote out length data.table")
   print("writing out length data.table")
   fwrite(length, file = paste0(path, site, "_length", label,".csv"))
   toc(log = TRUE)
@@ -1183,12 +1243,13 @@ cc_calc_abn_area_diff <- function(abn_age_dt, land_cover_raster,
 # -------------------------------------------------------------------------- #
 
 # formerly: cc_generate_dfs()
-cc_summarize_abn_dts <- function(land_cover_dt,
-                                 abn_age_dt, 
-                                 land_cover_raster, 
-                                 input_path,
+cc_summarize_abn_dts <- function(input_path,
                                  site,
                                  blip_label = "_blip1",
+                                 # land_cover_dt,
+                                 # abn_age_dt, 
+                                 # land_cover_raster, 
+                                 
                                  outfile_label,
                                  abandonment_threshold = 5,
                                  include_all = FALSE) {
@@ -1196,6 +1257,7 @@ cc_summarize_abn_dts <- function(land_cover_dt,
   # load files:
   lc_raster <- brick(paste0(input_path, site, ".tif")) 
   names(lc_raster) <- paste0("y", 1987:2017)
+  lc_raster <- lc_raster$y2017
   
   lc_dt <- fread(input = paste0(input_path, site, ".csv")) 
   
