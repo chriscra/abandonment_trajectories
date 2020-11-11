@@ -122,15 +122,8 @@ cc_recode_rasters <- function(site, site_df, input_path,
   
   print(paste0("Done. Raster land cover recoded for: ", site))
   
-  print("Here's the tic.log:")
-  print(tic.log())
-  
-}
-
-
-# recode 
-cc_recode_lc_dt <- function(dt, crop_code = 0, noncrop_code = 1) {
-  
+  # print("Here's the tic.log:")
+  # print(tic.log())
   
 }
 
@@ -602,56 +595,163 @@ cc_extract_length <- function(dt_diff) {
 #     DT[is.na(get(i)), (i):=0]
 # }
 
+
+# -------------------------------------------------------------------------- #
+# Recode land cover classes for each site, using data.tables, then  to calculate and extract abandonment periods
+# -------------------------------------------------------------------------- #
+cc_recode_lc_dt <- function(dt, site, site_df) {
+  # Update data.table land use class codes to match those used by He:
+  #       1. Non-vegetated area (e.g. water, urban, barren land)
+  #       2. Woody vegetation
+  #       3. Cropland 
+  #       4. Herbaceous land (e.g. grassland)
+  
+  # Shaanxi (China):      1 others;     2 forest,     3 cropland;     4 grassland
+  # Belarus / Russia:     1 others;     2 forest,     3 cropland;     4 grassland
+  # Goias (Brazil):       1 others;     2 forest,     3 cropland;     4 grassland
+  # Mato Grosso (Brazil): 1 others;     2 forest;     3 cropland;     4 grassland
+  # Bosnia & Herzegovina: 1 others;     2 forest;     3 cropland;     4 grassland
+  # Chongqing (China):    1 others;     2 forest;     3 cropland;     4 grassland
+  
+  # Iraq:                 1 others;     2 cropland;   3 forest;       4 grassland
+  # Nebraska (US):        1 cropland;   2 forest;     3 others;       4 grassland
+  # Orenburg (Russia):    1 others;     2 cropland;   3 grassland;    4 forest
+  # Volgograd (Russia):   1 others;     2 cropland;   3 grassland;    4 forest
+  # Wisconsin (US):       1 cropland;   2 grassland;  3 forest;       4 others
+
+  
+  if (site_df[site_df$site == site, "update_lc"] == "Yes") {
+    # recode the raw input raster, if necessary:
+    
+    # calculate the frequency of each land cover class
+    print("frequency of each land cover class, before update")
+    print(dt[, .N, by = y1987][order(y1987)]) # get freq
+    
+    # add 10 to the data.table
+    tic("add 10 to input data.table")
+    dt <- cbind(dt[, 1:2], dt[, 3:length(dt)] + 10)
+    toc()
+    # ^ without this, we risk lumping land cover classes together 
+    # based on the order in which things are recoded
+    
+    print(dt[, .N, by = y1987][order(y1987)]) # get freq again
+    
+    # extract original land cover classifications
+    original_codes <- site_df[site_df$site == site, ]
+    print(original_codes)
+
+    
+    # set 0 values to NA
+    tic("recode land cover classes: 10 -> NA")
+    for (column in names(dt[, 3:length(dt)])) {
+      set(dt, i = which(dt[[column]] == 0), j = column, value = NA)       
+    }
+    toc(log = TRUE)
+    print(dt[, .N, by = y1987][order(y1987)]) # get freq again
+    
+    
+    # set other (nonveg, urban, water, etc.) to 1
+    tic("recode land cover classes: other -> 1")
+    print(paste0("original other code: ", original_codes[, "other"]))
+    for (column in names(dt[, 3:length(dt)])) {
+      set(dt, i = which(dt[[column]] == original_codes[, "other"] + 10), j = column, value = 1)       
+    }
+    toc(log = TRUE)
+    print(dt[, .N, by = y1987][order(y1987)]) # get freq again
+    
+    
+    
+    # set woody_veg to 2
+    tic("recode land cover classes: woody_veg -> 2")
+    print(paste0("original woody_veg code: ", original_codes[, "woody_veg"]))
+    for (column in names(dt[, 3:length(dt)])) {
+      set(dt, i = which(dt[[column]] == original_codes[, "woody_veg"] + 10), j = column, value = 2)      
+    }
+    toc(log = TRUE)
+    print(dt[, .N, by = y1987][order(y1987)]) # get freq again
+    
+    
+    
+    # set cropland to 3
+    tic("recode land cover classes: cropland -> 3")
+    print(paste0("original cropland code: ", original_codes[, "cropland"]))
+    for (column in names(dt[, 3:length(dt)])) {
+      set(dt, i = which(dt[[column]] == original_codes[, "cropland"] + 10), j = column, value = 3)      
+    }
+    toc(log = TRUE)
+    print(dt[, .N, by = y1987][order(y1987)]) # get freq again
+    
+    
+    # set grassland to 4
+    tic("recode land cover classes: grassland -> 4")
+    print(paste0("original grassland code: ", original_codes[, "grassland"]))
+    for (column in names(dt[, 3:length(dt)])) {
+      set(dt, i = which(dt[[column]] == original_codes[, "grassland"] + 10), j = column, value = 4)      
+    }
+    toc(log = TRUE)
+    
+    print("frequency of each land cover class, after update")
+    print(dt[, .N, by = y1987][order(y1987)]) # get freq again
+    
+    dt
+    
+  } else { 
+    dt
+  }
+  
+}
+
+
+
 # -------------------------------------------------------------------------- #
 # Save raw raster as data.table
 # -------------------------------------------------------------------------- #
-cc_r_to_dt <- function(site, path = p_dat_derived,
-                       raw_label = NULL) {
+cc_r_to_dt <- function(site, 
+                       input_path = p_dat_derived, 
+                       output_path = p_dat_derived,
+                       site_df) {
   # Convert raw rasters to data.tables, involving:
-  # 1) loading raster
-  # 2) updating names
-  # 3) converting raster to data.table,
-  # 4) writing dt to csv.
+  # 1. loading raw raster
+  # 2. updating names
+  # 3. converting raw raster to raw data.table,
+  # 4. writing raw dt to csv.
+  # 5. recode raw data.table to correct land cover classes
+  # 6. write out the recoded dt to csv.
   
   # requires raster, data.table, devtools, tictoc, dtraster
-  tic.clearlog()
   
-  tic("full script processing time")
-  print(paste0("Processing raster for site: ", site))
-  print(paste0("Path: ", path))
+  print(paste0("Processing and recoding raw raster for site: ", site))
+  print(paste0("Input path: ", input_path))
+  print(paste0("Output path: ", output_path))
   
-  print("Start by processing input raster")
-  # load raster
+  # 1. load raw raster
+  print("Start by processing raw input raster")
   tic("load raster")
-  r <- brick(paste0(path, site, ".tif"))
+  r <- brick(paste0(input_path, site, "_raw.tif"))
+  toc()
   
-  # update the year column names, not trim... the raw data.tables should have all years of data.
-  # trim years from Wisconsin and Nebraska:
-  if (site == "wisconsin") {
-    print(names(r))
-    print("trim years from wisconsin")
-    r <- r[[1:31]]
-    }
   
-  if (site == "nebraska") {
-    print(names(r))
-    print("trim years from nebraska")
-    r <- r[[2:32]]
-    }
-  
-  if (nlayers(r) != 31) {
-    stop("Raster does not have 31 layers.")
-  }
-  
-  toc(log = TRUE)
-  
-  # update raster layer names
+  # 2. update the year column names, not trim... the raw data.tables should have all years of data.
+  print(names(r)) # before update
   tic("update raster layer names")
-  # names(r) <- gsub(gsub_pattern, "y", names(r))
-  names(r) <- paste0("y", 1987:2017) # 
+  if (site == "nebraska") {
+    print(paste0("number of layers in ", site, ": ", nlayers(r)))
+    names(r) <- paste0("y", 1986:2018)
+  } else {
+    if (site == "wisconsin") {
+      print(paste0("number of layers in ", site, ": ", nlayers(r)))
+      names(r) <- paste0("y", 1987:2018)
+    } else {
+      # everything else, just 1987:2017
+      print(paste0("number of layers in ", site, ": ", nlayers(r)))
+      names(r) <- paste0("y", 1987:2017)
+    }
+  }
+  print(names(r)) # after update
   toc(log = TRUE)
   
-  # load as a data.table - warning, this is very slow
+  
+  # 3. load as a data.table - warning, this is very slow
   tic("load as a data.table")
   print("converting raster to data.table...")
   dt <- as.data.table.raster(r)
@@ -660,17 +760,26 @@ cc_r_to_dt <- function(site, path = p_dat_derived,
   
   print(names(dt))
   
-  # write out data.table as a csv
-  tic("write out data.table as a csv")
-  print("writing data.table to csv")
-  fwrite(dt, file = paste0(path, site, raw_label, ".csv"))
+  # 4. write out raw data.table as a csv
+  tic("write out raw data.table as a csv")
+  print("writing raw data.table to csv...")
+  fwrite(dt, file = paste0(input_path, site, "_raw.csv"))
   toc(log = TRUE)
   
-  toc(log = TRUE) # final toc
+  
+  # 5. recode land cover classes
+  dt <- cc_recode_lc_dt(dt = dt, site = site, site_df = site_df)
+  
+  # 6. write out the recoded data.table, to be used as the final input for the abandonment age analysis
+  tic("write out recoded data.table as a csv")
+  print("writing recoded data.table to csv...")
+  fwrite(dt, file = paste0(output_path, site, ".csv"))
+  toc(log = TRUE)  
+  
   
   print(paste0("Done converting raster to dt: ", site))
-  print(tic.log())
 }
+
 
 
 # -------------------------------------------------------------------------- #
@@ -680,50 +789,85 @@ cc_r_to_dt <- function(site, path = p_dat_derived,
 cc_filter_abn_dt <- function(site, 
                              path = p_dat_derived,
                              label = NULL,
-                             clean_blips = NULL,
+                             clean_blips = TRUE,
                              recultivation_threshold = 1,
                              replacement_value = 1) {
-  # requires raster, data.table, devtools, tictoc, dtraster
-  tic.clearlog()
   
-  tic("full script processing time")
+  # Steps:
+  # 1. (re)load recoded dt
+  # 2. update this code to select just 1987:2017, with a switch
+  # 3. Update land cover classes to lump grassland and woody vegetation into a single non-crop category, and binarize crop and noncrop
+  # 4. Remove NAs
+  # 5. Filter out the non-abandonment pixels (i.e. those that are either all crop or all noncrop)
+  # 6. Count recultivation blips, and clean (i.e. periods of recultivation that do not last longer than the recultivation threshold, which is by default 1 year)
+  # 7. Calculate age of abandonment in each pixel that experiences abandonment
+  # 8. Erase non abandonment periods (i.e. those that start the time series as non-crop)
+  # 9. Write out cleaned abandonment age data.table
+  # 10. Make diff data.table, each year subtracted by the previous year produces a data.table with year-to-year lagged differences (much like base::diff())
+  # 11. Write out dt_diff
+  # 12. Extract the length of each period of abandonment
+  # 13. Create a data.table listing the lengths
+  # 14. Write out length data.table
+  
+  # requires raster, data.table, devtools, tictoc, dtraster
+
+  #tic("full script processing time")
   print(paste0("Processing data.table for site: ", site))
   print(paste0("Path: ", path))
   print(paste0("Label: ", label))
     
   print("Start by loading raw data.table")
   # -------------------------------------------------------- #
-  # (re)load raw dt
+  # 1. (re)load raw dt
   tic("load the raw data.table")
-  dt <- fread(input = paste0(path, site,".csv"))
+  dt <- fread(input = paste0(path, site, ".csv"))
   toc(log = TRUE)
   
-  dt[]
+  print("data.table input:")
+  print(dt) # print the head and tail of the data.table
   
-  # update this code to select just 1987:2017, with a switch
-  # update names
-  if (length(grep("x$|y$", invert = TRUE, names(dt))) != 31) {
-    stop("data.table does not have 31 year columns (in addition to x and y)")
+  
+  # 2. select only the 1987:2017, with a switch
+  tic("select years: 1987:2017")
+  print("dt names, before update:")
+  print(names(dt)) # before update
+  
+  if (site %in% c("nebraska", "wisconsin")) {
+    dt <- dt[, c("x", "y", paste0("y", 1987:2017))]
   }
-  names(dt) <- c("x", "y", paste0("y", 1987:2017)) # rename
-  # seq_along(dt) - 1 + start_year
   
-  dt[]
+  print("dt names, after update:")
+  print(names(dt)) # after update
+  toc(log = TRUE)
+  
+  # # update names - no longer necessary 
+  # if (length(grep("x$|y$", invert = TRUE, names(dt))) != 31) {
+  #   stop("data.table does not have 31 year columns (in addition to x and y)")
+  # }
+  # names(dt) <- c("x", "y", paste0("y", 1987:2017)) # rename
+  # # seq_along(dt) - 1 + start_year
+  
 
   
   # start heavy processing
-  tic("update land cover classes")
+  # 3. Update land cover classes to lump grassland and woody vegetation into 
+  # single non-crop category, and binarize crop and noncrop
+  tic("updated land cover classes")
   cc_update_lc(dt, crop_code = 0, noncrop_code = 1)  # update land cover classes
   toc(log = TRUE)
   
-  tic("remove NAs")
+  # 4. Remove NAs
+  tic("removed NAs")
   dt <- na.omit(dt)   # remove NAs
   toc(log = TRUE)
   
+  # 5. Filter out the non-abandonment pixels (i.e. those that are either all crop or all noncrop)
   tic("filter non abandonment pixels")
   dt <- cc_remove_non_abn(dt)   # filter non abandonment pixels
   toc(log = TRUE)
   
+  # 6. Count recultivation blips, and clean (i.e. periods of recultivation that do not last longer than the
+  # recultivation threshold, which is by default 1 year)
   if(clean_blips) {
     
     tic("counted and write blips_count")
@@ -746,51 +890,55 @@ cc_filter_abn_dt <- function(site,
     
     }
   
+  # 7. Calculate age of abandonment in each pixel that experiences abandonment
   tic("calculated age")
   cc_calc_age(dt)  # calculate age
   toc(log = TRUE)
   
+  # 8. Erase non abandonment periods (i.e. those that start the time series as non-crop)
   tic("erased non abandonment periods")
   cc_erase_non_abn_periods(dt)  # erase non abandonment periods
   toc(log = TRUE)
   
-  # write out cleaned abandonment age data.table
+  # 9. Write out cleaned abandonment age data.table
   tic("wrote out cleaned abandonment age data.table")
   print("writing out cleaned abandonment age data.table")
   fwrite(dt, file = paste0(path, site, "_age", label,".csv"))
   toc(log = TRUE)
   
-  # make diff
+  # 10. Make diff data.table, each year subtracted by the previous year
+  # produces a data.table with year-to-year lagged differences (much like base::diff())
   tic("made diff")
   dt_diff <- cc_diff_dt(dt)
   toc(log = TRUE)
   
-  # write out dt_diff
+  # 11. Write out dt_diff
   tic("wrote out dt_diff")
   print("writing out dt_diff")
   fwrite(dt_diff, file = paste0(path, site, "_diff", label,".csv"))
   toc(log = TRUE)
   
-  # extract length
+  # 12. Extract the length of each period of abandonment
   tic("extracted length")
   length <- cc_extract_length(dt_diff)
   toc(log = TRUE)
   
-  # write out length
-  tic("wrote out length")
+  # 13. Create a data.table listing the lengths 
+  tic("created data.table of lengths")
   length <- data.table(length = length)
   toc(log = TRUE)
   
+  # 14. Write out length data.table
   tic("wrote out length data.table")
   print("writing out length data.table")
   fwrite(length, file = paste0(path, site, "_length", label,".csv"))
   toc(log = TRUE)
   
   
-  toc(log = TRUE) # final toc
+  #toc(log = TRUE) # final toc
   
   print(paste0("Done: ", site))
-  print(tic.log())
+  #print(tic.log())
 }
 
 
@@ -798,15 +946,17 @@ cc_filter_abn_dt <- function(site,
 # -------------------------------------------------------------------------- #
 # save processed data.tables showing age of abandonment as rasters
 # -------------------------------------------------------------------------- #
-cc_save_age_rasters <- function(name, directory = p_dat_derived) {
+cc_save_dt_as_raster <- function(site, type = "_age", 
+                                 input_path = p_dat_derived,
+                                 output_path = p_dat_derived) {
   # load dt
-  dt <- fread(file = paste0(directory, name, "_age.csv"))
+  dt <- fread(file = paste0(input_path, site, type, ".csv"))
   
   # convert age dt to raster
   r <- dt_to_raster(dt, crs("+proj=longlat +datum=WGS84 +no_defs"))
   
   # write raster
-  writeRaster(r, filename = paste0(directory, name, "_age.tif"))
+  writeRaster(r, filename = paste0(output_path, site, type, ".tif"))
   
   # reload, and assign
   # brick(paste0(directory, name, "_age.tif"))

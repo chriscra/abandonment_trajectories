@@ -15,10 +15,10 @@
 args <- commandArgs(TRUE) # access the slurm array variable
 indx <- as.numeric(args[1]) # 1:9, or whatever the array variable is 
 
-site_list <- c("bosnia_herzegovina", "chongqing", "goias", 
-               "iraq", "mato_grosso", "nebraska",
-               "orenburg", "volgograd", "wisconsin") # list of all sites
-
+site_list <- c("belarus", "bosnia_herzegovina", "chongqing", 
+               "goias", "iraq", "mato_grosso", 
+               "nebraska", "orenburg", "shaanxi", 
+               "volgograd", "wisconsin")
 
 site <- site_list[indx] # set site:
 
@@ -53,13 +53,21 @@ cc_merge_rasters(site = site, site_df = site_df, input_path = raw_dir_path)
 toc(log = TRUE)
 
 
+# recode the rasters:
 
-tic("recode rasters")
-cc_recode_rasters(site = site, site_df = site_df, input_path = raw_dir_path, 
-                  output_path = paste0(p_dat_derived, "input_rasters/"))
-toc(log = TRUE)
+# tic("recode rasters")
+# cc_recode_rasters(site = site, site_df = site_df, input_path = raw_dir_path, 
+#                   output_path = paste0(p_dat_derived, "input_rasters/"))
+# toc(log = TRUE)
 
 
+
+# save the recoded data.tables as rasters, 
+cc_save_dt_as_raster(site = site, 
+                     type = "",  # just the recoded data.table
+                     input_path = p_dat_derived,
+                     output_path = p_dat_derived
+                     )
 
 
 

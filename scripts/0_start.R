@@ -41,7 +41,7 @@ needed_packages <- c(
 #   "gdalUtils", "gdata", "GISTools", "rgeos", "lwgeom", "fasterize",
 #   "tidyverse", "lobstr", "pryr", "reshape2",  # tidyverse includes ggplot2, dplyr, tidyr, readr, purrr, tibble, stringr, and forcats
 #   "tictoc",  "magrittr", "parallel",
-#   "devtools", "Hmisc"
+#   "devtools", "Hmisc", "dtraster"
 # )
 
 # nice to have, but not needed:

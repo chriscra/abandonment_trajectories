@@ -435,6 +435,10 @@ dt[12] <- 0
 dt[4, 1:4] <- 1
 dt[14, 1] <- 1
 
+dt+1
+
+dt <- cbind(dt[, 1:2], dt[, 3:15] + 10)
+
 # the above, encapsulated as a function:
 dt <- cc_create_bin()
 
@@ -1908,6 +1912,40 @@ s_blip_count %>% colSums()
 
 ```
 
+
+```{r update-lc-dt}
+dt <- cc_create_dt()
+dt+1
+
+dt <- cbind(dt[, 1:2], dt[, 3:15] + 10)
+
+
+s_dt[, .(freq = .N), by = y1987]
+names(s_dt)
+length(s_dt)
+
+col_names <- grep("x$|y$", names(s_dt), value = TRUE, invert = TRUE)
+
+col_names[2]
+i <- 2
+
+# check the distribution of each land cover class
+
+s_dt[, .N, by = y1988][order(y1988)]
+
+for (i in seq(col_names)) {
+    temp_dt <- s_dt[, .N, by = c(col_names[i])][order(get(col_names[i]))]
+    setnames(temp_dt, old = col_names[i], new = "lc")
+    setnames(temp_dt, old = "N", new = col_names[i])
+    
+    if(i>1) {
+      lc_area_df <- merge(lc_area_df, temp_dt, by = "lc")
+    } else {
+      lc_area_df <- temp_dt
+    }
+  }
+
+```
 
 
 ```{r clean-up}

@@ -1,8 +1,7 @@
 # -------------------------------------------------------- #
-# Christopher Crawford, Princeton University, November 6th, 2020
+# Christopher Crawford, Princeton University, November 10th, 2020
 
-# Script to process rasters for all sites, doing the following:
-# 1. 
+# Script to process rasters for all sites
 # -------------------------------------------------------- #
 
 # array set up
@@ -12,19 +11,16 @@ indx <- as.numeric(args[1])
 
 # set up parameters:
 # list of all sites
-site_list <- sort(
-  c("shaanxi", "belarus", 
-    "chongqing", "goias", "mato_grosso",
-    "nebraska", "wisconsin", "volgograd",
-    "orenburg", "bosnia_herzegovina", "iraq") 
-)
+site_list <- c("belarus", "bosnia_herzegovina", "chongqing", 
+               "goias", "iraq", "mato_grosso", 
+               "nebraska", "orenburg", "shaanxi", 
+               "volgograd", "wisconsin")
 
-site_label_list <- sort(
-  c("_s", "_b", 
-    "_c", "_g", "_mg", 
-    "_n", "_w", "_v", 
-    "_o", "_bh", "_i")
-)
+
+site_label_list <- c("_b", "_bh", "_c", 
+                     "_g", "_i", "_mg", 
+                     "_n", "_o", "_s", 
+                     "_v", "_w")
 
 site <- site_list[indx] # set site:
 site_label <- site_label_list[indx] # set label
@@ -35,22 +31,36 @@ label <- NULL # for calculating the max age
 # load libraries
 cluster_packages <- c("data.table", "tictoc", "raster",
                       "landscapemetrics", "landscapetools", "sp",
-                      "tidyverse", "rgdal")
+                      "tidyverse", "rgdal", "dtraster")
 install_pkg <- lapply(cluster_packages, library, character.only = TRUE)
 
 # set paths:
 p_dat_derived <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
 p_input <- paste0(p_dat_derived, "input_rasters/")
 p_output <- "/scratch/network/clc6/abandonment_trajectories/output/"
+raw_dir_path <- "/scratch/network/clc6/abandonment_trajectories/raw_rasters/"
+
 
 # source functions:
 source("/home/clc6//abandonment_trajectories/scripts/util/_util_dt_filter_functions.R")
 
+# load site_df
+site_df <- read_csv(file = paste0(p_dat_derived, "site_df.csv"))
 
 
-# 1. Convert raw rasters into data.tables
+
+
+# 0. Merge raw raster layers
+tic("merge rasters")
+cc_merge_rasters(site = site, site_df = site_df, input_path = raw_dir_path)
+toc(log = TRUE)
+
+# 1. Convert raw rasters into data.tables (including renaming and recoding)
 print(paste0("Converting raw rasters to data.tables: ", site))
-cc_r_to_dt(site = site, path = p_input)
+cc_r_to_dt(site = site, 
+           input_path = raw_dir_path, 
+           output_path = p_input, 
+           site_df = site_df)
 
 # 2. Process raw data.tables in order to calculate the length of agricultural abandonment periods.
       # Steps include:
@@ -83,5 +93,15 @@ cc_summarize_abn_dts(
   abandonment_threshold = 5,
   include_all = TRUE
 )
+
+# 5. save various data.tables as rasters:
+
+cc_save_dt_as_raster(site = site, 
+                     type = "", 
+                     input_path = p_input, output_path = p_input)
+
+cc_save_dt_as_raster(site = site, 
+                     type = paste0("_age", blip_label), 
+                     input_path = p_input, output_path = p_input)
 
 
