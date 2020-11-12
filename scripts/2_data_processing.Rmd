@@ -253,7 +253,7 @@ write_csv(site_df, path = paste0(p_dat_derived, "site_df.csv"))
 # year of first abandonment maps
 yoa_files <- list.files(paste0(p_dat, "Abandonment/year_of_abandonment/"))
 # map_files <- list.files(paste0(p_dat, "Abandonment/final_maps/"))
-map_files <- list.files(paste0(p_dat_derived, "input_rasters/raw_merged/")) %>%
+map_files <- list.files(paste0(p_dat_derived, "input_rasters/")) %>%
   grep(".tif", ., value = TRUE)
 
 
@@ -361,7 +361,7 @@ site <- site_merge_layers[2]
 site <- "wisconsin"
 i
 
-folder_paths <- list.dirs(path = paste0(p_dat, "Abandonment/final_maps_raw"), 
+folder_paths <- list.dirs(path = paste0(p_dat, "Abandonment/raw_rasters"), 
                        full.names = TRUE, recursive = FALSE)
   
 folder_names <- sapply(seq_along(folder_paths), FUN = function(i) {
@@ -371,7 +371,7 @@ folder_names <- sapply(seq_along(folder_paths), FUN = function(i) {
   )
 
 merge_files <- lapply(site_merge_layers, FUN = function(i) {
-      list.files(paste0(p_dat, "Abandonment/final_maps_raw/", i), full.names = TRUE)
+      list.files(paste0(p_dat, "Abandonment/raw_rasters/", i), full.names = TRUE)
     })
 
 names(merge_files) <- site_merge_layers
@@ -400,7 +400,7 @@ length(merge_files)
 
 ```{r testing-recode-lc}
 # cc_recode_rasters <- function(site, site_df, input_path, output_path){
-w_og <- brick(paste0(p_dat, "Abandonment/final_maps_raw/wisconsin/centralWI_landCover_87_17.tif"))
+w_og <- brick(paste0(p_dat, "Abandonment/raw_rasters/wisconsin/centralWI_landCover_87_17.tif"))
 w <- brick(paste0(p_dat_derived, "input_rasters/test/wisconsin.tif"))
 w_raw_merged <- brick(paste0(p_dat_derived, "input_rasters/raw_merged/wisconsin_raw.tif"))
 
@@ -505,9 +505,13 @@ cc_recode_rasters(site = site,  # wisconsin
 test_r <- brick(paste0(p_dat_derived, "input_rasters/func_test/", site, "_raw.tif"))
 names(test_r) <- paste0("y", 1987:2018)
 dt <- as.data.table.raster(test_r)
+dt <- cbind(dt[, 1:2], dt[, 3:length(dt)] + 10)
+dt
+
+
 dt[, .N, by = y1987][order(y1987)] # get freq again
 
-dt <- cc_recode_lc_dt(dt = dt, site = site, site_df = site_df)
+dt1 <- cc_recode_lc_dt(dt = dt, site = site, site_df = site_df)
 dt
 dt[, .N, by = y1987][order(y1987)] # get freq again
 dt1[, .N, by = y1987][order(y1987)] # get freq again
@@ -542,7 +546,7 @@ plot(test_age[[1]])
 ```{r explore-prepped-rasters}
 site_df
 
-w <- brick("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/final_maps_raw/wisconsin/centralWI_landCover_87_17.tif")
+w <- brick("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/raw_rasters/wisconsin/centralWI_landCover_87_17.tif")
 w
 names(w) # wisconsin actually has 32 layers, including 2018.
 
@@ -558,7 +562,7 @@ for (i in seq_along(rasters)) {print(nlayers(rasters[[i]]))}
 
 
 
-test <- read.csv(paste0(p_dat, "Abandonment/final_maps_raw/", site, ".csv"))
+test <- read.csv(paste0(p_dat, "Abandonment/raw_rasters/", site, ".csv"))
 unlist(test, use.names = F) == names(raster_stack)
 
 
@@ -570,7 +574,7 @@ freq(raster_stack[[1]])
 ```{r iraq}
 # testing the function with iraq. 
 
-i_og <- brick(paste0(p_dat, "Abandonment/final_maps_raw/iraq/centralWI_landCover_87_17.tif"))
+i_og <- brick(paste0(p_dat, "Abandonment/raw_rasters/iraq/centralWI_landCover_87_17.tif"))
 i <- brick(paste0(p_dat_derived, "input_rasters/test/iraq.tif"))
 i_raw_merged <- brick(paste0(p_dat_derived, "input_rasters/raw_merged/iraq_raw.tif"))
 

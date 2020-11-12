@@ -5,7 +5,7 @@ data_derived/
 output/
 writing/
 scripts/cluster/old/
-scripts/cluster/slurm_out/
+scripts/cluster/slurm/
 
 
 
