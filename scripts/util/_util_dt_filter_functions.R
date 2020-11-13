@@ -38,7 +38,7 @@ cc_merge_rasters <- function(site, site_df,
   # "print and save names of the raster stack"
   cat(fill = TRUE, "raster_stack layer names:")
   print(names(raster_stack))
-  fwrite(data.frame(names(raster_stack)), file = paste0(input_path, site, "_layer_names.csv"))
+  fwrite(data.frame(names(raster_stack)), file = paste0(input_path, site, "_raw_layer_names.csv"))
   
   # write to file
   tic("write raster_stack to file")
@@ -638,7 +638,7 @@ cc_recode_lc_dt <- function(dt, site, site_df) {
     # ^ without this, we risk lumping land cover classes together 
     # based on the order in which things are recoded
     
-    print(dt[, .N, by = y1987][order(y1987)]) # get freq again
+    # print(dt[, .N, by = y1987][order(y1987)]) # get freq again
     
     # extract original land cover classifications
     original_codes <- site_df[site_df$site == site, ]
@@ -651,7 +651,7 @@ cc_recode_lc_dt <- function(dt, site, site_df) {
       set(dt, i = which(dt[[column]] == 10), j = column, value = NA)       
     }
     toc(log = TRUE)
-    print(dt[, .N, by = y1987][order(y1987)]) # get freq again
+    # print(dt[, .N, by = y1987][order(y1987)]) # get freq again
     
     
     # set other (nonveg, urban, water, etc.) to 1
@@ -662,7 +662,7 @@ cc_recode_lc_dt <- function(dt, site, site_df) {
       set(dt, i = which(dt[[column]] == original_codes[, "other"] + 10), j = column, value = 1)       
     }
     toc(log = TRUE)
-    print(dt[, .N, by = y1987][order(y1987)]) # get freq again
+    # print(dt[, .N, by = y1987][order(y1987)]) # get freq again
     
 
         
@@ -673,7 +673,7 @@ cc_recode_lc_dt <- function(dt, site, site_df) {
       set(dt, i = which(dt[[column]] == original_codes$woody_veg + 10), j = column, value = 2)      
     }
     toc(log = TRUE)
-    print(dt[, .N, by = y1987][order(y1987)]) # get freq again
+    # print(dt[, .N, by = y1987][order(y1987)]) # get freq again
     
     
     
@@ -684,7 +684,7 @@ cc_recode_lc_dt <- function(dt, site, site_df) {
       set(dt, i = which(dt[[column]] == original_codes$cropland + 10), j = column, value = 3)      
     }
     toc(log = TRUE)
-    print(dt[, .N, by = y1987][order(y1987)]) # get freq again
+    # print(dt[, .N, by = y1987][order(y1987)]) # get freq again
     
     
     
@@ -732,7 +732,7 @@ cc_r_to_dt <- function(site,
   cat(fill = TRUE, "Output path: ", output_path)
   
   # 1. load raw raster
-  cat(fill = TRUE, "i. Start by processing raw input raster")
+  cat(fill = TRUE, "i. Start by processing raw input raster:", paste0(input_path, site, "_raw.tif"))
   tic("load raster")
   r <- brick(paste0(input_path, site, "_raw.tif"))
   toc()
@@ -791,6 +791,10 @@ cc_r_to_dt <- function(site,
   
   
   cat(fill = TRUE, "Done! Converted raster to dt using cc_r_to_dt() for: ", site)
+  cat(fill = TRUE, "New files can be found at:")
+  cat(fill = TRUE, "raw raster, as a csv:", paste0(input_path, site, "_raw.csv"))
+  cat(fill = TRUE, "recoded land cover, as a csv:",paste0(input_path, site, ".csv"))
+  
 }
 
 
@@ -799,12 +803,12 @@ cc_r_to_dt <- function(site,
 # Process data.tables to calculate and extract abandonment periods
 # -------------------------------------------------------------------------- #
 
-cc_filter_abn_dt <- function(site, 
+cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
                              path = p_dat_derived,
                              blip_label = NULL,
                              clean_blips = TRUE,
                              recultivation_threshold = 1,
-                             replacement_value = 1) {
+                             recultivation_replacement_value = 1) {
   
   # Steps:
   # 1. (re)load recoded dt
@@ -827,8 +831,8 @@ cc_filter_abn_dt <- function(site,
   cat(fill = TRUE, "cc_filter_abn_dt(): Processing data.table for site: ", site)
   cat(fill = TRUE, "Path: ", path)
   cat(fill = TRUE, "blip_label: ", blip_label)
-  cat(fill = TRUE, "recultivation_threshold:" , recultivation_threshold)
-  cat(fill = TRUE, "replacement_value", replacement_value)
+  cat(fill = TRUE, "recultivation_threshold: >" , recultivation_threshold)
+  cat(fill = TRUE, "recultivation_replacement_value", recultivation_replacement_value)
     
   # -------------------------------------------------------- #
   # 1. load raw dt
@@ -842,27 +846,25 @@ cc_filter_abn_dt <- function(site,
   
   
   # 2. select only the 1987:2017, with a switch
-  cat(fill = TRUE, "ii. Select years 1987:2017")
-  tic("select years: 1987:2017")
+  cat(fill = TRUE, "ii. Select years 1987:2017:", select_1987_2017)
   
-  if (site %in% c("nebraska", "wisconsin")) {
-    cat(fill = TRUE, "dt names, before update:")
-    print(names(dt)) # before update
-    dt <- dt[, c("x", "y", paste0("y", 1987:2017))]
-  }
+  if(select_1987_2017) {
+    if (site %in% c("nebraska", "wisconsin")) {
+      cat(fill = TRUE, "dt names, before selection:")
+      print(names(dt)) # before update
+      dt <- dt[, c("x", "y", paste0("y", 1987:2017))]
+      
+      cat(fill = TRUE, "dt names, after selection:")
+      print(names(dt)) # after update
+    } else {
+      cat(fill = TRUE, "dt names: no selection necessary")
+      print(names(dt)) # after update
+    }   
+  } else {
+    cat(fill = TRUE, "dt names:")
+    print(names(dt)) # after update
+    }
   
-  cat(fill = TRUE, "dt names:")
-  print(names(dt)) # after update
-  toc(log = TRUE)
-  
-  # # update names - no longer necessary 
-  # if (length(grep("x$|y$", invert = TRUE, names(dt))) != 31) {
-  #   stop("data.table does not have 31 year columns (in addition to x and y)")
-  # }
-  # names(dt) <- c("x", "y", paste0("y", 1987:2017)) # rename
-  # # seq_along(dt) - 1 + start_year
-  
-
   
   # start heavy processing
   # 3. Update land cover classes to lump grassland and woody vegetation into 
@@ -899,9 +901,9 @@ cc_filter_abn_dt <- function(site,
     tic("filled recultivation blips")
     cat(fill = TRUE, "vi. Part 2. cc_fill_blips(): fill recultivation blips with 
         recultivation threshold (", recultivation_threshold, "), and 
-        replacement value (", replacement_value, ")")
+        replacement value (", recultivation_replacement_value, ")")
     cc_fill_blips(dt, recultivation_threshold = recultivation_threshold, 
-                  replacement_value = replacement_value)
+                  replacement_value = recultivation_replacement_value)
     toc(log = TRUE)
     
   } else {
@@ -966,11 +968,19 @@ cc_filter_abn_dt <- function(site,
 # -------------------------------------------------------------------------- #
 # save processed data.tables showing age of abandonment as rasters
 # -------------------------------------------------------------------------- #
-cc_save_dt_as_raster <- function(site, type = "_age", 
+cc_save_dt_as_raster <- function(site, type, 
                                  input_path = p_dat_derived,
                                  output_path = p_dat_derived) {
   # load dt
   dt <- fread(file = paste0(input_path, site, type, ".csv"))
+  
+  # merge the data_table back to the original land cover data.table, if necessary
+  if (grepl("age", type)){
+    cat("Joining age data.table to input land cover data.table, filling non-abandonment pixels with NA", fill = TRUE)
+    cat("Land cover data.table location:", paste0(input_path, site, ".csv"), fill = TRUE)
+    lc_dt <- fread(file = paste0(input_path, site, ".csv"))
+    dt <- merge(lc_dt[, .(x, y)], dt, all = TRUE, by = c("x", "y"), sort = FALSE)
+  }
   
   # convert age dt to raster
   r <- dt_to_raster(dt, crs("+proj=longlat +datum=WGS84 +no_defs"))
@@ -978,10 +988,18 @@ cc_save_dt_as_raster <- function(site, type = "_age",
   # write raster
   writeRaster(r, filename = paste0(output_path, site, type, ".tif"), overwrite = TRUE)
   
+  cat("Saved data.table as raster at:", paste0(output_path, site, type, ".tif"), fill = TRUE)
+  
+  
   # reload, and assign
   # brick(paste0(directory, name, "_age.tif"))
 }
 
+# I need to write some code to bind the original x and y columns from 
+# the first raster to the age csv, so that even the non-abandonment rows 
+# with NAs are included. 
+# sp::points2grid()
+# sp::coordinates()
 
 
 
@@ -1009,6 +1027,7 @@ cc_calc_max_age <- function(directory = p_dat_derived, site, blip_label, label =
 
 
 # area/persistence functions ---- 
+
 # -------------------------------------------------------------------------- #
 # calculate the total area in:
 # each land cover class in the original land cover data, and
@@ -1105,7 +1124,7 @@ cc_calc_persistence <- function(abn_age_dt,
                                 NA_first = FALSE,
                                 include_wide = FALSE,
                                 abandonment_threshold = 5) {
-  
+  if(length(abn_age_dt) > 33) {stop("Code is designed to work with abn_age_dt for just 1987:2017.")}
   area_raster <- raster::area(land_cover_raster) # calculate area in km2
   median_cell_area_km2 <- median(getValues(area_raster))
   
@@ -1414,8 +1433,9 @@ cc_calc_abn_area_diff <- function(abn_age_dt, land_cover_raster,
 
 # formerly: cc_generate_dfs()
 cc_summarize_abn_dts <- function(input_path,
+                                 output_path,
                                  site,
-                                 blip_label = "_blip1",
+                                 blip_label = "_b1",
                                  # land_cover_dt,
                                  # abn_age_dt, 
                                  # land_cover_raster, 
@@ -1423,41 +1443,75 @@ cc_summarize_abn_dts <- function(input_path,
                                  outfile_label,
                                  abandonment_threshold = 5,
                                  include_all = FALSE) {
-  
+  cat(fill = TRUE, "cc_summarize_abn_dts(): Summarizing results for site: ", site)
+  cat(fill = TRUE, "input_path: ", input_path)
+  cat(fill = TRUE, "blip_label: ", blip_label)
+  cat(fill = TRUE, "abandonment_threshold: >=" , abandonment_threshold)
+
   # load files:
-  lc_raster <- brick(paste0(input_path, site, ".tif")) 
-  names(lc_raster) <- paste0("y", 1987:2017)
-  lc_raster <- lc_raster$y2017
+  lc_r <- raster(paste0(input_path, site, ".tif"))
+  # lc_r <- brick(paste0(input_path, site, ".tif"))
+  # lc_r <- ws_r
+  
+  # # (Note: not strictly necessary to rename layers, and select only 1987:2017. 
+  # # The land cover raster is only used for calculating the total area.)
+  # # 2. Update land_cover_raster layer names, then select only 1987:2017.
+  # cat(fill = TRUE, "ii. Update land_cover_raster layer names, select only 1987:2017")
+  # cat(fill = TRUE, "raster layer names, before update:")
+  # print(names(lc_r)) # before update
+  # 
+  # tic("update raster layer names")
+  # if (site == "nebraska") {
+  #   cat(fill = TRUE, "number of layers in ", site, ": ", nlayers(lc_r))
+  #   names(lc_r) <- paste0("y", 1986:2018)
+  # } else {
+  #   if (site == "wisconsin") {
+  #     cat(fill = TRUE, "number of layers in ", site, ": ", nlayers(lc_r))
+  #     names(lc_r) <- paste0("y", 1987:2018)
+  #   } else {
+  #     # everything else, just 1987:2017
+  #     cat(fill = TRUE, "number of layers in ", site, ": ", nlayers(lc_r))
+  #     names(lc_r) <- paste0("y", 1987:2017)
+  #   }
+  # }
+  # 
+  # cat(fill = TRUE, "raster layer names, after update:")
+  # print(names(lc_r)) # after update
+  # toc(log = TRUE)
+  # 
+  # # select only 1987:2017
+  # lc_r <- lc_r[[paste0("y", 1987:2017)]]
+  
   
   lc_dt <- fread(input = paste0(input_path, site, ".csv")) 
   
   age_dt <- fread(input = paste0(input_path, site, "_age", blip_label, ".csv"))
   
-  print("calculating total area per lc, with abandonment")
+  cat("calculating total area in each land cover class, and that is abandoned (for at least as long as the abandonment threshold), over time.", fill = TRUE)
   # ------------- calculate total area per lc, with abandonment ---------------- #
   area <- cc_calc_area_per_lc_abn(land_cover_dt = lc_dt, 
                                   abn_age_dt = age_dt, 
-                                  land_cover_raster = lc_raster,
+                                  land_cover_raster = lc_r,
                                   abandonment_threshold = abandonment_threshold)
   
-  print("calculate abandonment persistence")
+  cat("calculate abandonment persistence", fill = TRUE)
   # ------------------------ abandonment persistence --------------------------- #
   persistence_list <- cc_calc_persistence_all(abn_age_dt = age_dt, 
-                                              land_cover_raster = lc_raster,
+                                              land_cover_raster = lc_r,
                                               include_wide = FALSE,
                                               abandonment_threshold = abandonment_threshold,
                                               include_all_abandonment = include_all)
   
-  print("calculate abandonment area turnover")
+  cat("calculate abandonment area turnover", fill = TRUE)
   # -------------------- calculate the abandonment area turnover ------------------- #
   abn_area_change <- cc_calc_abn_area_diff(abn_age_dt = age_dt, 
-                                           land_cover_raster = lc_raster,
+                                           land_cover_raster = lc_r,
                                            abandonment_threshold = abandonment_threshold)
   
   if(include_all) {
     abn_area_change_all <- cc_calc_abn_area_diff(
       abn_age_dt = age_dt, 
-      land_cover_raster = lc_raster,
+      land_cover_raster = lc_r,
       abandonment_threshold = 1) %>% 
       
       # rename columns
@@ -1468,24 +1522,373 @@ cc_summarize_abn_dts <- function(input_path,
                                  by = c("year", "direction"))
   }
   
-  print("updating names")
-  # change names
+  # updating object names names
   assign(paste0("area", outfile_label), area)
   assign(paste0("persistence_list", outfile_label), persistence_list)
   assign(paste0("abn_area_change", outfile_label), abn_area_change)
   
-  print("saving files")
+  cat("saving files:", paste0(output_path, "abn_dat_products", outfile_label, ".rds"), fill = TRUE)
   # save files
   save(list = c(paste0("area", outfile_label), 
                 paste0("persistence_list", outfile_label),
                 paste0("abn_area_change", outfile_label)
                 ), 
-       file = paste0(p_output, "abn_dat_products", outfile_label, ".rds")
+       file = paste0(output_path, "abn_dat_products", outfile_label, ".rds")
        )
 }
 
 
+# plot and save functions ----
+
+# ------------------------------------------------------------------------------------ #
+# plot histograms
+# ------------------------------------------------------------------------------------ #
+
+
+# ------------------------------------------------------------------------------------ #
+# plot lc and abandonment area over time
+# ------------------------------------------------------------------------------------ #
+cc_save_plot_lc_abn_area <- function(input_area_df, subtitle, outfile_label,
+                                     width = 5, height = 4, save_all = FALSE,
+                                     output_path) {
+  
+  # filter and recode
+  if(save_all) {
+    df <- input_area_df
+  } else {
+    df <- input_area_df %>% 
+      filter(lc != "Abandoned (all)") %>% 
+      mutate(lc = recode(lc, "Abandoned (>5)" = "Abandoned"))
+  }
+  
+  gg_lc_abn_area <- ggplot(data = input_area_df) +
+    theme_classic() +
+    # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+    labs(y = expression("Area  (10"^{6}*" ha)") , 
+         x = "Year", 
+         title = "Area by Land Cover, with Abandonment",
+         subtitle = subtitle,
+         color = "Land Cover") + 
+    geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
+                            group = lc, color = lc),
+              size = 1.2) + 
+    scale_x_continuous(n.breaks = 10)
+  
+  # save
+  png(filename = paste0(output_path, "area_lc_abn", 
+                        outfile_label, ".png"), 
+      width = width, height = height, units = "in", res = 400)
+  
+  print(gg_lc_abn_area)
+  dev.off()
+
+}
+
+# ------------------------------------------------------------------------------------ #
+# plot persistence of abandonment over time
+# ------------------------------------------------------------------------------------ #
+
+cc_save_plot_abn_persistence <- function(input_list, subtitle, outfile_label,
+                                         width = 7, height = 5,
+                                         save_all = TRUE, subtitle_all = NULL,
+                                         output_path) {
+  
+  # raw area
+  gg_persistence_count <- ggplot(data = input_list$na_last) + 
+    theme_classic() + 
+    geom_line(mapping = aes(x = time_abn, y = area_ha / 10^3,
+                            group = year_abn, color = year_abn), 
+              size = 1.25) + 
+    labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
+         x = "Years since initial abandonment", 
+         title = "Persistence of Abandoned Land",
+         subtitle = subtitle,
+         color = "Year Abandoned") + 
+    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
+    
+  # as percentage
+  gg_persistence_proportion <- ggplot(data = input_list$na_last) + 
+    theme_classic() + 
+    geom_line(mapping = aes(x = time_abn, y = proportion,
+                            group = year_abn, color = year_abn), 
+              size = 1.25
+    ) + 
+    labs(y = "Proportion remaining abandoned", 
+         x = "Years since initial abandonment", 
+         title = "Persistence of Abandoned Land",
+         subtitle = subtitle,
+         color = "Year Abandoned") + 
+    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
+  
+  # na_first ----------- #
+  gg_persistence_count_na_first <- ggplot(data = input_list$na_first) + 
+    theme_classic() + 
+    geom_line(mapping = aes(x = year, y = area_ha / 10^3,
+                            group = year_abn, color = year_abn), 
+              size = 1.25
+    ) + 
+    labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
+         x = "Year", 
+         title = "Persistence of Abandoned Land",
+         subtitle = subtitle,
+         color = "Year Abandoned") + 
+    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
+  
+  gg_persistence_proportion_na_first <- ggplot(data = input_list$na_first) + 
+    theme_classic() + 
+    geom_line(mapping = aes(x = year, y = proportion,
+                            group = year_abn, color = year_abn), 
+              size = 1.25
+    ) + 
+    labs(y = "Proportion remaining abandoned", 
+         x = "Year", 
+         title = "Persistence of Abandoned Land",
+         subtitle = subtitle,
+         color = "Year Abandoned") + 
+    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
+  
+  
+  # save
+  png(filename = paste0(output_path, "persistence_", 
+                        "count", outfile_label, ".png"), 
+      width = width, height = height, units = "in", res = 400)
+  
+  print(gg_persistence_count)
+  dev.off()
+  
+  png(filename = paste0(output_path, "persistence_", 
+                        "proportion", outfile_label, ".png"), 
+      width = width, height = height, units = "in", res = 400)
+  
+  print(gg_persistence_proportion)
+  dev.off()
+  
+  png(filename = paste0(output_path, "persistence_", 
+                        "count_na_first", outfile_label, ".png"), 
+      width = width, height = height, units = "in", res = 400)
+  
+  print(gg_persistence_count_na_first)
+  dev.off()
+  
+  png(filename = paste0(output_path, "persistence_", 
+                        "proportion_na_first", outfile_label, ".png"), 
+      width = width, height = height, units = "in", res = 400)
+  
+  print(gg_persistence_proportion_na_first)
+  dev.off()
+  
+  # save plots with all abandonment cells, regardless of abandonment threshold
+  if(save_all) {
+    png(filename = paste0(output_path, "persistence_", 
+                          "count_all", outfile_label, ".png"), 
+        width = width, height = height, units = "in", res = 400)
+    
+    print(gg_persistence_count %+% input_list$na_last_all + 
+            labs(subtitle = subtitle_all))
+    dev.off()
+    
+    png(filename = paste0(output_path, "persistence_", 
+                          "proportion_all", outfile_label, ".png"), 
+        width = width, height = height, units = "in", res = 400)
+    
+    print(gg_persistence_proportion %+% input_list$na_last_all + 
+            labs(subtitle = subtitle_all))
+    dev.off()
+    
+    png(filename = paste0(output_path, "persistence_", 
+                          "count_na_first_all", outfile_label, ".png"), 
+        width = width, height = height, units = "in", res = 400)
+    
+    print(gg_persistence_count_na_first %+% input_list$na_first_all + 
+            labs(subtitle = subtitle_all))
+    dev.off()
+    
+    png(filename = paste0(output_path, "persistence_", 
+                          "proportion_na_first_all", outfile_label, ".png"), 
+        width = width, height = height, units = "in", res = 400)
+    
+    print(gg_persistence_proportion_na_first %+% input_list$na_first_all + 
+            labs(subtitle = subtitle_all))
+    dev.off()
+  }
+}
+
+
+# ------------------------------------------------------------------------------------ #
+# plot gains and losses of abandoned land, over time
+# ------------------------------------------------------------------------------------ #
+cc_save_plot_area_gain_loss <- function(input_area_change_df, subtitle, outfile_label,
+                                        width = 6, height = 5,
+                                        save_all = TRUE, subtitle_all = paste0(subtitle, ", all abandonment"),
+                                        output_path) {
+  
+  # gain, loss, and net change in abandoned area, over time
+  gg_abn_area_change_base <- ggplot() + 
+    theme_classic() + 
+    labs(y = expression("Change in area abandoned (10"^{3}*" ha)"), 
+         x = "Year", 
+         title = "Change in Area of Abandoned Land",
+         subtitle = subtitle,
+         fill = NULL, #"Change in Area",
+         color = NULL) + 
+    scale_color_manual(values = c("black"),
+                       labels = "Net Change in Area") + 
+    scale_fill_manual(values = brewer_pal(palette = "Greens")(5)[3:2],
+                      labels = c("Area Gained", "Area Lost")) + 
+    theme(legend.position = "bottom")
+  
+  gg_abn_area_change <- gg_abn_area_change_base +
+    geom_col(data = filter(input_area_change_df, direction != "net"),
+             mapping = aes(x = year, y = area_ha / (10^3), 
+                           group = direction, fill = direction)) + 
+    geom_line(data = filter(input_area_change_df, direction == "net"),
+              mapping = aes(x = year, y = area_ha / (10^3), color = "Net Change in Area"),
+              size = 1.5)
+  
+  gg_abn_area_change_all <- gg_abn_area_change_base +
+    geom_col(data = filter(input_area_change_df, direction != "net"),
+             mapping = aes(x = year, y = area_ha_all / (10^3), 
+                           group = direction, fill = direction)) + 
+    geom_line(data = filter(input_area_change_df, direction == "net"),
+              mapping = aes(x = year, y = area_ha_all / (10^3), color = "Net Change in Area"),
+              size = 1.5)
+  
+  
+  # save to file
+  png(filename = paste0(output_path, "abn_area_change", outfile_label, ".png"), 
+      width = width, height = height, units = "in", res = 400)
+  print(gg_abn_area_change)
+  dev.off()
+  
+  
+  # save plots with all abandonment cells, regardless of abandonment threshold
+  if(save_all) {
+    png(filename = paste0(output_path, "abn_area_change_all", outfile_label, ".png"), 
+        width = width, height = height, units = "in", res = 400)
+    print(gg_abn_area_change_all)
+    dev.off()
+  }
+  
+}
+
+
+# ------------------------------------------------------------------------------------ #
+# plot area of abandonment, by age class
+# ------------------------------------------------------------------------------------ #
+cc_save_plot_area_by_age_class <- function(input_list, subtitle, outfile_label,
+                                           width = 7, height = 5,
+                                           save_all = TRUE,
+                                           output_path) {
+  
+  age_class_base <- ggplot(data = input_list$na_first) + 
+    theme_classic() +
+    labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
+         x = "Year", 
+         title = "Area of Abandoned Land, by Age Class",
+         subtitle = subtitle,
+         fill = "Age")
+  
+  age_class_continuous <- age_class_base +
+    geom_col(mapping = aes(x = year, y = area_ha / 10^3, group = age, fill = age),
+             position = position_stack(reverse = TRUE)
+    ) + 
+    scale_fill_distiller(palette = "Greens", direction = 1)
+  
+  
+  age_class_bins <- age_class_base +
+    geom_col(mapping = aes(x = year, y = area_ha / 10^3, group = bins, fill = bins),
+             position = position_stack(reverse = TRUE)
+    ) +
+    scale_fill_brewer(palette = "Greens", direction = 1) 
+  
+  
+  # save to file
+  png(filename = paste0(output_path, "abn_area_by_class_cont", outfile_label, ".png"), 
+      width = width, height = height, units = "in", res = 400)
+  print(age_class_continuous)
+  dev.off()
+  
+  png(filename = paste0(output_path, "abn_area_by_class_bins", outfile_label, ".png"), 
+      width = width, height = height, units = "in", res = 400)
+  print(age_class_bins)
+  dev.off()
+  
+  
+  # save plots with all abandonment cells, regardless of abandonment threshold
+  if(save_all) {
+    png(filename = paste0(output_path, "abn_area_by_class_cont_all", outfile_label, ".png"), 
+        width = width, height = height, units = "in", res = 400)
+    print(age_class_continuous %+% input_list$na_first_all)
+    dev.off()
+    
+    png(filename = paste0(output_path, "abn_area_by_class_bins_all", outfile_label, ".png"), 
+        width = width, height = height, units = "in", res = 400)
+    print(age_class_bins %+% input_list$na_first_all)
+    dev.off()
+  }
+}
+
+
+# ------------------------------------------------------------------------------------ #
+# save four plot types, master function
+# ------------------------------------------------------------------------------------ #
+
+# save just the general intro plots
+cc_save_area_persistence_plots <- function(input_path, 
+                                           output_path,
+                                           site_label,
+                                           blip_label,
+                                           outfile_label,
+                                           subtitle, 
+                                           subtitle_all = paste0(subtitle, ", all abandonment"), 
+                                           save_all = TRUE) {
+  
+  # load the data
+  load(file = paste0(input_path, "abn_dat_products", blip_label, site_label, ".rds"), verbose = TRUE)
+  
+  
+  # ------------- calculate total area per lc, with abandonment ---------------- #
+  cc_save_plot_lc_abn_area(input_area_df = eval(parse(text = paste0("area", blip_label, site_label))), 
+                           subtitle = subtitle, outfile_label = outfile_label,
+                           save_all = save_all,
+                           output_path = output_path)
+  
+  
+  # ------------------------ abandonment persistence --------------------------- #
+  cc_save_plot_abn_persistence(input_list = eval(parse(text = paste0("persistence_list", blip_label, site_label))), 
+                               subtitle = subtitle, outfile_label = outfile_label,
+                               save_all = save_all, subtitle_all = subtitle_all,
+                               output_path = output_path)
+  
+  
+  # -------------------- calculate the abandonment area turnover ------------------- #
+  cc_save_plot_area_gain_loss(input_area_change_df = eval(parse(text = paste0("abn_area_change", blip_label, site_label))), 
+                              subtitle = subtitle, outfile_label = outfile_label,
+                              save_all = save_all,
+                              subtitle_all = subtitle_all,
+                              output_path = output_path)
+  
+  
+  # -------------------- plot abandonment area by age class ------------------- #
+  cc_save_plot_area_by_age_class(input_list = eval(parse(text = paste0("persistence_list", blip_label, site_label))), 
+                                 subtitle = subtitle, outfile_label = outfile_label,
+                                 save_all = save_all,
+                                 output_path = output_path)
+  
+  cat("Plots saved to:", output_path)
+}
+
+
+
+# fragmentation functions ----
+
+# ------------------------------------------------------------------------------------ #
 # merge and clean the fragmentation results
+# ------------------------------------------------------------------------------------ #
 cc_clean_frag_results <- function(site, n_metrics = 11, drop_0 = FALSE) {
   for (run in 1:n_metrics) {
     load(file = paste0(p_output, "frag/frag_", site, run, ".rds"),
@@ -1557,343 +1960,15 @@ cc_clean_frag_results <- function(site, n_metrics = 11, drop_0 = FALSE) {
 }
 
 
-
-# plot and save functions ----
-
 # ------------------------------------------------------------------------------------ #
-# plot histograms
+# save fragmentation plots
 # ------------------------------------------------------------------------------------ #
-
-
-# ------------------------------------------------------------------------------------ #
-# plot lc and abandonment area over time
-# ------------------------------------------------------------------------------------ #
-cc_save_plot_lc_abn_area <- function(input_area_df, subtitle, outfile_label,
-                                     width = 5, height = 4, save_all = FALSE) {
-  
-  # filter and recode
-  if(save_all) {
-    df <- input_area_df
-  } else {
-    df <- input_area_df %>% 
-      filter(lc != "Abandoned (all)") %>% 
-      mutate(lc = recode(lc, "Abandoned (>5)" = "Abandoned"))
-  }
-  
-  gg_lc_abn_area <- ggplot(data = input_area_df) +
-    theme_classic() +
-    # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
-    labs(y = expression("Area  (10"^{6}*" ha)") , 
-         x = "Year", 
-         title = "Area by Land Cover, with Abandonment",
-         subtitle = subtitle,
-         color = "Land Cover") + 
-    geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
-                            group = lc, color = lc),
-              size = 1.2) + 
-    scale_x_continuous(n.breaks = 10)
-  
-  # save
-  png(filename = paste0(p_output, "plots/area_lc_abn", 
-                        outfile_label, ".png"), 
-      width = width, height = height, units = "in", res = 400)
-  
-  print(gg_lc_abn_area)
-  dev.off()
-}
-
-# ------------------------------------------------------------------------------------ #
-# plot persistence of abandonment over time
-# ------------------------------------------------------------------------------------ #
-
-cc_save_plot_abn_persistence <- function(input_list, subtitle, outfile_label,
-                                         width = 7, height = 5,
-                                         save_all = TRUE, subtitle_all = NULL) {
-  
-  # raw area
-  gg_persistence_count <- ggplot(data = input_list$na_last) + 
-    theme_classic() + 
-    geom_line(mapping = aes(x = time_abn, y = area_ha / 10^3,
-                            group = year_abn, color = year_abn), 
-              size = 1.25) + 
-    labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
-         x = "Years since initial abandonment", 
-         title = "Persistence of Abandoned Land",
-         subtitle = subtitle,
-         color = "Year Abandoned") + 
-    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
-    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
-    
-  # as percentage
-  gg_persistence_proportion <- ggplot(data = input_list$na_last) + 
-    theme_classic() + 
-    geom_line(mapping = aes(x = time_abn, y = proportion,
-                            group = year_abn, color = year_abn), 
-              size = 1.25
-    ) + 
-    labs(y = "Proportion remaining abandoned", 
-         x = "Years since initial abandonment", 
-         title = "Persistence of Abandoned Land",
-         subtitle = subtitle,
-         color = "Year Abandoned") + 
-    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
-    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
-  
-  # na_first ----------- #
-  gg_persistence_count_na_first <- ggplot(data = input_list$na_first) + 
-    theme_classic() + 
-    geom_line(mapping = aes(x = year, y = area_ha / 10^3,
-                            group = year_abn, color = year_abn), 
-              size = 1.25
-    ) + 
-    labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
-         x = "Year", 
-         title = "Persistence of Abandoned Land",
-         subtitle = subtitle,
-         color = "Year Abandoned") + 
-    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
-    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
-  
-  gg_persistence_proportion_na_first <- ggplot(data = input_list$na_first) + 
-    theme_classic() + 
-    geom_line(mapping = aes(x = year, y = proportion,
-                            group = year_abn, color = year_abn), 
-              size = 1.25
-    ) + 
-    labs(y = "Proportion remaining abandoned", 
-         x = "Year", 
-         title = "Persistence of Abandoned Land",
-         subtitle = subtitle,
-         color = "Year Abandoned") + 
-    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
-    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
-  
-  
-  # save
-  png(filename = paste0(p_output, "plots/persistence_", 
-                        "count", outfile_label, ".png"), 
-      width = width, height = height, units = "in", res = 400)
-  
-  print(gg_persistence_count)
-  dev.off()
-  
-  png(filename = paste0(p_output, "plots/persistence_", 
-                        "proportion", outfile_label, ".png"), 
-      width = width, height = height, units = "in", res = 400)
-  
-  print(gg_persistence_proportion)
-  dev.off()
-  
-  png(filename = paste0(p_output, "plots/persistence_", 
-                        "count_na_first", outfile_label, ".png"), 
-      width = width, height = height, units = "in", res = 400)
-  
-  print(gg_persistence_count_na_first)
-  dev.off()
-  
-  png(filename = paste0(p_output, "plots/persistence_", 
-                        "proportion_na_first", outfile_label, ".png"), 
-      width = width, height = height, units = "in", res = 400)
-  
-  print(gg_persistence_proportion_na_first)
-  dev.off()
-  
-  # save plots with all abandonment cells, regardless of abandonment threshold
-  if(save_all) {
-    png(filename = paste0(p_output, "plots/persistence_", 
-                          "count_all", outfile_label, ".png"), 
-        width = width, height = height, units = "in", res = 400)
-    
-    print(gg_persistence_count %+% input_list$na_last_all + 
-            labs(subtitle = subtitle_all))
-    dev.off()
-    
-    png(filename = paste0(p_output, "plots/persistence_", 
-                          "proportion_all", outfile_label, ".png"), 
-        width = width, height = height, units = "in", res = 400)
-    
-    print(gg_persistence_proportion %+% input_list$na_last_all + 
-            labs(subtitle = subtitle_all))
-    dev.off()
-    
-    png(filename = paste0(p_output, "plots/persistence_", 
-                          "count_na_first_all", outfile_label, ".png"), 
-        width = width, height = height, units = "in", res = 400)
-    
-    print(gg_persistence_count_na_first %+% input_list$na_first_all + 
-            labs(subtitle = subtitle_all))
-    dev.off()
-    
-    png(filename = paste0(p_output, "plots/persistence_", 
-                          "proportion_na_first_all", outfile_label, ".png"), 
-        width = width, height = height, units = "in", res = 400)
-    
-    print(gg_persistence_proportion_na_first %+% input_list$na_first_all + 
-            labs(subtitle = subtitle_all))
-    dev.off()
-  }
-}
-
-
-# ------------------------------------------------------------------------------------ #
-# plot gains and losses of abandoned land, over time
-# ------------------------------------------------------------------------------------ #
-cc_save_plot_area_gain_loss <- function(input_area_change_df, subtitle, outfile_label,
-                                        width = 6, height = 5,
-                                        save_all = TRUE, subtitle_all = paste0(subtitle, ", all abandonment")) {
-  
-  # gain, loss, and net change in abandoned area, over time
-  gg_abn_area_change_base <- ggplot() + 
-    theme_classic() + 
-    labs(y = expression("Change in area abandoned (10"^{3}*" ha)"), 
-         x = "Year", 
-         title = "Change in Area of Abandoned Land",
-         subtitle = subtitle,
-         fill = NULL, #"Change in Area",
-         color = NULL) + 
-    scale_color_manual(values = c("black"),
-                       labels = "Net Change in Area") + 
-    scale_fill_manual(values = brewer_pal(palette = "Greens")(5)[3:2],
-                      labels = c("Area Gained", "Area Lost")) + 
-    theme(legend.position = "bottom")
-  
-  gg_abn_area_change <- gg_abn_area_change_base +
-    geom_col(data = filter(input_area_change_df, direction != "net"),
-             mapping = aes(x = year, y = area_ha / (10^3), 
-                           group = direction, fill = direction)) + 
-    geom_line(data = filter(input_area_change_df, direction == "net"),
-              mapping = aes(x = year, y = area_ha / (10^3), color = "Net Change in Area"),
-              size = 1.5)
-  
-  gg_abn_area_change_all <- gg_abn_area_change_base +
-    geom_col(data = filter(input_area_change_df, direction != "net"),
-             mapping = aes(x = year, y = area_ha_all / (10^3), 
-                           group = direction, fill = direction)) + 
-    geom_line(data = filter(input_area_change_df, direction == "net"),
-              mapping = aes(x = year, y = area_ha_all / (10^3), color = "Net Change in Area"),
-              size = 1.5)
-  
-  
-  # save to file
-  png(filename = paste0(p_output, "plots/abn_area_change", outfile_label, ".png"), 
-      width = width, height = height, units = "in", res = 400)
-  print(gg_abn_area_change)
-  dev.off()
-  
-  
-  # save plots with all abandonment cells, regardless of abandonment threshold
-  if(save_all) {
-    png(filename = paste0(p_output, "plots/abn_area_change_all", outfile_label, ".png"), 
-        width = width, height = height, units = "in", res = 400)
-    print(gg_abn_area_change_all)
-    dev.off()
-  }
-  
-}
-
-
-# ------------------------------------------------------------------------------------ #
-# plot area of abandonment, by age class
-# ------------------------------------------------------------------------------------ #
-cc_save_plot_area_by_age_class <- function(input_list, subtitle, outfile_label,
-                                           width = 7, height = 5,
-                                           save_all = TRUE) {
-  
-  age_class_base <- ggplot(data = input_list$na_first) + 
-    theme_classic() +
-    labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
-         x = "Year", 
-         title = "Area of Abandoned Land, by Age Class",
-         subtitle = subtitle,
-         fill = "Age")
-  
-  age_class_continuous <- age_class_base +
-    geom_col(mapping = aes(x = year, y = area_ha / 10^3, group = age, fill = age),
-             position = position_stack(reverse = TRUE)
-    ) + 
-    scale_fill_distiller(palette = "Greens", direction = 1)
-  
-  
-  age_class_bins <- age_class_base +
-    geom_col(mapping = aes(x = year, y = area_ha / 10^3, group = bins, fill = bins),
-             position = position_stack(reverse = TRUE)
-    ) +
-    scale_fill_brewer(palette = "Greens", direction = 1) 
-  
-  
-  # save to file
-  png(filename = paste0(p_output, "plots/abn_area_by_class_cont", outfile_label, ".png"), 
-      width = width, height = height, units = "in", res = 400)
-  print(age_class_continuous)
-  dev.off()
-  
-  png(filename = paste0(p_output, "plots/abn_area_by_class_bins", outfile_label, ".png"), 
-      width = width, height = height, units = "in", res = 400)
-  print(age_class_bins)
-  dev.off()
-  
-  
-  # save plots with all abandonment cells, regardless of abandonment threshold
-  if(save_all) {
-    png(filename = paste0(p_output, "plots/abn_area_by_class_cont_all", outfile_label, ".png"), 
-        width = width, height = height, units = "in", res = 400)
-    print(age_class_continuous %+% input_list$na_first_all)
-    dev.off()
-    
-    png(filename = paste0(p_output, "plots/abn_area_by_class_bins_all", outfile_label, ".png"), 
-        width = width, height = height, units = "in", res = 400)
-    print(age_class_bins %+% input_list$na_first_all)
-    dev.off()
-  }
-  
-  
-}
-
-
-# ------------------------------------------------------------------------------------ #
-# save four plot types, master function
-# ------------------------------------------------------------------------------------ #
-
-# save just the general intro plots
-cc_save_area_persistence_plots <- function(input_site_label,
-                                           blip_label,
-                                           outfile_label,
-                                           subtitle, 
-                                           subtitle_all = paste0(subtitle, ", all abandonment"), 
-                                           save_all = TRUE) {
-  
-  # load the data
-  load(file = paste0(p_output, "abn_dat_products", blip_label, input_site_label, ".rds"), verbose = TRUE)
-  
-  
-  # ------------- calculate total area per lc, with abandonment ---------------- #
-  cc_save_plot_lc_abn_area(input_area_df = eval(parse(text = paste0("area", blip_label, input_site_label))), 
-                           subtitle = subtitle, outfile_label = outfile_label,
-                           save_all = save_all)
-  
-  
-  # ------------------------ abandonment persistence --------------------------- #
-  cc_save_plot_abn_persistence(input_list = eval(parse(text = paste0("persistence_list", blip_label, input_site_label))), 
-                               subtitle = subtitle, outfile_label = outfile_label,
-                               save_all = save_all, subtitle_all = subtitle_all)
-  
-  
-  # -------------------- calculate the abandonment area turnover ------------------- #
-  cc_save_plot_area_gain_loss(input_area_change_df = eval(parse(text = paste0("abn_area_change", blip_label, input_site_label))), 
-                              subtitle = subtitle, outfile_label = outfile_label,
-                              save_all = save_all,
-                              subtitle_all = subtitle_all)
-  
-  
-  # -------------------- plot abandonment area by age class ------------------- #
-  cc_save_plot_area_by_age_class(input_list = eval(parse(text = paste0("persistence_list", blip_label, input_site_label))), 
-                                 subtitle = subtitle, outfile_label = outfile_label,
-                                 save_all = save_all)
-}
-
 
 cc_save_frag_plots <- function(input = frag_dat, 
                                outfile_label) {
+  
+  # load(file = paste0(p_output, "frag/frag_dat.rds"), verbose = TRUE)
+  
   
   # recode and filter land cover types
   input <- input %>%

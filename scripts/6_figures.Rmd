@@ -21,6 +21,8 @@ p_dat_derived <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
 p_output <- paste0("/scratch/network/clc6/abandonment_trajectories/output/")
 list.files(p_dat_derived)
 
+site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
+
 
 # Land use class codes:
 #       1. Non-vegetated area (e.g. water, urban, barren land)
@@ -1041,7 +1043,9 @@ toc()
 
 tic()
 cc_save_area_persistence_plots(
-  input_site_label = "_s", 
+  input_path = p_output, 
+  output_path = paste0(p_output, "test/"),
+  site_label = "_s", 
   blip_label = "_blip1",
   outfile_label = "_s_blip1",
   subtitle = "Shaanxi/Shanxi Provinces, China (recult. >= 2)", 
@@ -1088,6 +1092,33 @@ cc_save_frag_plots(input = frag_dat, outfile_label = NULL)
 
 
 ```
+
+```{r save-plots-loop}
+
+# see data.frame of all sites
+site_df
+
+blip_label <- "_b1"
+
+i <- 11
+site_df$description[i]
+
+for (i in 2:11) {
+  cc_save_area_persistence_plots(
+    input_path = p_output, 
+    output_path = paste0(p_output, "plots_loop/"),
+    site_label = site_label_list[i], 
+    blip_label = blip_label,
+    outfile_label = paste0(site_label_list[i], blip_label),
+    subtitle = paste0(site_df$description[i], ", (recult. >= 2)"), 
+    subtitle_all = paste0(site_df$description[i], ", all abandonment (recult. >= 2)"),
+    save_all = TRUE
+  )
+}
+
+
+```
+
 
 ```{r clean-up}
 

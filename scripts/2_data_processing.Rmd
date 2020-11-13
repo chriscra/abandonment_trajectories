@@ -185,6 +185,18 @@ site_label_list <- c("_b", "_bh", "_c",
                      "_n", "_o", "_s", 
                      "_v", "_w")
 
+description <- c("Eastern Belarus/Smolensk, Russia",
+               "Bosnia & Herzegovina", 
+               "Chongqing Province, China",
+               "Goiás, Brazil", 
+               "Iraq", 
+               "Mato Grosso, Brazil", 
+               "Nebraska, USA", 
+               "Orenburg, Russia", 
+               "Shaanxi/Shanxi Provinces, China", 
+               "Volgograd, Russia", 
+               "Wisconsin, USA")
+
 site_merge_layers <- site_list[c(3, 4, 5, 7, 8, 9, 10)]
 c("chongqing", "goias", "iraq", "nebraska", "orenburg", "shaanxi", "volgograd")
 
@@ -209,7 +221,18 @@ site_df <- data.frame(site = site_list,
          other = 1, 
          woody_veg = 2,
          cropland = 3,
-         grassland = 4
+         grassland = 4,
+         description = c("Eastern Belarus/Smolensk, Russia",
+               "Bosnia & Herzegovina", 
+               "Chongqing Province, China",
+               "Goiás, Brazil", 
+               "Iraq", 
+               "Mato Grosso, Brazil", 
+               "Nebraska, USA", 
+               "Orenburg, Russia", 
+               "Shaanxi/Shanxi Provinces, China", 
+               "Volgograd, Russia", 
+               "Wisconsin, USA")
          )
 
 # Update land cover classes for the following sites:
@@ -541,6 +564,217 @@ plot(test_age[[1]])
 ```
 
 
+```{r test-full-analysis-w-wisc}
+source('~/Google Drive/_Projects/abandonment_trajectories/scripts/util/_util_dt_filter_functions.R')
+site <- "wisconsin"
+p_dat_derived
+
+# set paths:
+p_input_rasters <- paste0(p_dat_derived, "input_rasters/func_test/")  # "/scratch/network/clc6/abandonment_trajectories/data_derived/input_rasters/"
+p_output <- p_output          # "/scratch/network/clc6/abandonment_trajectories/output/"
+p_raw_rasters_path <- p_input_rasters #"/scratch/network/clc6/abandonment_trajectories/raw_rasters/"
+
+
+# test out the script, then work on merging the data.tables
+site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
+
+ws_raw <- brick(paste0(p_input_rasters, site,"/", site, "_raw.tif"))
+
+plot(ws_raw[[1]], main = "raw")
+
+
+# 0. Merge raw raster layers
+cat("0. Merge raw raster layers", fill = TRUE)
+tic("Merge rasters")
+cc_merge_rasters(site = site, site_df = site_df, input_path = p_raw_rasters_path)
+toc(log = TRUE)
+
+ws_raw_merged <- brick(paste0(p_input_rasters, site, "_raw.tif"))
+cellStats(ws_raw - ws_raw_merged, stat = "sum") # all 0 - they are identical.
+plot(ws_raw_merged[[1]], main = "raw, merged")
+
+
+# 1. Convert raw rasters into data.tables (including renaming and recoding)
+cat("1. Converting raw rasters into data.tables (including renaming and recoding): ", site, fill = TRUE)
+cc_r_to_dt(site = site, 
+           input_path = p_raw_rasters_path, 
+           output_path = p_input_rasters, 
+           site_df = site_df)
+
+ws_raw <- fread(input = paste0(p_input_rasters, site, "_raw.csv"))
+ws <- fread(input = paste0(p_input_rasters, site, ".csv"))
+ws_raw
+ws
+
+# 2. Process raw data.tables in order to calculate the length of agricultural abandonment periods.
+      # Steps include:
+      # 1) filtering to just abandonment cells, 
+      # 2) filling recultivation blips based on a threshold,
+      # 3) calculating age, and 4) extracting lengths, all the while writing out files.
+
+cat("2. Filter data.tables for abandonment raw rasters to data.tables: ", site, fill = TRUE)
+
+cc_filter_abn_dt(site = site,
+                 path = p_input_rasters,
+                 blip_label = blip_label,
+                 clean_blips = TRUE)
+
+ws_age <- fread(input = paste0(p_input_rasters, site, "_age", blip_label, ".csv"))
+ws_diff <- fread(input = paste0(p_input_rasters, site, "_diff", blip_label, ".csv"))
+ws_length <- fread(input = paste0(p_input_rasters, site, "_length", blip_label, ".csv"))
+ws_blips_count <- fread(input = paste0(p_input_rasters, site, "_blips_count", blip_label, ".csv"))
+
+
+ws
+ws_age
+ws_age[y1987 > 0, ]
+ws_diff
+ws_length
+ws_blips_count
+
+# 3 Calculate maximum age, serial
+cat("3. Calculate maximum age, in serial:", site, fill = TRUE)
+cc_calc_max_age(directory = p_input_rasters, 
+                site = site, 
+                blip_label = blip_label,
+                label = label)
+
+ws_max_length <- fread(input = paste0(p_input_rasters, site, "_max_length", blip_label, ".csv"))
+
+
+
+# 4. save various data.tables as rasters:
+cat("4. Saving data.tables as rasters: ", site, fill = TRUE)
+
+dt_types <- c(
+  "", 
+  paste0("_age", blip_label)
+)
+
+cat("types of data.tables to save as rasters:", fill = TRUE)
+print(dt_types)
+
+for (i in dt_types) {
+  cc_save_dt_as_raster(site = site, 
+                       type = i, 
+                       input_path = p_input_rasters, 
+                       output_path = p_input_rasters)
+}
+
+ws_age_r <- brick(paste0(p_input_rasters, site, "_age", blip_label, ".tif"))
+ws_r <- brick(paste0(p_input_rasters, site, ".tif"))
+
+plot(ws_raw_merged[[1]], main = "raw, merged")
+plot(ws_r[[1]], main = "recoded")
+plot(ws_age_r[[31]], main = "age, 2017")
+
+
+
+ws
+ws_age
+# 
+# # Add in NA rows, by joining x and y columns from the original land cover data.table to the age_dt
+# ws_age <- merge(ws[, .(x, y)], ws_age, all = TRUE, by = c("x", "y"), sort = FALSE)
+# ws_age
+# ws_age_all
+# 
+# object_size(ws_age)
+# object_size(ws_age_all)
+# 
+# # convert age dt to raster
+# ws_age_r <- dt_to_raster(ws_age, crs("+proj=longlat +datum=WGS84 +no_defs"))
+# plot(ws_age_all_r$y2017, colNA = "red")
+# plot(ws_age_r$y2017, colNA = "red")
+# 
+# object_size(ws_age_all_r)
+
+
+
+
+# 5. Summarize the abandonment datatables into dataframes for plotting purposes
+cat("5. Summarizing abandonment data.tables: ", site, fill = TRUE)
+
+cc_summarize_abn_dts(
+  input_path = p_input_rasters,
+  output_path = p_input_rasters,
+  site = site,
+  blip_label = blip_label,
+  outfile_label = paste0(blip_label, "_w"),
+  abandonment_threshold = 5,
+  include_all = TRUE
+)
+
+
+
+# plotting:
+cc_save_area_persistence_plots(input_path, 
+                               site_label = "_w",
+                               blip_label = blip_label,
+                               outfile_label,
+                               subtitle = "Wisconsin test", 
+                               subtitle_all = paste0(subtitle, ", all abandonment"), 
+                               save_all = TRUE)
+
+
+
+```
+
+```{r load-data-products}
+ws_raw_merged <- brick(paste0(p_input_rasters, site, "_raw.tif"))
+cellStats(ws_raw - ws_raw_merged, stat = "sum") # all 0 - they are identical.
+plot(ws_raw_merged[[1]], main = "raw, merged")
+
+
+
+ws_raw <- fread(input = paste0(p_input_rasters, site, "_raw.csv"))
+ws <- fread(input = paste0(p_input_rasters, site, ".csv"))
+ws_raw
+ws
+
+
+
+ws_age <- fread(input = paste0(p_input_rasters, site, "_age", blip_label, ".csv"))
+ws_diff <- fread(input = paste0(p_input_rasters, site, "_diff", blip_label, ".csv"))
+ws_length <- fread(input = paste0(p_input_rasters, site, "_length", blip_label, ".csv"))
+ws_blips_count <- fread(input = paste0(p_input_rasters, site, "_blips_count", blip_label, ".csv"))
+
+# compare abandonment age to 2017 w 2018
+ws_age_17 <- copy(ws_age)
+ws_length_17 <- copy(ws_length)
+ws_age_17
+ws_age
+ws_length[length >= 5, mean(length)]
+ws_length_17[length >= 5, mean(length)]
+
+ws
+ws_age
+ws_age[y1987 > 0, ]
+ws_diff
+ws_length
+ws_blips_count
+
+
+
+ws_max_length <- fread(input = paste0(p_input_rasters, site, "_max_length", blip_label, ".csv"))
+
+
+
+
+ws_age_r <- brick(paste0(p_input_rasters, site, "_age", blip_label, ".tif"))
+ws_r <- brick(paste0(p_input_rasters, site, ".tif"))
+ws_r_1 <- raster(paste0(p_input_rasters, site, ".tif"))
+plot(ws_r_1)
+plot(ws_r[[1]])
+
+plot(ws_raw_merged[[1]], main = "raw, merged")
+plot(ws_r[[1]], main = "recoded")
+plot(ws_age_r[[31]], main = "age, 2017")
+
+
+
+ws
+ws_age
+```
 
 
 ```{r explore-prepped-rasters}
