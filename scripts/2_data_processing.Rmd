@@ -261,8 +261,6 @@ site_df
 
 
 
-
-
 # save site_df
 write_csv(site_df, path = paste0(p_dat_derived, "site_df.csv"))
 ```
@@ -275,28 +273,70 @@ write_csv(site_df, path = paste0(p_dat_derived, "site_df.csv"))
 
 # year of first abandonment maps
 yoa_files <- list.files(paste0(p_dat, "Abandonment/year_of_abandonment/"))
+age_files <- list.files(paste0(p_dat_derived, "age_rasters"), full.names = TRUE) %>%
+  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
+
 # map_files <- list.files(paste0(p_dat, "Abandonment/final_maps/"))
-map_files <- list.files(paste0(p_dat_derived, "input_rasters/")) %>%
-  grep(".tif", ., value = TRUE)
+site_input_raster_files <- list.files(paste0(p_dat_derived, "input_rasters"), full.names = TRUE) %>%
+  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = TRUE)
 
 
-r
-r <- vector(mode = "list", length = length(map_files)# + 2
-            )
-r[[1]] <- brick(paste0(p_dat, "Abandonment/shaanxi.tif"))
-r[[2]] <- brick(paste0(p_dat_derived, "input_rasters/belarus.tif")) # merged version
-
-
-r <- lapply(seq_along(map_files), function(i) {
-  # brick(paste0(p_dat, "Abandonment/Final_maps/", map_files[i]))
-  brick(paste0(p_dat_derived, "input_rasters/raw_merged/", map_files[i]))
+r <- lapply(seq_along(site_input_raster_files), function(i) {
+  # brick(paste0(p_dat_derived, "input_rasters/", site_input_raster_files[i]))
+  brick(site_input_raster_files[i])
   }
   )
 
-names(r) <- map_files #site_list
+# names(r) <- site_input_raster_files
+names(r) <- site_df$site
+r
+for (i in 1:11) {print(nlayers(r[[i]]))}
+for (i in 1:11) {
+  print(names(r[i]))
+  print(names(r[[i]]))
+}
 
+
+# rename raster layers:
+for (i in 1:11) {
+  if (names(r[i]) == "nebraska") {
+    names(r[[i]]) <- paste0("y", 1986:2018)
+  } else {
+    if (names(r[i]) == "wisconsin") {
+      names(r[[i]]) <- paste0("y", 1987:2018)
+    } else {
+      # everything else, just 1987:2017
+      names(r[[i]]) <- paste0("y", 1987:2017)
+    }
+  }
+}
+
+for (i in 1:11) {
+  print(names(r[i]))
+  print(names(r[[i]]))
+  }
+
+```
+
+
+```{r site-area}
+# plot total site area:
 
 plot(c(ncell(b), ncell(s), sapply(seq_along(r), FUN = function(i) ncell(r[[i]]))))
+layer <- r[[1]][[1]]
+layer %>% raster::area() %>% cellStats(., "sum") # 47331.03 km2
+
+tic()
+r[[1]][[1]] %>% raster::area() %>% cellStats(., "sum")
+toc()
+
+tic()
+site_area <- sapply(seq_along(r), FUN = function(i) {
+  r[[i]][[1]] %>% raster::area() %>% cellStats(., "sum")
+  }
+  )
+toc()
+
 
 num_cells <- sapply(seq_along(r), FUN = function(i) ncell(r[[i]]))
 num_cells
@@ -307,24 +347,34 @@ site_df$site[2:8]
 site_df
 
 site_df_w_size <- site_df %>%
-  mutate(ncell = c(ncell(b), 
-                   num_cells[1:7], 
-                   ncell(s), 
-                   num_cells[8:9])
-         ) %>% arrange(ncell)
+  mutate(ncell = num_cells,
+         area = site_area)
+
+write_csv(site_df_w_size, path = paste0(p_dat_derived, "site_df_w_size.csv"))
+
 
 # 
-ggplot(data = site_df_w_size) + 
+gg_site_ncell <- ggplot(data = site_df_w_size) + 
   theme_classic() +
   theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
-  geom_col(mapping = aes(x = reorder(site, ncell), y = ncell))
+  geom_col(mapping = aes(x = reorder(site, ncell), y = ncell/(10^6))) + 
+    labs(title = "Number of Cells per Site", x = "Site", y = expression("Number of Cells (10"^{6}*")"))
 
 
-test <- brick(paste0("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/Final_maps/", map_files[2]))
-test
-cellStats(test, "mean")
-cellStats(test, )
-freq(test)
+gg_site_area <- ggplot(data = site_df_w_size) + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  geom_col(mapping = aes(x = reorder(site, area), y = area)) + 
+  labs(title = "Site Area", x = "Site", y = expression("Area  (km"^{2}*")"))
+
+gg_site_ncell
+gg_site_area
+
+# save
+png(filename = paste0(p_output, "plots/site_area.png"), 
+    width = 7, height = 5, units = "in", res = 400)
+print(gg_site_area)
+dev.off()
 
 
 b

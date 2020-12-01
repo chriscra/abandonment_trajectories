@@ -41,6 +41,7 @@ Rscript ./analyze_all_sites.R $SLURM_ARRAY_TASK_ID
 # mg - checks out (ncell: 38256075). Used 46.44 GB, 00:31:14 hours.
 # n - checks out (ncell: 66156714). Used 97.64 GB, 01:26:15 hours.
 # o - failed, out of memory (ncell: 101661520). Used 109.96 GB (failed), 03:10:37 hours.
+#### o - ran again, seems good so far... Used 145.22 GB, 03:38:41 hours.
 # s - checks out (ncell: 22573740). Used 30.41 GB, 00:33:20 hours.
 # v - checks out (ncell: 93444494). Used 115.60 GB, 03:03:51 hours.
 # w - checks out (ncell: 70874020). Used 91.32 GB, 01:26:15 hours.

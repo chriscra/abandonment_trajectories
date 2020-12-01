@@ -1855,14 +1855,16 @@ cc_save_area_persistence_plots <- function(input_path,
   cc_save_plot_lc_abn_area(input_area_df = eval(parse(text = paste0("area", blip_label, site_label))), 
                            subtitle = subtitle, outfile_label = outfile_label,
                            save_all = save_all,
-                           output_path = output_path)
+                           output_path = output_path,
+                           width = 6, height = 5)
   
   
   # ------------------------ abandonment persistence --------------------------- #
   cc_save_plot_abn_persistence(input_list = eval(parse(text = paste0("persistence_list", blip_label, site_label))), 
                                subtitle = subtitle, outfile_label = outfile_label,
                                save_all = save_all, subtitle_all = subtitle_all,
-                               output_path = output_path)
+                               output_path = output_path,
+                               width = 5, height = 5)
   
   
   # -------------------- calculate the abandonment area turnover ------------------- #
@@ -1870,14 +1872,16 @@ cc_save_area_persistence_plots <- function(input_path,
                               subtitle = subtitle, outfile_label = outfile_label,
                               save_all = save_all,
                               subtitle_all = subtitle_all,
-                              output_path = output_path)
+                              output_path = output_path,
+                              width = 5, height = 5)
   
   
   # -------------------- plot abandonment area by age class ------------------- #
   cc_save_plot_area_by_age_class(input_list = eval(parse(text = paste0("persistence_list", blip_label, site_label))), 
                                  subtitle = subtitle, outfile_label = outfile_label,
                                  save_all = save_all,
-                                 output_path = output_path)
+                                 output_path = output_path,
+                                 width = 6, height = 5)
   
   cat("Plots saved to:", output_path)
 }

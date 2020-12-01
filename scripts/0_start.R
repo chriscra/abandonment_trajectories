@@ -23,7 +23,7 @@ needed_packages <- c(
   # visualization:
   "rasterVis", "RColorBrewer", "viridis", "scales",
   "patchwork", "cowplot", # for combining multiple plots
-  "animation", "magick",
+  "animation", "magick", "ggrepel",
   
   # development
   "tictoc",  "magrittr", "parallel", "knitr", 

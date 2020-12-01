@@ -57,7 +57,36 @@ names(s_age_r) <- paste0("y", 1987:2017)
 names(b_age_r) <- paste0("y", 1987:2017)
 
 
+# prepared input rasters (derived by Chris)
+site_input_raster_files <- list.files(paste0(p_dat_derived, "input_rasters"), full.names = TRUE) %>%
+  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = TRUE)
 
+r <- lapply(seq_along(site_input_raster_files), function(i) {brick(site_input_raster_files[i])})
+names(r) <- site_df$site
+
+# rename raster layers:
+for (i in 1:11) {
+  if (names(r[i]) == "nebraska") {
+    names(r[[i]]) <- paste0("y", 1986:2018)
+  } else {
+    if (names(r[i]) == "wisconsin") {
+      names(r[[i]]) <- paste0("y", 1987:2018)
+    } else {
+      # everything else, just 1987:2017
+      names(r[[i]]) <- paste0("y", 1987:2017)
+    }}}
+
+
+# abandonment age maps (produced by Chris)
+age_files <- list.files(paste0(p_dat_derived, "age_rasters"), full.names = TRUE) %>%
+  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
+
+age_r <- lapply(seq_along(age_files), function(i) {brick(age_files[i])})
+names(age_r) <- site_df$site
+for (i in seq_along(age_r)) {names(age_r[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
+
+# year of first abandonment maps (from He)
+yoa_files <- list.files(paste0(p_dat, "Abandonment/year_of_abandonment/"))
 
 # -------------------------- data.tables --------------------------- #
 b_age <- fread(input = paste0(p_dat_derived, "belarus_age.csv"))
@@ -65,22 +94,37 @@ names(b_age)
 s_age <- fread(input = paste0(p_dat_derived, "shaanxi_age.csv"))
 
 
-b_length <- fread(input = paste0(p_dat_derived, "belarus_length.csv"))
-s_length <- fread(input = paste0(p_dat_derived, "shaanxi_length.csv"))
+b_length <- fread(input = paste0(p_dat_derived, "lengths/", "belarus_length_b1.csv"))
+s_length <- fread(input = paste0(p_dat_derived, "lengths/", "shaanxi_length_b1.csv"))
 
-b_max_length <- fread(input = paste0(p_dat_derived, "belarus_max_length.csv"))
-s_max_length <- fread(input = paste0(p_dat_derived, "shaanxi_max_length.csv"))
+b_max_length <- fread(input = paste0(p_dat_derived, "lengths/", "belarus_max_length_b1.csv"))
+s_max_length <- fread(input = paste0(p_dat_derived, "lengths/", "shaanxi_max_length_b1.csv"))
 
 # original data
 s_dt <- fread(input = paste0(p_dat_derived, "shaanxi.csv"))
 names(s_dt) <- gsub(pattern = "andcover", replacement = "y", names(s_dt))
 
 b_dt <- fread(input = paste0(p_dat_derived, "belarus.csv")) # caution - huge file! 8.4 GB at least. 
+
+
+
+# -------------------------- summarized data.frames --------------------------- #
+indx <- 9
+site <- site_df$site[indx] # set site:
+site_label <- site_df$label[indx] # set label
+blip_label <- "_b1"
+load(file = paste0(p_output, "abn_dat_products", blip_label, site_label, ".rds"), verbose = TRUE)
+
+# loads:
+area_b1_s
+persistence_list_b1_s
+abn_area_change_b1_s
+
+
+
 ```
 
-
 ```{r simple-plots}
-
 
 # -------------------------- plot raw data --------------------------- #
 plot(b$y1987, main = "Belarus 1987", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
@@ -108,6 +152,135 @@ animate(bt, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
 
 ```
 
+```{r global-site-map}
+r
+plot(r$shaanxi$y1987)
+
+r_extent <- lapply(r, raster::extent)
+plot(r_extent$belarus)
+
+site_sf <- lapply(r, FUN = function(x) {
+  x %>% 
+    extent() %>% 
+    as(., 'SpatialPolygons') %>%
+    st_as_sf()
+  }) %>% 
+  bind_rows() %>% 
+  mutate(site = site_df$site, 
+         label = gsub("_", "", site_df$label),
+         lab_desc = paste0("(", label, ") ", site_df$description),
+         desc = site_df$description)
+
+
+
+
+plot(site_sf)
+
+# basemap
+world <- ne_countries(scale = "small", returnclass = "sf") # can set returnclass to sf or sp.
+
+# set crs for site_sf 
+st_crs(site_sf) <- st_crs(world$geometry)
+
+# -------------------------------------------------------------------- #
+# save site_sf
+st_write(site_sf, dsn = paste0(p_dat_derived, "site_sf.shp"))
+
+# load back in:
+site_sf <- st_read(paste0(p_dat_derived, "site_sf.shp"))
+
+# bind sf with df
+left_join(site_sf, site_df, by = site)
+site_sf$site[9] == site_df$site[9]
+
+# -------------------------------------------------------------------- #
+gg_globe <- ggplot() + 
+  theme_classic() +
+  geom_sf(data = world %>% filter(continent != "Antarctica"), fill = NA, color = "gray") +
+  geom_sf(data = site_sf, mapping = aes(fill = desc)) + 
+  labs(#subtitle = "Map projection: longlat", 
+       x = NULL, y = NULL) +
+  theme(legend.position = "bottom") + 
+  geom_label_repel(data = site_sf,
+                   aes(label = label, geometry = geometry),
+                   stat = "sf_coordinates",
+                   min.segment.length = 0.0, segment.alpha = 1,
+                   point.padding = 0.2, box.padding = 0.2,
+                   label.size = 0.3, color = "black")
+
+
+gg_globe
+
+proj_text <- "moll"
+gg_globe1 <- gg_globe +
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
+  labs(subtitle = paste0("Map projection: ", proj_text))
+
+
+proj_text <- "eck4"
+gg_globe2 <- gg_globe +
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
+  labs(subtitle = paste0("Map projection: ", proj_text))
+
+# use this one:
+proj_text <- "eqearth"
+gg_globe3 <- gg_globe +
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
+  labs(subtitle = paste0("Map projection: ", proj_text))
+
+proj_text <- "natearth2"
+gg_globe4 <- gg_globe +
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
+  labs(subtitle = paste0("Map projection: ", proj_text))
+
+
+plot_grid(gg_globe, gg_globe1, gg_globe2, gg_globe3, gg_globe4)
+warnings()
+# -------------------------------------------------------------------- #
+# save map
+png(filename = paste0(p_output, "plots/site_locations_w_labels.png"), 
+    width = 9, height = 6, units = "in", res = 400)
+print(gg_globe4 + labs(subtitle = NULL))
+dev.off()
+
+
+# long labels:
+png(filename = paste0(p_output, "plots/site_locations_w_labels_long.png"), 
+    width = 9, height = 6, units = "in", res = 400)
+
+ggplot() + 
+  theme_classic() +
+  geom_sf(data = world %>% filter(continent != "Antarctica"), fill = NA, color = "gray") +
+  geom_sf(data = site_sf, mapping = aes(fill = lab_desc)) + 
+  labs(x = NULL, y = NULL) +
+  theme(legend.position = "bottom") + 
+  geom_label_repel(data = site_sf,
+                   aes(label = desc, geometry = geometry),
+                   stat = "sf_coordinates",
+                   min.segment.length = 0.0, segment.alpha = 1,
+                   point.padding = 0.2, box.padding = 0.2,
+                   label.size = 0.3, color = "black") +
+  # labs(subtitle = paste0("Map projection: ", "natearth2")) + 
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "natearth2")))
+
+dev.off()
+
+# just chinese sites
+ggplot() + 
+  # coord_sf(CRS = st_crs("+proj=eck4")) + 
+  geom_sf(data = filter(world, name %in% c("China")), fill = NA, color = "gray") +
+  geom_sf(data = site_sf %>% filter(site %in% c("shaanxi", "chongqing")), mapping = aes(fill = site)) + 
+  geom_sf_label(data = site_sf, aes(label = site)) + 
+  labs(subtitle = paste0("Map projection: ", proj_text)) +
+    theme_classic() +
+  theme(legend.position = "bottom")
+
+
+```
+
+
+
+
 ```{r exploratory-stats}
 # explore some stats:
 s_length
@@ -116,7 +289,50 @@ s_length[, .N, by = length]
 b_length[, .N, by = length]
 
 ```
-```{r distill-length-data}
+
+```{r calc-mean-length}
+# calculate mean length
+# -------------------------------------------------------------------- #
+# ----------------- use lapply() to calculate mean length ------------ #
+# -------------------------------------------------------------------- #
+s_max_length[, mean(max_length)]
+s_max_length[max_length > 0, mean(max_length)]
+s_length_distill
+
+
+mean_length_df <- lapply(site_df$site, FUN = function(x){
+  length <- fread(input = paste0(p_dat_derived, "lengths/", x, "_length_b1.csv"))
+  max_length <- fread(input = paste0(p_dat_derived, "lengths/", x, "_max_length_b1.csv"), 
+                      select = "max_length") # drop x and y, makes loading and calculating much faster
+
+  df <- data.frame(site = x,
+                   mean_length = length[, mean(length)], # mean of all lengths
+                   mean_length_thr3 = length[length >= 3, mean(length)], # mean length, assuming abandonment threshold of 5
+                   mean_length_thr5 = length[length >= 5, mean(length)], # mean length, assuming abandonment threshold of 5
+                   mean_length_max = max_length[max_length > 0, mean(max_length)], # mean of all lengths
+                   mean_length_max_thr3 = max_length[max_length >= 3, mean(max_length)], # mean length, assuming abandonment threshold of 5
+                   mean_length_max_thr5 = max_length[max_length >= 5, mean(max_length)] # mean length, assuming abandonment threshold of 5
+                   )
+  
+  df # return df
+  }
+  )
+
+# bind rows
+mean_length_df <- bind_rows(mean_length_df)
+
+# save site_df
+write_csv(mean_length_df, path = paste0(p_dat_derived, "mean_length_df.csv"))
+
+# re load
+mean_length_df <- read.csv(file = paste0(p_dat_derived, "mean_length_df.csv"))
+
+
+
+
+
+
+# testing code, old:
 # ------------------------------------------ #
 # ----------------- mean length ------------ #
 # ------------------------------------------ #
@@ -133,37 +349,6 @@ dat_mean_length
 
 # can also calculate the mean length from the distilled dat
 sum((b_distill$length * b_distill$freq)) / sum(b_distill$freq)
-
-# ------------------------------------------ #
-# ----------------- distill ---------------- #
-# ------------------------------------------ #
-
-# to use with ggplot, first distill the data
-
-# regular, no thresholds
-b_length_distill <- b_length[, .(freq = .N), by = length]
-b_length_distill[, site := "belarus"]
-s_length_distill <- s_length[, .(freq = .N), by = length]
-s_length_distill[, site := "shaanxi"]
-
-length_distill <- rbind(b_length_distill, s_length_distill)
-
-# blip1
-b_length_blip1_distill <- b_length_blip1[, .(freq = .N), by = length]
-b_length_blip1_distill[, site := "belarus"]
-s_length_blip1_distill <- s_length_blip1[, .(freq = .N), by = length]
-s_length_blip1_distill[, site := "shaanxi"]
-
-length_blip1_distill <- rbind(b_length_blip1_distill, s_length_blip1_distill)
-
-# max_length
-
-b_max_length_distill <- b_max_length[, .(freq = .N), by = max_length]
-b_max_length_distill[, site := "belarus"]
-s_max_length_distill <- s_max_length[, .(freq = .N), by = max_length]
-s_max_length_distill[, site := "shaanxi"]
-max_length_distill <- rbind(b_max_length_distill, s_max_length_distill)
-
 
 # ------------------------------------ #
 # ----------- mean max length -------- #
@@ -191,10 +376,281 @@ save(dat_mean_length, dat_mean_length_max,
 
 load(file = paste0(p_output, "mean_lengths.rds"), 
      verbose = TRUE)
+
+dat_mean_length
+dat_mean_length_max
+```
+
+
+```{r plot-mean-length}
+# -------------------------------------------------------------------- #
+# ----------------- plot mean length of time abandoned ---------------- #
+# -------------------------------------------------------------------- #
+
+mean_length_df <- read.csv(file = paste0(p_dat_derived, "mean_length_df.csv"))
+
+# pivot, add columns specifying abn threshold, all vs. max, etc.
+mean_length_df_pivot <- mean_length_df %>% 
+  pivot_longer(cols = starts_with("mean"), names_to = "col_names", values_to = "mean_length") %>%
+  mutate(length_type = ifelse(grepl("max", col_names), "max", "all"),
+         abn_threshold = ifelse(grepl("thr5", col_names), "5", 
+                                ifelse(grepl("thr3", col_names), "3",
+                                       "1")))
+
+# mean mean length
+mean_mean_df <- mean_length_df_pivot %>% 
+  group_by(abn_threshold, length_type) %>%
+  summarise(count = n(),
+            mean_mean = mean(mean_length, na.rm = TRUE))
+
+
+gg_mean_length <- ggplot(data = mean_length_df_pivot) + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  labs(title = "Mean length of abandonment",
+       subtitle = "Counting only recultivation of 2 or more continuous years",
+       linetype = NULL) +
+  ylab("Mean length of time abandoned (years)") + xlab("Site") +
+  geom_col(mapping = aes(x = site, y = mean_length), fill = "gray50", width = 0.75) + 
+  facet_grid(vars(length_type), vars(abn_threshold),
+             labeller = labeller(length_type = c(all = "all lengths", #old = "new",
+                                                 max = "max length per pixel"),
+                                 abn_threshold = c("1" = "abn threshold = 1",
+                                                   "3" = "abn threshold = 3",
+                                                   "5" = "abn threshold = 5"))) +
+  geom_hline(data = mean_mean_df, aes(yintercept = mean_mean, linetype = "mean"),
+             show.legend = TRUE,
+             # alternatively, just yintercept = 12
+             #linetype = "dashed",
+             color = "red", size = 0.75) + 
+  scale_linetype_manual(values = c("mean" = "dashed"))
+
+
+
+# -------------------------------------------------------------------- #
+# ----------------- save ---------------- #
+# -------------------------------------------------------------------- #
+
+png(filename = paste0(p_output, "plots/mean_lengths_grid_b1.png"), 
+    width = 8.5, height = 5, units = "in", res = 400)
+print(gg_mean_length)
+dev.off()
+```
+
+```{r distill-length-data}
+  
+# -------------------------------------------------------------------- #
+# ----------------- use lapply() to distill all sites ---------------- #
+# -------------------------------------------------------------------- #
+# now, using lapply to run for all sites
+# 2. Distill the length data, for use in histograms
+length_distill_df <- lapply(site_df$site, FUN = function(x){
+  length <- fread(input = paste0(p_dat_derived, "lengths/", x, "_length_b1.csv"))
+  max_length <- fread(input = paste0(p_dat_derived, "lengths/", x, "_max_length_b1.csv"),
+                      select = "max_length") # drop x and y, makes loading and calculating much faster
+
+  dt <- length[, .(freq = .N), by = length
+               ][, ':='(site = x, length_type = "all")]
+  dt_max <- max_length[, .(freq = .N), by = max_length
+                       ][order(max_length), 
+                         ][, ':='(site = x, length_type = "max")
+                           ][, length := max_length
+                             ][, max_length := NULL][]
+  dt <- bind_rows(dt, dt_max) # return dt
+  dt
+  }
+  )
+
+# bind rows
+length_distill_df <- bind_rows(length_distill_df) %>% as.data.frame()
+
+
+length_distill_df
+
+# save site_df
+write_csv(length_distill_df, path = paste0(p_dat_derived, "length_distill_df.csv"))
+
+# re load
+length_distill_df <- read.csv(file = paste0(p_dat_derived, "length_distill_df.csv"))
+
+
+
+
+
+
+
+
+
+
+# old:
+
+# testing code # 
+
+# to use with ggplot, first distill the data
+
+# regular, no thresholds
+b_length_distill <- b_length[, .(freq = .N), by = length]
+b_length_distill[, site := "belarus"]
+s_length_distill <- s_length[, .(freq = .N), by = length]
+s_length_distill[, site := "shaanxi"]
+
+length_distill <- rbind(b_length_distill, s_length_distill)
+
+# blip1
+b_length_blip1_distill <- b_length_blip1[, .(freq = .N), by = length]
+b_length_blip1_distill[, site := "belarus"]
+s_length_blip1_distill <- s_length_blip1[, .(freq = .N), by = length]
+s_length_blip1_distill[, site := "shaanxi"]
+
+length_blip1_distill <- rbind(b_length_blip1_distill, s_length_blip1_distill)
+
+# max_length
+
+b_max_length_distill <- b_max_length[, .(freq = .N), by = max_length]
+b_max_length_distill[, site := "belarus"]
+s_max_length_distill <- s_max_length[, .(freq = .N), by = max_length]
+s_max_length_distill[order(max_length),]
+
+s_max_length_distill[, site := "shaanxi"]
+max_length_distill <- rbind(b_max_length_distill, s_max_length_distill)
+
+t1 <- s_length_distill[, ':='(site = site, length_type = "all")]
+
+t2 <- s_max_length_distill[order(max_length), 
+                           ][, ':='(site = site, length_type = "max")
+                             ][, length := max_length
+                               ][, max_length := NULL][]
+t1
+t2
+bind_rows(t1, t2)
+
 ```
 
 ```{r histograms}
-# plot histograms
+
+length_distill_df <- read.csv(file = paste0(p_dat_derived, "length_distill_df.csv"))
+length_distill_df
+
+# -------------------------------------------------------------------- #
+# ----------------- plot histograms ---------------- #
+# -------------------------------------------------------------------- #
+
+length_distill_df %>% head()
+
+
+ggplot(data = filter(length_distill_df, site == site_df$site[9], length > 0)) + 
+  theme_classic() + 
+  labs(title = paste0(site_df$description[9], ": histogram of time abandoned"),
+       caption = "Recultivation threshold >= 2 years",
+       linetype = "") +
+  xlab("Time abandoned (years)") + ylab(expression("Count  (10"^{6}*" pixels)")) +
+  geom_col(mapping = aes(x = length, y = freq/(10^6)), fill = "gray50") +
+  facet_grid(rows = vars(length_type), scales = "free",
+             labeller = labeller(length_type = c(all = "all abn. periods", #old = "new",
+                                                 max = "max. length per pixel"))) +
+  geom_vline(data = filter(mean_length_df_pivot, 
+                           site == site_df$site[9],
+                           abn_threshold == 1), 
+             aes(xintercept = mean_length, linetype = "mean"),
+             show.legend = TRUE,
+             color = "darkblue", size = 0.75) + 
+  scale_linetype_manual(values = c("mean" = "dashed")) + 
+  theme(legend.position = c(0.85, 0.95), plot.caption = element_text(face = "italic"))
+
+# -------------------------------------------------------------------- #
+# ----------------- function ---------------- #
+# -------------------------------------------------------------------- #
+for (i in 1:11) {
+  gg_hist <- ggplot(data = filter(length_distill_df, site == site_df$site[i], length > 0)) + 
+    theme_classic() +
+    labs(title = paste0(site_df$description[i], ": histogram of time abandoned"),
+         caption = "Recultivation threshold >= 2 years",
+         linetype = "") +
+    xlab("Time abandoned (years)") + ylab(expression("Count  (10"^{6}*" pixels)")) +
+    geom_col(mapping = aes(x = length, y = freq/(10^6)), fill = "gray50") +
+    facet_grid(rows = vars(length_type), scales = "free",
+               labeller = labeller(length_type = c(all = "all abn. periods", #old = "new",
+                                                   max = "max. length per pixel"))) +
+    # geom_vline(xintercept = 5, linetype="dashed", color = "red", size = 0.75) +
+    # geom_vline(xintercept = 20, linetype="dashed", color = "forest green", size = 0.75) +
+    geom_vline(data = filter(mean_length_df_pivot,
+                             site == site_df$site[i],
+                             abn_threshold == 1), 
+               aes(xintercept = mean_length, linetype = "mean"),
+               show.legend = TRUE, color = "darkblue", size = 0.75) + 
+    scale_linetype_manual(values = c("mean" = "dashed")) +
+    theme(legend.position = c(0.85, 0.95), plot.caption = element_text(face = "italic"))
+    
+  
+  # save
+  png(filename = paste0(p_output, "plots/", "length_hist_b1", site_df$label[i], ".png"), 
+      width = 7, height = 5, units = "in", res = 400)
+  print(gg_hist)
+  dev.off()
+}
+
+
+
+
+# -------------------------------------------------------------------- #
+# both site histograms
+
+gg_length_hist_all_b1 <- ggplot(data = length_distill_df %>%
+                                  filter(site %in% c("belarus", "shaanxi"),
+                                         length_type == "all")) + 
+  labs(title = "Histogram of time abandoned across all individual periods of abandonment",
+       subtitle = "Recultivation threshold >= 2 years") +
+  xlab("Time abandoned (years)") + ylab(expression("Count  (10"^{6}*" pixels)")) +
+  geom_col(mapping = aes(x = length, y = freq/(10^6)), fill = "gray50") +
+  facet_grid(rows = vars(site), scales = "free") +
+  geom_vline(xintercept = 5, linetype="dashed", 
+             color = "red", size = 0.75) +
+  # geom_vline(xintercept = dat_mean_length$mean_length, linetype="dashed", color = "pink", size = 0.75,
+  #            show.legend = TRUE, le) +
+  geom_vline(xintercept = 20, linetype="dashed", color = "forest green", size = 0.75) +
+  theme_classic()
+
+
+
+# max_length
+gg_max_length_hist_all_b1 <- ggplot(data = length_distill_df %>%
+                                  filter(site %in% c("belarus", "shaanxi"),
+                                         length_type == "max",
+                                         length > 0)) + 
+  labs(title = "Histogram of maximum time abandoned per pixel",
+       subtitle = "Recultivation threshold >= 2 years") +
+  xlab("Maximum time abandoned (years)") + ylab(expression("Count  (10"^{6}*" pixels)")) + 
+  geom_col(mapping = aes(x = length, y = freq/(10^6)), fill = "gray50") +
+  facet_grid(rows = vars(site), scales = "free") +
+  geom_vline(xintercept = 5, linetype="dashed", color = "red", size = 0.75) +
+  geom_vline(xintercept = 20, linetype = "dashed", color = "forest green", size = 0.75) +
+  theme_classic()
+
+gg_length_hist_all_b1
+gg_max_length_hist_all_b1
+
+# save to file ---------------- #
+# all lengths
+png(filename = paste0(p_output, "plots/length_hist_all_b1.png"), 
+    width = 7, height = 5, units = "in", res = 400)
+print(gg_length_hist_all_b1)
+dev.off()
+
+# max lengths
+png(filename = paste0(p_output, "plots/max_length_hist_b1.png"), 
+    width = 7, height = 5, units = "in", res = 400)
+print(gg_max_length_hist_all_b1)
+dev.off()
+
+
+
+
+
+
+
+
+
+# old histograms
 # beware... because of the way the bins are determined, the default histogram automatically lumps 1 and 2 together. better to first distill the data and use ggplot 
 hist(s_length[[1]], main = "Histogram of Length of Time Abandoned \n Shaanxi/Shanxi Provinces, China", xlab = "Time (years)")
 
@@ -211,65 +667,6 @@ hist(b_length[[1]], main = "right = TRUE")
 hist(b_length[[1]], right = FALSE, main = "right = FALSE")
 
 
-
-# ggplots
-# both site histograms
-distill == length_distill
-max_distill == max_length_distill
-
-
-dat_mean_length
-
-length_plot <- ggplot(data = length_distill) + 
-  labs(title = "Histogram of time abandoned across all individual periods of abandonment") +
-  xlab("Time abandoned (years)") + ylab(expression("Count  (10"^{6}*" pixels)")) +
-  geom_col(mapping = aes(x = length, y = freq/(10^6)), fill = "gray50") +
-  facet_grid(rows = vars(site), scales = "free") +
-  geom_vline(xintercept = 5, linetype="dashed", 
-             color = "red", size = 0.75) +
-  # geom_vline(xintercept = dat_mean_length$mean_length, linetype="dashed", color = "pink", size = 0.75,
-  #            show.legend = TRUE, le) +
-  geom_vline(xintercept = 20, linetype="dashed", color = "forest green", size = 0.75) +
-  theme_classic()
-
-length_blip1_plot <- ggplot(data = length_blip1_distill) + 
-  labs(title = "Histogram of time abandoned across all individual periods of abandonment",
-       subtitle = "Counting only recultivation of 2 or more continuous years") +
-  xlab("Time abandoned (years)") + ylab(expression("Count  (10"^{6}*" pixels)")) +
-  geom_col(mapping = aes(x = length, y = freq/(10^6)), fill = "gray50") +
-  facet_grid(rows = vars(site), scales = "free") +
-  geom_vline(xintercept = 5, linetype="dashed", 
-             color = "red", size = 0.75) +
-  # geom_vline(xintercept = dat_mean_length$mean_length, linetype="dashed", color = "pink", size = 0.75,
-  #            show.legend = TRUE, le) +
-  geom_vline(xintercept = 20, linetype="dashed", color = "forest green", size = 0.75) +
-  theme_classic()
-
-
-
-class(max_length_distill)
-
-max_length_distill[max_length > 0,]
-# max_length
-max_length_plot <- ggplot(data = max_length_distill[max_length > 0]) + 
-  labs(title = "Histogram of maximum time abandoned per pixel") +
-  xlab("Maximum time abandoned (years)") + ylab(expression("Count  (10"^{6}*" pixels)")) + 
-  geom_col(mapping = aes(x = max_length, y = freq/(10^6)), fill = "gray50") +
-  facet_grid(rows = vars(site), scales = "free") +
-  geom_vline(xintercept=5, linetype="dashed", 
-             color = "red", size = 0.75) +
-  geom_vline(xintercept=20, linetype="dashed", color = "forest green", size = 0.75) +
-  theme_classic()
-
-max_length_distill
-
-length_plot
-max_length_plot
-
-dat_mean_length
-
-
-
 # just belarus
 ggplot(data = b_distill) + 
   geom_col(mapping = aes(x = length, y = freq), fill = "black") +
@@ -278,32 +675,22 @@ ggplot(data = b_distill) +
 ggplot(data = b_length, aes(length)) + 
   geom_histogram() +
   theme_classic() # took forever!! Beware...
+
+
 ```
 
-```{r save-age-histograms}
+```{r site-area}
+# see 2_data_processing.Rmd 
+site_df_w_size
+site_df
 
-# all lengths
-png(filename = paste0(p_output, "plots/length_hist.png"), 
-    width = 7, height = 5, units = "in", res = 400)
-print(length_plot)
-dev.off()
-
-
-# all lengths, blip1
-png(filename = paste0(p_output, "plots/length_hist_blip1.png"), 
-    width = 7, height = 5, units = "in", res = 400)
-print(length_blip1_plot)
-dev.off()
+gg_site_area
 
 
 
-# max lengths
-png(filename = paste0(p_output, "plots/max_length_hist.png"), 
-    width = 7, height = 5, units = "in", res = 400)
-print(max_length_plot)
-dev.off()
 
 ```
+
 
 ```{r lc-abn-area-over-time}
 s_dt[, .N, by = .(y1987)] #
@@ -449,12 +836,15 @@ ggplot(data = filter(persistence_list_s$count, time_abn == 1)) +
 cc_save_plot_abn_persistence(input_list = persistence_list_s, subtitle = "Shaanxi/Shanxi Provinces, China", outfile_label = "_s")
 ```
 
-```{r half-life}
-persistence_list_s <- cc_calc_persistence_all(abn_age_dt = s_age, land_cover_raster = s$y2017)
+```{r half-life-lm}
+#persistence_list_s <- cc_calc_persistence_all(abn_age_dt = s_age, land_cover_raster = s$y2017)
+load()
 
-df <- persistence_list_s$na_last %>%
-  mutate(year_abn = as_factor(year_abn))
-df_av <- df %>%
+
+# average proportion of abandoned land remaining, across time abandoned
+
+df_av <- persistence_list_b1_s$na_last %>%
+  mutate(year_abn = as_factor(year_abn)) %>%
   group_by(time_abn) %>%
   summarise(count = n(),
             sd = sd(proportion, na.rm = TRUE), 
@@ -463,12 +853,11 @@ df_av <- df %>%
             year_abn = as_factor("mean"))
 df_av
 
-test <- bind_rows(df, df_av)
 
 # as percentage
-base <- ggplot(data = persistence_list_s$na_last) + 
+base <- ggplot(data = persistence_list_b1_s$na_first) + 
     theme_classic() + 
-    geom_line(mapping = aes(x = time_abn, y = proportion,
+    geom_line(mapping = aes(x = age, y = proportion,
                             group = year_abn, color = year_abn), 
               size = 1.25
     ) + 
@@ -478,28 +867,31 @@ base <- ggplot(data = persistence_list_s$na_last) +
          subtitle = NULL, #subtitle,
          color = "Year Abandoned") + 
     scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+    # geom_hline(yintercept=0.5, linetype="dashed", 
+    #          color = "red", size = 0.75) +
     theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
 
 base + geom_line(data = df_av, mapping = aes(x = time_abn, y = proportion),
               size = 3)
 base %+% test
 
-ggplot(data = persistence_list_s$na_last) + 
+# ----------------------------------- plot ------------------------------------------------- #
+gg_half_life_s <- ggplot(data = persistence_list_b1_s$na_first) + 
   theme_classic() + 
   geom_hline(yintercept=0.5, linetype="dashed", 
              color = "red", size = 0.75) +
-  geom_line(mapping = aes(x = time_abn, y = proportion,
+  geom_line(mapping = aes(x = age, y = proportion,
                            group = year_abn, color = year_abn), 
              size = 1) + 
   # geom_smooth(method = "lm", formula = y ~ poly(x, 2),
-  #             mapping = aes(x = time_abn, y = proportion), 
+  #             mapping = aes(x = age, y = proportion),
   #             color = "dark blue", fill = "blue", size = 1.5) +
-  geom_line(data = df_av, mapping = aes(x = time_abn, y = proportion),
-              size = 2, color = "black") +
-  
+    
   geom_ribbon(data = df_av, aes(x = time_abn, ymin = proportion - 1.96*se, ymax=proportion + 1.96*se), 
               color = "gray", fill = "gray", alpha=0.5) + 
-  
+  geom_line(data = df_av, mapping = aes(x = time_abn, y = proportion),
+              size = 2, color = "black") +
+
   labs(y = "Proportion remaining abandoned", 
          x = "Years since initial abandonment", 
          title = "Persistence of Abandoned Land",
@@ -509,12 +901,400 @@ ggplot(data = persistence_list_s$na_last) +
   theme(legend.position = "bottom",
         legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
 
+gg_half_life_s
+df_av %>% filter(proportion <= 0.51)
+
 poly(1:10, 2)
 
-lm(proportion ~ poly(time_abn, 2), data = persistence_list_s$na_last)
+lm(proportion ~ poly(time_abn, 2), data = persistence_list_b1_s$na_last)
+
+# save
+png(filename = paste0(p_output, "plots/half_life_s.png"), 
+    width = 7, height = 5, units = "in", res = 400)
+print(gg_half_life_s)
+dev.off()
+
+
+# ------------------- additional models ------------------------------------------------- #
+# y ~ log(x)
+ggplot(data = persistence_list_b1_s$na_first) + 
+    theme_classic() + 
+    geom_point(mapping = aes(x = age, y = proportion,
+                            group = year_abn, color = year_abn), 
+              size = 1.25) + 
+    labs(y = "Proportion remaining abandoned", 
+         x = "Years since initial abandonment", 
+         title = "Persistence of Abandoned Land",
+         subtitle = NULL, #subtitle,
+         color = "Year Abandoned") + 
+    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0)) + 
+  geom_smooth(method = "lm", formula = y ~ log(x),
+              mapping = aes(x = age, y = proportion),
+              color = "dark blue", fill = "blue", size = 1.5) + 
+  geom_hline(yintercept=0.5, linetype="dashed", 
+             color = "red", size = 0.75) + 
+  geom_vline(xintercept = 24.16574)
+
+
+# log(y) ~ x:
+ggplot(data = persistence_list_b1_s$na_first) + 
+    theme_classic() + 
+  # note, needs to be log transformed
+    geom_point(mapping = aes(x = age, y = log(proportion),
+                            group = year_abn, color = year_abn), 
+              size = 1.25) + 
+    labs(y = "Proportion remaining abandoned", 
+         x = "Years since initial abandonment", 
+         title = "Persistence of Abandoned Land",
+         subtitle = NULL, #subtitle,
+         color = "Year Abandoned") + 
+    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0)) + 
+  
+  # log(y) ~ x
+  geom_smooth(method = "lm", formula = log(y) ~ x,
+              mapping = aes(x = age, y = proportion),
+              color = "dark blue", fill = "blue", size = 1.5) + 
+  geom_hline(yintercept=log(0.5), linetype="dashed", 
+             color = "red", size = 0.75) + 
+  geom_vline(xintercept = 23.1708)
+
+
+
+
+# ------- linear models ------------------------------------------------- #
+# model exponential decay
+model <- lm(proportion ~ log(age), data = persistence_list_b1_s$na_first)
+mod_decay_s <- lm(log(proportion) ~ age, data = persistence_list_b1_s$na_first)
+
+model$coefficients
+exp((0.5 - model$coefficients[1])/model$coefficients[2])
+
+mod_decay_s
+mod_decay_s$coefficients
+summary(mod_decay_s)
+confint(mod_decay_s)
+
+(log(0.5)-mod_decay_s$coefficients[1])/mod_decay_s$coefficients[2] # = x 
+
+
+# ------- plot half life with lm curve ------------------------------------------------- #
+
+
+# ggplot half_life_base, for adding different models
+half_life_base <- ggplot(data = persistence_list_b1_s$na_first) + 
+  theme_classic() + 
+  geom_point(mapping = aes(x = age, y = proportion,
+                          group = year_abn, color = year_abn), 
+            size = 1.25) + 
+  labs(y = "Proportion remaining abandoned", 
+       x = "Years since initial abandonment", 
+       title = "Persistence of Abandoned Land",
+       subtitle = NULL, #subtitle,
+       color = "Year Abandoned") + 
+  scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+  theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0)) + 
+  geom_hline(yintercept = 0.5, linetype="dashed", 
+             color = "red", size = 0.75)
+
+# showing the exponential decay curve
+
+gg_half_life_lm_s <- half_life_base + 
+  # make and add confidence interval
+  geom_ribbon(data = mutate(data.frame(x = 5:30),
+                            lower = exp(confint(mod_decay_s)[2, 1]*x +
+                                          mod_decay_s$coefficients[1]),
+                            upper = exp(confint(mod_decay_s)[2, 2]*x +
+                                          mod_decay_s$coefficients[1])),
+              mapping = aes(ymin = lower, ymax = upper, x = x), 
+              fill = "dark gray", alpha = 0.5, color = "dark gray", linetype = "solid") +
+  stat_function(fun = function(x) {exp(mod_decay_s$coefficients[2]*x + 
+                                         mod_decay_s$coefficients[1])},
+                color = "dark blue", size = 1) + 
+  annotate("text", x = 24, y = 0.8, label = "half-life = 23.17 years", fontface = "italic", angle = 90) + 
+  geom_vline(xintercept = 23.16972)
+
+# save
+png(filename = paste0(p_output, "plots/half_life_lm_s.png"), 
+    width = 5, height = 5, units = "in", res = 400)
+print(gg_half_life_lm_s)
+dev.off()
+
+
+
+
+# other models, not appropriate....
+half_life_base +
+  # compared to y ~ log(x)
+  geom_smooth(method = "lm", formula = y ~ log(x),
+              mapping = aes(x = age, y = proportion),
+              color = "blue", fill = "gray", size = 1.5)
+
+half_life_base +
+  geom_smooth(method = "lm", formula = y ~ exp(x),
+              mapping = aes(x = age, y = proportion),
+              color = "red", fill = "blue", size = 1.5)
+
+
+
+
+# !!!!!!!!!!!!!!!!!!!!
+# assumptions to check:
+# a. LINEAR RELATIONSHIP between the predictor (x) and the response (y); i.e., y = mx + C
+# b. the data points are STATISTICALLY INDEPENDENT (study design issue)
+# c. no outliers influence the relationship unduly (look at the Residuals vs Leverage plot; also the Normal Q-Q plot)
+# d. CONSTANT, or EQUAL VARIANCE (fancily called HOMOSCEDASTICITY; look at the Residuals vs Fitted plot)
+# e. ERRORS ARE NORMALLY DISTRIBUTED (look at the Normal Q-Q plot)
+
+par(mfrow = c(2,2)) # create a plotting panel with two rows and two columns (allowing you to put 4 plots on the same plotting panel)
+plot(mod_decay_s) # check for violations of model assumptions
+
+# http://www.sthda.com/english/articles/39-regression-model-diagnostics/161-linear-regression-assumptions-and-diagnostics-in-r-essentials/
+# 1. Residuals vs Fitted. Used to check the linear relationship assumptions. A horizontal line, without distinct patterns is an indication for a linear relationship, what is good.
+# 2. Normal Q-Q. Used to examine whether the residuals are normally distributed. It’s good if residuals points follow the straight dashed line.
+# 3. Scale-Location (or Spread-Location). Used to check the homogeneity of variance of the residuals (homoscedasticity). Horizontal line with equally spread points is a good indication of homoscedasticity. This is not the case in our example, where we have a heteroscedasticity problem.
+# 4. Residuals vs Leverage. Used to identify influential cases, that is extreme values that might influence the regression results when included or excluded from the analysis. This plot will be described further in the next sections.
+
+
+# !!!!!!
+# The points are not independent. They belong to a particular cohort of abandoned land! 
+# so, I should move to linear mixed effects models next
+# !!!!!!
+
+# lme4
+lmer(log(proportion) ~ age + (1|year_abn), data = persistence_list_b1_s$na_first)
+
+lmer(log(area_ha) ~ age + (initial_area|year_abn), data = persistence_list_b1_s$na_first)
+# pull out the initial area abn...^^^
+
+# other option: Bayesian hierarchical model. 
+install.packages("brms") # Hamiltonian monte carlo.
+
+```
+
+```{r half-life-lm-all-sites}
+# calculating the average proportion at each time_abn, across all sites.
+# this replicated df_av, but for all sites
+
+mean_persistence_df <- lapply(1:11, FUN = function(i) {
+  load(file = paste0(p_output, "abn_dat_products", blip_label, site_df$label[i], ".rds"), verbose = TRUE)
+# eval(parse(text = paste0("persistence_list", blip_label, site_label)))
+  
+  assign("persistence_list", eval(parse(text = paste0("persistence_list", blip_label, site_df$label[i]))))
+  
+  df_tmp <- persistence_list$na_last %>%
+    mutate(year_abn = as_factor(year_abn)) %>%
+    group_by(time_abn) %>%
+    summarise(count = n(),
+              sd = sd(proportion, na.rm = TRUE), 
+              se = sd/sqrt(count),
+              mean_proportion = mean(proportion), 
+              year_abn = as_factor("mean")) %>%
+    mutate(site = site_df$site[i])
+  
+  df_tmp
+})
+
+mean_persistence_df <- bind_rows(mean_persistence_df)
+
+# save
+write_csv(mean_persistence_df, path = paste0(p_dat_derived, "mean_persistence_df.csv"))
+
+# re load
+mean_persistence_df <- read.csv(file = paste0(p_dat_derived, "mean_persistence_df.csv"))
+
+
+
+# plotting the average persistence over time
+gg_mean_persistence_all <- ggplot(data = mean_persistence_df) +
+  labs(title = "Mean persistence over time", x = "Time abandoned (years)", 
+       y = "Mean proportion of abandoned land remaining abandoned") + 
+  geom_line(mapping = aes(x = time_abn, y = mean_proportion, group = site, color = site), size = 1) + 
+  theme_classic() + theme(legend.position = "right")
+
+# save
+png(filename = paste0(p_output, "plots/mean_persistence_all.png"), 
+    width = 7, height = 5, units = "in", res = 400)
+print(gg_mean_persistence_all)
+dev.off()
+
+mean_persistence_df %>% filter(mean_proportion < 0.52 & mean_proportion > 0.49) %>% select(site, time_abn, mean_proportion) %>% as.data.frame()
+
+
+
+# calculate exponential decay curve for each site:
+decay_models <- lapply(1:11, FUN = function(i) {
+  load(file = paste0(p_output, "abn_dat_products", blip_label, site_df$label[i], ".rds"), verbose = TRUE)
+# eval(parse(text = paste0("persistence_list", blip_label, site_label)))
+  
+  assign("persistence_list", eval(parse(text = paste0("persistence_list", blip_label, site_df$label[i]))))
+  
+  model <- lm(log(proportion) ~ time_abn, data = persistence_list$na_last)
+
+})
+
+names(decay_models) <- site_df$site
+plot(decay_models$shaanxi)
+coefficients(decay_models)
+
+decay_models_coeff <- lapply(decay_models, coefficients) %>% 
+  bind_rows(.id = "site") %>%
+  rename(int = "(Intercept)", coeff = time_abn) %>% 
+  mutate(half_life = (log(0.5) - int)/coeff)
+
+
+# plot
+gg_half_life_all_sites <- ggplot(data = decay_models_coeff) + 
+    theme_classic() + 
+    geom_col(mapping = aes(x = site, y = half_life, fill = site)) + 
+    labs(y = "Half-life (years)", 
+         x = "Site", 
+         title = "Half-life of abandoned agricultural land",
+         fill = "Site") + 
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0), 
+        legend.position = "none",
+        plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm"))
+
+
+
+
+
+
+
+
+
+
+
+
+# save plots
+# ----------------------------------- save ------------------------------------------------- #
+
+png(filename = paste0(p_output, "plots/half_life_all_sites.png"), 
+    width = 5, height = 5, units = "in", res = 400)
+print(gg_half_life_all_sites)
+dev.off()
+
+
+
+
+# you can just use na_first!
+# na_first and na_last are essentially the same, just different names for the variables.
+gg_1 <- ggplot() + 
+    theme_classic() + 
+    labs(y = "Proportion remaining abandoned", #x = "Years since initial abandonment", 
+         title = "Persistence of Abandoned Land", color = "Year Abandoned") + 
+    scale_color_distiller(palette = "Greens") +
+    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0),
+          legend.position = "bottom")
+
+
+# original way
+gg_1 + geom_line(data = persistence_list$na_last, size = 1.25,
+                 mapping = aes(x = time_abn, 
+                   # x = age, # (replicates the plot from na_last, which is called time_abn)
+                   y = proportion, group = year_abn, color = year_abn))
+
+gg_1 + geom_line(data = persistence_list$na_first, size = 1.25,
+                 mapping = aes(x = age, # (replicates the plot from na_last, which is called time_abn)
+                               y = proportion, group = year_abn, color = year_abn))
+
+gg_1 + geom_line(data = persistence_list$na_first, size = 1.25,
+                 mapping = aes(x = year, 
+                   y = proportion, group = year_abn, color = year_abn))
+
+gg_1 + geom_line(data = persistence_list$na_first, size = 1.25,
+                 mapping = aes(x = age, 
+                   y = area_ha, group = year_abn, color = year_abn))
+
+
+
+
+# ----------------------------------------------------------------------------------- #
+# plot persistence for bins of year abandoned
+# bins for year_abn
+test$year_abn %>% unique %>% length 
+test <- persistence_list$na_first
+test <- test %>% 
+      mutate(year_abn_bins = ifelse(year_abn >= 1988 & year_abn <= 1993, "1988-1993",
+                           ifelse(year_abn >= 1994 & year_abn <= 1998, "1994-1998",
+                                  ifelse(year_abn >= 1999 & year_abn <= 2003, "1999-2003",
+                                         ifelse(year_abn >= 2004 & year_abn <= 2008, "2004-2008",
+                                                ifelse(year_abn >= 2009 & year_abn <= 2013, "2009-2013", NA)
+                                         ))))) %>%
+      mutate(year_abn_bins = as_factor(year_abn_bins))
+
+year_abn_bins_av <- test %>% group_by(year_abn_bins, age) %>% summarise(mean_proportion = mean(proportion), count = n())
+
+
+ggplot(data = year_abn_bins_av) + 
+  theme_classic() + 
+  labs(y = "Proportion remaining abandoned", #x = "Years since initial abandonment", 
+       title = "Persistence of Abandoned Land", color = "Year Abandoned") + 
+  # scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+  theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0),
+        legend.position = "bottom") + 
+  geom_line(size = 1.25,
+            mapping = aes(x = age, 
+                   # x = age, # (replicates the plot from na_last, which is called time_abn)
+                   y = mean_proportion, group = year_abn_bins, color = year_abn_bins))
+
+
+
+test_mod <- lm(log(proportion) ~ time_abn, data = persistence_list$na_last)
+
+decay_models_s <- lapply(1:11, FUN = function(i) {
+  load(file = paste0(p_output, "abn_dat_products", blip_label, site_df$label[i], ".rds"), verbose = TRUE)
+# eval(parse(text = paste0("persistence_list", blip_label, site_label)))
+  
+  assign("persistence_list", eval(parse(text = paste0("persistence_list", blip_label, site_df$label[i]))))
+  
+  model <- lm(log(proportion) ~ time_abn, data = persistence_list$na_last)
+
+})
+
+names(decay_models) <- site_df$site
+plot(decay_models$shaanxi)
+coefficients(decay_models)
+
+decay_models_coeff <- lapply(decay_models, coefficients) %>% 
+  bind_rows(.id = "site") %>%
+  rename(int = "(Intercept)", coeff = time_abn) %>% 
+  mutate(half_life = (log(0.5) - int)/coeff)
+
+
+
+
+
+
+# half-life for each individual cohort for a particular site
 
 
 ```
+
+
+```{r lmer-persistence-model}
+# !!!!!!
+# The points are not independent. They belong to a particular cohort of abandoned land! 
+# so, I should move to linear mixed effects models next
+# !!!!!!
+
+# lme4
+lmer(log(proportion) ~ age + (1|year_abn), data = persistence_list_b1_s$na_first)
+
+lmer(log(area_ha) ~ age + (initial_area|year_abn), data = persistence_list_b1_s$na_first)
+# pull out the initial area abn...^^^
+
+
+
+```
+
+```{r bayesian-persistence-model}
+# other option: Bayesian hierarchical model. 
+install.packages("brms") # Hamiltonian monte carlo.
+library(brms)
+```
+
 
 
 ```{r abn-gain-loss-area}
@@ -627,21 +1407,6 @@ toc()
 load(file = paste0(p_output, "abn_dat_products_s.rds"), verbose = TRUE)
 
 # how do i deal with different thresholds of abandonment?
-
-```
-
-```{r load-files}
-load(file = paste0(p_output, "abn_dat_products_s.rds"), verbose = TRUE)
-# caution, will have to rename them!
-area_s <- area
-persistence_list_s <- persistence_list
-abn_area_change_s <- abn_area_change
-
-
-load(file = paste0(p_output, "abn_dat_products_b.rds"), verbose = TRUE)
-area_b <- area
-persistence_list_b <- persistence_list
-abn_area_change_b <- abn_area_change
 
 ```
 
@@ -1098,26 +1863,200 @@ cc_save_frag_plots(input = frag_dat, outfile_label = NULL)
 # see data.frame of all sites
 site_df
 
-blip_label <- "_b1"
 
-i <- 11
+i <- 2
 site_df$description[i]
 
-for (i in 2:11) {
+for (i in 1:11) {
+  blip_label <- "_b1"
+
   cc_save_area_persistence_plots(
     input_path = p_output, 
     output_path = paste0(p_output, "plots_loop/"),
-    site_label = site_label_list[i], 
+    site_label = site_df$label[i], 
     blip_label = blip_label,
-    outfile_label = paste0(site_label_list[i], blip_label),
+    outfile_label = paste0(blip_label, site_df$label[i]),
     subtitle = paste0(site_df$description[i], ", (recult. >= 2)"), 
     subtitle_all = paste0(site_df$description[i], ", all abandonment (recult. >= 2)"),
-    save_all = TRUE
+    save_all = FALSE
   )
 }
 
 
+
+for (i in c(1, 9)) {
+  blip_label <- "_blip1"
+  cc_save_area_persistence_plots(
+    input_path = p_output, 
+    output_path = paste0(p_output, "plots_loop1/"),
+    site_label = site_df$label[i], 
+    blip_label = blip_label,
+    outfile_label = paste0(blip_label, site_df$label[i]),
+    subtitle = paste0(site_df$description[i], ", (recult. >= 2)"), 
+    subtitle_all = paste0(site_df$description[i], ", all abandonment (recult. >= 2)"),
+    save_all = FALSE
+  )
+}
+
+site_df$description
+
 ```
+
+
+```{r abandonment-rate}
+# two ways to calculate this:
+
+# 
+# 1. Amount of additional land abandoned in that year (the net gain in abandoned land) / the total amount of agricultural land at the start of the time series
+# 2. Amount of additional land abandoned in that year (the net gain in abandoned land) / the amount of agricultural land in the time step immediately preceding that year
+blip_label <- "_b1"
+site_label <- site_df$label[9]
+load(file = paste0(p_output, "abn_dat_products", blip_label, site_label, ".rds"), verbose = TRUE)
+
+
+# area in agriculture, at the start of the time series
+area_b1_s %>% filter(year == "1987", lc == "Cropland") %>% select(area_ha) %>% unlist(use.names = F)
+
+# area in agriculture, in the immediately preceding year
+rate_year <- 1992 # starting with 1992
+
+area_b1_s %>% filter(year == c(rate_year - 1), lc == "Cropland") %>% select(area_ha) %>% unlist(use.names = F)
+
+
+# area abandoned, net
+abn_area_change_b1_s %>% filter(year == rate_year, direction == "net") %>% select(area_ha) %>% unlist(use.names = F)
+
+# area abandoned, gross
+abn_area_change_b1_s %>% filter(year == rate_year, direction == "gain") %>% select(area_ha) %>% unlist(use.names = F)
+
+
+# make a data.frame - development
+site_df
+
+
+df1 <- abn_area_change_b1_s %>% 
+  filter(direction == "net") %>% 
+  mutate(area_abn_yr = area_ha) %>%
+  select(year, area_abn_yr)
+
+abn_area_change_b1_s %>% 
+  filter(direction == "net") %>% 
+  select(year, area_abn_yr = area_ha)
+
+filter(area_b1_s, year == "1987", lc == "Cropland")$area_ha
+filter(area_b1_s, lc == "Cropland")$area_ha[1:30]
+
+abn_area_change_b1_s
+
+# develop method to calculate the right data.frame
+# abn_rate_df <- abn_area_change_b1_s %>% 
+#   filter(direction == "net") %>% 
+#   select(year, area_abn_yr = area_ha) %>% 
+#   mutate(site = site_df$site[9],
+#          cropland_start = filter(area_b1_s, year == "1987", lc == "Cropland")$area_ha,
+#          cropland_yr_before = filter(area_b1_s, lc == "Cropland")$area_ha[1:30],
+#          abn_rate_start = area_abn_yr/cropland_start,
+#          abn_rate = area_abn_yr/cropland_yr_before)
+
+
+# ------------------------------------------------------------------------------------ #
+# write for loop to create rate_df and bind rows
+# ------------------------------------------------------------------------------------ #
+
+abn_rate_l <- vector(mode = "list", length = length(site_df$site))
+names(abn_rate_l) <- site_df$site
+
+for (i in 2:11) {
+  load(file = paste0(p_output, "abn_dat_products", blip_label, site_df$label[i], ".rds"), verbose = TRUE)
+
+  abn_rate_l[[i]] <- eval(parse(text = paste0("abn_area_change_b1", site_df$label[i]))) %>% 
+  filter(direction == "net") %>% 
+  select(year, area_abn_yr = area_ha) %>% 
+  mutate(site = site_df$site[i],
+         cropland_start = filter(eval(parse(text = paste0("area_b1", site_df$label[i]))), year == "1987", lc == "Cropland")$area_ha,
+         cropland_yr_before = filter(eval(parse(text = paste0("area_b1", site_df$label[i]))), lc == "Cropland")$area_ha[1:30],
+         abn_rate_start = area_abn_yr/cropland_start,
+         abn_rate = area_abn_yr/cropland_yr_before)
+}
+
+
+# Add Belarus
+load(file = paste0(p_output, "abn_dat_products", "_blip1", site_df$label[1], ".rds"), verbose = TRUE)
+
+abn_rate_l[[1]] <- eval(parse(text = paste0("abn_area_change_blip1", site_df$label[1]))) %>% 
+  filter(direction == "net") %>% 
+  select(year, area_abn_yr = area_ha) %>% 
+  mutate(site = site_df$site[1],
+         cropland_start = filter(eval(parse(text = paste0("area_blip1", site_df$label[1]))), year == "1987", lc == "Cropland")$area_ha,
+         cropland_yr_before = filter(eval(parse(text = paste0("area_blip1", site_df$label[1]))), lc == "Cropland")$area_ha[1:30],
+         abn_rate_start = area_abn_yr/cropland_start,
+         abn_rate = area_abn_yr/cropland_yr_before)
+
+# condense list into a data.frame
+abn_rate_df <- bind_rows(abn_rate_l)
+
+# save the new data.frame
+write.csv(abn_rate_df, file = paste0(p_dat_derived, "abn_rate_df.csv"))
+
+# ------------------------------------------------------------------------------------ #
+# plot results
+# ------------------------------------------------------------------------------------ #
+
+ggplot(data = filter(abn_rate_df, site == "shaanxi")) + 
+  theme_classic() +
+  geom_point(mapping = aes(x = year, y = abn_rate_start*100), col = "red") + 
+  geom_point(mapping = aes(x = year, y = abn_rate*100), col = "blue") + 
+  labs(title = "Abandonment Rate", subtitle = , x = "Year", y = "Abandonment Rate (%)" )
+
+
+# make groups
+abn_rate_df <- abn_rate_df %>% mutate(cluster = ifelse(site %in% site_df$site[1:3], "a",
+                                        ifelse(site %in% site_df$site[4:6], "b",
+                                               ifelse(site %in% site_df$site[7:9], "c", 
+                                                      ifelse(site %in% site_df$site[10:11], "d", NA
+                                        )))))
+
+
+gg_abn_rate <- ggplot(data = abn_rate_df) + 
+  theme_classic() +
+  geom_line(mapping = aes(x = year, y = abn_rate*100, group = site, color = site), #position = position_dodge(0.5), 
+            size = 1.25) + 
+  labs(title = "Abandonment Rate", subtitle = "Percent of cropland in prior year abandoned the following year", x = "Year", y = "Abandonment Rate (%)") + 
+  facet_wrap(vars(cluster)) + theme(strip.background = element_blank(), strip.text = element_blank())
+
+gg_abn_rate_start <- ggplot(data = abn_rate_df) + 
+  theme_classic() +
+  geom_line(mapping = aes(x = year, y = abn_rate_start*100, group = site, color = site), #position = position_dodge(0.5), 
+            size = 1.25) + 
+  labs(title = "Abandonment Rate", subtitle = "Percent of total cropland in 1987 abandoned each year", x = "Year", y = "Abandonment Rate (%)") + 
+  facet_wrap(vars(cluster)) + theme(strip.background = element_blank(), strip.text = element_blank())
+
+
+gg_abn_rate
+gg_abn_rate_start
+
+# save png
+png(filename = paste0(p_output, "plots/abn_rate.png"), 
+    width = 8.5, height = 5, units = "in", res = 400)
+print(gg_abn_rate)
+dev.off()
+
+
+# save png
+png(filename = paste0(p_output, "plots/abn_rate_start.png"), 
+    width = 8.5, height = 5, units = "in", res = 400)
+print(gg_abn_rate_start)
+dev.off()
+
+
+persistence_list_b1_s
+
+# Rate, method 1
+
+
+```
+
+
 
 
 ```{r clean-up}

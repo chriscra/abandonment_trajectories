@@ -70,7 +70,7 @@ gdal_polygonizeR <- function(x, outshape=NULL, gdalformat = 'ESRI Shapefile',
                              pypath=NULL, readpoly=TRUE, quiet=TRUE) {
   if (isTRUE(readpoly)) require(rgdal)
   if (is.null(pypath)) {
-    pypath <- "/Users/christophercrawford/Google Drive/_Projects/Zambia/agroEcoTradeoff/python/gdal_polygonize.py" #Sys.which('gdal_polygonize.py')
+    pypath <- "/Users/christophercrawford/Google Drive/_Projects/Zambia/agroEcoTradeoff/lyndon_files/python/gdal_polygonize.py" #Sys.which('gdal_polygonize.py')
   }
   if (!file.exists(pypath)) stop("Can't find gdal_polygonize.py on your system.")
   owd <- getwd()

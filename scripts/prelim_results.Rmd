@@ -1,0 +1,23 @@
+---
+title: "Preliminary Results"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+```{r start}
+source("scripts/0_start.R")
+p_dat_derived
+
+p_plots <- "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/output/plots_loop/"
+```
+
+
+(ref:caption-bd-inputs-1) Raw Biodiversity inputs, 1 km$^2$ resolution
+
+```{r bd-inputs-1, fig.cap = '(ref:caption-bd-inputs-1)', echo=FALSE}
+
+knitr::include_graphics(fp(p_plots, "ms_v5/bd_input_maps_runs_1.png"))
+```
