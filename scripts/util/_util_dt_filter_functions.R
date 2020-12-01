@@ -1593,63 +1593,44 @@ cc_save_plot_abn_persistence <- function(input_list, subtitle, outfile_label,
                                          save_all = TRUE, subtitle_all = NULL,
                                          output_path) {
   
-  # raw area
-  gg_persistence_count <- ggplot(data = input_list$na_last) + 
+  gg_base <- ggplot(data = input_list$na_first) + 
     theme_classic() + 
-    geom_line(mapping = aes(x = time_abn, y = area_ha / 10^3,
+    labs(title = "Persistence of Abandoned Land",
+         subtitle = subtitle,
+         color = "Year Abandoned") + 
+    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
+  
+  # raw area
+  gg_persistence_count <- gg_base + 
+    geom_line(mapping = aes(x = age, y = area_ha / 10^3,
                             group = year_abn, color = year_abn), 
               size = 1.25) + 
     labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
-         x = "Years since initial abandonment", 
-         title = "Persistence of Abandoned Land",
-         subtitle = subtitle,
-         color = "Year Abandoned") + 
-    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
-    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
+         x = "Years since initial abandonment")
     
   # as percentage
-  gg_persistence_proportion <- ggplot(data = input_list$na_last) + 
-    theme_classic() + 
-    geom_line(mapping = aes(x = time_abn, y = proportion,
+  gg_persistence_proportion <- gg_base + 
+    geom_line(mapping = aes(x = age, y = proportion,
                             group = year_abn, color = year_abn), 
-              size = 1.25
-    ) + 
+              size = 1.25) + 
     labs(y = "Proportion remaining abandoned", 
-         x = "Years since initial abandonment", 
-         title = "Persistence of Abandoned Land",
-         subtitle = subtitle,
-         color = "Year Abandoned") + 
-    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
-    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
+         x = "Years since initial abandonment")
   
   # na_first ----------- #
-  gg_persistence_count_na_first <- ggplot(data = input_list$na_first) + 
-    theme_classic() + 
+  gg_persistence_count_na_first <- gg_base + 
     geom_line(mapping = aes(x = year, y = area_ha / 10^3,
                             group = year_abn, color = year_abn), 
-              size = 1.25
-    ) + 
+              size = 1.25) + 
     labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
-         x = "Year", 
-         title = "Persistence of Abandoned Land",
-         subtitle = subtitle,
-         color = "Year Abandoned") + 
-    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
-    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
+         x = "Year")
   
-  gg_persistence_proportion_na_first <- ggplot(data = input_list$na_first) + 
-    theme_classic() + 
+  gg_persistence_proportion_na_first <- gg_base + 
     geom_line(mapping = aes(x = year, y = proportion,
                             group = year_abn, color = year_abn), 
-              size = 1.25
-    ) + 
+              size = 1.25) + 
     labs(y = "Proportion remaining abandoned", 
-         x = "Year", 
-         title = "Persistence of Abandoned Land",
-         subtitle = subtitle,
-         color = "Year Abandoned") + 
-    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
-    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
+         x = "Year")
   
   
   # save
@@ -1687,7 +1668,7 @@ cc_save_plot_abn_persistence <- function(input_list, subtitle, outfile_label,
                           "count_all", outfile_label, ".png"), 
         width = width, height = height, units = "in", res = 400)
     
-    print(gg_persistence_count %+% input_list$na_last_all + 
+    print(gg_persistence_count %+% input_list$na_first_all + 
             labs(subtitle = subtitle_all))
     dev.off()
     
@@ -1695,7 +1676,7 @@ cc_save_plot_abn_persistence <- function(input_list, subtitle, outfile_label,
                           "proportion_all", outfile_label, ".png"), 
         width = width, height = height, units = "in", res = 400)
     
-    print(gg_persistence_proportion %+% input_list$na_last_all + 
+    print(gg_persistence_proportion %+% input_list$na_first_all + 
             labs(subtitle = subtitle_all))
     dev.off()
     
