@@ -1199,6 +1199,7 @@ cc_calc_persistence <- function(abn_age_dt,
   }
   
   # add age bins, if NA_first:
+  # keep in mind that these bins are [) i.e. closed on the left side, open on the right 5 <= x < 10
   if (NA_first) {
     persistence_long <- persistence_long %>% 
       mutate(age = year - year_abn + 1) %>% 
