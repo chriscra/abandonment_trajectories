@@ -20,6 +20,11 @@ needed_packages <- c(
   "tidyverse", "lobstr", "pryr", "reshape2", "rlang",
   # tidyverse includes ggplot2, dplyr, tidyr, readr, purrr, tibble, stringr, and forcats
   
+  # modelling:
+  "tidymodels", # metapackage including: rsample, parsnip, recipes, workflows, tune, yardstick, broom, & dials
+  "lme4", "brms", 
+  "broom.mixed", # nb: broom comes preloaded in the tidymodels
+  
   # visualization:
   "rasterVis", "RColorBrewer", "viridis", "scales",
   "patchwork", "cowplot", # for combining multiple plots
