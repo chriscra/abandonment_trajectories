@@ -4,6 +4,1813 @@ output: html_notebook
 editor_options: 
   chunk_output_type: console
 ---
+```{r initialize}
+source("scripts/0_start.R")
+# this already includes lme4, broom.mixed, etc.
+
+
+regression_packages <- c("VIF", "nlme", "MASS", "spdep")
+install_missing_packages(regression_packages)
+library(VIF) # for selecting models for a linear model. Recommended by Liang.
+
+# gls model - spatial autocorrelation
+# spdep has lots of functions for assessing spatial autocorrelation.
+
+
+```
+
+# Exponential Decay:
+
+
+Reminder of the framework for the first paper: characterizing abandonment trajectories & recultivation
+- Looking at abandonment length (mean age), persistence, turnover (half-life), and predictors of age and recultivation. To a lesser extent, recultivation rates
+- Variation between sites
+- Combining the half-life and average length of time abandoned to extrapolate age classes into the future. 
+- Possibly including aspects of fragmentation and measures of biomass over time (NDVI) - not likely
+- Minor discussion of implications for biodiversity and carbon
+
+Paper 1: characterizing abandonment trajectories (length, persistence, predictors)
+1) What proportion of abandoned land remains abandoned long-term, and what proportion is recultivated? 
+    a) What are the most common land uses of formerly abandoned lands (does this end up in grassland, forest, neither?)?
+2) How long does abandonment typically last for? How much annual (or periodic) turnover occurs?
+    a) What is the half-life of abandoned land? How does this vary across site, and overtime at each site?
+3) How do these result vary across regions?
+4) What are key predictors of length of abandonment, and recultivation? (Slope, elevation, soil, climate variables, surrounding landcover, proximity to woody veg/grassland, population, agricultural marginality)
+5) How does landscape fragmentation (of grassland, woody vegetation, and agriculture) change over time as a result of abandonment? To what extent does abandonment result in older and more contiguous grassland and forests?
+6) Can we discern regeneration in the trajectory of agriculture -> grassland -> woody vegetation? How does biomass (proxied by NDVI, or otherwise) change overtime? 
+5) and 6) can and probably should be moved to paper 2 (biodiversity focus).
+- Will include discussion of implications for biodiversity and other environmental factors (e.g. carbon), but based largely on existing data on time to biodiversity recovery.
+
+
+My main questions: 1) how long does abandoned land stay abandoned for, and 2) how durable is abandoned agricultural land? These in turn translate into a series of more concrete questions: 
+1) What is the half-life of abandoned agricultural land? 
+2) How does the half-life vary over time?
+3) How does the average half-life and the rate of change of the half-life differ across sites?
+
+The plots of persistence of abandoned land over time show this
+
+
+To provide a simple answer to this, I will first calculate the half-life for each of my sites, then look at how the half-life evolves over time at each of the sites. Therefore, I’m trying to model an exponential decay curve, with the proportion of land remaining abandoned (“proportion") as a function of how long the land has been abandoned (“age”). is the 
+
+
+```{r load-data}
+# load data, produced from the following functions
+# cc_calc_persistence() # which is called within
+# cc_calc_persistence_all() # which is called within
+# cc_summarize_abn_dts() # this is the master call within the cluster script, "analyze_all_sites.R"
+
+
+site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
+
+
+# -------------------------- load summarized data.frames --------------------------- #
+indx <- 9
+site <- site_df$site[indx] # set site:
+site_label <- site_df$label[indx] # set label
+blip_label <- "_b1"
+load(file = paste0(p_output, "abn_dat_products", blip_label, site_label, ".rds"), verbose = TRUE)
+
+# loads:
+area_b1_s
+persistence_list_b1_s
+abn_area_change_b1_s
+
+
+
+
+# -------------------------- rasters --------------------------- #
+# prepared input rasters (derived by Chris)
+site_input_raster_files <- list.files(paste0(p_dat_derived, "input_rasters"), full.names = TRUE) %>%
+  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = TRUE)
+
+r <- lapply(seq_along(site_input_raster_files), function(i) {brick(site_input_raster_files[i])})
+names(r) <- site_df$site
+
+# rename raster layers:
+for (i in 1:11) {
+  if (names(r[i]) == "nebraska") {
+    names(r[[i]]) <- paste0("y", 1986:2018)
+  } else {
+    if (names(r[i]) == "wisconsin") {
+      names(r[[i]]) <- paste0("y", 1987:2018)
+    } else {
+      # everything else, just 1987:2017
+      names(r[[i]]) <- paste0("y", 1987:2017)
+    }}}
+
+# note: Land use class codes:
+#       1. Non-vegetated area (e.g. water, urban, barren land)
+#       2. Woody vegetation
+#       3. Cropland 
+#       4. Herbaceous land (e.g. grassland)
+
+# abandonment age maps (produced by Chris)
+age_files <- list.files(paste0(p_dat_derived, "age_rasters"), full.names = TRUE) %>%
+  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
+
+age_r <- lapply(seq_along(age_files), function(i) {brick(age_files[i])})
+names(age_r) <- site_df$site
+for (i in seq_along(age_r)) {names(age_r[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
+
+# year of first abandonment maps (from He)
+yoa_files <- list.files(paste0(p_dat, "Abandonment/year_of_abandonment/"))
+
+
+
+# testers:
+bs <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
+bt <- brick(paste0(p_dat_derived, "belarus_subset.tif"))
+names(bs) <- paste0("y", 1987:2017)
+names(bt) <- paste0("y", 1987:2017)
+
+
+
+# -------------------------- data.tables --------------------------- #
+b_age <- fread(input = paste0(p_dat_derived, "belarus_age.csv"))
+names(b_age)
+s_age <- fread(input = paste0(p_dat_derived, "shaanxi_age.csv"))
+
+
+b_length <- fread(input = paste0(p_dat_derived, "lengths/", "belarus_length_b1.csv"))
+s_length <- fread(input = paste0(p_dat_derived, "lengths/", "shaanxi_length_b1.csv"))
+
+b_max_length <- fread(input = paste0(p_dat_derived, "lengths/", "belarus_max_length_b1.csv"))
+s_max_length <- fread(input = paste0(p_dat_derived, "lengths/", "shaanxi_max_length_b1.csv"))
+
+# original data
+s_dt <- fread(input = paste0(p_dat_derived, "shaanxi.csv"))
+names(s_dt) <- gsub(pattern = "andcover", replacement = "y", names(s_dt))
+
+b_dt <- fread(input = paste0(p_dat_derived, "belarus.csv")) # caution - huge file! 8.4 GB at least. 
+
+
+
+
+```
+
+```{r prep-dat}
+dat <- persistence_list_b1_s$na_first
+str(dat)
+
+dat <- left_join(dat, 
+                 dat %>% filter(age == 5) %>% select(year_abn, initial_area_abn = area_ha), 
+                 by = "year_abn") %>%
+  
+  # create bins of year_abn
+  mutate(year_abn_bins = ifelse(year_abn >= 1988 & year_abn <= 1993, "1988-1993",
+                           ifelse(year_abn >= 1994 & year_abn <= 1998, "1994-1998",
+                                  ifelse(year_abn >= 1999 & year_abn <= 2003, "1999-2003",
+                                         ifelse(year_abn >= 2004 & year_abn <= 2008, "2004-2008",
+                                                ifelse(year_abn >= 2009 & year_abn <= 2013, "2009-2013", NA)
+                                         ))))) %>%
+  mutate(year_abn_bins = as_factor(year_abn_bins), # convert both to factors
+         #year_abn = as_factor(year_abn),
+         time = age - 5,
+         cohort = factor(year_abn)) 
+
+
+# variables of interest
+
+dat$proportion # response variable: the proportion of originally abandoned land that remains in a given year. 
+dat$year # the current year, allowing us to measure area abandoned in the current year, relative to the amount initially abandoned
+dat$year_abn # cohort of land abandoned in a particular year, which is then followed year after year to track persistence
+# ^ probably should be a factor
+dat$count # number of pixels, from which area is determined
+dat$area_ha # area abandoned, of a given cohort
+dat$age # how long that land in that cohort has been abandoned for
+dat$time # age - 5 
+dat$bins # bins of abandoned land of similar ages (5-10 years)
+dat$year_abn_bins # bins of land abandoned during the same five to six year window
+dat$initial_area_abn # the area (in ha) initially abandoned in a given year (cohort)
+
+dat$time # is just the adjusted time abandoned beyond the initial abandonment threshold. So, 0 corresponds to an abandonment age of 5, 1 -> 6, 2 -> 7 etc.
+dat$cohort # a factor to be used for cohort
+
+
+
+```
+
+
+```{r basic-persistence-plots}
+
+
+gg_persist_base <- ggplot(data = dat) + 
+  theme_classic() + 
+  labs(title = "Persistence of Abandoned Land",
+       subtitle = site_df$description[indx],
+       color = "Year Abandoned") + 
+  scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+  theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
+
+# raw area
+gg_persistence_count <- gg_persist_base + 
+  geom_line(mapping = aes(x = age, y = area_ha / 10^3,
+                          group = year_abn, color = year_abn), 
+            size = 1.25) + 
+  labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
+       x = "Years since initial abandonment")
+  
+# as percentage
+gg_persistence_proportion <- gg_persist_base + 
+  geom_line(mapping = aes(x = age, y = proportion,
+                          group = year_abn, color = year_abn), 
+            size = 1.25) + 
+  labs(y = "Proportion remaining abandoned", 
+       x = "Years since initial abandonment")
+
+# na_first ----------- #
+gg_persistence_count_na_first <- gg_persist_base + 
+  geom_line(mapping = aes(x = year, y = area_ha / 10^3,
+                          group = year_abn, color = year_abn), 
+            size = 1.25) + 
+  labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
+       x = "Year")
+
+gg_persistence_proportion_na_first <- gg_persist_base + 
+  geom_line(mapping = aes(x = year, y = proportion,
+                          group = year_abn, color = year_abn), 
+            size = 1.25) + 
+  labs(y = "Proportion remaining abandoned", 
+       x = "Year")
+
+```
+
+
+```{r abandonment-persistence}
+
+# average proportion of abandoned land remaining, across time abandoned
+
+df_av <- persistence_list_b1_s$na_last %>%
+  mutate(year_abn = as_factor(year_abn)) %>%
+  group_by(time_abn) %>%
+  summarise(count = n(),
+            sd = sd(proportion, na.rm = TRUE), 
+            se = sd/sqrt(count),
+            proportion = mean(proportion), 
+            year_abn = as_factor("mean"))
+df_av
+
+
+# as percentage
+gg_persistence_proportion # see basic-persistence-plots chunk
+
+gg_persistence_proportion + geom_line(data = df_av, mapping = aes(x = time_abn, y = proportion),
+              size = 3)
+
+
+# ----------------------------------- plot ------------------------------------------------- #
+
+
+gg_half_life_s <- gg_persistence_proportion + 
+  geom_hline(yintercept = 0.5, linetype="dashed", 
+             color = "red", size = 0.75) +
+  geom_ribbon(data = df_av, aes(x = time_abn, ymin = proportion - 1.96*se, ymax=proportion + 1.96*se), 
+              color = "gray", fill = "gray", alpha=0.5) + 
+  geom_line(data = df_av, mapping = aes(x = time_abn, y = proportion),
+              size = 2, color = "black")
+
+gg_half_life_s
+df_av %>% filter(proportion <= 0.51)
+
+
+
+# save basic half-life plot with 
+png(filename = paste0(p_output, "plots/half_life", site_label, ".png"), 
+    width = 7, height = 5, units = "in", res = 400)
+print(gg_half_life_s)
+dev.off()
+```
+
+```{r exp-geom_smooth}
+
+gg_persist_mod_base <- ggplot(data = dat, mapping = aes(x = age, y = proportion)) + 
+  theme_classic() + 
+  geom_point(aes(group = year_abn, color = year_abn), size = 1.25) + 
+  labs(title = "Persistence of Abandoned Land",
+       subtitle = site_df$description[indx],
+       color = "Year Abandoned",
+       y = "Proportion remaining abandoned", 
+       x = "Years since initial abandonment") + 
+  scale_color_distiller(palette = "Greens") + 
+  theme(legend.position = "bottom", 
+        legend.text = element_text(angle = 320, vjust = 1, hjust = 0)) + 
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red", size = 0.75)
+
+
+# ----------------------------------- plot average proportion ------------------------------------------------- #
+gg_persist_mod_base + 
+  geom_hline(yintercept = 0.5, linetype="dashed", 
+             color = "red", size = 0.75) +
+  geom_ribbon(data = df_av, aes(x = time_abn, ymin = proportion - 1.96*se, ymax=proportion + 1.96*se), 
+              color = "gray", fill = "gray", alpha=0.5) + 
+  geom_line(data = df_av, mapping = aes(x = time_abn, y = proportion),
+              size = 2, color = "black")
+
+
+# ----------------------------------- plot regular lm ------------------------------------------------- #
+
+# regular lm
+gg_persist_mod_base + 
+  geom_smooth(method = "lm", se = FALSE)
+
+
+# ----------------------------------- y ~ log(x) ------------------------------------------------- #
+
+gg_persist_mod_base + 
+  geom_smooth(method = "lm", formula = y ~ log(x), se = FALSE) + 
+  geom_vline(xintercept = 
+               exp(( 0.5 - coef(lm(proportion ~ log(age), data = dat))[1] ) / 
+                     coef(lm(proportion ~ log(age), data = dat))[2]))
+
+# others
+gg_persist_mod_base + 
+  geom_smooth(method = "lm", formula = y ~ exp(x), se = FALSE)
+
+
+# ----------------------------------- log(y) ~ x ------------------------------------------------- #
+
+gg_persist_mod_base + 
+  geom_smooth(method = "lm", formula = log(y) ~ x,
+              se = FALSE)
+
+# simple lm ----------------- #
+lm_mod <- lm(log(proportion) ~ age, data = dat)
+
+  # note, needs to be log transformed
+ggplot(data = dat, mapping = aes(x = age, y = log(proportion))) + 
+  theme_classic() + 
+  geom_point(mapping = aes(group = year_abn, color = year_abn), 
+            size = 1.25) + 
+  labs(y = "Proportion remaining abandoned", 
+       x = "Years since initial abandonment", 
+       title = "Persistence of Abandoned Land",
+       subtitle = NULL, #subtitle,
+       color = "Year Abandoned") + 
+  scale_color_distiller(palette = "Greens") + 
+  theme(legend.position = "bottom", legend.text = element_text(angle = 320, vjust = 1, hjust = 0)) + 
+
+  # log(y) ~ x
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE) + 
+  geom_hline(yintercept = log(0.5), linetype = "dashed", color = "red", size = 0.75) + 
+  geom_vline(xintercept = cc_half_life(lm_mod))
+
+
+
+
+
+# ----------------------------------- calculate the half-life  ------------------------------------------------- #
+
+augment(lm_mod)
+coef(lm_mod)
+
+# log(y) = b0 + b1*x
+# log(y) - b0 = b1*x
+# ( log(y) - b0 ) / b1 = x
+# ( log(0.5) - b0 ) / b1 = half-life
+# ( log(0.5) - intercept ) / slope = half-life
+
+(log(0.5) - coef(lm_mod)["(Intercept)"]) / coef(lm_mod)["age"] # = x 
+
+# function to do this, set up to work for both lm and lmer outputs
+
+cc_half_life <- function(model_out, fixed_effect = "age", confint = FALSE) {
+  
+  params <- tidy(model_out, conf.int = TRUE) %>% as.data.frame()
+  
+  int <- params[which(params$term == "(Intercept)"), "estimate"]
+  int.low <- params[which(params$term == "(Intercept)"), "conf.low"]
+  int.high <- params[which(params$term == "(Intercept)"), "conf.high"]
+  slope <- params[which(params$term == fixed_effect), "estimate"]
+  slope.low <- params[which(params$term == fixed_effect), "conf.low"]
+  slope.high <- params[which(params$term == fixed_effect), "conf.high"]
+  
+  if("(Intercept)" %in% params$term) {
+    half_life_df <- data.frame("half-life" = (log(0.5) - int) / slope,
+                               "conf.low" = (log(0.5) - int.low) / slope.low,
+                               "conf.high" = (log(0.5) - int.high) / slope.high
+                               )
+  } else {
+    half_life_df <- data.frame("half-life" = (log(0.5)) / slope,
+                               "conf.low" = (log(0.5)) / slope.low,
+                               "conf.high" = (log(0.5)) / slope.high
+                               )
+  }
+  
+  if (confint) {print(half_life_df)} else {half_life_df[, 1]}
+
+}
+
+tidy(lm_mod)
+tidy(lmer_mod)
+
+cc_half_life(lm_mod)
+cc_half_life(lm_mod, confint = TRUE)
+cc_half_life(lmer_mod)
+cc_half_life(lmer_mod, confint = TRUE)
+
+cc_half_life(lmer_mod_slope, fixed_effect = "age")
+cc_half_life(lmer_mod_slope0, fixed_effect = "time")
+
+params <- as.data.frame(tidy(lmer_mod_slope0, conf.int = TRUE))
+
+  
+
+
+
+
+  
+  half_life_df <- data.frame("half-life" = (log(0.5) - int) / slope,
+                             "conf.low" = (log(0.5) - int.low) / slope.low,
+                             "conf.high" = (log(0.5) - int.high) / slope.high
+                             )
+  
+
+```
+
+
+
+```{r lm}
+# as shown above, the lm call to model basic exponential decay is as follows:
+mod_decay_s <- lm(log(proportion) ~ age, data = dat) # or
+lm_mod <- lm(log(proportion) ~ age, data = dat)
+
+
+# extract coefficients, summary, confint, etc., along with other useful functions
+summary(lm_mod)
+coef(lm_mod)
+confint(lm_mod)
+tidy(lm_mod, conf.int = TRUE) 
+
+augment(lm_mod) # to get predicted values, etc. along with the input response and predictor variables
+
+cc_half_life(lm_mod, confint = TRUE)
+
+# ------- plot half life with lm curve ------------------------------------------------- #
+
+# two ways to plot the model results, either
+gg_persist_mod_base + 
+  
+  # add fitted values, exponentiated
+  geom_line(data = augment(lm_mod, newdata = data.frame(age = 5:30)), 
+                                aes(x = age, y = exp(.fitted)), 
+            color = "red", size = 2) + 
+  
+  # or add as a funciton
+  geom_function(fun = function(x) {exp(coef(lm_mod)[2]*x + coef(lm_mod)[1])},
+                color = "blue", size = 1)
+
+
+
+
+# fancier plot
+# prepare to be plotted
+model_estimates <- data.frame(
+  age = 5:30,
+  int = tidy(lm_mod) %>% filter(term == "(Intercept)") %>% select(estimate) %>% unlist(use.names = FALSE),
+  int_low = tidy(lm_mod, conf.int = TRUE) %>% filter(term == "(Intercept)") %>% select(conf.low) %>% unlist(use.names = FALSE),
+  int_high = tidy(lm_mod, conf.int = TRUE) %>% filter(term == "(Intercept)") %>% select(conf.high) %>% unlist(use.names = FALSE),
+  slope = tidy(lm_mod) %>% filter(term == "age") %>% select(estimate) %>% unlist(use.names = FALSE),
+  slope_low = tidy(lm_mod, conf.int = TRUE) %>% filter(term == "age") %>% select(conf.low) %>% unlist(use.names = FALSE),
+  slope_high = tidy(lm_mod, conf.int = TRUE) %>% filter(term == "age") %>% select(conf.high) %>% unlist(use.names = FALSE)
+  ) %>%
+  mutate(estimate = exp(int + slope* age),
+         lower = exp(int_low + slope_low* age),
+         upper = exp(int_high + slope_high* age))
+
+
+# much easier to do this:
+
+gg_half_life_lm_s <- gg_persist_mod_base + 
+  # make and add confidence interval
+  geom_ribbon(data = mutate(data.frame(age = 5:30),
+                            lower = exp(confint(lm_mod)[2, 1]*age +
+                                          confint(lm_mod)[1, 1]),
+                            upper = exp(confint(lm_mod)[2, 2]*age +
+                                          confint(lm_mod)[1, 2])),
+              mapping = aes(ymin = lower, ymax = upper, x = age), inherit.aes = FALSE, 
+              fill = "dark gray", alpha = 0.5, color = "dark gray", linetype = "solid") +
+  geom_function(fun = function(x) {exp(coef(lm_mod)[2]*x + 
+                                         coef(lm_mod)[1])},
+                color = "dark blue", size = 1) + 
+  annotate("text", x = 24, y = 0.8, label = "half-life = 23.17 years", fontface = "italic", angle = 90) + 
+  geom_vline(xintercept = cc_half_life(lm_mod))
+
+
+
+
+# save
+png(filename = paste0(p_output, "plots/half_life_lm_s.png"), 
+    width = 5, height = 5, units = "in", res = 400)
+print(gg_half_life_lm_s)
+dev.off()
+
+
+
+
+
+
+# with coord_trans
+ggplot(data = dat %>% mutate(year_abn = as.numeric(levels(year_abn))[year_abn]),
+       mapping = aes(x = (age), y = (proportion), group = year_abn, color = year_abn)) + 
+  # theme_classic() + 
+  geom_point(size = 1) + 
+  labs(y = "Proportion remaining abandoned", 
+       x = "Years since initial abandonment") + 
+  scale_color_distiller(palette = "Greens") +
+  coord_trans(y = "log", x = "log") 
+#+ scale_y_log10()
+```
+
+
+```{r lm-log-log}
+lm_mod_log <- lm(log(proportion) ~ log(age), data = dat)
+summary(lm_mod)
+summary(lm_mod_cohort)
+summary(lm_mod_log)
+
+
+
+ggplot(data = dat, mapping = aes(x = log(age), y = log(proportion), group = year_abn, color = year_abn)) + 
+  geom_point() +
+  # add fitted values, exponentiated
+  # geom_line(data = augment(lm_mod, newdata = data.frame(age = 5:30)),
+  #           aes(x = age, y = exp(.fitted)),
+  #           color = "red", size = 1, inherit.aes = FALSE) +
+  # geom_line(data = mutate(augment(lm_mod_cohort), year_abn = as.numeric(levels(cohort))[cohort]),
+  #           aes(x = age, y = exp(.fitted))) + 
+  scale_color_distiller(palette = "Greens") + 
+  geom_smooth(method = "lm", se = 0, aes(x = log(age), y = log(proportion)), inherit.aes = FALSE)
+
+
+
+
+ggplot(mapping = aes(x = age, y = proportion, group = year_abn, color = year_abn)) + 
+  theme_classic() + 
+  labs(y = "Proportion remaining abandoned", 
+       x = "Years since initial abandonment", 
+       title = "Persistence of Abandoned Land: Shaanxi Province",
+       subtitle = NULL, #subtitle,
+       color = "Year Abandoned") + 
+  scale_color_distiller(palette = "Greens") + 
+  theme(legend.position = "bottom",
+        legend.text = element_text(angle = 320, vjust = 1, hjust = 0)) + 
+  scale_x_continuous(n.breaks = 10) +
+  
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "black", size = 0.75) + 
+  geom_point(data = dat) +
+  
+  geom_line(data = augment(lm_mod_log, newdata = data.frame(age = 5:30)),
+            aes(x = age, y = exp(.fitted)),
+            color = gg_colors[5], size = 1.5, inherit.aes = FALSE) + 
+  geom_vline(xintercept = (0.5/exp(coef(lm_mod_log)[1]))^(1/coef(lm_mod_log)[2]), 
+             color = gg_colors[5]) + 
+  annotate("text", fontface = "italic", angle = 90, size = 3.5,
+           x = cc_half_life(lm_mod_log, fixed_effect = "time") + 5, 
+           y = 0.85, label = paste0(
+             "lm_mod0: \n", 
+             round((0.5/exp(coef(lm_mod_log)[1]))^(1/coef(lm_mod_log)[2]), 2), 
+             " years")) + 
+  geom_function(fun = function(x) { x^(coef(lm_mod_log)[2])*exp(coef(lm_mod_log)[1])},
+                color = gg_colors[5], size = 1, linetype = "dashed", inherit.aes = FALSE)
+  
+
+
+
+```
+
+
+```{r lm-cohort}
+
+# add cohort as a fixed effect predictor variable. This is analogous to a parallel slopes lm, where cohort just changes the intercept coefficient, and age has the same role across all
+
+lm_mod
+lm_mod_cohort <- lm(log(proportion) ~ age + cohort - 1, data = dat)
+lm_mod_cohortx <- lm(log(proportion) ~ age * cohort - 1, data = dat) # allowing for all cohorts to have individual intercepts and slopes with age 
+
+lm_mod_cohort
+
+coef(lm_mod_cohort)
+summary(lm_mod_cohort)
+tidy(lm_mod_cohort, conf.int = TRUE) 
+augment(lm_mod_cohort)
+coef(lm_mod_cohort)
+
+
+
+# plot
+ggplot(data = dat, mapping = aes(x = age, y = proportion, group = year_abn, color = year_abn)) + 
+  geom_point() +
+  
+  # lm_mod
+  geom_line(data = augment(lm_mod, newdata = data.frame(age = 5:30)),
+            aes(x = age, y = exp(.fitted)),
+            color = "red", size = 1, inherit.aes = FALSE) +
+  scale_color_distiller(palette = "Greens") + 
+  
+  # add individual cohort curves
+  # geom_function(fun = function(x) {exp(coef(lm_mod_cohort)["age"]*x + 
+  #                                       coef(lm_mod_cohort)["cohort1988"])},
+  #               color = "blue", size = 1, linetype = "solid", inherit.aes = FALSE) +
+  # geom_function(fun = function(x) {exp(coef(lm_mod_cohort)["age"]*x + 
+  #                                       coef(lm_mod_cohort)["cohort2010"])},
+  #               color = "orange", size = 1, linetype = "solid", inherit.aes = FALSE) +
+  
+  # add lm_mod_cohort
+  geom_line(data = mutate(augment(lm_mod_cohort), year_abn = as.numeric(levels(cohort))[cohort]),
+            aes(x = age, y = exp(.fitted))) +
+
+  
+  # add lm_mod_cohortx
+  geom_line(data = mutate(augment(lm_mod_cohortx), year_abn = as.numeric(levels(cohort))[cohort]),
+            aes(x = age, y = exp(.fitted)))
+
+
+
+
+```
+
+
+```{r lm0-int}
+
+# -------------------- consistent intercept ----------------------------- #
+# dat_shift
+
+dat$time # this has been set up to allow for no intercept 
+
+lm_mod0 <- lm(log(proportion) ~ 0 + time, data = dat)
+lm_mod
+
+lm(log(proportion) ~ time, data = dat)
+lm(log(proportion) ~ 0 + age, data = dat)
+
+# Note that lm(y ~ x, data = dat) is the same as lm(y ~ 1 + x, data = dat). 
+# The 1 in the longer notation represents that we want lm to estimate an intercept. 
+# If we change this to a 0, explicitly, lm only calculates a slope coefficient for x.  This is what we've done above. 
+
+
+# lm_mod_offset <- lm(log(proportion) ~ 0 + time, data = dat)
+# lm_mod_offset1 <- lm(log(proportion) ~ time, data = dat)
+
+
+ggplot(data = dat, mapping = aes(x = time, y = proportion, group = year_abn, color = year_abn)) + 
+  geom_point() +
+  # add fitted values, exponentiated
+  geom_line(data = augment(lm_mod0, newdata = mutate(data.frame(time = 0:25), age = time + 5)),
+            aes(x = time, y = exp(.fitted)),
+            color = "red", size = 1, inherit.aes = FALSE) + 
+  scale_color_distiller(palette = "Greens")
+
+
+# comparing to the original lm_mod
+gg_persist_mod_base + 
+  geom_line(data = augment(lm_mod, newdata = data.frame(age = 5:30)), 
+            aes(x = age, y = exp(.fitted)), 
+            color = "red", size = 2)
+
+gg_persist_mod_base + 
+  # lm_mod
+  geom_line(data = augment(lm_mod, newdata = mutate(data.frame(time = 0:25), age = time + 5)),
+            aes(x = age, y = exp(.fitted)),
+            color = "green", size = 1, inherit.aes = FALSE) + 
+  
+  # lm_mod0
+  geom_line(data = augment(lm_mod0, newdata = mutate(data.frame(time = 0:25), age = time + 5)),
+            aes(x = age, y = exp(.fitted)),
+            color = "red", size = 1, inherit.aes = FALSE) + 
+  
+  # age, slope only, starting at 1. 
+  geom_line(data = augment(lm(log(proportion) ~ 0 + age, data = dat), 
+                           newdata = mutate(data.frame(time = 0:25), 
+                                            age = time + 5)),
+            aes(x = age, y = exp(.fitted)),
+            color = "blue", size = 1, inherit.aes = FALSE) +
+  scale_x_continuous(breaks = seq(from = 0, to = 30, by = 5))
+
+
+
+# or...
+ggplot(data = dat, mapping = aes(x = age, y = proportion, group = year_abn, color = year_abn)) + 
+  geom_point() +
+  geom_line(data = augment(lm_mod, newdata = mutate(data.frame(time = 0:25), age = time + 5)),
+            aes(x = age, y = exp(.fitted)),
+            color = "green", size = 1, inherit.aes = FALSE) + 
+  
+  # add fitted values, exponentiated
+  geom_line(data = augment(lm_mod0, newdata = mutate(data.frame(time = 0:25), age = time + 5)),
+            aes(x = age, y = exp(.fitted)),
+            color = "red", size = 1, inherit.aes = FALSE) + 
+  scale_color_distiller(palette = "Greens")
+
+
+
+
+
+```
+
+```{r lmer}
+# Since each cohort of abandoned land represents a particular group, with related values, I will model each cohort as a random effect, with random intercept and random slopes
+
+# here's how the lmer call will work:
+
+
+# lmer_mod <- lmer(
+#   log(proportion) ~  # response variable
+#        age + # fixed effect (i.e. what we're curious about)
+#        (1 + age|cohort), # random effects (modeling coefficients as random values drawn from a common error distribution, i.e. essentially random differences that we want to control for). 
+#      # The 1 represents the random intercept, meaning that the initial starting point can vary for each cohort (year_abn). If this was all we wanted, but with the same relationship to age for each cohort, we'd just have (1|year_abn)
+#      # The "age|year_abn" term represents the random slopes, meaning that the relationship between proportion and age (the slope/coefficient) is allowed to vary across the cohorts.
+#      data = dat) 
+
+# random slopes, constant intercept
+
+lmer_mod_slope <- lmer(log(proportion) ~ age + (0 + age|cohort), data = dat)
+lmer(log(proportion) ~ age + (0 + age|cohort), data = dat) %>% coef()
+
+
+# random slopes and random intercepts
+lmer_mod_slope_int <- lmer(log(proportion) ~ age + (1 + age|cohort), data = dat) # or age + (age|cohort)
+lmer(log(proportion) ~ age + (1 + age|cohort), data = dat) %>% coef()
+
+
+# just random intercepts would look like this
+lmer_mod_int <- lmer(log(proportion) ~ age + (1|cohort), data = dat)
+lmer(log(proportion) ~ age + (1|cohort), data = dat) %>% coef()
+
+
+
+
+# -------------------------- lmer offset ---------------------------------------- #
+# lmer offset: random slopes, but only slope, i.e. no global intercept (so that the intercept is forced to be 1).
+# this is the one I intend to use.
+lmer_mod_slope0 <- lmer(log(proportion) ~ 0 + time + (0 + time|cohort), data = dat)
+# ---------------------------------------------------------------------------- #
+
+
+
+
+
+lmer_mod_slope
+lmer_mod_slope_int
+lmer_mod_int
+lmer_mod_slope0
+
+augment(lmer_mod_slope0)
+fixef(lmer_mod_slope0)*1
+exp(fixef(lmer_mod_slope0)*0)
+
+coef(lmer_mod_slope0)
+ranef(lmer_mod_slope0)$cohort
+fixef(lmer_mod_slope0)
+
+-0.03543644 + ranef(lmer_mod_slope0)$cohort[1:6, ]
+head(coef(lmer_mod_slope0)$cohort)
+
+dev.off()
+
+# plot lmers
+
+
+cc_half_life(lmer_mod_slope0, fixed_effect = "time") + 5
+cc_half_life(lmer_mod_slope)
+cc_half_life(lmer_mod_slope_int)
+
+
+ggplot(data = augment(lmer_mod_slope0) %>% mutate(year_abn = as.numeric(levels(cohort))[cohort],
+                                                       age = time + 5),
+       mapping = aes(x = age, y = proportion, group = year_abn, color = year_abn)) + 
+  geom_point(data = dat) +
+  geom_line(aes(y = exp(.fitted)), size = 1) + 
+  geom_line(aes(y = exp(.fixed)), size = 1.5, color = "red") + 
+  geom_vline(xintercept = cc_half_life(lmer_mod_slope0, fixed_effect = "time") + 5) + 
+  
+  # add fitted values, exponentiated
+  geom_line(data = augment(lm_mod0, newdata = mutate(data.frame(time = 0:25), age = time + 5)),
+            aes(x = age, y = exp(.fitted)),
+            color = "blue", size = 1.5, inherit.aes = FALSE) + 
+  
+  scale_color_distiller(palette = "Greens") + 
+  
+  geom_line(data = augment(lmer_mod_slope) %>% mutate(year_abn = as.numeric(levels(cohort))[cohort]),
+            aes(x = age, y = exp(.fixed), group = ), size = 1, color = "pink") +
+  
+  geom_hline(yintercept = 0.5)
+
+
+# 
+
+
+
+
+ggplot(data = data.frame(ranef(lmer_mod_slope0)$cohort)) + geom_histogram(aes(x = time))
+
+
+
+
+
+
+
+
+
+
+
+
+# old crud
+
+
+lmer_mod1 # (1 + age|year_abn)
+lmer_mod # (0 + age|year_abn)
+
+?isSingular
+isSingular(lmer_mod) # FALSE
+isSingular(lmer_mod1) # TRUE
+summary(lmer_mod)
+lmer_mod_coef <- tidy(lmer_mod)
+lmer_mod_confint <- confint(lmer_mod) %>%
+  as_tibble(rownames = "term_conf") %>%
+  rename(lower = "2.5 %",
+         upper = "97.5 %")
+
+lmer_mod_coef %>% arrange(desc(effect))
+lmer_mod_confint
+
+
+lmer_mod_coef <- bind_cols(lmer_mod_coef %>% arrange(desc(effect)), lmer_mod_confint)
+
+
+lmer_mod1_coef <- tidy(lmer_mod1)
+lmer_mod1_confint <- confint(lmer_mod1) %>%
+  as_tibble(rownames = "term_conf") %>%
+  rename(lower = "2.5 %",
+         upper = "97.5 %")
+
+lmer_mod1_coef <- bind_cols(lmer_mod1_coef %>% arrange(desc(effect)),
+                            lmer_mod1_confint)
+
+
+
+
+summary(lmer_mod1)
+coef(lmer_mod)
+fixef(lmer_mod)
+broom.mixed::tidy(lmer_mod)
+test <- tidy(lmer_mod) %>% 
+  mutate(lower = estimate - 1.96*std.error,
+         upper = estimate + 1.96*std.error)
+
+test[which(test$term == "age"), "estimate"]
+test[which(test$term == "age"), "lower"] %>% unlist()
+test[which(test$term == "age"), "upper"] %>% unlist()
+
+
+confint(lmer_mod1)
+tidy(lmer_mod1)
+
+
+lmer_mod_coef
+lmer_mod_coef[which(lmer_mod_coef$term == "(Intercept)"), "estimate"]
+filter(lmer_mod_coef, term == "(Intercept)")$estimate
+
+fixef(lmer_mod)
+(log(0.5) - fixef(lmer_mod)["(Intercept)"])/(fixef(lmer_mod)["age"]) # (log(0.5) - int)/coeff = 30.25
+(log(0.5) - fixef(lmer_mod1)["(Intercept)"])/(fixef(lmer_mod1)["age"]) # (log(0.5) - int)/coeff = 30.25
+
+(log(0.5) - filter(lmer_mod_coef, term == "(Intercept)")$estimate) / 
+  (filter(lmer_mod_coef, term == "age")$estimate) # (log(0.5) - int)/coeff = 30.25
+(log(0.5) - filter(lmer_mod1_coef, term == "(Intercept)")$estimate) / 
+  (filter(lmer_mod1_coef, term == "age")$estimate) # (log(0.5) - int)/coeff = 30.25
+
+
+
+predict(lmer_mod)
+
+
+plot(lmer_mod)
+plot(lmer_mod1)
+initial_area_abn
+
+```
+
+```{r plot-lmers}
+
+show_col(hue_pal()(5))
+gg_colors <- hue_pal()(5)
+gg_colors[2]
+
+gg_lmer_comparison <- 
+  ggplot(data = mutate(augment(lmer_mod_slope0), 
+                       year_abn = as.numeric(levels(cohort))[cohort],
+                       age = time + 5),
+       mapping = aes(x = age, y = proportion, 
+                     group = year_abn, color = year_abn)) + 
+  theme_classic() + 
+  labs(y = "Proportion remaining abandoned", 
+       x = "Years since initial abandonment", 
+       title = "Persistence of Abandoned Land: Shaanxi Province",
+       subtitle = NULL, #subtitle,
+       color = "Year Abandoned") + 
+  scale_color_distiller(palette = "Greens") + 
+  theme(legend.position = "bottom",
+        legend.text = element_text(angle = 320, vjust = 1, hjust = 0)) + 
+  scale_x_continuous(n.breaks = 10) +
+  
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "black", size = 0.75) + 
+  geom_point(data = dat) + geom_line(data = dat, size = 1, alpha = 0.25) +
+  #geom_line(aes(y = exp(.fitted)), size = 1) + 
+  
+  
+  # lmer_mod_slope0
+  geom_line(aes(y = exp(.fixed)), size = 1.5, color = gg_colors[1]) + 
+  geom_vline(xintercept = cc_half_life(lmer_mod_slope0, fixed_effect = "time") + 5,
+             color = gg_colors[1]) + 
+  annotate("text", fontface = "bold", angle = 90, size = 3.5,
+           x = cc_half_life(lmer_mod_slope0, fixed_effect = "time") + 5, 
+           y = 0.95, label = paste0(
+             "lmer_mod_slope0: \n", 
+             round(cc_half_life(lmer_mod_slope0, fixed_effect = "time") + 5, 2), 
+             " years")) + 
+
+  # lmer_mod_slope
+  geom_line(data = augment(lmer_mod_slope) %>% mutate(year_abn = as.numeric(levels(cohort))[cohort]),
+            aes(y = exp(.fixed)), size = 1.5, color = gg_colors[2]) + 
+  geom_vline(xintercept = cc_half_life(lmer_mod_slope), color = gg_colors[2]) + 
+  annotate("text", fontface = "italic", angle = 90, size = 3.5,
+           x = cc_half_life(lmer_mod_slope), 
+           y = 0.85, label = paste0(
+             "lmer_mod_slope: \n", 
+             round(cc_half_life(lmer_mod_slope), 2), 
+             " years")) + 
+  
+  # lmer_mod_slope_int
+  geom_line(data = augment(lmer_mod_slope_int) %>% mutate(year_abn = as.numeric(levels(cohort))[cohort]),
+            aes(y = exp(.fixed)), size = 1.5, color = gg_colors[3]) + 
+  geom_vline(xintercept = cc_half_life(lmer_mod_slope_int), color = gg_colors[3]) + 
+  annotate("text", fontface = "italic", angle = 90, size = 3.5,
+           x = cc_half_life(lmer_mod_slope_int), 
+           y = 0.85, label = paste0(
+             "lmer_mod_slope_int: \n", 
+             round(cc_half_life(lmer_mod_slope_int), 2), 
+             " years")) + 
+  
+  # lm_mod0
+  geom_line(data = augment(lm_mod0, newdata = mutate(data.frame(time = 0:25), age = time + 5)),
+            aes(x = age, y = exp(.fitted)),
+            color = gg_colors[4], size = 1.5, inherit.aes = FALSE) + 
+  geom_vline(xintercept = cc_half_life(lm_mod0, fixed_effect = "time") + 5, color = gg_colors[4]) + 
+  annotate("text", fontface = "italic", angle = 90, size = 3.5,
+           x = cc_half_life(lm_mod0, fixed_effect = "time") + 5, 
+           y = 0.85, label = paste0(
+             "lm_mod0: \n", 
+             round(cc_half_life(lm_mod0, fixed_effect = "time") + 5, 2), 
+             " years")) + 
+  
+  
+  # log log
+  geom_line(data = augment(lm_mod_log, newdata = data.frame(age = 5:30)),
+            aes(x = age, y = exp(.fitted)),
+            color = gg_colors[5], size = 1.5, inherit.aes = FALSE) + 
+  geom_vline(xintercept = (0.5/exp(coef(lm_mod_log)[1]))^(1/coef(lm_mod_log)[2]), 
+             color = gg_colors[5]) + 
+  annotate("text", fontface = "italic", angle = 90, size = 3.5,
+           x = (0.5/exp(coef(lm_mod_log)[1]))^(1/coef(lm_mod_log)[2]), 
+           y = 0.75, label = paste0(
+             "lm_mod_log_log: \n", 
+             round((0.5/exp(coef(lm_mod_log)[1]))^(1/coef(lm_mod_log)[2]), 2), 
+             " years"))
+  # geom_function(fun = function(x) { x^(coef(lm_mod_log)[2])*exp(coef(lm_mod_log)[1])},
+  #               color = gg_colors[5], size = 1, linetype = "dashed", inherit.aes = FALSE)
+
+
+gg_lmer_comparison
+
+# save
+png(filename = paste0(p_output, "plots/lmer_comparison_s.png"), 
+    width = 8, height = 6, units = "in", res = 400)
+print(gg_lmer_comparison)
+dev.off()
+
+
+gg_lmer_slope0
+
+
+gg_lmer_slope0 <- ggplot(data = mutate(augment(lmer_mod_slope0), 
+                       year_abn = as.numeric(levels(cohort))[cohort],
+                       age = time + 5),
+       mapping = aes(x = age, y = proportion, 
+                     group = year_abn, color = year_abn)) + 
+  theme_classic() + 
+  labs(y = "Proportion remaining abandoned", 
+       x = "Years since initial abandonment", 
+       title = "Persistence of Abandoned Land: Shaanxi Province",
+       subtitle = NULL, #subtitle,
+       color = "Year Abandoned") + 
+  scale_color_distiller(palette = "Greens") + 
+  theme(legend.position = "bottom",
+        legend.text = element_text(angle = 320, vjust = 1, hjust = 0)) + 
+  scale_x_continuous(n.breaks = 10) +
+  
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "black", size = 0.75) + 
+  geom_line(aes(y = exp(.fixed)), size = 1.5, color = gg_colors[1]) + 
+
+  
+  geom_point(data = dat) + geom_line(data = dat, size = 1, alpha = 0.25) +
+  geom_line(aes(y = exp(.fitted)), size = 1) + 
+  
+  
+  # lmer_mod_slope0
+  geom_vline(xintercept = cc_half_life(lmer_mod_slope0, fixed_effect = "time") + 5,
+             color = gg_colors[1]) + 
+  annotate("text", fontface = "italic", angle = 90, size = 3.5,
+           x = cc_half_life(lmer_mod_slope0, fixed_effect = "time") + 5, 
+           y = 0.85, label = paste0(
+             "lmer_mod_slope0: \n", 
+             round(cc_half_life(lmer_mod_slope0, fixed_effect = "time") + 5, 2), 
+             " years"))
+
+
+
+# save
+png(filename = paste0(p_output, "plots/lmer_slope0_s.png"), 
+    width = 7, height = 6, units = "in", res = 400)
+print(gg_lmer_slope0)
+dev.off()
+
+gg_lmer_comparison
+gg_lmer_slope0
+```
+
+```{r lmer-area}
+# --------------------------------------------------------- #
+# start with basic lm
+# log(proportion) ~ age + initial_area_abn
+# --------------------------------------------------------- #
+lm_area_p <- lm(log(proportion) ~ age + initial_area_abn, data = dat)
+
+summary(lm_area_p)
+plot(lm_area)
+coef(lm_area)
+tidy(lm_area)
+augment(lm_area)
+summary(dat$initial_area_abn)
+exp(0.5063)
+
+
+plot_base <- ggplot(data = persistence_list_b1_s$na_first) + 
+  theme_classic() + 
+  geom_line(mapping = aes(x = age, y = proportion, 
+                          group = year_abn, color = year_abn), 
+            size = 1) + 
+ labs(y = "Proportion remaining abandoned", 
+       x = "Years since initial abandonment", 
+       title = "Persistence of Abandoned Land: Shaanxi Province",
+       subtitle = NULL, #subtitle,
+       color = "Year Abandoned") + 
+  scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+  theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0)) + 
+  geom_hline(yintercept = 0.5, linetype="dashed", 
+             color = "black", size = 0.75)
+
+# initial_area_abn
+ggplot(data = dat) + 
+  theme_classic() + 
+  geom_line(mapping = aes(x = age, y = proportion, 
+                          group = year_abn, 
+                          color = year_abn), 
+            size = 1) + 
+ labs(y = "Proportion remaining abandoned", x = "Years since initial abandonment") + 
+  scale_color_distiller(palette = "Greens") + 
+  geom_point(data = dat %>% mutate(prediction = exp(predict(lm_area_p))),
+             mapping = aes(x = age, y = prediction), alpha = 0.5)
+
+
+# trying cut to make bins
+ggplot(data = dat,
+       mapping = aes(x = age, y = proportion, 
+                     group = year_abn, color = cut(year_abn, breaks = 5))) + 
+  theme_classic() + 
+  geom_line() + 
+  labs(y = "Proportion remaining abandoned", x = "Years since initial abandonment")
+
+ggplot(data = dat %>% mutate(year_abn =
+                               as.numeric(levels(year_abn))[year_abn]),
+       mapping = aes(x = age, y = proportion, 
+                     group = year_abn, color = year_abn_bins)) + 
+  theme_classic() + 
+  geom_line() + 
+  labs(y = "Proportion remaining abandoned", x = "Years since initial abandonment")
+
+#plot relationship between initial area abandoned and the year abandoned
+ggplot(data = dat %>% 
+         filter(proportion == 1) %>% 
+         mutate(year_abn = as.numeric(levels(year_abn))[year_abn]), 
+       mapping = aes(x = year_abn, y = initial_area_abn)) + 
+  theme_classic() +
+  geom_point() + 
+  geom_smooth(method = "lm", formula = y ~ x, mapping = aes(x = year_abn, y = initial_area_abn))
+
+
+
+# --------------------------------------------------------- #
+# now, 
+# log(proportion) ~ age + initial_area_abn
+# --------------------------------------------------------- #
+
+lm_area <- lm(log(area_ha) ~ age, data = dat)
+summary(lm_area)
+plot(lm_area)
+
+ggplot(data = dat %>% mutate(year_abn =
+                               as.numeric(levels(year_abn))[year_abn])) + 
+  theme_classic() + 
+  geom_line(mapping = aes(x = age, y = proportion, 
+                          group = year_abn, 
+                          color = year_abn), 
+            size = 1) + 
+ labs(y = "Proportion remaining abandoned", x = "Years since initial abandonment") + 
+  scale_color_distiller(palette = "Greens") + 
+  geom_point(data = dat %>% mutate(prediction = exp(predict(lm_area_p))),
+             mapping = aes(x = age, y = prediction), alpha = 0.5)
+
+
+hist(dat$proportion)
+ggplot(data = dat, mapping = aes(x = log(proportion))) + 
+  geom_histogram(binwidth = 0.015)
+  
+
+
+
+
+
+
+# add to basic lmer, proportions
+str(dat)
+lmer_mod2 <- lmer(log(proportion) ~ 
+       age + initial_area_abn + # fixed effect (i.e. what we're curious about)
+       (1 + age|year_abn), # random effects (random intercept, and random slopes)
+     data = dat)
+summary(lmer_mod2)
+
+
+
+
+
+
+lmer_mod_area <- lmer(log(area_ha) ~ 
+       age + # fixed effect (i.e. what we're curious about). Do I include a term for initial_area_abn?
+       (1 + age|year_abn), # random effects (random intercept, and random slopes)
+       data = dat)
+
+# the initial_area_abn should be correlated with each cohort (year_abn), so I'm not sure I need to include it. Better ask Alex about this.
+
+lmer(log(area_ha) ~ age + (1 + initial_area_abn|year_abn), data = persistence_list_b1_s$na_first)
+# pull out the initial area abn...^^^
+
+summary(lmer_mod_area)
+tidy(lmer_mod_area)
+
+
+# plot results --------------------------------------------------- #
+
+plot_base <- ggplot(data = persistence_list_b1_s$na_first) + 
+  theme_classic() + 
+  geom_line(mapping = aes(x = age, y = proportion, 
+                          group = year_abn, color = year_abn), 
+            size = 1) + 
+ labs(y = "Proportion remaining abandoned", 
+       x = "Years since initial abandonment", 
+       title = "Persistence of Abandoned Land: Shaanxi Province",
+       subtitle = NULL, #subtitle,
+       color = "Year Abandoned") + 
+  scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+  theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0)) + 
+  geom_hline(yintercept = 0.5, linetype="dashed", 
+             color = "black", size = 0.75)
+
+plot_base +
+  
+  # lmer_mod
+  stat_function(fun = function(x) {exp(filter(lmer_mod_coef, term == "age")$estimate*x + 
+                                        filter(lmer_mod_coef, term == "(Intercept)")$estimate)},
+                color = gg_colors[2], size = 1, linetype = "solid") + 
+  geom_ribbon(data = mutate(data.frame(x = 5:35),
+                            lower = exp(filter(lmer_mod_coef, term == "age")$lower*x +
+                                          filter(lmer_mod_coef, term == "(Intercept)")$lower),
+                            upper = exp(filter(lmer_mod_coef, term == "age")$upper*x +
+                                          filter(lmer_mod_coef, term == "(Intercept)")$upper)),
+              mapping = aes(ymin = lower, ymax = upper, x = x),
+              fill = gg_colors[2], alpha = 0.1, color = gg_colors[2], linetype = "dashed") +
+  annotate("text", fontface = "italic", angle = 90,
+           x = ((log(0.5) - filter(lmer_mod_coef, term == "(Intercept)")$estimate) /     
+                      (filter(lmer_mod_coef, term == "age")$estimate)), 
+           y = 0.85, label = "lmer (random slopes): \n34.35 years", size = 3.5) + 
+  geom_vline(xintercept = 
+               ((log(0.5) - filter(lmer_mod_coef, term == "(Intercept)")$estimate) /     
+                  (filter(lmer_mod_coef, term == "age")$estimate)), 
+             color = gg_colors[2], linetype = "solid")
+    
+
+
+```
+
+
+```{r mod_l}
+# models
+mod_l <- list("lm_mod" = lm_mod, 
+              "lm_mod0" = lm_mod0, 
+              "lm_mod_cohort" = lm_mod_cohort, 
+              "lm_mod_cohortx" = lm_mod_cohortx,
+              "lm_mod_log" = lm_mod_log,
+
+              "lmer_mod_slope" = lmer_mod_slope,
+              "lmer_mod_slope_int" = lmer_mod_slope_int,
+              "lmer_mod_int" = lmer_mod_int,
+              "lmer_mod_slope0" = lmer_mod_slope0
+              )
+
+```
+
+
+```{r AIC}
+pairs(dat)
+mod_l[[1]]
+
+summary(mod_l[[1]])
+glance(mod_l[[1]])
+
+names(mod_l)
+
+lapply(mod_l, formula)
+lapply(mod_l, print)
+
+data(lm_mod)
+lm_mod$call
+lmer_mod$call
+lmer_mod %>% formula()
+tidy(lmer_mod)
+glance(lmer_mod)
+augment(lmer_mod)
+
+lapply(mod_l, glance)
+summary(lmer_mod_slope0)
+
+lapply(mod_l, FUN = function(x) {
+  glance(x) %>% select(AIC)
+}) %>% bind_rows(.id = "mod") %>% arrange(AIC)
+
+
+install.packages("MuMIn")
+library(MuMIn)
+MuMIn::r.squaredGLMM(lmer_mod)
+
+```
+
+
+```{r check-assumptions}
+
+# ------- check assumptions of the lm ------------------------------------------------- #
+lm_mod
+par(mfrow = c(2,2))
+plot(mod_l[[9]])
+residuals(lm_mod)
+broom::augment(lm_mod)
+
+# plot model diagnostics:
+par(mfrow = c(2,2)) # create a plotting panel with two rows and two columns (allowing you to put 4 plots on the same plotting panel)
+plot(lm_mod) # check for violations of model assumptions
+
+dev.off()
+
+# description of the four diagnostic plots from: http://www.sthda.com/english/articles/39-regression-model-diagnostics/161-linear-regression-assumptions-and-diagnostics-in-r-essentials/
+# 1. Residuals vs Fitted. Used to check the linear relationship assumptions. A horizontal line, without distinct patterns is an indication for a linear relationship, which is good.
+# 2. Normal Q-Q. Used to examine whether the residuals are normally distributed. Good if residuals points follow the straight dashed line.
+# 3. Scale-Location (or Spread-Location). Used to check the homogeneity of variance of the residuals (homoscedasticity). Horizontal line with equally spread points is a good indication of homoscedasticity.
+# 4. Residuals vs Leverage. Used to identify influential cases, that is extreme values that might influence the regression results when included or excluded from the analysis. 
+
+
+
+# ------------------------------------- Umesh's notes on assumptions ------------------------------------------------ #
+# assumptions to check:
+# a. LINEAR RELATIONSHIP between the predictor (x) and the response (y); i.e., y = mx + C
+# b. the data points are STATISTICALLY INDEPENDENT (study design issue)
+# c. no outliers influence the relationship unduly (look at the Residuals vs Leverage plot; also the Normal Q-Q plot)
+# d. CONSTANT, or EQUAL VARIANCE (fancily called HOMOSCEDASTICITY; look at the Residuals vs Fitted plot)
+# e. ERRORS ARE NORMALLY DISTRIBUTED (look at the Normal Q-Q plot)
+
+# ------------------ a. Linear relationship plot to check.
+ggplot(data = dat, mapping = aes(x = age, y = log(proportion), group = year_abn, color = year_abn)) + 
+  theme_classic() + 
+  geom_point(size = 1.25) + 
+  labs(title = "Persistence of Abandoned Land") + 
+  scale_color_distiller(palette = "Greens") + 
+  theme(legend.position = "bottom", legend.text = element_text(angle = 320, vjust = 1, hjust = 0)) + 
+  geom_smooth(method = "lm", se = FALSE) + 
+  geom_smooth(method = "lm", aes(x = age, y = log(proportion)), se = FALSE, inherit.aes = FALSE, color = "blue") + 
+  geom_hline(yintercept = log(0.5), linetype = "dashed", color = "red", size = 0.75)
+# yes?
+
+# ------------------ b. Statistically independent? I don't think the points are independent. Each cohort of abandoned land (i.e. land that was all initially abandoned in a give year) can constitute a group. This is especially the case if I'm looking at area, rather than proportion.
+pairs(dat)
+plot(proportion ~ year_abn, data = dat)
+plot(area_ha ~ initial_area_abn, data = dat)
+plot(proportion ~ initial_area_abn, data = dat)
+
+# If the points are not independent, and they belong to a particular cohort of abandoned land, I have two options: 
+# add cohorts as a categorical fixed effect, calculating either unique intercepts, unique slopes, or both depending on the identity of the cohort. 
+# Or, I could model these cohort groups as random effects (meaning that we expect the behavior or each cohort group to be drawn from a normal distribution with a particular mean and standard deviation), and move to a linear mixed effects model next. 
+
+# other option: Bayesian hierarchical model. 
+install.packages("brms") # Hamiltonian monte carlo.
+
+
+# continuing with Umesh's diagnostics:
+# ------------------ c.
+# c. no outliers influence the relationship unduly (look at the Residuals vs Leverage plot; also the Normal Q-Q plot)
+# the residuals should lie along the dotted line in the QQ plot, and the leverage plot should look straight as well.
+
+
+# ------------------ d.
+# d. CONSTANT, or EQUAL VARIANCE (fancily called HOMOSCEDASTICITY; look at the Residuals vs Fitted plot)
+# this first plot should have a pretty horizontal line across it, with good horizontal spread, and vertical spread. An even distribution along the x axis (fitted values) across values of y indicates a lack of *bias*. An even spread across the y axis across values of x shows homoscedasticity. Constant variance among residuals.  
+
+# ------------------ e.
+# e. Error ARE NORMALLY DISTRIBUTED (look at the Normal Q-Q plot)
+# looks good
+
+plot(lm_mod, 2)
+
+# can also 
+
+# check normality of residuals
+hist(residuals(lm_mod)) # or
+ggplot(data = data.frame(.resid = residuals(lm_mod)), aes(x = .resid)) + geom_histogram() # looks normal to me?
+
+
+ggplot(data = augment(lmer_mod_offset), aes(x = .resid)) + geom_histogram() # looks normal to me?
+ggplot(data = augment(lmer_mod_offset), aes(x = `log(proportion)`)) + geom_histogram() # looks normal to me?
+
+
+plot(lmer_mod)
+qqnorm(residuals(lmer_mod))
+
+plot(lmer_mod_offset)
+qqnorm(residuals(lmer_mod_offset))
+
+
+
+# --------------------------------- checking assumptions for lmers -------------------------- #
+plot(mod_l[[8]])
+qqnorm(residuals(mod_l[[8]]))
+tidy(mod_l[[8]])
+coef(mod_l[[8]])
+augment(mod_l[[8]])
+
+ggplot(data = augment(mod_l[[8]]), aes(x = .resid)) + geom_histogram() # looks normal to me?
+ggplot(data = augment(mod_l[[8]]), aes(x = `log(proportion)`)) + geom_histogram() # this doesn't look all that normal to me
+
+# leverage
+ggplot(data = augment(mod_l[[8]]), aes(x = .hat)) + geom_histogram()
+
+
+
+lapply(mod_l, summary)
+```
+
+
+```{r half-life-over-time-by-site}
+# build data frames of half lives for each model
+
+
+grep("time", lapply(mod_l, formula))
+grep("lmer", names(mod_l))
+
+mod_l[6:9]
+
+
+hl1 <- lapply(mod_l[6:8], FUN = function(x) {
+  coef(x)$cohort %>%
+  as_tibble(rownames = "cohort") %>%
+  rename(int = "(Intercept)", coeff = age) %>% 
+  mutate(half_life = (log(0.5) - int)/coeff,
+         year_abn = as.numeric(cohort),
+         mod = names(x))
+})
+
+bind_rows(hl1, .id = "mod")
+
+hl4 <- coef(mod_l[[9]])$cohort %>%
+  as_tibble(rownames = "year_abn") %>%
+  rename(coeff = time) %>% 
+  mutate(half_life = log(0.5)/coeff + 5,
+         year_abn = as.numeric(year_abn),
+         mod = "lmer_mod_slope0")
+
+lmer_mod1_half_lives <- coef(lmer_mod1)$year_abn %>%
+  as_tibble(rownames = "year_abn") %>%
+  rename(int = "(Intercept)", coeff = age) %>% 
+  mutate(half_life = (log(0.5) - int)/coeff,
+         year_abn = as.numeric(year_abn),
+         mod = "lmer1")
+
+mod_l_coef <- lapply(mod_l, FUN = function(x) if(class(x) == "lm") {coef(x)} else {coef(x)[[1]]})
+
+
+
+
+
+mod_l[c(1,3,7)]
+
+# combine the data.frames to compare models
+half_life_mod_comparison <- bind_rows(lmer_mod_half_lives, 
+                                      lmer_mod_slope0_half_lives,
+                                      lmer_mod1_half_lives, 
+                                      select(mod_ind_df, !cohort)) %>% 
+  mutate(mod = as_factor(mod))
+
+
+
+gg_mod_comp_s <- 
+  ggplot(data = half_life_mod_comparison) + theme_classic() +
+  geom_smooth(method = "lm", formula = y ~ x,
+              mapping = aes(x = year_abn, y = half_life, 
+                            fill = mod, color = mod),
+              #color = "blue", fill = "gray", 
+              size = 1.5, alpha = 0.25, show.legend = FALSE) +
+  geom_point(mapping = aes(x = year_abn, y = half_life, color = mod), 
+             alpha = 078) + 
+  labs(y = "Half life (years)", x = "Year Abandoned", 
+       title = "Persistence of Abandoned Land", subtitle = site_df$description[9],
+       color = "Model Type")
+
+
+# save plots
+
+png(filename = paste0(p_output, "plots/half_life_cohorts_s.png"), 
+    width = 6, height = 5, units = "in", res = 400)
+print(gg_mod_comp_s)
+dev.off()
+```
+
+
+```{r plot-half-life-lm-vs-lmer}
+# plot half-life for full site:
+summary(lmer_mod)
+summary(lmer_mod1)
+
+lmer_mod_coef
+lmer_mod1_coef
+show_col(hue_pal()(3))
+gg_colors <- hue_pal()(3)
+gg_colors[2]
+
+gg_half_life_lm_s
+
+gg_half_life_lm_lmer_s <- 
+  ggplot(data = persistence_list_b1_s$na_first) + 
+  # base plot
+  theme_classic() + 
+  geom_line(mapping = aes(x = age, y = proportion, 
+                          group = year_abn, color = year_abn), 
+            size = 1, alpha = 0.25) + 
+  geom_point(mapping = aes(x = age, y = proportion,
+                           group = year_abn, color = year_abn), 
+            size = 1) + 
+  labs(y = "Proportion remaining abandoned", 
+       x = "Years since initial abandonment", 
+       title = "Persistence of Abandoned Land: Shaanxi Province",
+       subtitle = NULL, #subtitle,
+       color = "Year Abandoned") + 
+  scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+  theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0)) + 
+  geom_hline(yintercept = 0.5, linetype="dashed", 
+             color = "black", size = 0.75) + 
+  
+  # lmer_mod
+  stat_function(fun = function(x) {exp(filter(lmer_mod_coef, term == "age")$estimate*x + 
+                                        filter(lmer_mod_coef, term == "(Intercept)")$estimate)},
+                color = gg_colors[2], size = 1, linetype = "solid") + 
+  geom_ribbon(data = mutate(data.frame(x = 5:35),
+                            lower = exp(filter(lmer_mod_coef, term == "age")$lower*x +
+                                          filter(lmer_mod_coef, term == "(Intercept)")$lower),
+                            upper = exp(filter(lmer_mod_coef, term == "age")$upper*x +
+                                          filter(lmer_mod_coef, term == "(Intercept)")$upper)),
+              mapping = aes(ymin = lower, ymax = upper, x = x),
+              fill = gg_colors[2], alpha = 0.1, color = gg_colors[2], linetype = "dashed") +
+  annotate("text", fontface = "italic", angle = 90,
+           x = ((log(0.5) - filter(lmer_mod_coef, term == "(Intercept)")$estimate) /     
+                      (filter(lmer_mod_coef, term == "age")$estimate)), 
+           y = 0.85, label = "lmer (random slopes): \n34.35 years", size = 3.5) + 
+  geom_vline(xintercept = 
+               ((log(0.5) - filter(lmer_mod_coef, term == "(Intercept)")$estimate) /     
+                  (filter(lmer_mod_coef, term == "age")$estimate)), 
+             color = gg_colors[2], linetype = "solid") + 
+    
+  # lmer_mod1  
+  stat_function(fun = function(x) {exp(filter(lmer_mod1_coef, term == "age")$estimate*x + 
+                                        filter(lmer_mod1_coef, term == "(Intercept)")$estimate)},
+                color = gg_colors[3], size = 1, linetype = "solid") + 
+  geom_ribbon(data = mutate(data.frame(x = 5:35),
+                            lower = exp(filter(lmer_mod1_coef, term == "age")$lower*x +
+                                          filter(lmer_mod1_coef, term == "(Intercept)")$lower),
+                            upper = exp(filter(lmer_mod1_coef, term == "age")$upper*x +
+                                          filter(lmer_mod1_coef, term == "(Intercept)")$upper)),
+              mapping = aes(ymin = lower, ymax = upper, x = x),
+              fill = gg_colors[3], alpha = 0.1, color = gg_colors[3], linetype = "dashed") +
+  annotate("text", fontface = "italic", angle = 90,
+           x = ((log(0.5) - filter(lmer_mod1_coef, term == "(Intercept)")$estimate) /     
+                      (filter(lmer_mod1_coef, term == "age")$estimate)), 
+           y = 0.86, label = "lmer (random int. & slopes): \n30.26 years", size = 3.5) + 
+  geom_vline(xintercept = 
+               ((log(0.5) - filter(lmer_mod1_coef, term == "(Intercept)")$estimate) /     
+                  (filter(lmer_mod1_coef, term == "age")$estimate)), 
+             color = gg_colors[3], linetype = "solid") + 
+  
+  # lmer_mod2
+  stat_function(fun = function(x) {exp(filter(lmer_mod1_coef, term == "age")$estimate*x + 
+                                        filter(lmer_mod1_coef, term == "(Intercept)")$estimate)},
+                color = gg_colors[3], size = 1, linetype = "solid") + 
+  
+  # lm
+  stat_function(fun = function(x) {exp(lm_mod$coefficients["age"]*x +
+                                         lm_mod$coefficients["(Intercept)"])},
+                color = gg_colors[1], size = 1) + 
+  annotate(x = ((log(0.5) - lm_mod$coefficients["(Intercept)"]) /     
+                      (lm_mod$coefficients["age"])), 
+           y = 0.88, label = "lm: \n23.17 years", 
+           "text", fontface = "italic", angle = 90, size = 3.5) + 
+  geom_vline(xintercept = ((log(0.5) - lm_mod$coefficients["(Intercept)"]) /
+                             (lm_mod$coefficients["age"])), 
+             color = gg_colors[1]) + 
+  geom_ribbon(data = mutate(data.frame(x = 5:35),
+                            lower = exp(confint(lm_mod)["age", 1]*x +
+                                          confint(lm_mod)["(Intercept)", 1]),
+                            upper = exp(confint(lm_mod)["age", 2]*x +
+                                          confint(lm_mod)["(Intercept)", 2])),
+              mapping = aes(ymin = lower, ymax = upper, x = x),
+              fill = gg_colors[1], alpha = 0.1, color = gg_colors[1], linetype = "dashed")
+
+  
+gg_half_life_lm_lmer_s
+
+# save
+png(filename = paste0(p_output, "plots/half_life_lm_lmer_s.png"), 
+    width = 7, height = 6, units = "in", res = 400)
+print(gg_half_life_lm_lmer_s)
+dev.off()
+```
+
+
+```{r half-life-lm-all-sites}
+
+# ------- calc lm for each site ------------------------------------------------- #
+# calculate exponential decay curve for each site:
+
+decay_models <- lapply(1:11, FUN = function(i) {
+  load(file = paste0(p_output, "abn_dat_products", blip_label, site_df$label[i], ".rds"), verbose = TRUE)
+# eval(parse(text = paste0("persistence_list", blip_label, site_label)))
+  
+  assign("persistence_list", eval(parse(text = paste0("persistence_list", blip_label, site_df$label[i]))))
+  
+  model <- lm(log(proportion) ~ age, data = persistence_list$na_first)
+
+})
+
+names(decay_models) <- site_df$site
+plot(decay_models$shaanxi)
+broom::tidy(decay_models$shaanxi)
+broom::tidy(mod_decay_s)
+
+
+# make a data.frame of coefficients
+decay_models_coeff <- lapply(decay_models, coefficients) %>% 
+  bind_rows(.id = "site") %>%
+  rename(int = "(Intercept)", coeff = age) %>% 
+  mutate(half_life = (log(0.5) - int)/coeff)
+
+# calculate confidence intervals
+conf <- lapply(decay_models, FUN = function(i) {
+  conf <- confint(i) %>% 
+    as_tibble(rownames = "rownames") %>% 
+    mutate(rownames = ifelse(rownames == "age", "coeff", "int")) %>%
+    rename("lower" = "2.5 %", "upper" = "97.5 %") %>% 
+    pivot_wider(names_from = rownames, values_from = c(lower, upper))
+}) %>% bind_rows(.id = "site")
+
+# join data.frames
+decay_models_coeff <- left_join(decay_models_coeff, conf, by = "site") %>%
+  mutate(half_life_lower = (log(0.5) - lower_int)/lower_coeff,
+         half_life_upper = (log(0.5) - upper_int)/upper_coeff)
+
+
+# plot
+gg_half_life_all_sites <- ggplot(data = decay_models_coeff) + 
+  theme_classic() + 
+  geom_col(mapping = aes(x = site, y = half_life, fill = site)) + 
+  geom_errorbar(mapping = aes(x = site, ymin = half_life_lower, ymax = half_life_upper, #color = site
+                              ), width = 0.3) +
+  labs(y = "Half-life (years)",
+       x = "Site", 
+       title = "Half-life of abandoned agricultural land",
+       caption = "Error bars represent 95% confidence interval",
+       fill = "Site") + 
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0), 
+        legend.position = "none", plot.caption = element_text(face = "italic"),
+        plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm"))
+
+
+
+
+# save plots
+# ----------------------------------- save ------------------------------------------------- #
+
+png(filename = paste0(p_output, "plots/half_life_all_sites.png"), 
+    width = 5, height = 5, units = "in", res = 400)
+print(gg_half_life_all_sites)
+dev.off()
+
+
+
+
+
+
+# old ----------------------------------------------------------------------- #
+
+# calculating the average proportion at each time_abn, across all sites.
+# this replicated df_av, but for all sites
+
+mean_persistence_df <- lapply(1:11, FUN = function(i) {
+  load(file = paste0(p_output, "abn_dat_products", blip_label, site_df$label[i], ".rds"), verbose = TRUE)
+# eval(parse(text = paste0("persistence_list", blip_label, site_label)))
+  
+  assign("persistence_list", eval(parse(text = paste0("persistence_list", blip_label, site_df$label[i]))))
+  
+  df_tmp <- persistence_list$na_last %>%
+    mutate(year_abn = as_factor(year_abn)) %>%
+    group_by(time_abn) %>%
+    summarise(count = n(),
+              sd = sd(proportion, na.rm = TRUE), 
+              se = sd/sqrt(count),
+              mean_proportion = mean(proportion), 
+              year_abn = as_factor("mean")) %>%
+    mutate(site = site_df$site[i])
+  
+  df_tmp
+})
+
+mean_persistence_df <- bind_rows(mean_persistence_df)
+
+# save
+write_csv(mean_persistence_df, path = paste0(p_dat_derived, "mean_persistence_df.csv"))
+
+# re load
+mean_persistence_df <- read.csv(file = paste0(p_dat_derived, "mean_persistence_df.csv"))
+
+
+
+
+# plotting the average persistence over time
+gg_mean_persistence_all <- ggplot(data = mean_persistence_df) +
+  labs(title = "Mean persistence over time", x = "Time abandoned (years)", 
+       y = "Mean proportion of abandoned land remaining abandoned") + 
+  geom_line(mapping = aes(x = time_abn, y = mean_proportion, group = site, color = site), size = 1) + 
+  theme_classic() + theme(legend.position = "right")
+
+# save
+png(filename = paste0(p_output, "plots/mean_persistence_all.png"), 
+    width = 7, height = 5, units = "in", res = 400)
+print(gg_mean_persistence_all)
+dev.off()
+
+mean_persistence_df %>% filter(mean_proportion < 0.52 & mean_proportion > 0.49) %>% select(site, time_abn, mean_proportion) %>% as.data.frame()
+
+
+
+```
+
+
+```{r half-life-lm-bins}
+# ----------------------------------------------------------------------------------- #
+# plot persistence for bins of year abandoned
+# bins for year_abn
+test$year_abn %>% unique %>% length 
+test <- persistence_list$na_first
+test <- test %>% 
+      mutate(year_abn_bins = ifelse(year_abn >= 1988 & year_abn <= 1993, "1988-1993",
+                           ifelse(year_abn >= 1994 & year_abn <= 1998, "1994-1998",
+                                  ifelse(year_abn >= 1999 & year_abn <= 2003, "1999-2003",
+                                         ifelse(year_abn >= 2004 & year_abn <= 2008, "2004-2008",
+                                                ifelse(year_abn >= 2009 & year_abn <= 2013, "2009-2013", NA)
+                                         ))))) %>%
+      mutate(year_abn_bins = as_factor(year_abn_bins))
+
+year_abn_bins_av <- test %>% group_by(year_abn_bins, age) %>% summarise(mean_proportion = mean(proportion), count = n())
+
+
+ggplot(data = year_abn_bins_av) + 
+  theme_classic() + 
+  labs(y = "Proportion remaining abandoned", #x = "Years since initial abandonment", 
+       title = "Persistence of Abandoned Land", color = "Year Abandoned") + 
+  # scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+  theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0),
+        legend.position = "bottom") + 
+  geom_line(size = 1.25,
+            mapping = aes(x = age, 
+                   # x = age, # (replicates the plot from na_last, which is called time_abn)
+                   y = mean_proportion, group = year_abn_bins, color = year_abn_bins))
+
+
+```
+
+
+```{r half-life-lm-indiv-cohorts}
+# half-life for each individual cohort for a particular site
+persistence_list$na_first$year_abn %>% unique() %>% length()
+
+# load data set, assign to generic "persistence_list"
+load(file = paste0(p_output, "abn_dat_products", blip_label, "_s", ".rds"), verbose = TRUE)
+assign("persistence_list", eval(parse(text = paste0("persistence_list", blip_label, "_s"))))
+
+
+# run an lm() for each cohort, individually
+mod_ind <- lapply(1988:2013, FUN = function(i) {
+  model <- lm(log(proportion) ~ age, data = filter(persistence_list_b1_s$na_first, year_abn == i))
+})
+
+names(mod_ind) <- paste0("y", 1988:2013)
+
+mod_ind_df <- lapply(mod_ind, coefficients) %>% bind_rows(.id = "cohort") %>%
+  rename(int = "(Intercept)", coeff = age) %>% 
+  mutate(half_life = (log(0.5) - int)/coeff,
+         year_abn = gsub("y", "", cohort),
+         year_abn = as.numeric(year_abn),
+         mod = "lm")
+
+# note: this is the same as the lm_mod_cohortx 
+
+mod_ind_df
+coef(lm_mod_cohortx)["age"]
+coef(lm_mod_cohortx)[grep("1990", names(coef(lm_mod_cohortx)))]
+tidy(lm_mod_cohortx) %>% filter(grepl("age", term)) %>% mutate(new = estimate + coef(lm_mod_cohortx)["age"])
+
+
+gg_half_life_over_time_s <- ggplot(data = mod_ind_df) + theme_classic() +
+  geom_smooth(method = "lm", formula = y ~ x,
+              mapping = aes(x = year_abn, y = half_life),
+              color = "blue", fill = "gray", size = 1.5, alpha = 0.5) + 
+  geom_point(mapping = aes(x = year_abn, y = half_life)) + 
+  labs(y = "Half life (years)", x = "Year Abandoned", 
+       title = "Persistence of Abandoned Land", subtitle = site_df$description[9],
+       color = "Year Abandoned")
+  
+
+
+ggplot(data = persistence_list_b1_s$na_first) + 
+  theme_classic() + 
+  geom_point(mapping = aes(x = age, y = proportion, group = year_abn, color = year_abn), size = 1.25) + 
+  labs(y = "Proportion remaining abandoned", x = "Years since initial abandonment", 
+       title = "Persistence of Abandoned Land", subtitle = NULL, #subtitle,
+       color = "Year Abandoned") + 
+  scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+  theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0)) + 
+  geom_hline(yintercept = 0.5, linetype="dashed", color = "red", size = 0.75) + 
+  # make and add confidence interval
+  geom_ribbon(data = mutate(data.frame(x = 5:30),
+                            lower = exp(confint(mod_decay_s)[2, 1]*x + confint(mod_decay_s)[1, 1]),
+                            upper = exp(confint(mod_decay_s)[2, 2]*x + confint(mod_decay_s)[1, 2])),
+              mapping = aes(ymin = lower, ymax = upper, x = x), 
+              fill = "dark gray", alpha = 0.5, color = "dark gray", linetype = "solid") +
+  stat_function(fun = function(x) {exp(mod_decay_s$coefficients[2]*x + mod_decay_s$coefficients[1])}, color = "dark blue", size = 1) + 
+  annotate("text", x = 24, y = 0.8, label = "half-life = 23.17 years", fontface = "italic", angle = 90) + 
+  geom_vline(xintercept = 23.16972)
+
+```
+
+
+
+
+```{r coeff-plot}
+ggplot(data = county_slope, aes(x = county_plot, y = slope)) + 
+	geom_point() +
+    coord_flip() + 
+	theme_bw() + 
+	ylab("Change in hate crimes per year")  +
+	xlab("County")
+```
+
+
+
+
+```{r bayesian-persistence-model}
+# other option: Bayesian hierarchical model. 
+install.packages("brms") # Hamiltonian monte carlo.
+library(brms)
+```
+
+
+
+
+
+
+# Spatial Regression
+Abandonment Age predicted by:
 # Regression Analysis
 
 Question: what factors best predict a) which pixels of agricultural land are abandoned, b) how long that land will stay abandoned for, and relatedly, c) how likely it is to be recultivated?
@@ -26,7 +1833,7 @@ Factors:
     - land use decision making
 - 
 
-# Methods:
+## Methods:
 - start with a regular OLS regression (lm)
 - check out the residuals (the model errors) - if they are clumped, or there is a clear trend in them, then, they might be spatially autocorrelated.
 - Calculating Moran's I helps identify spatial autocorrelation. 
@@ -37,18 +1844,7 @@ Factors:
 
 Citations:
 
-```{r initialize}
-source("scripts/0_start.R")
-
-regression_packages <- c("VIF", "nlme", "MASS", "spdep")
-install_missing_packages(regression_packages)
-library(VIF) # for selecting models for a linear model. Recommended by Liang.
-
-# gls model - spatial autocorrelation
-# spdep has lots of functions for assessing spatial autocorrelation.
-
-
-```
+## Code:
 
 
 ```{r load-data}
@@ -121,7 +1917,8 @@ legend("bottomleft", cex = 0.7, inset = 0,
 ```
 
 
-# Spatial Regression
+
+
 
 
 ```{r load-predictor-datasets}

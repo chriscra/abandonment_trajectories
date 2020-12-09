@@ -1653,8 +1653,11 @@ install.packages("data.table") # this still seems to have an issue with how many
 
 # load
 library(data.table)
-getDTthreads(verbose = TRUE)
+getDTthreads(verbose = TRUE) # using 4 threads. Working as of 12.5.2020 (updated to llvm version 11).
 
+# See the following:
+# https://github.com/Rdatatable/data.table/wiki/Installation
+# ~/.R/Makevars
 ```
 
 

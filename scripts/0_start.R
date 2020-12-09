@@ -23,12 +23,13 @@ needed_packages <- c(
   # modelling:
   "tidymodels", # metapackage including: rsample, parsnip, recipes, workflows, tune, yardstick, broom, & dials
   "lme4", "brms", 
-  "broom.mixed", # nb: broom comes preloaded in the tidymodels
+  "broom.mixed", # nb: broom comes preloaded in the tidymodels; this package is specifically intended for mixed effects models
   
   # visualization:
   "rasterVis", "RColorBrewer", "viridis", "scales",
   "patchwork", "cowplot", # for combining multiple plots
   "animation", "magick", "ggrepel",
+  "plotly", # plotly makes interactive graphics!
   
   # development
   "tictoc",  "magrittr", "parallel", "knitr", 

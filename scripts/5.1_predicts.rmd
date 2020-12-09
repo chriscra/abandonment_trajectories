@@ -252,6 +252,7 @@ ecoregions %>% st_drop_geometry() %>%
   select(WWF_MHTNAM) %>% # unlist(use.names = FALSE) %>% as_factor() %>% levels()
   unique()
 
+
 names(ecoregions)
 names(ecoregions_wwf)
 levels(as.factor(ecoregions_wwf$ECO_NAME)) # 827 ecoregions. (this is the WWF file)
@@ -286,6 +287,21 @@ names(g200)
 object_size(g200)
 levels(as.factor(g200$G200_BIOME)) # 14 levels of regions.
 ```
+
+```{r deserts}
+ecoregions %>% 
+  filter(WWF_MHTNAM == "Deserts and Xeric Shrublands") %>% st_geometry() %>%
+  plot()
+
+plot(world$geometry, add = TRUE, border = "light blue")
+
+
+ecoregions %>% 
+  filter(WWF_MHTNAM == "Deserts and Xeric Shrublands") %>%
+  st_drop_geometry() %>%
+  select(ECODE_NAME)
+```
+
 
 ```{r biomes}
 # rename the column for WWF_MHTNAM to biome (this matches PREDICTS)
