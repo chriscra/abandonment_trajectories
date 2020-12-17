@@ -1658,6 +1658,8 @@ getDTthreads(verbose = TRUE) # using 4 threads. Working as of 12.5.2020 (updated
 # See the following:
 # https://github.com/Rdatatable/data.table/wiki/Installation
 # ~/.R/Makevars
+
+# also see note titled: "Installing OpenMP" in Evernote notebook "C2. Trajectories of Abandonment & Biodiversity"
 ```
 
 
