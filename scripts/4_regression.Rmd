@@ -1176,9 +1176,10 @@ p7 <- ggplot(data = dat, mapping = aes(x = age, y = proportion, group = year_abn
                           # year_abn = as.numeric(levels(cohort))[cohort], 
                           age = time + 5),
             aes(x = age, y = exp(.fitted)))
+```
 
 
-
+```{r calculating-mean-coef}
 # is the mean coefficient the same as lm without cohort?
 
 pm1 <- ggplot(data = dat, mapping = aes(x = age, y = proportion, group = year_abn, color = year_abn)) + 
@@ -1231,6 +1232,12 @@ pl1 +
   geom_function(fun = function(x) { (x - 4) ^ coef(lm(log(proportion) ~ 0 + log(time_1), 
                                                       data = filter(dat_l, site == "shaanxi")))},
                 size = 1, color = "blue", inherit.aes = FALSE) + 
+  
+  # mean of the year_abn model
+  geom_function(fun = function(x) { (x - 4) ^ mean(coef(lm(log(proportion) ~ 0 + log(time_1)*year_abn, 
+                                                      data = filter(dat_l, site == "shaanxi"))), na.rm = TRUE)},
+                size = 1, color = "red", linetype = "dashed", inherit.aes = FALSE) + 
+  
   labs(title = "Alternative methods for calculating site mean decay coefficient") +
   annotate("text", fontface = "bold", x = 25, y = 0.68, label = "mean coef", size = 3.5, angle = -12) + 
   annotate("text", fontface = "bold", x = 26, y = 0.60, label = "weighted mean", size = 3.5, angle = -12) + 
@@ -1369,10 +1376,14 @@ pl3 <- ggplot(data = dat, mapping = aes(x = age, y = proportion, group = year_ab
   scale_x_continuous(breaks = seq(from = 0, to = 30, by = 5))
 
 
+
 # plot_grid
 plot_grid(pl0, pl1, pl2, pl3)
 
 lm(log(proportion) ~ 0 + log(time_1)*year_abn, data = dat) %>% coef()
+lm(log(proportion) ~ 0 + log(time_1):year_abn, data = dat) %>% coef()
+lm(log(proportion) ~ 0 + log(time_1)*year_abn, data = dat) %>% coef()
+
 test1 <- lm(log(proportion) ~ 0 + log(time_1) + year_abn + log(time_1):year_abn, data = dat)
 test2 <- lm(log(proportion) ~ 0 + log(time_1) + log(time_1):year_abn, data = dat)
 lm(log(proportion) ~ 0 + year_abn + log(time_1):year_abn, data = dat) %>% coef()
@@ -1444,8 +1455,7 @@ plot_grid(pl3, pl4, pl5, pl6)
 
 
 
-
-# compare AIC
+# ---------------------- run model, and compare AIC --------------------------------------- #
 lm_mod_log2_cohort
 lm_mod_log2_year_abn <- lm(log(proportion) ~ 0 + log(time_1) + log(time_1):year_abn, data = dat)
 
@@ -2615,7 +2625,6 @@ print(gg_log2_cohort_coef_all)
 dev.off()
 ```
 
-
 ```{r mean-coef-per-site}
 # mean_coef per site
 mean_coef_df <- coef_df %>% 
@@ -2626,7 +2635,7 @@ mean_coef_df <- coef_df %>%
   mutate(term = "coef")
 
 mean_coef_df <- bind_rows(mean_coef_df, 
-                          lapply(c(21, 46), FUN = function(x) {
+                          lapply(c(6, 16, 26, 36, 46), FUN = function(x) {
                             mean_coef_df %>%
                               mutate(mean = x^(mean),
                                      mean_low = x^(mean_low),
@@ -2639,7 +2648,7 @@ lapply(lm_log2_l, FUN = function(i) cc_half_life(i, confint = TRUE)) %>% bind_ro
 
 
 gg_mean_coef_site <- ggplot(data = mean_coef_df %>% filter(term == "coef"),
-                            mapping = aes(x = mean, y = site)) + 
+                            mapping = aes(x = mean, y = fct_reorder(site, mean))) + 
   theme_classic() +
   geom_point() + 
   geom_errorbar(mapping = aes(xmin = mean_low, xmax = mean_high), width = 0.3) +
@@ -2656,32 +2665,81 @@ png(filename = paste0(p_output, "plots/log2_cohort_coefs_by_site.png"),
 print(gg_mean_coef_site)
 dev.off()
 
-gg_coef_p25_by_site <- ggplot(data = mean_coef_df,
-       mapping = aes(y = mean, x = site, col = site)) + 
+
+gg_example_proportions_by_site <- ggplot(data = mean_coef_df %>% filter(term != "coef"),
+                              mapping = aes(y = mean, x = fct_reorder(site, desc(mean)),
+                                            ymin = mean_low, ymax = mean_high, #col = site, 
+                                            group = term, color = term)) + 
   theme_classic() +
-  geom_point() + 
-  geom_errorbar(mapping = aes(ymin = mean_low, ymax = mean_high), width = 0.3) +
-  labs(y = NULL, x = "Site", 
-       title = "Decay rates by site",
-       subtitle = "log(proportion) ~ 0 + log(time_1):cohort",
-       caption = "Error bars represent the mean of 95% confidence interval coefficient estimates") + 
-  # geom_hline(yintercept = 0, linetype = "dashed") +
-  facet_grid(rows = vars(term), scales = "free", #switch = "y",
-             labeller = labeller(term = c(coef = "Mean Coefficient", #old = "new",
-                                          p25 = "Proportion remaining \nafter 25 years",
-                                          p50 = "Proportion remaining \nafter 50 years"))) + 
+  geom_point(position = position_dodge(0.7)) + 
+  geom_errorbar(#mapping = aes(ymin = mean_low, ymax = mean_high), 
+                width = 0.3, position = position_dodge(0.7)) +
+  labs(y = "Proportion of abandoned land remaining", 
+       #subtitle = "log(proportion) ~ 0 + log(time_1):cohort",
+       #caption = "Error bars represent the mean of 95% confidence interval coefficient estimates",
+       #title = "Decay rates by site",
+       x = "Site" 
+       ) + 
   theme(plot.caption = element_text(face = "italic"),
         axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0),
-        legend.position = "none"#, plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm")
-        )
+        legend.position = "right"#, plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm")
+        ) + 
+  scale_color_discrete(name = "Proportion \nremaining \nafter: ", 
+                      labels = c(p10 = "10 years", #old = "new",
+                                 p20 = "20 years", p30 = "30 years",
+                                 p40 = "40 years", p50 = "50 years")) #+ 
+  # guides(col = guide_legend(ncol = 2, byrow = TRUE))
 
 
+png(filename = paste0(p_output, "plots/log2_cohort_decay_proportions_by_site.png"), 
+    width = 7.5, height = 4.5, units = "in", res = 400)
+print(gg_example_proportions_by_site)
+dev.off()
 
-# save
+# save old
+gg_coef_p25_by_site
 png(filename = paste0(p_output, "plots/log2_cohort_coef_p25_by_site.png"), 
     width = 6, height = 7, units = "in", res = 400)
 print(gg_coef_p25_by_site)
 dev.off()
+```
+
+```{r mean-trend-by-site}
+# make a data.frame with fitted values for the mean coef
+fitted_df <- lapply(site_df$site, FUN = function(x) {
+  data.frame(site = x,
+             time = 1:50,
+             coef = filter(mean_coef_df, term == "coef", site == x)$mean) %>%
+    mutate(fitted = time ^ coef,
+           age = time + 4)
+}) %>% bind_rows()
+
+# plot it, reordering the factors by the coefficient (to make the legend easier to read)
+gg_model_curves_by_site <- ggplot(data = fitted_df, 
+       mapping = aes(x = age, y = fitted, color = fct_reorder(site, desc(coef)))) +
+  geom_line() +
+  geom_hline(yintercept = 0.5, linetype = "dashed") + 
+  labs(title = "Decay of abandoned land over time", 
+       caption = "lm formula: log(proportion) ~ 0 + log(time_1):cohort",
+       x = "Time since initial abandonment (years)", 
+       y = "Proportion of abandoned land remaining",
+       color = "Site")
+
+
+png(filename = paste0(p_output, "plots/model_decay_curves_by_site.png"), 
+    width = 7, height = 6, units = "in", res = 400)
+print(gg_model_curves_by_site)
+dev.off()
+
+
+# could also manually reorder the factors like so:
+coef_level_order <- mean_coef_df %>% 
+  filter(term == "coef") %>% 
+  arrange(desc(mean)) %>% 
+  select(site) %>% 
+  unlist(use.names = FALSE)
+
+mean_coef_df %>% mutate(site = fct_relevel(site, coef_level_order)) %>% .$site
 ```
 
 
@@ -2706,17 +2764,36 @@ coef_df2 <- tidy(lm_coef, conf.int = TRUE) %>%
   filter(site != "year_abn")
 
 
-#
-
-gg_coef_rate_change_by_site <- ggplot(data = coef_df2, 
-                                      aes(x = site, y = estimate_slope, color = site, fill = site)) + 
+# plot, flipped
+gg_coef_rate_change_by_site_flipped <- ggplot(data = coef_df2 %>% mutate(site = fct_reorder(site, estimate_slope)), 
+                                      aes(x = site, y = estimate_slope, 
+                                          #color = site, fill = site
+                                          )) + 
   theme_classic() +
-  geom_col() + 
+  geom_hline(yintercept = 0, linetype = "dashed") + 
+  geom_point() + 
   geom_errorbar(mapping = aes(ymin = conf.low_slope, ymax = conf.high_slope), width = 0.3) +
   labs(title = "Changes in Decay Rate over time, by site", 
        x = "Site", y = "Rate of Change of Model Coefficients (per year)") + 
-  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0), legend.position = "none",
+  theme(#axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0), 
+        legend.position = "none",
+        plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm")) + 
+  coord_flip()
+
+# plot right on:
+gg_coef_rate_change_by_site <- ggplot(data = coef_df2 %>% mutate(site = fct_reorder(site, estimate_slope)), 
+                                      aes(x = site, y = estimate_slope, 
+                                          color = site, fill = site)) + 
+  theme_classic() +
+  geom_col() + 
+  geom_errorbar(mapping = aes(ymin = conf.low_slope, ymax = conf.high_slope), width = 0.3) +
+  geom_hline(yintercept = 0) + 
+  labs(title = "Changes in Decay Rate over time, by site", 
+       x = "Site", y = "Rate of Change of Model Coefficients (per year)") + 
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0), 
+        legend.position = "none",
         plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm"))
+
 
 png(filename = paste0(p_output, "plots/log2_cohort_coefs_rate_of_change_by_site.png"), 
     width = 7, height = 6, units = "in", res = 400)
@@ -2725,6 +2802,12 @@ dev.off()
 
 ```
 
+# extrapolation
+
+What would the age classes look like in 30 years, if the same decay rate holds?
+a) assuming the average decay rate holds for the next 30 years
+b) assuming the trend in decay rate continues for the next 30 years (i.e. slowing down in Shaanxi, speeding up in Belarus)
+c) assuming we shift the decay curve
 
 # old half-life stuff
 ```{r half-life-over-time-by-site}
