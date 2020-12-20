@@ -230,6 +230,12 @@ lm_log2_l <- lapply(1:11, FUN = function(i) {
                data = filter(dat_l, site == site_df$site[i]))
 })
 
+# log-log model, with year_abn (continuous) rather than the categorical cohort
+lm_log2_year_abn_l <- lapply(1:11, FUN = function(i) {
+  lm(log(proportion) ~ 0  + log(time_1) + log(time_1):year_abn,  
+               data = filter(dat_l, site == site_df$site[i]))
+})
+
 # lon-linear (exp. decay)
 lm_log_lin_l <- lapply(1:11, FUN = function(i) {
   lm(log(proportion) ~ 0 + time:cohort,  
@@ -243,6 +249,7 @@ lm_0_l <- lapply(1:11, FUN = function(i) {
 })
 
 names(lm_log2_l) <- site_df$site
+names(lm_log2_year_abn_l) <- site_df$site
 names(lm_log_lin_l) <- site_df$site
 names(lm_0_l) <- site_df$site
 
@@ -291,19 +298,23 @@ lm_glance1 <- lapply(lm_log2_l, FUN = function(x) {
   glance(x)
 }) %>% bind_rows(.id = "site") %>% mutate(mod = "log2_cohort") %>% select(site, AIC, mod, everything()) %>% arrange(AIC)
 
-lm_glance2 <- lapply(lm_log_lin_l, FUN = function(x) {
+lm_glance2 <- lapply(lm_log2_year_abn_l, FUN = function(x) {
+  glance(x)
+}) %>% bind_rows(.id = "site") %>% mutate(mod = "log2_year_abn") %>% select(site, AIC, mod, everything()) %>% arrange(AIC)
+
+lm_glance3 <- lapply(lm_log_lin_l, FUN = function(x) {
   glance(x)
 }) %>% bind_rows(.id = "site") %>% mutate(mod = "log_lin_cohort") %>% select(site, AIC, mod, everything()) %>% arrange(AIC)
 
-lm_glance3 <- lapply(lm_0_l, FUN = function(x) {
+lm_glance4 <- lapply(lm_0_l, FUN = function(x) {
   glance(x)
 }) %>% bind_rows(.id = "site") %>% mutate(mod = "log_lin_0") %>% select(site, AIC, mod, everything()) %>% arrange(AIC)
 
 
-lm_g <- bind_rows(lm_glance1, lm_glance2, lm_glance3)
+lm_g <- bind_rows(lm_glance1, lm_glance2, lm_glance3, lm_glance4)
 
 # view results
-lm_g %>% arrange(site, AIC) %>% print(n = 33)
+lm_g %>% arrange(site, AIC) %>% select(site, AIC, mod, adj.r.squared) %>% print(n = 44)
 
 # at all sites, the log-log cohort model has the lowest AIC (i.e. best performance)... except Nebraska! Will check that out next.
 
@@ -1220,28 +1231,38 @@ lm(log(proportion) ~ 0 + log(time_1),
 
 dat %>% group_by(cohort) %>% summarise(n = n()) %>% print(n = 30)
 
-# save
+
+
+
+# save plot with different approaches:
 png(filename = paste0(p_output, "plots/mean_coef_alt.png"), 
-    width = 6, height = 5, units = "in", res = 400)
+    width = 7, height = 5, units = "in", res = 400)
 
 pl1 + 
+  # mean coefficient
   geom_function(fun = function(x) { (x - 4) ^ mean(coef(lm_mod_log2_cohort), na.rm = TRUE)},
                 size = 1, color = "red", linetype = "dashed", inherit.aes = FALSE) + 
+  
+  # weighted mean of the coefficient
   geom_function(fun = function(x) { (x - 4) ^ w_mean},
                 size = 1, color = "red", inherit.aes = FALSE) + 
-  geom_function(fun = function(x) { (x - 4) ^ coef(lm(log(proportion) ~ 0 + log(time_1), 
-                                                      data = filter(dat_l, site == "shaanxi")))},
-                size = 1, color = "blue", inherit.aes = FALSE) + 
+  
+  # lm without cohort fixed effects
+  geom_function(fun = function(x) { (x - 4) ^ 
+      coef(lm(log(proportion) ~ 0 + log(time_1), 
+              data = filter(dat_l, site == "shaanxi")))},
+      size = 1, color = "blue", inherit.aes = FALSE) + 
   
   # mean of the year_abn model
-  geom_function(fun = function(x) { (x - 4) ^ mean(coef(lm(log(proportion) ~ 0 + log(time_1)*year_abn, 
-                                                      data = filter(dat_l, site == "shaanxi"))), na.rm = TRUE)},
-                size = 1, color = "red", linetype = "dashed", inherit.aes = FALSE) + 
+  geom_function(fun = function(x) { (x - 4) ^  
+      (coef(lm_mod_log2_year_abn)[1] + coef(lm_mod_log2_year_abn)[2] * mean(1988:2013))},
+                size = 1, color = "orange", linetype = "dotted", inherit.aes = FALSE) + 
   
   labs(title = "Alternative methods for calculating site mean decay coefficient") +
-  annotate("text", fontface = "bold", x = 25, y = 0.68, label = "mean coef", size = 3.5, angle = -12) + 
-  annotate("text", fontface = "bold", x = 26, y = 0.60, label = "weighted mean", size = 3.5, angle = -12) + 
-  annotate("text", fontface = "bold", x = 27, y = 0.56, label = "lm w/o cohort f.e.", size = 3.5, angle = -12)
+  annotate("text", fontface = "bold", x = 26, y = 0.64, label = "mean coef (cohort)", size = 3.5, angle = -8) + 
+  annotate("text", fontface = "bold", x = 26, y = 0.69, label = "mean coef (year_abn)", size = 3.5, angle = -8) + 
+  annotate("text", fontface = "bold", x = 26, y = 0.60, label = "weighted mean", size = 3.5, angle = -8) + 
+  annotate("text", fontface = "bold", x = 27, y = 0.56, label = "lm w/o cohort f.e.", size = 3.5, angle = -8)
 
 dev.off()
 
@@ -1396,7 +1417,7 @@ coef(test2)[1] + coef(test2)[2] * 1988
 
 
 
-
+mean(1988:2013) * lm_mod_log2_year_abn
 
 
 pl4 <- ggplot(data = dat, mapping = aes(x = age, y = proportion, group = year_abn, color = year_abn)) + 
@@ -2749,6 +2770,7 @@ lm_coef <- lm(estimate ~ year_abn * site - 1, data = coef_df)
 coef(lm_coef)[1]
 as.numeric(tidy(lm_coef, conf.int = TRUE)[1, "estimate"])
 
+
 coef_df2 <- tidy(lm_coef, conf.int = TRUE) %>%
   mutate(termm = ifelse(grepl("year_abn", term), "slope", "int"),
          site = gsub("site|year_abn:", "", term)) %>% 
@@ -2799,6 +2821,39 @@ png(filename = paste0(p_output, "plots/log2_cohort_coefs_rate_of_change_by_site.
     width = 7, height = 6, units = "in", res = 400)
 print(gg_coef_rate_change_by_site)
 dev.off()
+
+
+
+
+
+# alternatively, I can just pull the second year_abn coefficient from the 
+coef_df2 %>% mutate(
+  year_abn_slope = sapply(lm_log2_year_abn_l, FUN = function(x) coef(x)[2]),
+  diff = estimate_slope - year_abn_slope
+
+)
+
+sapply(lm_log2_year_abn_l, FUN = function(x) coef(x)[2])
+
+ggplot(data = coef_df %>% filter(),
+       mapping = aes(x = year_abn, y = estimate, group = site, color = site)) + 
+  theme_classic() +
+  geom_point(position = position_jitter()) + 
+  #geom_errorbar(mapping = aes(ymin = conf.low, ymax = conf.high), width = 0.3) +
+  labs(y = "Model Coefficient (Power Term)",
+       x = "Cohort (Year of Initial Abandonment)", 
+       title = "Model Coefficients",
+       subtitle = "log(proportion) ~ 0 + log(time_1):cohort",
+       caption = "Error bars represent 95% confidence interval",
+       color = "Site") + 
+  theme(#axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0), 
+        legend.position = "bottom",
+        plot.caption = element_text(face = "italic"),
+        plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm")) + 
+  geom_smooth(method = "lm", se = FALSE) # + 
+  # plot line manually
+  # geom_abline(slope = 8.812e-04 - 5.977038e-03, intercept = 1.004106e+01)
+
 
 ```
 
