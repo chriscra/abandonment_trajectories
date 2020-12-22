@@ -404,14 +404,59 @@ mean_mean_df <- mean_length_df_pivot %>%
             mean_mean = mean(mean_length, na.rm = TRUE))
 
 
-gg_mean_length <- ggplot(data = mean_length_df_pivot) + 
+gg_mean_length <- 
+  ggplot(data = mean_length_df_pivot %>% filter(abn_threshold == "5"),
+         mapping = aes(x = fct_reorder2(site, abn_threshold, desc(mean_length)),
+                       y = mean_length, 
+                       color = length_type)) + 
   theme_classic() +
-  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  theme(axis.text.x = element_text(angle = 330, vjust = 1, hjust = 0),
+        plot.caption = element_text(face = "italic")) +
   labs(title = "Mean length of abandonment",
-       subtitle = "Counting only recultivation of 2 or more continuous years",
-       linetype = NULL) +
-  ylab("Mean length of time abandoned (years)") + xlab("Site") +
-  geom_col(mapping = aes(x = site, y = mean_length), fill = "gray50", width = 0.75) + 
+       #caption = "Counting only recultivation of 2 or more continuous years",
+       linetype = NULL,
+       color = "Mean of:", 
+       y = "Mean length of time abandoned (years)", 
+       x = "Site") +
+  geom_point(size = 2) + 
+  geom_hline(data = mean_mean_df %>% filter(abn_threshold == "5"), 
+             mapping = aes(yintercept = mean_mean, 
+                           col = length_type, 
+                           linetype = "Overall \nMean")) + 
+  scale_linetype_manual(values = c("Overall \nMean" = "dashed")) + 
+    scale_colour_discrete(labels = c(all = "All periods", 
+                                     max = "Max. length \nper pixel")) +
+    guides(color = guide_legend(order = 1))
+    
+
+
+
+# -------------------------------------------------------------------- #
+# ----------------- save ---------------- #
+# -------------------------------------------------------------------- #
+
+png(filename = paste0(p_output, "plots/mean_lengths_b1.png"), 
+    width = 6, height = 5, units = "in", res = 400)
+print(gg_mean_length)
+dev.off()
+
+
+
+
+# ------------ multiple abandonment thresholds ------------ #
+gg_mean_length_all <- 
+  ggplot(data = mean_length_df_pivot,
+         mapping = aes(x = fct_reorder(site, mean_length), y = mean_length, fill = fct_reorder(site, mean_length))) + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0),
+        plot.caption = element_text(face = "italic")) +
+  labs(title = "Mean length of abandonment",
+       caption = "Counting only recultivation of 2 or more continuous years",
+       linetype = NULL,
+       fill = "Site", 
+       y = "Mean length of time abandoned (years)", 
+       x = "Site") +
+  geom_col(width = 0.75) + 
   facet_grid(length_type ~ abn_threshold,
              labeller = labeller(length_type = c(all = "all lengths", #old = "new",
                                                  max = "max length per pixel"),
@@ -422,8 +467,9 @@ gg_mean_length <- ggplot(data = mean_length_df_pivot) +
              show.legend = TRUE,
              # alternatively, just yintercept = 12
              #linetype = "dashed",
-             color = "red", size = 0.75) + 
-  scale_linetype_manual(values = c("mean" = "dashed"))
+             color = "black", size = 0.75) + 
+  scale_linetype_manual(values = c("mean" = "dotted")) + 
+  guides(fill = guide_legend(override.aes = list(linetype = 0)))
 
 
 
@@ -431,10 +477,13 @@ gg_mean_length <- ggplot(data = mean_length_df_pivot) +
 # ----------------- save ---------------- #
 # -------------------------------------------------------------------- #
 
-png(filename = paste0(p_output, "plots/mean_lengths_grid_b1.png"), 
+png(filename = paste0(p_output, "plots/mean_lengths_all_grid_b1.png"), 
     width = 8.5, height = 5, units = "in", res = 400)
-print(gg_mean_length)
+print(gg_mean_length_all)
 dev.off()
+
+
+
 ```
 
 ```{r distill-length-data}

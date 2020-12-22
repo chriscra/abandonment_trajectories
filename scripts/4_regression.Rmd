@@ -2722,22 +2722,6 @@ ggplot(data = coef_df %>% filter(),
 
 
 # with quadrants:
-# fct_reorder(site, mean)
-site_mean_decay_order <- coef_df %>% 
-  mutate(site_n = rep(1:11, each = 26)) %>% 
-  arrange(mean) %>% select(site, site_n) %>% 
-  unique() # %>% .$site_n
-
-coef_df %>% arrange(mean) %>%
-       mutate(#site_n = rep(1:11, each = 26),
-         site_reorder = rep(1:11, each = 26),
-              #site_reorder = rep(site_mean_decay_order, each = 26), 
-              cluster = cut(site_reorder, breaks = 4, include.lowest = TRUE)) %>%
-  select(site, mean, #site_n,
-         site_reorder, cluster) %>% 
-  unique() %>% arrange(site_reorder)
-
-
 gg_log2_cohort_coef_all <- 
   ggplot(data = coef_df %>% 
            arrange(mean) %>%
@@ -2753,7 +2737,7 @@ gg_log2_cohort_coef_all <-
        x = "Cohort (Year of Initial Abandonment)", 
        title = "Model Coefficients", #subtitle = "log(proportion) ~ 0 + log(time_1):cohort",
        color = "Site") + 
-  theme(legend.position = "bottom", 
+  theme(legend.position = "right", 
         plot.caption = element_text(face = "italic"),
         plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm")) + 
   geom_smooth(method = "lm", se = FALSE)  + 
@@ -2764,10 +2748,11 @@ gg_log2_cohort_coef_all <-
     d = "Q4, mean decay rate (slowest)")))
 
 
+
 # ------------------------------------------------------------- #
 # save:
 png(filename = paste0(p_output, "plots/log2_cohort_coefs_all.png"), 
-    width = 7, height = 7, units = "in", res = 400)
+    width = 9, height = 7, units = "in", res = 400)
 print(gg_log2_cohort_coef_all)
 dev.off()
 # ------------------------------------------------------------- #
@@ -2942,10 +2927,36 @@ coef_df2 <- tidy(lm_coef, conf.int = TRUE) %>%
   filter(site != "year_abn")
 
 
+# plot right on:
+# ------------------------ use this one ---------------------------- #
+gg_coef_rate_change_by_site <- ggplot(data = left_join(coef_df2, mean_coef_df0, by = "site"),
+                                      aes(x = fct_reorder(site, estimate_slope), 
+                                          y = estimate_slope, 
+                                          color = fct_reorder(site, mean), 
+                                          fill = fct_reorder(site, mean))) + 
+  theme_classic() +
+  geom_col() + 
+  geom_errorbar(mapping = aes(ymin = conf.low_slope, ymax = conf.high_slope), width = 0.2) +
+  geom_hline(yintercept = 0) + 
+  labs(title = "Changes in Decay Rate over time, by site", 
+       x = "Site", y = "Rate of Change of Model Coefficients (per year)") + 
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0), 
+        legend.position = "none",
+        plot.margin = unit(c(0.4, 0.6, 0.2, 0.2), "cm"))
+
+# save
+png(filename = paste0(p_output, "plots/log2_cohort_coefs_rate_of_change_by_site.png"), 
+    width = 5, height = 5, units = "in", res = 400)
+print(gg_coef_rate_change_by_site)
+dev.off()
+
+
+
 # plot, flipped
-gg_coef_rate_change_by_site_flipped <- ggplot(data = coef_df2 %>% mutate(site = fct_reorder(site, estimate_slope)), 
-                                      aes(x = site, y = estimate_slope, 
-                                          #color = site, fill = site
+gg_coef_rate_change_by_site_flipped <- ggplot(data = left_join(coef_df2, mean_coef_df0, by = "site"), 
+                                      aes(x = fct_reorder(site, estimate_slope), 
+                                          y = estimate_slope, 
+                                          color = fct_reorder(site, mean)
                                           )) + 
   theme_classic() +
   geom_hline(yintercept = 0, linetype = "dashed") + 
@@ -2958,30 +2969,14 @@ gg_coef_rate_change_by_site_flipped <- ggplot(data = coef_df2 %>% mutate(site = 
         plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm")) + 
   coord_flip()
 
-# plot right on:
-gg_coef_rate_change_by_site <- ggplot(data = coef_df2 %>% mutate(site = fct_reorder(site, estimate_slope)), 
-                                      aes(x = site, y = estimate_slope, 
-                                          color = site, fill = site)) + 
-  theme_classic() +
-  geom_col() + 
-  geom_errorbar(mapping = aes(ymin = conf.low_slope, ymax = conf.high_slope), width = 0.3) +
-  geom_hline(yintercept = 0) + 
-  labs(title = "Changes in Decay Rate over time, by site", 
-       x = "Site", y = "Rate of Change of Model Coefficients (per year)") + 
-  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0), 
-        legend.position = "none",
-        plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm"))
-
-
-png(filename = paste0(p_output, "plots/log2_cohort_coefs_rate_of_change_by_site.png"), 
-    width = 7, height = 6, units = "in", res = 400)
-print(gg_coef_rate_change_by_site)
+png(filename = paste0(p_output, "plots/log2_cohort_coefs_rate_of_change_by_site_flip.png"), 
+    width = 5, height = 6, units = "in", res = 400)
+print(gg_coef_rate_change_by_site_flipped)
 dev.off()
 
 
 
-
-
+# -------------------------------------------------------------- #
 # alternatively, I can just pull the second year_abn coefficient from the 
 coef_df2 %>% mutate(
   year_abn_slope = sapply(lm_log2_year_abn_l, FUN = function(x) coef(x)[2]),
@@ -2990,35 +2985,118 @@ coef_df2 %>% mutate(
 )
 
 sapply(lm_log2_year_abn_l, FUN = function(x) coef(x)[2])
-
-ggplot(data = coef_df %>% filter(),
-       mapping = aes(x = year_abn, y = estimate, group = site, color = site)) + 
-  theme_classic() +
-  geom_point(position = position_jitter()) + 
-  #geom_errorbar(mapping = aes(ymin = conf.low, ymax = conf.high), width = 0.3) +
-  labs(y = "Model Coefficient (Power Term)",
-       x = "Cohort (Year of Initial Abandonment)", 
-       title = "Model Coefficients",
-       subtitle = "log(proportion) ~ 0 + log(time_1):cohort",
-       caption = "Error bars represent 95% confidence interval",
-       color = "Site") + 
-  theme(#axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0), 
-        legend.position = "bottom",
-        plot.caption = element_text(face = "italic"),
-        plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm")) + 
-  geom_smooth(method = "lm", se = FALSE) # + 
-  # plot line manually
-  # geom_abline(slope = 8.812e-04 - 5.977038e-03, intercept = 1.004106e+01)
-
-
 ```
 
 # extrapolation
 
-What would the age classes look like in 30 years, if the same decay rate holds?
+Q1. What would the age classes look like in 30 years:
 a) assuming the average decay rate holds for the next 30 years
 b) assuming the trend in decay rate continues for the next 30 years (i.e. slowing down in Shaanxi, speeding up in Belarus)
 c) assuming we shift the decay curve
+
+Q2. What would the mean age of abandoned land look like in 30 years, following the same assumptions?
+
+How to calculate this?
+factors:
+1. initial amount of land abandoned. (drawn from a range of abandoned values, constrained by how much land is available?)
+2. The decay rate - how much of the initial amount of land that was abandoned is still abandoned, in time t? This gives us the proportion of the original amount remaining, which we can then multiply by the initial amount abandoned.
+3. 
+
+```{r extrapolation}
+dat
+
+lm_log2_l$shaanxi
+
+# in the year 2000, how much land is abandoned, according to the decay rates?
+# 1988 cohort, after 13 years of decay + 1989 cohort, after 12 years of decay + 1990 cohort, after 11 years of decay, etc.
+
+filter(dat_l, site == "shaanxi", year == 2000)
+filter(dat_l, site == "shaanxi", year_abn == 2000) %>% 
+  select(initial_area_abn) %>% unique() 
+
+lm_log2_l$shaanxi
+
+# coef
+coef_df %>% filter(site == "shaanxi") %>% .$estimate %>% mean(na.rm = TRUE)
+
+# fitted values, which are equal to the predicted proportion of a given cohort in a given age, using the mean coefficient for the site over the whole time-series.
+filter(fitted_df, site == "shaanxi", age == 6) %>% .$fitted
+
+# year: 2000
+# cohort: 1988, in the year 2000
+filter(dat_l, site == "shaanxi", year_abn == 1988) %>% 
+  select(initial_area_abn) %>% unique() %>% .$initial_area_abn * 
+  filter(fitted_df, site == "shaanxi", age == 2000 - 1988 + 1) %>% .$fitted
+  
+
+data.frame(
+  year_abn = 1988:(2000-4),
+  sapply(1988:(2000-4), FUN = function(i) {
+  filter(dat_l, site == "shaanxi", year_abn == i) %>% 
+    select(initial_area_abn) %>% unique() %>% .$initial_area_abn * 
+    
+    # proportion
+    filter(fitted_df, site == "shaanxi", age == 2000 - i + 1) %>% .$fitted
+})
+)
+
+# to estimate the total area abandoned in a given year, Y
+Y <- 2012
+cc_estimate_area_abn <- function(year) {
+  lapply(1988:(year - 4), FUN = function(i) {
+  data.frame(year_abn = i) %>% 
+    mutate(initial_area_abn = filter(dat_l, site == "shaanxi", year_abn == i) %>%
+             select(initial_area_abn) %>% unique() %>% .$initial_area_abn,
+           exp_proportion = filter(fitted_df, site == "shaanxi", 
+                                   age == year - i + 1) %>% .$fitted,
+           exp_area = initial_area_abn*exp_proportion
+    )
+}) %>% 
+  bind_rows() %>% 
+  summarise(area = sum(exp_area)) %>% as.numeric()
+}
+
+cc_estimate_area_abn(year = 1993)
+sapply(1992:2012, FUN = function(i) {cc_estimate_area_abn(year = i)})
+
+data.frame(year2 = 1992:2017) %>% 
+  mutate(area = sapply(year2, FUN = function(i) {cc_estimate_area_abn(year = i)}))
+
+
+filter(dat_l, site == "shaanxi", year == 2000)
+
+2000-1987
+
+
+test_dat <- filter(dat_l, site == "shaanxi") %>% group_by(year) %>% 
+  summarise(total_abn = sum(area_ha)) %>% 
+  mutate(exp_area = sapply(year, FUN = function(i) {cc_estimate_area_abn(year = i)}))
+
+
+# plot the area, by age class:
+ggplot(data = filter(dat_l, site == "shaanxi"),
+       mapping = aes(x = year, y = area_ha / 10^3, 
+                           fill = cut(age, breaks = 5, right = TRUE))) + 
+    theme_minimal() +
+    labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
+         x = "Year", 
+         title = "Area of Abandoned Land, by Age Class",
+         fill = "Age") +
+    geom_col(position = position_stack(reverse = FALSE)) + 
+    scale_fill_brewer(palette = "Greens", direction = 1) + 
+  scale_y_continuous(n.breaks = 15) + scale_x_continuous(n.breaks = 6) + 
+  geom_line(data = test_dat, mapping = aes(x = year, y = total_abn/10^3), inherit.aes = FALSE) +
+  geom_line(data = test_dat, mapping = aes(x = year, y = exp_area/10^3), inherit.aes = FALSE,
+            color = "red")
+
+
+
+
+```
+
+
+
+
 
 # old half-life stuff
 ```{r half-life-over-time-by-site}
