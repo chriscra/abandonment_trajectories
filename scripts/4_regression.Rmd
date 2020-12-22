@@ -7,8 +7,10 @@ editor_options:
 ```{r initialize}
 source("scripts/0_start.R")
 # this already includes lme4, broom.mixed, etc.
+```
 
 
+```{r regression-packages}
 regression_packages <- c("VIF", "nlme", "MASS", "spdep")
 install_missing_packages(regression_packages)
 library(VIF) # for selecting models for a linear model. Recommended by Liang.
@@ -199,6 +201,9 @@ dat$initial_area_abn # the area (in ha) initially abandoned in a given year (coh
 
 dat$time # is just the adjusted time abandoned beyond the initial abandonment threshold. So, 0 corresponds to an abandonment age of 5, 1 -> 6, 2 -> 7 etc.
 dat$cohort # a factor to be used for cohort
+
+library(tidyr, data.table)
+
 ```
 
 ```{r dat-all-sites}
@@ -220,13 +225,22 @@ dat_l <- lapply(1:11, FUN = function(x) {
 
 names(dat_l) <- site_df$site
 dat_l <- dat_l %>% bind_rows(.id = "site")
+
+dat_l <- mutate(dat_l, site = as_factor(site))
+
 ```
 
 
 ```{r run-lm-all-sites}
-# log-log model
+# log-log model, with cohort fixed effects
 lm_log2_l <- lapply(1:11, FUN = function(i) {
   lm(log(proportion) ~ 0 + log(time_1):cohort,  
+               data = filter(dat_l, site == site_df$site[i]))
+})
+
+# log-log model, without cohort fixed effects
+lm_log2_no_cohort_l <- lapply(1:11, FUN = function(i) {
+  lm(log(proportion) ~ 0 + log(time_1),  
                data = filter(dat_l, site == site_df$site[i]))
 })
 
@@ -249,6 +263,7 @@ lm_0_l <- lapply(1:11, FUN = function(i) {
 })
 
 names(lm_log2_l) <- site_df$site
+names(lm_log2_no_cohort_l) <- site_df$site
 names(lm_log2_year_abn_l) <- site_df$site
 names(lm_log_lin_l) <- site_df$site
 names(lm_0_l) <- site_df$site
@@ -379,6 +394,37 @@ dev.off()
 
 ```
 
+```{r mega-lm}
+# constructing a model of all sites, with cohort and site fixed effects
+str(dat_l)
+
+# log-log model, with cohort and site fixed effects
+lm_log2_cohort_site <- lm(log(proportion) ~ 0 + log(time_1):cohort:site, data = dat_l)
+
+tidy(lm_log2_cohort_site) %>% mutate(site = sub(".*:site", "", term),
+                                     cohort = gsub(".*:cohort|:site.*", "", term))
+tidy(lm_log2_l$belarus)
+
+
+
+
+# just site fixed effects, akin to lm_log2_no_cohort_l
+lm_log2_site <- lm(log(proportion) ~ 0 + log(time_1):site, data = dat_l)
+
+
+lm(log(proportion) ~ 0 + log(time_1):cohort:site, data = dat_l)
+
+dat_l[2092, ]
+augment(lm_log2_cohort_site) %>% filter(.hat < 1) %>% arrange(desc(.hat))
+
+plot(lm_log2_cohort_site, 1)
+plot(lm_log2_site, 1)
+plot(lm_log2_l$shaanxi, 1)
+dev.off()
+
+lm_log2_no_cohort_l$shaanxi
+
+```
 
 
 ```{r basic-persistence-plots}
@@ -2344,6 +2390,55 @@ dat[17:19, ]
 
 ```
 
+```{r diag-plots}
+
+names(lm_log2_l)
+lapply(1:11, FUN = function(x) {
+  print(names(lm_log2_l[[x]]))
+  })
+
+# ----------------------- diagnostics plot, shaanxi ----------------------- #
+png(filename = paste0(p_output, "plots/log2_cohort_diag_s.png"), 
+    width = 8, height = 8, units = "in", res = 400)
+par(mfrow = c(2,2))
+plot(lm_mod_log2_cohort)
+dev.off()
+
+
+# ----------------------- diagnostics plot, all sites in sequence ----------------------- #
+lapply(1:11, FUN = function(i) {
+  
+  png(filename = paste0(p_output, "plots/log2_cohort_diag", site_df$label[i],".png"), 
+    width = 8, height = 8, units = "in", res = 400)
+  par(mfrow = c(2,2))
+  plot(lm_log2_l[[i]], 1, main = site_df$site[i])
+  plot(lm_log2_l[[i]], 2)
+  plot(lm_log2_l[[i]], 3)
+  plot(lm_log2_l[[i]], 4)
+
+  dev.off()
+  
+})
+
+# ----------------------- fitted vs. residuals diag plot ----------------------- #
+png(filename = paste0(p_output, "plots/log2_cohort_diag_resid_v_fitted.png"), 
+    width = 9, height = 8, units = "in", res = 400)
+par(mfrow = c(3, 4))
+for (i in 1:11) plot(lm_log2_l[[i]], 1, main = site_df$site[i])
+dev.off()
+
+
+
+
+
+
+
+
+
+
+```
+
+
 ```{r check-assumptions}
 
 # ------- check assumptions of the lm ------------------------------------------------- #
@@ -2591,6 +2686,20 @@ coef_df <- lapply(lm_log2_l, FUN = function(x) {
   tidy(x, conf.int = TRUE) %>% mutate(year_abn = 1988:2013)
 }) %>% bind_rows(.id = "site")
 
+mean_coef_df0 <- coef_df %>% 
+  group_by(site) %>% 
+  summarise(mean = mean(estimate, na.rm = TRUE),
+            mean_low = mean(conf.low, na.rm = TRUE),
+            mean_high = mean(conf.high, na.rm = TRUE)) %>% 
+  mutate(term = "coef")
+
+
+coef_df <- left_join(coef_df, 
+                     mean_coef_df0 %>% select(-term),
+                     by = "site")
+
+
+
 # plot all coefficients
 ggplot(data = coef_df %>% filter(),
        mapping = aes(x = year_abn, y = estimate, group = site, color = site)) + 
@@ -2613,51 +2722,97 @@ ggplot(data = coef_df %>% filter(),
 
 
 # with quadrants:
-gg_log2_cohort_coef_all <- ggplot(data = coef_df %>% 
-       mutate(site_n = rep(1:11, each = 26), 
-              cluster = cut(site_n, breaks = 4),
-              # to customize which site is in which quadrant
-              cluster1 = ifelse(site_n %in% c(1, 5, 10), "a",
-                               ifelse(site_n %in% c(2, 6, 11), "b",
-                                      ifelse(site_n %in% c(3, 7, 9), "c", 
-                                             ifelse(site_n %in% c(4, 8), "d", NA))))),
-       mapping = aes(x = year_abn, y = estimate, group = site, color = site)) + 
+# fct_reorder(site, mean)
+site_mean_decay_order <- coef_df %>% 
+  mutate(site_n = rep(1:11, each = 26)) %>% 
+  arrange(mean) %>% select(site, site_n) %>% 
+  unique() # %>% .$site_n
+
+coef_df %>% arrange(mean) %>%
+       mutate(#site_n = rep(1:11, each = 26),
+         site_reorder = rep(1:11, each = 26),
+              #site_reorder = rep(site_mean_decay_order, each = 26), 
+              cluster = cut(site_reorder, breaks = 4, include.lowest = TRUE)) %>%
+  select(site, mean, #site_n,
+         site_reorder, cluster) %>% 
+  unique() %>% arrange(site_reorder)
+
+
+gg_log2_cohort_coef_all <- 
+  ggplot(data = coef_df %>% 
+           arrange(mean) %>%
+           mutate(site_reorder = rep(1:11, each = 26),
+                  cluster = cut(site_reorder, breaks = c(1, 3, 6, 9, 11),
+                                labels = c("a", "b", "c", "d"), 
+                                include.lowest = TRUE),
+                  mean_coef = cut(mean, breaks = 4)),
+         mapping = aes(x = year_abn, y = estimate, color = fct_reorder(site, mean))) +
   theme_classic() +
-  geom_point(position = position_jitter()) + 
-  #geom_errorbar(mapping = aes(ymin = conf.low, ymax = conf.high), width = 0.3) +
+  geom_point(size = 2) + 
   labs(y = "Model Coefficient (Power Term)",
        x = "Cohort (Year of Initial Abandonment)", 
-       title = "Model Coefficients",
-       subtitle = "log(proportion) ~ 0 + log(time_1):cohort",
-       #caption = "Error bars represent 95% confidence interval",
+       title = "Model Coefficients", #subtitle = "log(proportion) ~ 0 + log(time_1):cohort",
        color = "Site") + 
-  theme(#axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0), 
-        legend.position = "bottom",
+  theme(legend.position = "bottom", 
         plot.caption = element_text(face = "italic"),
         plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm")) + 
   geom_smooth(method = "lm", se = FALSE)  + 
-  facet_wrap(vars(cluster)) + 
-  theme(strip.background = element_blank(), strip.text = element_blank())
+  facet_wrap(~ cluster, labeller = labeller(cluster = c(#old = "new",
+    a = "Q1, mean decay rate (fastest)",
+    b = "Q2, mean decay rate",
+    c = "Q3, mean decay rate",
+    d = "Q4, mean decay rate (slowest)")))
 
+
+# ------------------------------------------------------------- #
 # save:
 png(filename = paste0(p_output, "plots/log2_cohort_coefs_all.png"), 
     width = 7, height = 7, units = "in", res = 400)
 print(gg_log2_cohort_coef_all)
 dev.off()
+# ------------------------------------------------------------- #
+
+
+
+
+
+
+
+
+# ---------------------------------------- #
+# tester:
+ggplot(data = coef_df %>% 
+       mutate(site_n = rep(1:11, each = 26),
+              site_reorder = rep(site_mean_decay_order, each = 26), 
+              cluster = cut(site_reorder, breaks = 4, include.lowest = TRUE),
+              # to customize which site is in which quadrant
+              cluster1 = ifelse(site_n %in% c(1, 5, 10), "a",
+                               ifelse(site_n %in% c(2, 6, 11), "b",
+                                      ifelse(site_n %in% c(3, 7, 9), "c", 
+                                             ifelse(site_n %in% c(4, 8), "d", NA))))),
+       mapping = aes(x = year_abn, y = estimate, 
+                     group = fct_reorder(site, mean), color = fct_reorder(site, mean))) +
+  theme_classic() +
+  geom_point(position = position_jitter()) + 
+  theme(legend.position = "bottom") + 
+  geom_smooth(method = "lm", se = FALSE)  + 
+  facet_wrap(vars(cluster))
 ```
 
-```{r mean-coef-per-site}
-# mean_coef per site
-mean_coef_df <- coef_df %>% 
-  group_by(site) %>% 
-  summarise(mean = mean(estimate, na.rm = TRUE),
-            mean_low = mean(conf.low, na.rm = TRUE),
-            mean_high = mean(conf.high, na.rm = TRUE)) %>% 
-  mutate(term = "coef")
 
-mean_coef_df <- bind_rows(mean_coef_df, 
+
+
+
+```{r mean-coef-per-site}
+# mean_coef per site, see from above
+mean_coef_df0
+
+# calculate the proportion remaining at various times 
+mean_coef_df <- bind_rows(mean_coef_df0, 
+                          
+                          # time = i + 4 (since time_1 is age - 4)
                           lapply(c(6, 16, 26, 36, 46), FUN = function(x) {
-                            mean_coef_df %>%
+                            mean_coef_df0 %>%
                               mutate(mean = x^(mean),
                                      mean_low = x^(mean_low),
                                      mean_high = x^(mean_high),
@@ -2737,14 +2892,15 @@ fitted_df <- lapply(site_df$site, FUN = function(x) {
 
 # plot it, reordering the factors by the coefficient (to make the legend easier to read)
 gg_model_curves_by_site <- ggplot(data = fitted_df, 
-       mapping = aes(x = age, y = fitted, color = fct_reorder(site, desc(coef)))) +
+       mapping = aes(x = age, y = fitted, color = fct_reorder(site, coef))) +
   geom_line() +
   geom_hline(yintercept = 0.5, linetype = "dashed") + 
   labs(title = "Decay of abandoned land over time", 
        caption = "lm formula: log(proportion) ~ 0 + log(time_1):cohort",
        x = "Time since initial abandonment (years)", 
        y = "Proportion of abandoned land remaining",
-       color = "Site")
+       color = "Site") + 
+  guides(col = guide_legend(reverse = TRUE))
 
 
 png(filename = paste0(p_output, "plots/model_decay_curves_by_site.png"), 

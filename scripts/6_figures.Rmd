@@ -412,7 +412,7 @@ gg_mean_length <- ggplot(data = mean_length_df_pivot) +
        linetype = NULL) +
   ylab("Mean length of time abandoned (years)") + xlab("Site") +
   geom_col(mapping = aes(x = site, y = mean_length), fill = "gray50", width = 0.75) + 
-  facet_grid(vars(length_type), vars(abn_threshold),
+  facet_grid(length_type ~ abn_threshold,
              labeller = labeller(length_type = c(all = "all lengths", #old = "new",
                                                  max = "max length per pixel"),
                                  abn_threshold = c("1" = "abn threshold = 1",
