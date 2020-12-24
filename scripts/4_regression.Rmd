@@ -417,12 +417,33 @@ lm(log(proportion) ~ 0 + log(time_1):cohort:site, data = dat_l)
 dat_l[2092, ]
 augment(lm_log2_cohort_site) %>% filter(.hat < 1) %>% arrange(desc(.hat))
 
+dat_l[-2092, ]
 plot(lm_log2_cohort_site, 1)
+
 plot(lm_log2_site, 1)
 plot(lm_log2_l$shaanxi, 1)
 dev.off()
 
 lm_log2_no_cohort_l$shaanxi
+
+
+
+# diagnostic plots
+png(filename = paste0(p_output, "plots/resid_fitted_mega_lm.png"), 
+    width = 5, height = 5, units = "in", res = 400)
+# without the outlier:
+plot(lm(log(proportion) ~ 0 + log(time_1):cohort:site, data = dat_l[-2092, ]), 1, main = "Model with all sites, all cohorts")
+dev.off()
+
+png(filename = paste0(p_output, "plots/mega_lm_diag_plots.png"), 
+    width = 7, height = 7, units = "in", res = 400)
+par(mfrow = c(2,2))
+plot(lm(log(proportion) ~ 0 + log(time_1):cohort:site, data = dat_l[-2092, ]), main = "Model with all sites, all cohorts")
+dev.off()
+
+# need to run again without the values that it drops
+car::qqPlot(lm(log(proportion) ~ 0 + log(time_1):cohort:site, 
+               data = filter(dat_l[-2092, ], year_abn < 2013)))
 
 ```
 
@@ -1564,6 +1585,11 @@ resid_df <- bind_cols(select(dat, year, year_abn, initial_area_abn,
                              cohort1 = cohort),
                       augment(lm_mod_log2_cohort))
 
+resid_df_all <- bind_cols(select(dat_l, year, year_abn, initial_area_abn, 
+                             area_ha, age, proportion, time, time_1, 
+                             cohort1 = cohort),
+                      augment(lm_log2_cohort_site))
+
 gg_resid_1 <- ggplot(data = resid_df, aes(x = time, y = .std.resid, color = year_abn)) + 
   geom_point() + scale_color_distiller(palette = "Greens") + labs(y = "Residuals", x = "Time Past Abandonment Threshold")
 
@@ -1572,12 +1598,20 @@ gg_resid_2 <- ggplot(data = resid_df, aes(x = initial_area_abn, y = .std.resid, 
   labs(y = "Residuals", x = "Initial Area Abandoned") + theme(legend.position = "none")
 
 
-# save
+# save, shaanxi
 png(filename = paste0(p_output, "plots/log2_cohort_resid_s.png"), 
     width = 10, height = 5, units = "in", res = 400)
 plot_grid(gg_resid_1, gg_resid_2, rel_widths = c(1.2, 1))
 dev.off()
 
+
+# save
+png(filename = paste0(p_output, "plots/log2_cohort_resid_all.png"), 
+    width = 10, height = 5, units = "in", res = 400)
+plot_grid(gg_resid_1 %+% resid_df_all[-2092, ],
+          gg_resid_2 %+% resid_df_all[-2092, ], 
+          rel_widths = c(1.2, 1))
+dev.off()
 
 
 ```
@@ -3042,6 +3076,7 @@ data.frame(
 
 # to estimate the total area abandoned in a given year, Y
 Y <- 2012
+i <- 2012
 cc_estimate_area_abn <- function(year) {
   lapply(1988:(year - 4), FUN = function(i) {
   data.frame(year_abn = i) %>% 
@@ -3052,25 +3087,32 @@ cc_estimate_area_abn <- function(year) {
            exp_area = initial_area_abn*exp_proportion
     )
 }) %>% 
-  bind_rows() %>% 
-  summarise(area = sum(exp_area)) %>% as.numeric()
+  bind_rows() #%>% summarise(area = sum(exp_area)) %>% as.numeric()
 }
 
-cc_estimate_area_abn(year = 1993)
-sapply(1992:2012, FUN = function(i) {cc_estimate_area_abn(year = i)})
+cc_estimate_area_abn(year = 2017)
+mean_coef_df %>% as_tibble()
 
-data.frame(year2 = 1992:2017) %>% 
-  mutate(area = sapply(year2, FUN = function(i) {cc_estimate_area_abn(year = i)}))
+sapply(1992:2012, FUN = function(i) {cc_estimate_area_abn(year = i)})
 
 
 filter(dat_l, site == "shaanxi", year == 2000)
 
-2000-1987
+filter(dat_l, site == "shaanxi") %>% select(year_abn, initial_area_abn) %>% unique() %>% .$initial_area_abn %>% mean()
 
+ggplot(data = filter(dat_l, site == "shaanxi") %>% 
+         select(year_abn, initial_area_abn) %>% unique(),
+       mapping = aes(x = year_abn, y = initial_area_abn)) +
+  geom_col()
 
 test_dat <- filter(dat_l, site == "shaanxi") %>% group_by(year) %>% 
   summarise(total_abn = sum(area_ha)) %>% 
   mutate(exp_area = sapply(year, FUN = function(i) {cc_estimate_area_abn(year = i)}))
+
+test_dat %>% print(n = 30)
+
+
+
 
 
 # plot the area, by age class:
@@ -3090,8 +3132,28 @@ ggplot(data = filter(dat_l, site == "shaanxi"),
             color = "red")
 
 
+# next steps: I think this is working... but I need to double check that the expected area calculation is correct. And then I need to figure out a way to extrapolate the initial_area_abn, so I can carry out the extrapolation farther into the future.
 
+# rather than the fitted_df, calculate the expected proportion directly from the coef.
 
+x <- "shaanxi"
+data.frame(site = x,
+           time = 1:100,
+           coef = filter(mean_coef_df, term == "coef", site == x)$mean) %>%
+    mutate(fitted = time ^ coef,
+           age = time + 4) %>% as_tibble()
+
+filter(dat_l, site == "shaanxi") %>%
+             select(year_abn, initial_area_abn) %>% unique()
+
+data.frame(site = x, 
+           time = 1:100,
+           coef = filter(mean_coef_df, term == "coef", site == x)$mean) %>% 
+  mutate(exp_proportion = time ^ coef,
+         age = time + 4
+         )
+
+# ..... ? need to figure out a good way to add the average initial_area_abn to the df, and then recalculate the exp_proportion directly from the coef, and then calculate the sum. 
 ```
 
 
