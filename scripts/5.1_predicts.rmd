@@ -300,6 +300,49 @@ ecoregions %>%
   filter(WWF_MHTNAM == "Deserts and Xeric Shrublands") %>%
   st_drop_geometry() %>%
   select(ECODE_NAME)
+
+
+ecoregions %>% 
+  st_drop_geometry() %>%
+  filter(WWF_MHTNAM == "Deserts and Xeric Shrublands",
+         WWF_REALM2 == "Nearctic") %>%
+  select(ECO_NAME, WWF_REALM2, WWF_MHTNAM)
+
+ecoregions %>%
+  filter(WWF_MHTNAM == "Deserts and Xeric Shrublands",
+         WWF_REALM2 == "Nearctic") %>% 
+  st_geometry() %>%
+  plot()
+
+
+png(filename = "/Users/christophercrawford/Desktop/north_american_deserts.png", 
+    width = 8, height = 8, units = "in", res = 400)
+
+# plotting:
+ggplot() + 
+  # coord_sf(CRS = st_crs("+proj=eck4")) + 
+  geom_sf(data = filter(ecoregions, 
+                        WWF_MHTNAM == "Deserts and Xeric Shrublands",
+                        WWF_REALM2 == "Nearctic"), 
+          mapping = aes(fill = ECO_NAME)) + 
+  # geom_sf_label(data = filter(ecoregions, 
+  #                       WWF_MHTNAM == "Deserts and Xeric Shrublands",
+  #                       WWF_REALM2 == "Nearctic"), aes(label = ECO_NAME)) + 
+  geom_label_repel(data = filter(ecoregions, 
+                        WWF_MHTNAM == "Deserts and Xeric Shrublands",
+                        WWF_REALM2 == "Nearctic"),
+                   aes(label = ECO_NAME, geometry = geometry),
+                   stat = "sf_coordinates",
+                   min.segment.length = 0.0, segment.alpha = 1,
+                   point.padding = 0.2, box.padding = 0.2,
+                   label.size = 0.3, color = "black") +
+    theme_classic() +
+  labs(title = "North American Deserts & Xeric Shrublands") +
+  theme(legend.position = "right")
+
+dev.off()
+
+
 ```
 
 
