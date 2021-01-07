@@ -184,7 +184,6 @@ dat <- left_join(dat,
 dat0 <- select(dat, time_1, age, initial_area_abn, cohort, year_abn) # for predictions
 
 
-
 # variables of interest
 
 dat$proportion # response variable: the proportion of originally abandoned land that remains in a given year. 
@@ -194,13 +193,16 @@ dat$year_abn # cohort of land abandoned in a particular year, which is then foll
 dat$count # number of pixels, from which area is determined
 dat$area_ha # area abandoned, of a given cohort
 dat$age # how long that land in that cohort has been abandoned for
-dat$time # age - 5 
+
+dat$time # age - 5; adjusted time abandoned beyond the initial abandonment threshold. So, 0 corresponds to an abandonment age of 5, 1 -> 6, 2 -> 7 etc.
+
+dat$time_1 # age - 4 (i.e. time + 1). This is so that time starts from 1, to avoid issues with taking the log of 0. 
+
 dat$bins # bins of abandoned land of similar ages (5-10 years)
 dat$year_abn_bins # bins of land abandoned during the same five to six year window
 dat$initial_area_abn # the area (in ha) initially abandoned in a given year (cohort)
 
-dat$time # is just the adjusted time abandoned beyond the initial abandonment threshold. So, 0 corresponds to an abandonment age of 5, 1 -> 6, 2 -> 7 etc.
-dat$cohort # a factor to be used for cohort
+dat$cohort # a factor of "year_abn" to be used for cohort 
 
 library(tidyr, data.table)
 
@@ -227,6 +229,21 @@ names(dat_l) <- site_df$site
 dat_l <- dat_l %>% bind_rows(.id = "site")
 
 dat_l <- mutate(dat_l, site = as_factor(site))
+
+dat_l_0 <- select(dat_l, site, time_1, age, initial_area_abn, cohort, year_abn) # for predictions
+
+object_size(dat_l)
+glimpse(dat_l)
+
+write_csv(dat_l, path = paste0(p_dat_derived, "abn_decay_data.csv"))
+
+# when reloading, must restructure factors:
+dat_l <- read_csv(file = paste0(p_dat_derived, "abn_decay_data.csv"))
+dat_l <- mutate(dat_l, 
+                site = as.factor(site),
+                bins = as.factor(bins),
+                year_abn_bins = as.factor(year_abn_bins),
+                cohort = as.factor(cohort))
 
 ```
 
@@ -308,28 +325,23 @@ for (i in 1:11) {
 ```
 
 ```{r compare-AIC-all-sites}
+mod_AIC <- lapply(
+  list("lm_log2_l" = lm_log2_l,
+       "lm_log2_no_cohort_l" = lm_log2_no_cohort_l,
+       "lm_log2_year_abn_l" = lm_log2_year_abn_l,
+       "lm_log_lin_l" = lm_log_lin_l,
+       "lm_0_l" = lm_0_l), 
+  FUN = function(x) {
+    lapply(x, FUN = function(y) {glance(y)}) %>% bind_rows(.id = "site")
+    }
+  ) %>% 
+  bind_rows(.id = "mod") %>% 
+  select(site, AIC, mod, everything()) %>% 
+  arrange(site, AIC)
 
-lm_glance1 <- lapply(lm_log2_l, FUN = function(x) {
-  glance(x)
-}) %>% bind_rows(.id = "site") %>% mutate(mod = "log2_cohort") %>% select(site, AIC, mod, everything()) %>% arrange(AIC)
-
-lm_glance2 <- lapply(lm_log2_year_abn_l, FUN = function(x) {
-  glance(x)
-}) %>% bind_rows(.id = "site") %>% mutate(mod = "log2_year_abn") %>% select(site, AIC, mod, everything()) %>% arrange(AIC)
-
-lm_glance3 <- lapply(lm_log_lin_l, FUN = function(x) {
-  glance(x)
-}) %>% bind_rows(.id = "site") %>% mutate(mod = "log_lin_cohort") %>% select(site, AIC, mod, everything()) %>% arrange(AIC)
-
-lm_glance4 <- lapply(lm_0_l, FUN = function(x) {
-  glance(x)
-}) %>% bind_rows(.id = "site") %>% mutate(mod = "log_lin_0") %>% select(site, AIC, mod, everything()) %>% arrange(AIC)
-
-
-lm_g <- bind_rows(lm_glance1, lm_glance2, lm_glance3, lm_glance4)
 
 # view results
-lm_g %>% arrange(site, AIC) %>% select(site, AIC, mod, adj.r.squared) %>% print(n = 44)
+mod_AIC %>% arrange(site, AIC) %>% select(site, AIC, mod, adj.r.squared) %>% print(n = 55)
 
 # at all sites, the log-log cohort model has the lowest AIC (i.e. best performance)... except Nebraska! Will check that out next.
 
@@ -398,17 +410,28 @@ dev.off()
 # constructing a model of all sites, with cohort and site fixed effects
 str(dat_l)
 
+# ------------------------------------------------ #
 # log-log model, with cohort and site fixed effects
+# ------------------------------------------------ #
 lm_log2_cohort_site <- lm(log(proportion) ~ 0 + log(time_1):cohort:site, data = dat_l)
 
 tidy(lm_log2_cohort_site) %>% mutate(site = sub(".*:site", "", term),
-                                     cohort = gsub(".*:cohort|:site.*", "", term))
-tidy(lm_log2_l$belarus)
+                                     year_abn = as.integer(gsub(".*:cohort|:site.*", "", term)),
+                                     cohort = as.factor(year_abn)) %>%
+  filter(site == "belarus")
+
+# note: the coefficients seem to be (almost) exactly the same as the individual sites:
+test <- tidy(lm_log2_cohort_site) %>% 
+  mutate(site = sub(".*:site", "", term),
+         year_abn = as.integer(gsub(".*:cohort|:site.*", "", term)),
+         cohort = as.factor(year_abn))
+
+left_join(coef_df, test, by = c("site", "cohort")) %>%
+  mutate(diff = estimate.x - estimate.y) %>% filter(diff > 0) %>% .$diff #%>% print(n = 50)
 
 
 
-
-# just site fixed effects, akin to lm_log2_no_cohort_l
+# ---------- mega lm, with just site fixed effects, akin to lm_log2_no_cohort_l --------- #
 lm_log2_site <- lm(log(proportion) ~ 0 + log(time_1):site, data = dat_l)
 
 
@@ -428,7 +451,9 @@ lm_log2_no_cohort_l$shaanxi
 
 
 
+# ------------------------------------------------ #
 # diagnostic plots
+# ------------------------------------------------ #
 png(filename = paste0(p_output, "plots/resid_fitted_mega_lm.png"), 
     width = 5, height = 5, units = "in", res = 400)
 # without the outlier:
@@ -1160,6 +1185,8 @@ plot_grid(p1, p2, p3, p4, p5, p6)
 # lm_mod_log2_cohort <- lm(log(proportion) ~ 0 + log(age):cohort, data = dat)
 
 lm_mod_log2_cohort <- lm(log(proportion) ~ 0 + log(time_1):cohort, data = dat)
+
+plot(lm_mod_log2_cohort)
 summary(lm_mod_log2_cohort)
 tidy(lm_mod_log2_cohort)
 glance(lm_mod_log2_cohort)
@@ -2717,23 +2744,42 @@ dev.off()
 ```{r coef-all-sites}
 # extract coefficients for log-log-cohort model for all sites
 coef_df <- lapply(lm_log2_l, FUN = function(x) {
-  tidy(x, conf.int = TRUE) %>% mutate(year_abn = 1988:2013)
+  tidy(x, conf.int = TRUE) %>% 
+    mutate(year_abn = as.integer(gsub(".*cohort", "", term)),
+           cohort = as.factor(year_abn))
 }) %>% bind_rows(.id = "site")
 
-mean_coef_df0 <- coef_df %>% 
+# mean_coef per site
+mean_coef_df <- coef_df %>% 
   group_by(site) %>% 
   summarise(mean = mean(estimate, na.rm = TRUE),
             mean_low = mean(conf.low, na.rm = TRUE),
             mean_high = mean(conf.high, na.rm = TRUE)) %>% 
   mutate(term = "coef")
 
-
+# join to all coef df
 coef_df <- left_join(coef_df, 
-                     mean_coef_df0 %>% select(-term),
+                     mean_coef_df %>% select(-term),
                      by = "site")
 
 
+# calculate the proportion remaining at various times, projection
+mean_coef_proj <- bind_rows(mean_coef_df, 
+                          
+                          # time = i + 4 (since time_1 is age - 4)
+                          lapply(c(6, 16, 26, 36, 46), FUN = function(x) {
+                            mean_coef_df %>%
+                              mutate(mean = x^(mean),
+                                     mean_low = x^(mean_low),
+                                     mean_high = x^(mean_high),
+                                     term = paste0("p", x + 4))
+                            }))
 
+mean_coef_proj %>% select(term) %>% unique
+```
+
+
+```{r plot-coef-all-sites}
 # plot all coefficients
 ggplot(data = coef_df %>% filter(),
        mapping = aes(x = year_abn, y = estimate, group = site, color = site)) + 
@@ -2822,27 +2868,13 @@ ggplot(data = coef_df %>%
 
 
 
-```{r mean-coef-per-site}
-# mean_coef per site, see from above
-mean_coef_df0
-
-# calculate the proportion remaining at various times 
-mean_coef_df <- bind_rows(mean_coef_df0, 
-                          
-                          # time = i + 4 (since time_1 is age - 4)
-                          lapply(c(6, 16, 26, 36, 46), FUN = function(x) {
-                            mean_coef_df0 %>%
-                              mutate(mean = x^(mean),
-                                     mean_low = x^(mean_low),
-                                     mean_high = x^(mean_high),
-                                     term = paste0("p", x + 4))
-                            }))
+```{r plot-mean-coef-per-site}
 
 # quasi half-lives
 lapply(lm_log2_l, FUN = function(i) cc_half_life(i, confint = TRUE)) %>% bind_rows(.id = "site")
 
 
-gg_mean_coef_site <- ggplot(data = mean_coef_df %>% filter(term == "coef"),
+gg_mean_coef_site <- ggplot(data = mean_coef_proj %>% filter(term == "coef"),
                             mapping = aes(x = mean, y = fct_reorder(site, mean))) + 
   theme_classic() +
   geom_point() + 
@@ -2861,7 +2893,7 @@ print(gg_mean_coef_site)
 dev.off()
 
 
-gg_example_proportions_by_site <- ggplot(data = mean_coef_df %>% filter(term != "coef"),
+gg_example_proportions_by_site <- ggplot(data = mean_coef_proj %>% filter(term != "coef"),
                               mapping = aes(y = mean, x = fct_reorder(site, desc(mean)),
                                             ymin = mean_low, ymax = mean_high, #col = site, 
                                             group = term, color = term)) + 
@@ -2904,7 +2936,7 @@ dev.off()
 fitted_df <- lapply(site_df$site, FUN = function(x) {
   data.frame(site = x,
              time = 1:50,
-             coef = filter(mean_coef_df, term == "coef", site == x)$mean) %>%
+             coef = filter(mean_coef_proj, term == "coef", site == x)$mean) %>%
     mutate(fitted = time ^ coef,
            age = time + 4)
 }) %>% bind_rows()
@@ -2929,7 +2961,7 @@ dev.off()
 
 
 # could also manually reorder the factors like so:
-coef_level_order <- mean_coef_df %>% 
+coef_level_order <- mean_coef_proj %>% 
   filter(term == "coef") %>% 
   arrange(desc(mean)) %>% 
   select(site) %>% 
