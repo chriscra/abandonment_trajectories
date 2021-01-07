@@ -1,0 +1,317 @@
+---
+title: "Abandonment Decay Model Explorations"
+author: "Christopher Crawford, Princeton University"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+editor_options:
+  chunk_output_type: console
+---
+This document is designed to should do the following:
+1. Load the packages you need and the data on abandonment decay (I label “dat_l" in the script). This chunk also includes descriptions of each of the variables.
+2. Run the current iteration of the linear model, with the log log structure and cohort as a fixed effect, for just one site out of eleven (Shaanxi, in this example)
+3. Use lapply() to run five versions of the model across all 11 sites.
+4. Plot the results of just one site (Shaanxi, in this example). Note the variables on the x-axis. There are two ways to plot this (with age, which starts at 5, or with time_1, which starts at 1. 
+5. Plot and save the diagnostic plots for all 11 sites, first sequentially and then the fitted v. Residuals plot in one mondo figure.
+6. Run a single lm for all sites, with the log-log structure and cohort and now site as fixed effects.
+7. Try a model including a log term for time as well as a linear term for time.
+8. Plot residuals vs. covariates.
+
+```{r packages, include = FALSE}
+# packages_list <- c("tidyverse")
+library(tidyverse)
+library(tidymodels)
+```
+
+
+```{r load-data, include = FALSE}
+# update this path to wherever you want to keep the data, output plots, etc.
+your_path <- "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/" # 
+
+
+site_names <- c("belarus", "bosnia_herzegovina", "chongqing", "goias", "iraq", "mato_grosso", "nebraska", "orenburg", "shaanxi", "volgograd", "wisconsin")
+
+# load the data
+dat_l <- read_csv(file = paste0(your_path, "abn_decay_data.csv"))
+
+# restructure factors and such
+dat_l <- mutate(dat_l, 
+                site = as.factor(site),
+                bins = as.factor(bins),
+                year_abn_bins = as.factor(year_abn_bins),
+                cohort = as.factor(cohort))
+
+
+# select just a subset of this, for model predictions with augment() - this is only really used for a few things
+dat_l_0 <- select(dat_l, site, time_1, age, initial_area_abn, cohort, year_abn)
+
+
+str(dat_l)
+# variables:
+# variables of interest
+
+dat_l$site %>% unique() # 11 sites in the dataset.
+
+dat_l$proportion # response variable: the proportion of originally abandoned land that remains in a given year. 
+dat_l$year # the current year, allowing us to measure area abandoned in the current year, relative to the amount initially abandoned
+dat_l$year_abn # cohort of land abandoned in a particular year, which is then followed year after year to track persistence
+# ^ probably should be a factor
+dat_l$count # number of pixels, from which area is determined
+dat_l$area_ha # area abandoned, of a given cohort
+dat_l$age # how long that land in that cohort has been abandoned for
+
+dat_l$time # age - 5; adjusted time abandoned beyond the initial abandonment threshold. So, 0 corresponds to an abandonment age of 5, 1 -> 6, 2 -> 7 etc.
+
+dat_l$time_1 # age - 4 (i.e. time + 1). This is so that time starts from 1, to avoid issues with taking the log of 0. 
+
+dat_l$bins # bins of abandoned land of similar ages (5-10 years)
+dat_l$year_abn_bins # bins of land abandoned during the same five to six year window
+dat_l$initial_area_abn # the area (in ha) initially abandoned in a given year (cohort)
+
+dat_l$cohort # a factor of "year_abn" to be used for cohort 
+```
+
+
+# Testing for just one site:
+```{r lm-log-log-cohort}
+# log-log, with cohort fixed effects: for just one site
+
+lm_mod_log2_cohort <- lm(log(proportion) ~ 0 + log(time_1):cohort, data = filter(dat_l, site == "shaanxi"))
+par(mfrow = c(2,2))
+plot(lm_mod_log2_cohort)
+
+
+summary(lm_mod_log2_cohort)
+broom::tidy(lm_mod_log2_cohort)
+broom::glance(lm_mod_log2_cohort)
+formula(lm_mod_log2_cohort)
+broom::augment(lm_mod_log2_cohort)
+
+```
+
+```{r lm-lapply}
+# run lms for each site individually, store in lists.
+
+# log-log model, with cohort fixed effects
+lm_log2_l <- lapply(1:11, FUN = function(i) {
+  lm(log(proportion) ~ 0 + log(time_1):cohort,  
+               data = filter(dat_l, site == site_names[i]))
+})
+
+# log-log model, without cohort fixed effects
+lm_log2_no_cohort_l <- lapply(1:11, FUN = function(i) {
+  lm(log(proportion) ~ 0 + log(time_1),  
+               data = filter(dat_l, site == site_names[i]))
+})
+
+# log-log model, with year_abn (continuous) rather than the categorical cohort
+lm_log2_year_abn_l <- lapply(1:11, FUN = function(i) {
+  lm(log(proportion) ~ 0  + log(time_1) + log(time_1):year_abn,  
+               data = filter(dat_l, site == site_names[i]))
+})
+
+# lon-linear (exp. decay)
+lm_log_lin_l <- lapply(1:11, FUN = function(i) {
+  lm(log(proportion) ~ 0 + time:cohort,  
+               data = filter(dat_l, site == site_names[i]))
+})
+
+# linear
+lm_0_l <- lapply(1:11, FUN = function(i) {
+  lm(log(proportion) ~ 0 + time,  
+               data = filter(dat_l, site == site_names[i]))
+})
+
+names(lm_log2_l) <- site_names
+names(lm_log2_no_cohort_l) <- site_names
+names(lm_log2_year_abn_l) <- site_names
+names(lm_log_lin_l) <- site_names
+names(lm_0_l) <- site_names
+```
+
+
+```{r plotting-one-site}
+# ----------------------- log-log cohort plot ----------------------- #
+
+# plot with age on the x-axis
+ggplot(mapping = aes(x = age, y = proportion, group = year_abn, color = year_abn)) + 
+  geom_point(data = filter(dat_l, site == "shaanxi")) + 
+  scale_color_distiller(palette = "Greens") + 
+  scale_x_continuous(n.breaks = 30) + 
+  labs(title = "Decay of abandoned land over time", #subtitle = site_df$description[indx], 
+       caption = "lm formula: log(proportion) ~ 0 + log(time_1):cohort",
+       x = "Time since initial abandonment (years)", y = "Proportion of abandoned land remaining",
+       color = "Cohort (Year \nFirst Abandoned)") + 
+  
+  # add the lm curves, with predictions (this works because the "newdata" df has "age" in it, as well as "time_1")
+  geom_line(data = mutate(augment(lm_mod_log2_cohort, newdata = filter(dat_l_0, site == "shaanxi")),
+                          proportion = exp(.fitted))) + 
+  
+  # add the mean coefficient (needs to be transformed 4 to the right, so that plotting works)
+  geom_function(fun = function(x) { (x-4) ^ (mean(coef(lm_log2_l$shaanxi), na.rm = TRUE))},
+                mapping = aes(linetype = "Mean Decay Rate"),
+                color = "blue", size = 1, #linetype = "dashed", 
+                inherit.aes = FALSE) +
+  scale_linetype(name = "")
+
+
+
+# ----------------------------- #
+# plot with time_1 on the x-axis
+
+ggplot(data = filter(dat_l, site == "shaanxi"), 
+       mapping = aes(x = time_1, y = proportion, group = year_abn, color = year_abn)) + 
+  geom_point() + scale_color_distiller(palette = "Greens") + 
+  geom_line(data = mutate(augment(lm_mod_log2_cohort), # or augment(lm_log2_l$shaanxi)
+                          time_1 = exp(`log(time_1)`),
+                          proportion = exp(.fitted),
+                          year_abn = as.numeric(levels(cohort))[cohort])) + 
+  scale_x_continuous(n.breaks = 30) + 
+  
+  # the mean coefficient
+  geom_function(fun = function(x) { x ^ mean(coef(lm_mod_log2_cohort), na.rm = TRUE)},
+                size = 1, linetype = "dashed", inherit.aes = FALSE)
+
+```
+
+
+
+```{r plotting-diagnostics}
+
+# ----------------------- diagnostics plot, for all 11 sites in sequence ----------------------- #
+lapply(1:11, FUN = function(i) {
+  
+  png(filename = paste0(your_path, "log2_cohort_diag_", names(lm_log2_l[i]),".png"), 
+    width = 8, height = 8, units = "in", res = 400)
+  par(mfrow = c(2,2))
+  plot(lm_log2_l[[i]], 1, main = site_names[i])
+  plot(lm_log2_l[[i]], 2)
+  plot(lm_log2_l[[i]], 3)
+  plot(lm_log2_l[[i]], 4)
+
+  dev.off()
+  
+})
+
+
+# ----------------------- fitted vs. residuals diag plot, all 11 sites in one figure ----------------------- #
+png(filename = paste0(your_path, "log2_cohort_diag_resid_v_fitted.png"), 
+    width = 9, height = 8, units = "in", res = 400)
+par(mfrow = c(3, 4))
+for (i in 1:11) plot(lm_log2_l[[i]], 1, main = site_names[i])
+dev.off()
+
+```
+
+
+```{r single-lm-all-sites}
+# construct a model of *all* sites, with cohort and site fixed effects
+str(dat_l)
+
+# log-log model, with cohort and site fixed effects
+lm_log2_cohort_all_site <- lm(log(proportion) ~ 0 + log(time_1):cohort:site, data = dat_l)
+
+
+# ------------------------------------------------ #
+# diagnostic plots
+# ------------------------------------------------ #
+par(mfrow = c(2,2))
+plot(lm_log2_cohort_all_site, main = "Model with all sites, all cohorts")
+
+# now, without the outlier
+par(mfrow = c(2,2))
+plot(lm(log(proportion) ~ 0 + log(time_1):cohort:site, data = dat_l[-2092, ]), main = "Model with all sites, all cohorts")
+
+```
+
+
+```{r log-time-linear-time}
+# now with a log(time) term and a linear time term: 
+lm_mod_log2_cohort_plus <- lm(log(proportion) ~ 0 + log(time_1):cohort + time_1:cohort, data = filter(dat_l, site == "shaanxi"))
+
+ggplot(data = filter(dat_l, site == "shaanxi"), 
+       mapping = aes(x = time_1, y = proportion, group = year_abn, color = year_abn)) + 
+  geom_point() + scale_color_distiller(palette = "Greens") + 
+  geom_line(data = mutate(augment(lm_mod_log2_cohort_plus), # or augment(lm_log2_l$shaanxi)
+                          time_1 = exp(`log(time_1)`),
+                          proportion = exp(.fitted),
+                          year_abn = as.numeric(levels(cohort))[cohort])) + 
+  scale_x_continuous(n.breaks = 30)
+
+
+par(mfrow = c(2, 2))
+plot(lm_mod_log2_cohort_plus)
+
+
+
+```
+
+```{r resid-v-covariates}
+# residuals vs. covariates
+lm_mod_log2_cohort
+
+par(mfrow = c(2,2))
+plot(lm_mod_log2_cohort)
+augment(lm_mod_log2_cohort) %>% arrange(desc(.hat))
+
+# just one site
+resid_df1 <-  bind_cols(augment(lm_mod_log2_cohort), # with the tester model from above
+                        filter(dat_l, site == "shaanxi"))
+
+# all sites individually, combined
+resid_df <- lapply(lm_log2_l, augment) %>% bind_rows(.id = "site") %>%
+  bind_cols(., dat_l)
+
+
+# residuals from the full model including all sites
+resid_df_all <- bind_cols(dat_l, 
+                          augment(lm_log2_cohort_all_site))
+
+
+
+
+# plot for just shaanxi
+str(resid_df)
+gg_resid_time <- ggplot(data = resid_df, 
+                        aes(x = time, y = .std.resid, color = year_abn)) + 
+  geom_point() + 
+  scale_color_distiller(palette = "Greens") + 
+  labs(y = "Residuals", x = "Time Past Abandonment Threshold")
+
+gg_resid_area <- ggplot(data = resid_df, 
+                        aes(x = initial_area_abn, y = .std.resid, color = year_abn)) + 
+  geom_point(position = position_jitter(width = 20)) + 
+  scale_color_distiller(palette = "Greens") + 
+  labs(y = "Residuals", x = "Initial Area Abandoned") + 
+  theme(legend.position = "none")
+
+
+
+#install.packages("cowplot")
+library(cowplot)
+# just shaanxi
+cowplot::plot_grid(gg_resid_time, gg_resid_area, rel_widths = c(1.2, 1))
+
+
+# all sites
+cowplot::plot_grid(
+  gg_resid_time %+% resid_df[-2092, ], # without outlier
+  gg_resid_area %+% resid_df[-2092, ], # without outlier
+  rel_widths = c(1.2, 1))
+
+
+# residuals from the model with all sites: 
+cowplot::plot_grid(
+  gg_resid_time %+% resid_df_all[-2092, ], # without outlier
+  gg_resid_area %+% resid_df_all[-2092, ], # without outlier
+  rel_widths = c(1.2, 1))
+
+
+
+# to plot specific sites:
+cowplot::plot_grid(
+  gg_resid_time %+% filter(resid_df[-2092, ], site...1 == "shaanxi"), # without outlier
+  gg_resid_area %+% filter(resid_df[-2092, ], site...1 == "shaanxi"), # without outlier
+  rel_widths = c(1.2, 1))
+```
