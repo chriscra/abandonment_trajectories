@@ -252,7 +252,8 @@ dat_l <- mutate(dat_l,
 # log-log model, with cohort fixed effects
 lm_log2_l <- lapply(1:11, FUN = function(i) {
   lm(log(proportion) ~ 0 + log(time_1):cohort,  
-               data = filter(dat_l, site == site_df$site[i]))
+               data = filter(dat_l, 
+                             site == site_df$site[i]))
 })
 
 # log-log model, without cohort fixed effects
@@ -284,9 +285,10 @@ names(lm_log2_no_cohort_l) <- site_df$site
 names(lm_log2_year_abn_l) <- site_df$site
 names(lm_log_lin_l) <- site_df$site
 names(lm_0_l) <- site_df$site
+```
 
 
-
+```{r save-basic-model-plot-all-sites}
 # save plots:
 for (i in 1:11) {
   # set mod:
@@ -320,17 +322,17 @@ for (i in 1:11) {
   print(gg_log2_cohort_tmp)
   dev.off()
   
-  
 }
 ```
 
 ```{r compare-AIC-all-sites}
-mod_AIC <- lapply(
-  list("lm_log2_l" = lm_log2_l,
-       "lm_log2_no_cohort_l" = lm_log2_no_cohort_l,
-       "lm_log2_year_abn_l" = lm_log2_year_abn_l,
-       "lm_log_lin_l" = lm_log_lin_l,
-       "lm_0_l" = lm_0_l), 
+mod_ll <- list("lm_log2_l" = lm_log2_l,
+               "lm_log2_no_cohort_l" = lm_log2_no_cohort_l,
+               "lm_log2_year_abn_l" = lm_log2_year_abn_l,
+               "lm_log_lin_l" = lm_log_lin_l,
+               "lm_0_l" = lm_0_l)
+
+mod_AIC <- lapply(mod_ll, 
   FUN = function(x) {
     lapply(x, FUN = function(y) {glance(y)}) %>% bind_rows(.id = "site")
     }
@@ -473,6 +475,7 @@ car::qqPlot(lm(log(proportion) ~ 0 + log(time_1):cohort:site,
 ```
 
 
+# Exploration
 ```{r basic-persistence-plots}
 
 
@@ -1601,48 +1604,6 @@ ggplot(data = dat, mapping = aes(x = age, y = proportion, group = year_abn, colo
 
 ```
 
-```{r residual-plots}
-lm_mod_log2_cohort
-
-plot(lm_mod_log2_cohort)
-augment(lm_mod_log2_cohort) %>% arrange(desc(.hat))
-
-resid_df <- bind_cols(select(dat, year, year_abn, initial_area_abn, 
-                             area_ha, age, proportion, time, time_1, 
-                             cohort1 = cohort),
-                      augment(lm_mod_log2_cohort))
-
-resid_df_all <- bind_cols(select(dat_l, year, year_abn, initial_area_abn, 
-                             area_ha, age, proportion, time, time_1, 
-                             cohort1 = cohort),
-                      augment(lm_log2_cohort_site))
-
-gg_resid_1 <- ggplot(data = resid_df, aes(x = time, y = .std.resid, color = year_abn)) + 
-  geom_point() + scale_color_distiller(palette = "Greens") + labs(y = "Residuals", x = "Time Past Abandonment Threshold")
-
-gg_resid_2 <- ggplot(data = resid_df, aes(x = initial_area_abn, y = .std.resid, color = year_abn)) + 
-  geom_point(position = position_jitter(width = 20)) + scale_color_distiller(palette = "Greens") + 
-  labs(y = "Residuals", x = "Initial Area Abandoned") + theme(legend.position = "none")
-
-
-# save, shaanxi
-png(filename = paste0(p_output, "plots/log2_cohort_resid_s.png"), 
-    width = 10, height = 5, units = "in", res = 400)
-plot_grid(gg_resid_1, gg_resid_2, rel_widths = c(1.2, 1))
-dev.off()
-
-
-# save
-png(filename = paste0(p_output, "plots/log2_cohort_resid_all.png"), 
-    width = 10, height = 5, units = "in", res = 400)
-plot_grid(gg_resid_1 %+% resid_df_all[-2092, ],
-          gg_resid_2 %+% resid_df_all[-2092, ], 
-          rel_widths = c(1.2, 1))
-dev.off()
-
-
-```
-
 ```{r save-plots}
 
 # ----------------------- log-log cohort plot ----------------------- #
@@ -2295,78 +2256,6 @@ plot_base +
 
 # Check Assumptions
 
-```{r mod_l}
-# models
-mod_l <- list("lm_mod" = lm_mod, 
-              "lm_mod0" = lm_mod0, 
-              "lm_mod_log2" = lm_mod_log2,
-              "lm_mod_log2_0" = lm_mod_log2_0,
-              "lm_mod_cohort_int"  = lm_mod_cohort_int,
-              "lm_mod_cohort_slope"  = lm_mod_cohort_slope,
-              "lm_mod_cohort_slope0" = lm_mod_cohort_slope0,
-              "lm_mod_cohort_x" = lm_mod_cohort_x, 
-              "lm_mod_log2_cohort" = lm_mod_log2_cohort,
-              "lm_mod_log2_year_abn" = lm_mod_log2_year_abn,
-              "lmer_mod_slope" = lmer_mod_slope,
-              "lmer_mod_slope_int" = lmer_mod_slope_int,
-              "lmer_mod_int" = lmer_mod_int,
-              "lmer_mod_slope0" = lmer_mod_slope0
-              )
-
-
-
-```
-
-
-```{r AIC}
-pairs(dat)
-mod_l[[1]]
-
-summary(mod_l[[1]])
-glance(mod_l[[1]])
-
-names(mod_l)
-
-lapply(mod_l, formula)
-lapply(mod_l, print)
-
-data(lm_mod)
-lm_mod$call
-lmer_mod$call
-lmer_mod %>% formula()
-tidy(lmer_mod)
-glance(lmer_mod)
-augment(lmer_mod)
-
-lapply(mod_l, glance)
-summary(lmer_mod_slope0)
-
-install.packages("MuMIn")
-library(MuMIn)
-MuMIn::r.squaredGLMM(lmer_mod)
-
-plot(lm_mod_log2_cohort)
-
-
-
-
-
-# calculate AIC and compare across models:
-
-lapply(mod_l, FUN = function(x) {
-  glance(x) %>% select(AIC)
-}) %>% bind_rows(.id = "mod") %>% arrange(AIC)
-
-# best model
-# 1.
-lm_mod_log2_cohort
-
-# 2.
-lm_mod_cohort_x
-```
-
-
-
 ```{r Oscar}
 # chat with Oscar
 
@@ -2418,37 +2307,6 @@ ggplot(data = dat, mapping = aes(x = age, y = proportion, group = year_abn, colo
                           year_abn = as.numeric(levels(cohort))[cohort]),
             aes(x = exp(`log(time_1)`) - 1 + 5, y = exp(.fitted))) + 
   scale_x_continuous(breaks = seq(from = 0, to = 30, by = 5))
-
-
-
-
-
-
-
-
-
-# diagnostic plots:
-par(mfrow = c(2,2))
-plot(lm_mod_cohort_slope0)
-plot(lm_mod_log2_cohort)
-
-dev.off()
-
-plot(lmer_mod_slope0)
-qqnorm(residuals(lmer_mod_slope0))
-
-dat[17:19, ]
-
-
-
-
-
-
-# residual plots
-
-
-
-
 ```
 
 ```{r diag-plots}
@@ -2463,7 +2321,10 @@ png(filename = paste0(p_output, "plots/log2_cohort_diag_s.png"),
     width = 8, height = 8, units = "in", res = 400)
 par(mfrow = c(2,2))
 plot(lm_mod_log2_cohort)
+plot(lm_log2_l[[9]])
 dev.off()
+
+tidy(lm_log2_l[[9]])
 
 
 # ----------------------- diagnostics plot, all sites in sequence ----------------------- #
@@ -2499,6 +2360,114 @@ dev.off()
 
 ```
 
+```{r resid-v-covariates}
+lm_mod_log2_cohort
+
+plot(lm_mod_log2_cohort)
+augment(lm_mod_log2_cohort) %>% arrange(desc(.hat))
+
+# just one site
+resid_df1 <-  bind_cols(augment(lm_mod_log2_cohort), # with the tester model from above
+                        filter(dat_l, site == "shaanxi"))
+
+# all sites individually, combined
+resid_df <- lapply(lm_log2_l, augment) %>% bind_rows(.id = "site") %>%
+  bind_cols(., dat_l)
+
+
+# residuals from the full model including all sites
+resid_df_all <- bind_cols(dat_l, 
+                          augment(lm_log2_cohort_all_site))
+
+
+resid_df <- bind_cols(select(dat, year, year_abn, initial_area_abn, 
+                             area_ha, age, proportion, time, time_1, 
+                             cohort1 = cohort),
+                      augment(lm_mod_log2_cohort))
+
+resid_df_all <- bind_cols(select(dat_l, year, year_abn, initial_area_abn, 
+                             area_ha, age, proportion, time, time_1, 
+                             cohort1 = cohort),
+                      augment(lm_log2_cohort_site))
+
+gg_resid_1 <- ggplot(data = resid_df, aes(x = time, y = .std.resid, color = year_abn)) + 
+  geom_point() + scale_color_distiller(palette = "Greens") + labs(y = "Residuals", x = "Time Past Abandonment Threshold")
+
+gg_resid_2 <- ggplot(data = resid_df, aes(x = initial_area_abn, y = .std.resid, color = year_abn)) + 
+  geom_point(position = position_jitter(width = 20)) + scale_color_distiller(palette = "Greens") + 
+  labs(y = "Residuals", x = "Initial Area Abandoned") + theme(legend.position = "none")
+
+
+# save, shaanxi
+png(filename = paste0(p_output, "plots/log2_cohort_resid_s.png"), 
+    width = 10, height = 5, units = "in", res = 400)
+plot_grid(gg_resid_1, gg_resid_2, rel_widths = c(1.2, 1))
+dev.off()
+
+
+# save
+png(filename = paste0(p_output, "plots/log2_cohort_resid_all.png"), 
+    width = 10, height = 5, units = "in", res = 400)
+plot_grid(gg_resid_1 %+% resid_df_all[-2092, ],
+          gg_resid_2 %+% resid_df_all[-2092, ], 
+          rel_widths = c(1.2, 1))
+dev.off()
+
+
+# --------------------------------------------------------------------- #
+par(mfrow = c(2,2))
+plot(lm_mod_log2_cohort)
+augment(lm_mod_log2_cohort) %>% arrange(desc(.hat))
+
+
+
+
+
+# plot for just shaanxi
+str(resid_df)
+gg_resid_time <- ggplot(data = resid_df, 
+                        aes(x = time, y = .std.resid, color = year_abn)) + 
+  geom_point() + 
+  scale_color_distiller(palette = "Greens") + 
+  labs(y = "Residuals", x = "Time Past Abandonment Threshold")
+
+gg_resid_area <- ggplot(data = resid_df, 
+                        aes(x = initial_area_abn, y = .std.resid, color = year_abn)) + 
+  geom_point(position = position_jitter(width = 20)) + 
+  scale_color_distiller(palette = "Greens") + 
+  labs(y = "Residuals", x = "Initial Area Abandoned") + 
+  theme(legend.position = "none")
+
+
+
+#install.packages("cowplot")
+library(cowplot)
+# all sites
+cowplot::plot_grid(gg_resid_time, gg_resid_area, rel_widths = c(1.2, 1))
+
+
+# all sites
+cowplot::plot_grid(
+  gg_resid_time %+% resid_df[-2092, ], # without outlier
+  gg_resid_area %+% resid_df[-2092, ], # without outlier
+  rel_widths = c(1.2, 1))
+
+
+# residuals from the model with all sites: 
+cowplot::plot_grid(
+  gg_resid_time %+% resid_df_all[-2092, ], # without outlier
+  gg_resid_area %+% resid_df_all[-2092, ], # without outlier
+  rel_widths = c(1.2, 1))
+
+
+
+# to plot specific sites:
+cowplot::plot_grid(
+  gg_resid_time %+% filter(resid_df[-2092, ], site...1 == "shaanxi"), # without outlier
+  gg_resid_area %+% filter(resid_df[-2092, ], site...1 == "shaanxi"), # without outlier
+  rel_widths = c(1.2, 1))
+
+```
 
 ```{r check-assumptions}
 
@@ -2621,27 +2590,143 @@ lapply(mod_l, summary)
 install.packages("car")
 library(car)
 
-# plot model diagnostics:
+lm_log2_l$shaanxi # # run first for shaanxi only
+lm_log2_l # then the whole list of sites
+lm_log2_cohort_site # finally, for the mega model
+
+# 1. Residuals vs. fitted values ------------------------- # 
+# plot model diagnostics: 
 par(mfrow = c(2,2)) # create a plotting panel with two rows and two columns (allowing you to put 4 plots on the same plotting panel)
 plot(lm_log2_l[[9]]) # check for violations of model assumptions
-
+dev.off()
 
 # Now, with car
 residualPlots(lm_log2_l[[9]])
+plot(lm_log2_l[[9]], 1)
+residualPlots(lm_log2_l[[9]], ~ cohort, fitted=FALSE)
+
+# all sites at once:
+par(mfrow = c(3, 4))
+for (i in 1:11) residualPlots(lm_log2_l[[i]])
+
+# 2. Added variable plots - Influential variables ------------------------- # 
+avPlots(lm_log2_l[[9]])
 
 
-# remove outliers, rerun the model
+# 3. Outliers - QQ-Plots -------------------------------------------------- # 
+# qqnorm
+qqnorm(residuals(lm_log2_l[[9]]))
+plot(lm_log2_l[[9]], 2)
+qqPlot(lm_log2_l[[9]], id.n = 3)
+qqPlot(lm_log2_l[[9]], simulate = T, envelope = 0.9)
+dev.off()
 
-lm_trim <- lm(log(proportion) ~ 0 + log(time_1):cohort, 
-              data = filter(dat, cohort %in% c(1988:2010)))
-plot(lm_trim)
-plot(lm_trim)
+tidy(lm_log2_l[[9]]) %>% tail()
+
+
+# bonferonni test:
+outlierTest(lm_log2_l$shaanxi)
+
+lm_log2_l$shaanxi$model
+plot(lm(formula = log(proportion) ~ 0 + log(time_1):cohort, 
+   data = filter(dat_l, site == site_df$site[9])[-19, ]))
+
+
+influenceIndexPlot(lm_log2_l$shaanxi, id.n=3)
+
+par(mfrow=c(1,1))
+influencePlot(lm_log2_l$shaanxi)
+outlier_list <- influencePlot(lm_log2_l$shaanxi) %>% rownames() %>% as.numeric()
+
+influencePlot(lm(formula = log(proportion) ~ 0 + log(time_1):cohort, 
+   data = filter(dat_l, site == site_df$site[9])[-c(outlier_list), ]))
+
+influencePlot(lm(formula = log(proportion) ~ 0 + log(time_1):cohort, 
+   data = filter(dat_l, site == site_df$site[9])[-349, ]))
+
+par(mfrow=c(2,2))
+plot(lm(formula = log(proportion) ~ 0 + log(time_1):cohort, 
+   data = filter(dat_l, site == site_df$site[9])[-349, ]))
+warnings()
+car::update()
+
+Prestige
+lm_
+qqPlot(lm_log2_no_out$shaanxi, #line = "robust",
+	envelope=.99)
+qqPlot(lm_log2_no_out$shaanxi)
+
+class(lm_log2_l$shaanxi)
+
+lm_out <- lm(log(proportion) ~ 0 + log(time_1):cohort,  
+               data = dat %>% filter(year_abn < 2012) %>% .[-c(134, 150), ])
+qqPlot(lm_out)
+par(mfrow = c(2,2)); plot(lm_out)
+
+```
+
+```{r lm-no-outliers}
+dat_no_outliers <- dat_l %>%
+  filter(year_abn < 2012)
+
+lm_log2_no_out <- lapply(1:11, FUN = function(i) {
+  lm(log(proportion) ~ 0 + log(time_1):cohort,  
+               data = filter(dat_no_outliers, 
+                             site == site_df$site[i]))
+})
+names(lm_log2_no_out) <- site_df$site
+
 
 
 ggplot(mapping = aes(x = age, y = proportion, group = year_abn, color = year_abn)) + 
-  geom_point(data = dat) + scale_color_distiller(palette = "Greens") + 
-  geom_line(data = mutate(augment(lm_trim, newdata = dat0 %>% filter(cohort %in% c(1988:2010))),
-                          proportion = exp(.fitted)))
+  geom_point(data = filter(dat_l, site == "shaanxi")) + 
+  scale_color_distiller(palette = "Greens") + scale_x_continuous(n.breaks = 30) + 
+  labs(title = "Decay of abandoned land over time", #subtitle = site_df$description[indx], 
+       caption = "lm formula: log(proportion) ~ 0 + log(time_1):cohort",
+       x = "Time since initial abandonment (years)", y = "Proportion of abandoned land remaining",
+       color = "Cohort (Year \nFirst Abandoned)") + 
+  geom_line(data = mutate(augment(lm_log2_l[[9]], 
+                                  newdata = filter(dat_l, site == "shaanxi") %>% 
+                                    select(time_1, cohort, site, year_abn, age)),
+                          proportion = exp(.fitted))) + 
+  
+  # add the mean coefficient (needs to be transformed 4 to the right, so that plotting works)
+  geom_function(fun = function(x) { (x-4) ^ (mean(coef(lm_log2_l[[9]]), na.rm = TRUE))},
+                mapping = aes(linetype = "Mean Decay Rate"),
+                color = "blue", size = 1, #linetype = "dashed", 
+                inherit.aes = FALSE) +
+  scale_linetype(name = "")
+
+
+cc_add_mod_results <- function(mod, site_name = "shaanxi", input_dat) {
+  gg_temp <- ggplot(mapping = aes(x = age, y = proportion, group = year_abn, color = year_abn)) + 
+  geom_point(data = filter(input_dat, site == site_name)) + 
+  scale_color_distiller(palette = "Greens") + scale_x_continuous(n.breaks = 30) + 
+  labs(title = "Decay of abandoned land over time", subtitle = site_name, 
+       caption = "lm formula: log(proportion) ~ 0 + log(time_1):cohort",
+       x = "Time since initial abandonment (years)", y = "Proportion of abandoned land remaining",
+       color = "Cohort (Year \nFirst Abandoned)") + 
+    
+  geom_line(data = mutate(augment(mod, 
+                                  newdata = filter(input_dat, site == site_name) %>% 
+                                    select(time_1, cohort, site, year_abn, age)),
+                          proportion = exp(.fitted))) + 
+  
+  # add the mean coefficient (needs to be transformed 4 to the right, so that plotting works)
+  geom_function(fun = function(x) { (x-4) ^ (mean(coef(mod), na.rm = TRUE))},
+                mapping = aes(linetype = "Mean Decay Rate"),
+                color = "blue", size = 1, #linetype = "dashed", 
+                inherit.aes = FALSE) +
+  scale_linetype(name = "")
+  
+  print(gg_temp)
+}
+
+cc_add_mod_results(mod = lm_log2_l$shaanxi, site_name = "shaanxi", input_dat = dat_l)
+cc_add_mod_results(mod = lm_log2_no_out$shaanxi, site_name = "shaanxi", input_dat = dat_no_outliers)
+
+plot(lm_log2_no_out$shaanxi)
+
 ```
 
 
