@@ -166,12 +166,13 @@ dat <- left_join(dat,
   
   # create bins of year_abn - could also use cut(), e.g. year_bins = cut(year_abn, breaks = 5) 
   # dat %>% mutate(nbins = cut(dat$year_abn, breaks = 5, include.lowest = TRUE)) %>% print(n = 30)
-  mutate(year_abn_bins = ifelse(year_abn >= 1988 & year_abn <= 1993, "1988-1993",
-                           ifelse(year_abn >= 1994 & year_abn <= 1998, "1994-1998",
-                                  ifelse(year_abn >= 1999 & year_abn <= 2003, "1999-2003",
-                                         ifelse(year_abn >= 2004 & year_abn <= 2008, "2004-2008",
-                                                ifelse(year_abn >= 2009 & year_abn <= 2013, "2009-2013", NA)
-                                         ))))) %>%
+  mutate(year_abn_bins = cut(year_abn, breaks = 5, include.lowest = TRUE)) %>%
+  # mutate(year_abn_bins = ifelse(year_abn >= 1988 & year_abn <= 1993, "1988-1993",
+  #                          ifelse(year_abn >= 1994 & year_abn <= 1998, "1994-1998",
+  #                                 ifelse(year_abn >= 1999 & year_abn <= 2003, "1999-2003",
+  #                                        ifelse(year_abn >= 2004 & year_abn <= 2008, "2004-2008",
+  #                                               ifelse(year_abn >= 2009 & year_abn <= 2013, "2009-2013", NA)
+  #                                        ))))) %>%
   mutate(year_abn_bins = as_factor(year_abn_bins), # convert both to factors
          #year_abn = as_factor(year_abn),
          time = age - 5,
@@ -249,12 +250,32 @@ dat_l <- mutate(dat_l,
 
 
 ```{r run-lm-all-sites}
+# run lms for each site individually, store in lists.
+
 # log-log model, with cohort fixed effects
 lm_log2_l <- lapply(1:11, FUN = function(i) {
   lm(log(proportion) ~ 0 + log(time_1):cohort,  
-               data = filter(dat_l, 
-                             site == site_df$site[i]))
+               data = filter(dat_l, site == site_df$site[i]))
 })
+
+# log-log-lin model (i.e. including both log and linear time effects), with cohort fixed effects
+lm_log2_lin_l <- lapply(1:11, FUN = function(i) {
+  lm(log(proportion) ~ 0 + log(time_1):cohort + time_1:cohort,  
+               data = filter(dat_l, site == site_df$site[i]))
+})
+  
+# modeling proportion as a linear term, predicted by log(time_1), with cohort fixed effects
+lm_lin_log_l <- lapply(1:11, FUN = function(i) {
+  lm((proportion - 1)  ~ 0 + log(time_1):cohort,  
+               data = filter(dat_l, site == site_df$site[i]))
+})
+
+# linear proportion predicted by both log and linear time terms, with cohort fixede effects.
+lm_lin_log_lin_l <- lapply(1:11, FUN = function(i) {
+  lm((proportion - 1)  ~ 0 + log(time_1):cohort + time_1:cohort,  
+               data = filter(dat_l, site == site_df$site[i]))
+})
+
 
 # log-log model, without cohort fixed effects
 lm_log2_no_cohort_l <- lapply(1:11, FUN = function(i) {
@@ -281,6 +302,9 @@ lm_0_l <- lapply(1:11, FUN = function(i) {
 })
 
 names(lm_log2_l) <- site_df$site
+names(lm_log2_lin_l) <- site_df$site
+names(lm_lin_log_l) <- site_df$site
+names(lm_lin_log_lin_l) <- site_df$site
 names(lm_log2_no_cohort_l) <- site_df$site
 names(lm_log2_year_abn_l) <- site_df$site
 names(lm_log_lin_l) <- site_df$site
@@ -327,6 +351,7 @@ for (i in 1:11) {
 
 ```{r compare-AIC-all-sites}
 mod_ll <- list("lm_log2_l" = lm_log2_l,
+               "lm_log2_lin_l" = lm_log2_lin_l,
                "lm_log2_no_cohort_l" = lm_log2_no_cohort_l,
                "lm_log2_year_abn_l" = lm_log2_year_abn_l,
                "lm_log_lin_l" = lm_log_lin_l,

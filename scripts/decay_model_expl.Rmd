@@ -77,7 +77,9 @@ dat_l$cohort # a factor of "year_abn" to be used for cohort
 ```{r lm-log-log-cohort}
 # log-log, with cohort fixed effects: for just one site
 
-lm_mod_log2_cohort <- lm(log(proportion) ~ 0 + log(time_1):cohort, data = filter(dat_l, site == "shaanxi"))
+# lm_mod_log2_cohort
+lmt1 <- lm(log(proportion) ~ 0 + log(time_1):cohort, 
+                         data = filter(dat_l, site == "shaanxi"))
 par(mfrow = c(2,2))
 plot(lm_mod_log2_cohort)
 
@@ -98,6 +100,37 @@ lm_log2_l <- lapply(1:11, FUN = function(i) {
   lm(log(proportion) ~ 0 + log(time_1):cohort,  
                data = filter(dat_l, site == site_names[i]))
 })
+
+# log-log-lin model, with cohort fixed effects
+lm_log2_lin_l <- lapply(1:11, FUN = function(i) {
+  lm(log(proportion) ~ 0 + log(time_1):cohort + I(time_1 - 1):cohort,  
+               data = filter(dat_l, site == site_names[i]))
+})
+
+# uncorrected: log-log-lin model, with cohort fixed effects
+lm_log2_lin_l_not0 <- lapply(1:11, FUN = function(i) {
+  lm(log(proportion) ~ 0 + log(time_1):cohort + time_1:cohort,  
+               data = filter(dat_l, site == site_names[i]))
+})
+  
+# linear - log
+lm_lin_log_l <- lapply(1:11, FUN = function(i) {
+  lm(I(proportion - 1)  ~ 0 + log(time_1):cohort,  
+               data = filter(dat_l, site == site_names[i]))
+})
+
+# linear - log - lin
+lm_lin_log_lin_l <- lapply(1:11, FUN = function(i) {
+  lm(I(proportion - 1)  ~ 0 + log(time_1):cohort + I(time_1 - 1):cohort,  
+               data = filter(dat_l, site == site_names[i]))
+})
+
+# linear - log - lin (uncorrected)
+lm_lin_log_lin_l_not0 <- lapply(1:11, FUN = function(i) {
+  lm(I(proportion - 1)  ~ 0 + log(time_1):cohort + time_1:cohort,  
+               data = filter(dat_l, site == site_names[i]))
+})
+
 
 # log-log model, without cohort fixed effects
 lm_log2_no_cohort_l <- lapply(1:11, FUN = function(i) {
@@ -124,6 +157,11 @@ lm_0_l <- lapply(1:11, FUN = function(i) {
 })
 
 names(lm_log2_l) <- site_names
+names(lm_log2_lin_l) <- site_names
+names(lm_log2_lin_l_not0) <- site_names
+names(lm_lin_log_l) <- site_names
+names(lm_lin_log_lin_l) <- site_names
+names(lm_lin_log_lin_l_not0) <- site_names
 names(lm_log2_no_cohort_l) <- site_names
 names(lm_log2_year_abn_l) <- site_names
 names(lm_log_lin_l) <- site_names
@@ -223,28 +261,178 @@ plot(lm_log2_cohort_all_site, main = "Model with all sites, all cohorts")
 par(mfrow = c(2,2))
 plot(lm(log(proportion) ~ 0 + log(time_1):cohort:site, data = dat_l[-2092, ]), main = "Model with all sites, all cohorts")
 
+
 ```
 
 
 ```{r log-time-linear-time}
 # now with a log(time) term and a linear time term: 
-lm_mod_log2_cohort_plus <- lm(log(proportion) ~ 0 + log(time_1):cohort + time_1:cohort, data = filter(dat_l, site == "shaanxi"))
+
+lmt1 <- lm(log(proportion) ~ 0 + log(time_1):cohort, 
+                         data = filter(dat_l, site == "shaanxi"))
+
+lmt2 <- lm(log(proportion) ~ 0 + log(time_1):cohort + time_1:cohort, 
+           data = filter(dat_l, site == "shaanxi", year_abn < 2013))
+
+lmt3 <- lm((proportion - 1) ~ 0 + log(time_1):cohort, 
+           data = filter(dat_l, site == "shaanxi", year_abn < 2013))
+
+lmt4 <- lm((proportion - 1) ~ 0 + log(time_1):cohort + time_1:cohort, 
+           data = filter(dat_l, site == "shaanxi", year_abn < 2013))
+
+# log2 = 1
+# log2lin = 2
+# linlog = 3
+# linloglin = 4
 
 ggplot(data = filter(dat_l, site == "shaanxi"), 
        mapping = aes(x = time_1, y = proportion, group = year_abn, color = year_abn)) + 
   geom_point() + scale_color_distiller(palette = "Greens") + 
-  geom_line(data = mutate(augment(lm_mod_log2_cohort_plus), # or augment(lm_log2_l$shaanxi)
+  geom_line(data = mutate(augment(lmt1), # or augment(lm_log2_l$shaanxi)
                           time_1 = exp(`log(time_1)`),
                           proportion = exp(.fitted),
                           year_abn = as.numeric(levels(cohort))[cohort])) + 
-  scale_x_continuous(n.breaks = 30)
+  scale_x_continuous(n.breaks = 30) + 
+
+ geom_function(fun = function(x) { (x) ^ (mean(coef(lmt1), na.rm = TRUE))},
+                mapping = aes(linetype = "Mean Decay Rate"),
+                color = "blue", size = 1, #linetype = "dashed", 
+                inherit.aes = FALSE) +
+  scale_linetype(name = "")
 
 
 par(mfrow = c(2, 2))
 plot(lm_mod_log2_cohort_plus)
+```
+
+
+```{r lin-log-test-diag}
+# diagnostics for all sites
+par(mfrow = c(3, 4))
+for (i in 1:11) plot(lm_log2_lin_l[[i]], 1, main = site_names[i])
+for (i in 1:11) plot(lm_log2_lin_l[[i]], 2, main = site_names[i])
+
+for (i in 1:11) plot(lm_log2_lin_l_not0[[i]], 1, main = site_names[i])
+for (i in 1:11) plot(lm_log2_lin_l_not0[[i]], 2, main = site_names[i])
+
+
+par(mfrow = c(3, 4))
+for (i in 1:11) plot(lm_lin_log_l[[i]], 1, main = site_names[i])
+for (i in 1:11) plot(lm_lin_log_l[[i]], 2, main = site_names[i])
 
 
 
+
+par(mfrow = c(3, 4))
+for (i in 1:11) plot(lm_lin_log_lin_l[[i]], 1, main = site_names[i])
+for (i in 1:11) plot(lm_lin_log_lin_l[[i]], 2, main = site_names[i])
+
+par(mfrow = c(3, 4))
+for (i in 1:11) plot(lm_lin_log_lin_l_not0[[i]], 1, main = paste0(site_names[i], "_not0"))
+for (i in 1:11) plot(lm_lin_log_lin_l_not0[[i]], 2, main = paste0(site_names[i], "_not0"))
+
+
+names(mod_ll)
+
+gg_base_s <- ggplot(data = filter(dat_l, site == "shaanxi"), 
+       mapping = aes(x = time_1, y = proportion,
+                     group = year_abn, color = year_abn)) + 
+  geom_point() + scale_color_distiller(palette = "Greens") + 
+  scale_x_continuous(n.breaks = 30)
+  
+
+gg0 <- gg_base_s + geom_line(data = mutate(augment(lm_log2_l$shaanxi),
+                          time_1 = exp(`log(time_1)`),
+                          proportion = exp(.fitted),
+                          year_abn = as.numeric(levels(cohort))[cohort])) + 
+  labs(title = "lm_log2_lin_l", subtitle = "log(proportion) ~ 0 + log(time_1):cohort + time_1:cohort")
+
+gg1 <- gg_base_s + geom_line(data = mutate(augment(lm_log2_lin_l$shaanxi),
+                          time_1 = exp(`log(time_1)`),
+                          proportion = exp(.fitted),
+                          year_abn = as.numeric(levels(cohort))[cohort])) + 
+  labs(title = "lm_log2_lin_l", subtitle = "log(proportion) ~ 0 + log(time_1):cohort + time_1:cohort")
+
+gg2 <- gg_base_s + geom_line(data = mutate(augment(lm_lin_log_l$shaanxi),
+                          time_1 = exp(`log(time_1)`),
+                          proportion = .fitted + 1,
+                          year_abn = as.numeric(levels(cohort))[cohort])) + 
+    labs(title = "lm_lin_log_l", subtitle = "(proportion - 1) ~ 0 + log(time_1):cohort")
+
+gg3 <- gg_base_s + geom_line(data = mutate(augment(lm_lin_log_lin_l$shaanxi),
+                          #time_1 = exp(`log(time_1)`),
+                          proportion = .fitted + 1,
+                          year_abn = as.numeric(levels(cohort))[cohort])) + 
+    labs(title = "lm_lin_log_lin_l", subtitle = "(proportion - 1) ~ 0 + log(time_1):cohort + time_1:cohort")
+
+gg1 + 
+  # geom_line(data = mutate(augment(lm_lin_log_lin_l$shaanxi),
+  #                         #time_1 = exp(`log(time_1)`),
+  #                         proportion = .fitted + 1,
+  #                         year_abn = as.numeric(levels(cohort))[cohort])) + 
+  geom_line(data = mutate(augment(lm_log2_l$shaanxi),
+                          time_1 = exp(`log(time_1)`),
+                          proportion = exp(.fitted),
+                          year_abn = as.numeric(levels(cohort))[cohort]))
+
+gg1 + gg2
+plot_grid(gg0, gg1, gg2, gg3, ncol = 2, nrow = 2)
+```
+
+
+```{r force0}
+
+augment(lm_log2_l$shaanxi) %>% mutate(p = exp(.fitted)) %>% arrange(desc(p)) %>% print(n = 28)
+augment(lm_lin_log_lin_l$shaanxi) %>% filter(time_1 == 1) %>% arrange(desc(.fitted)) %>% print(n = 26)
+augment(lm_log2_lin_l$shaanxi) %>% filter(time_1 == 1) %>% arrange(desc(.fitted)) %>% print(n = 26)
+augment(lm_lin_log_l$shaanxi) %>% arrange(desc(.fitted)) %>% print(n = 28)
+
+
+# Testing the intercept call:
+augment(lm(formula = proportion ~ 0 + log(time_1):cohort + time_1:cohort, 
+     data = filter(dat_l, site == "shaanxi"))
+     ) %>% 
+  arrange(desc(.fitted)) %>% 
+  print(n = 28)
+
+gg_base_s + geom_line(data = 
+                        mutate(
+                          augment(lm(formula = I(proportion - 1) ~ 
+                                       0 + log(time_1):cohort + 
+                                       I(time_1 - 1):cohort, 
+                                       #time:cohort, 
+                                     data = filter(dat_l, site == "shaanxi"))
+                                  ),
+                          time_1 = exp(`log(time_1)`),
+                          proportion = .fitted + 1,
+                          year_abn = as.numeric(levels(cohort))[cohort])
+                      ) + coord_cartesian(xlim = c(0.9, 2), ylim = c(0.975, 1.025))
+
+gg_base_s + geom_line(data = 
+                        mutate(
+                          augment(lm(formula = log(proportion) ~ 
+                                       0 + log(time_1):cohort + 
+                                       I(time_1 - 1):cohort, 
+                                       #time:cohort, 
+                                     data = filter(dat_l, site == "shaanxi"))
+                                  ),
+                          time_1 = exp(`log(time_1)`),
+                          proportion = exp(.fitted),
+                          year_abn = as.numeric(levels(cohort))[cohort])
+                      ) #+ coord_cartesian(xlim = c(0.9, 2), ylim = c(0.975, 1.025))
+
+
+
+augment(lm_log2_lin_l$shaanxi)
+
+
+ggplot(data = filter(dat_l, site == "shaanxi"), 
+       mapping = aes(x = year_abn, y = initial_area_abn)) + 
+  geom_point() #+ scale_color_distiller(palette = "Greens")
+
+ggplot(data = dat_l, 
+       mapping = aes(x = year_abn, y = initial_area_abn, color = site)) + 
+  geom_point()
 ```
 
 ```{r resid-v-covariates}
@@ -314,4 +502,43 @@ cowplot::plot_grid(
   gg_resid_time %+% filter(resid_df[-2092, ], site...1 == "shaanxi"), # without outlier
   gg_resid_area %+% filter(resid_df[-2092, ], site...1 == "shaanxi"), # without outlier
   rel_widths = c(1.2, 1))
+
+
+# to plot specific sites:
+cowplot::plot_grid(
+  gg_resid_time %+% filter(resid_df_all[-2092, ], site...1 == "shaanxi"), # without outlier
+  gg_resid_area %+% filter(resid_df_all[-2092, ], site...1 == "shaanxi"), # without outlier
+  rel_widths = c(1.2, 1))
 ```
+
+
+```{r AIC}
+mod_ll <- list("lm_log2_l" = lm_log2_l,
+               "lm_log2_lin_l" = lm_log2_lin_l,
+               "lm_log2_lin_l_not0" = lm_log2_lin_l_not0,
+               "lm_lin_log_l" = lm_lin_log_l,
+               "lm_lin_log_lin_l" = lm_lin_log_lin_l,
+               "lm_lin_log_lin_l_not0" = lm_lin_log_lin_l_not0,
+               "lm_log2_no_cohort_l" = lm_log2_no_cohort_l,
+               "lm_log2_year_abn_l" = lm_log2_year_abn_l,
+               "lm_log_lin_l" = lm_log_lin_l,
+               "lm_0_l" = lm_0_l)
+
+mod_AIC <- lapply(mod_ll, 
+  FUN = function(x) {
+    lapply(x, FUN = function(y) {glance(y)}) %>% bind_rows(.id = "site")
+    }
+  ) %>% 
+  bind_rows(.id = "mod") %>% 
+  select(site, AIC, mod, everything()) %>% 
+  arrange(site, AIC)
+
+
+# view results
+aic1 %>% filter(site == site_names[1]) %>% print(n = 100)
+mod_AIC %>% #filter(site == site_names[1]) %>% 
+  arrange(site, AIC) %>% select(site, AIC, mod, adj.r.squared) %>% print(n = 150)
+
+# at all sites, the log-log cohort model has the lowest AIC (i.e. best performance)... except Nebraska! Will check that out next.
+```
+
