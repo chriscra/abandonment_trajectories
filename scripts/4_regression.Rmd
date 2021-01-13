@@ -313,6 +313,77 @@ names(lm_0_l) <- site_df$site
 
 
 ```{r save-basic-model-plot-all-sites}
+# ------------------------------------------------ #
+# linear-log-linear model, with cohort fixed effects
+# ------------------------------------------------ #
+# save plots:
+for (i in 1:11) {
+  # calculate and extract mean coef estimates:
+  site_mn_coef_tmp <- tidy(lm_lin_log_lin_l[[i]]) %>% 
+    mutate(coef_term = sub(":*cohort....:*", "", term),
+           year_abn = ifelse(coef_term == "log(time_1)", gsub(".*cohort", "", term), parse_number(term)),
+           cohort = as.factor(year_abn)) %>% 
+    group_by(coef_term) %>%
+    summarise(mean_est = mean(estimate, na.rm = TRUE))
+    
+    
+  ggplot(data = filter(dat_l, site == site_df$site[i]), 
+         mapping = aes(x = age, y = proportion,
+                       group = year_abn, color = year_abn)) + 
+    geom_point() + scale_color_distiller(palette = "Greens") + 
+    scale_x_continuous(n.breaks = 30) +
+    
+    labs(caption = "I(proportion - 1) ~ 0 + log(time_1):cohort + I(time_1 - 1):cohort") + 
+    geom_line(data = mutate(augment(lm_lin_log_lin_l[[i]]),
+                            time_1 = exp(`log(time_1)`),
+                            time_1_check = `I(time_1 - 1)` + 1,
+                            age = time_1 + 4,
+                            proportion = .fitted + 1,
+                            year_abn = as.numeric(levels(cohort))[cohort])) + 
+    
+    # site mean coefficients: (note, needs to be transformed 4 to the right, so that plotting works)
+    geom_function(fun = function(x) {
+      site_mn_coef_tmp$mean_est[2] * log(x-4) + site_mn_coef_tmp$mean_est[1] * (x - 4 - 1) + 1},
+                  mapping = aes(linetype = "Mean Decay Rate"),
+                  color = "blue", size = 1, #linetype = "dashed", 
+                  inherit.aes = FALSE) +
+    scale_linetype(name = "")
+
+  gg_lin_log_lin_cohort_tmp <- ggplot(mapping = aes(x = age, y = proportion, group = year_abn, color = year_abn)) + 
+    geom_point(data = filter(dat_l, site == site_df$site[i])) + scale_color_distiller(palette = "Greens") +
+    scale_x_continuous(n.breaks = 30) + 
+    geom_hline(yintercept = 0.5, linetype = "dashed") + 
+    labs(title = "Decay of abandoned land over time", 
+         subtitle = site_df$description[i], 
+         caption = "lm formula: log(proportion) ~ 0 + log(time_1):cohort",
+         x = "Time since initial abandonment (years)", 
+         y = "Proportion of abandoned land remaining",
+         color = "Cohort (Year \nFirst Abandoned)") + 
+    
+    # fitted values
+    geom_line(data = mutate(augment(mod_tmp), 
+                          year_abn = as.numeric(levels(cohort))[cohort]),
+            aes(x = exp(`log(time_1)`) + 4, y = exp(.fitted))) + 
+    
+    # average (needs to be transformed 4 to the right, so that plotting works)
+    geom_function(fun = function(x) { (x-4) ^ (mean(coef(mod_tmp), na.rm = TRUE))},
+                  mapping = aes(linetype = "Mean Decay Rate"),
+                  color = "blue", size = 1, inherit.aes = FALSE) + 
+    scale_linetype(name = "")
+  
+  png(filename = paste0(p_output, "plots/l3_cohort", site_df$label[i], ".png"), 
+    width = 8, height = 6, units = "in", res = 400)
+  print(gg_lin_log_lin_cohort_tmp)
+  dev.off()
+  
+}
+
+
+
+
+# ------------------------------------------------ #
+# log-log model, with cohort fixed effects
+# ------------------------------------------------ #
 # save plots:
 for (i in 1:11) {
   # set mod:
@@ -349,9 +420,14 @@ for (i in 1:11) {
 }
 ```
 
-```{r compare-AIC-all-sites}
+```{r AIC}
+
 mod_ll <- list("lm_log2_l" = lm_log2_l,
                "lm_log2_lin_l" = lm_log2_lin_l,
+               #"lm_log2_lin_l_not0" = lm_log2_lin_l_not0,
+               "lm_lin_log_l" = lm_lin_log_l,
+               "lm_lin_log_lin_l" = lm_lin_log_lin_l,
+               #"lm_lin_log_lin_l_not0" = lm_lin_log_lin_l_not0,
                "lm_log2_no_cohort_l" = lm_log2_no_cohort_l,
                "lm_log2_year_abn_l" = lm_log2_year_abn_l,
                "lm_log_lin_l" = lm_log_lin_l,
@@ -368,10 +444,10 @@ mod_AIC <- lapply(mod_ll,
 
 
 # view results
-mod_AIC %>% arrange(site, AIC) %>% select(site, AIC, mod, adj.r.squared) %>% print(n = 55)
+mod_AIC %>% 
+  arrange(site, AIC) %>% select(site, AIC, mod, adj.r.squared) %>% print(n = 150)
 
-# at all sites, the log-log cohort model has the lowest AIC (i.e. best performance)... except Nebraska! Will check that out next.
-
+# at all sites, the lin-log-lin cohort model has the lowest AIC (i.e. best performance).
 ```
 
 ```{r nebraska-log2-v-log-lin}
@@ -434,6 +510,8 @@ dev.off()
 ```
 
 ```{r mega-lm}
+# note: it shouldn't make a difference whether you run the model for each site individually or as one mega model. For simplicity, I'm going to continue with the site specific models, since that is how I've largely coded things so far. 
+
 # constructing a model of all sites, with cohort and site fixed effects
 str(dat_l)
 
@@ -1629,7 +1707,7 @@ ggplot(data = dat, mapping = aes(x = age, y = proportion, group = year_abn, colo
 
 ```
 
-```{r save-plots}
+```{r save-log2-cohort-shaanxi-plots}
 
 # ----------------------- log-log cohort plot ----------------------- #
 
@@ -2336,10 +2414,13 @@ ggplot(data = dat, mapping = aes(x = age, y = proportion, group = year_abn, colo
 
 ```{r diag-plots}
 
-names(lm_log2_l)
-lapply(1:11, FUN = function(x) {
-  print(names(lm_log2_l[[x]]))
-  })
+
+
+
+
+# -------------------------------------------------------------------------------------------------- #
+# ------------------------------------- log-log diagnostics plots ---------------------------------- #
+# -------------------------------------------------------------------------------------------------- #
 
 # ----------------------- diagnostics plot, shaanxi ----------------------- #
 png(filename = paste0(p_output, "plots/log2_cohort_diag_s.png"), 
@@ -2367,7 +2448,7 @@ lapply(1:11, FUN = function(i) {
   
 })
 
-# ----------------------- fitted vs. residuals diag plot ----------------------- #
+# ----------------------- fitted vs. residuals diagnostics plot ----------------------- #
 png(filename = paste0(p_output, "plots/log2_cohort_diag_resid_v_fitted.png"), 
     width = 9, height = 8, units = "in", res = 400)
 par(mfrow = c(3, 4))
@@ -2375,12 +2456,12 @@ for (i in 1:11) plot(lm_log2_l[[i]], 1, main = site_df$site[i])
 dev.off()
 
 
-
-
-
-
-
-
+# ----------------------- QQ diagnostics plot ----------------------- #
+png(filename = paste0(p_output, "plots/log2_cohort_diag_qq.png"), 
+    width = 9, height = 8, units = "in", res = 400)
+par(mfrow = c(3, 4))
+for (i in 1:11) plot(lm_log2_l[[i]], 2, main = site_df$site[i])
+dev.off()
 
 
 ```
