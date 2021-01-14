@@ -319,57 +319,40 @@ names(lm_0_l) <- site_df$site
 # save plots:
 for (i in 1:11) {
   # calculate and extract mean coef estimates:
-  site_mn_coef_tmp <- tidy(lm_lin_log_lin_l[[i]]) %>% 
-    mutate(coef_term = sub(":*cohort....:*", "", term),
+  mean_coef_tmp <- tidy(lm_lin_log_lin_l[[i]]) %>% 
+    mutate(site = site_df$site[i],
+           coef_term = sub(":*cohort....:*", "", term),
            year_abn = ifelse(coef_term == "log(time_1)", gsub(".*cohort", "", term), parse_number(term)),
            cohort = as.factor(year_abn)) %>% 
     group_by(coef_term) %>%
-    summarise(mean_est = mean(estimate, na.rm = TRUE))
+    summarise(mean_est = mean(estimate, na.rm = TRUE)) %>% arrange(coef_term)
     
-    
-  ggplot(data = filter(dat_l, site == site_df$site[i]), 
-         mapping = aes(x = age, y = proportion,
-                       group = year_abn, color = year_abn)) + 
+  # plot
+  gg_lin_log_lin_cohort_tmp <- ggplot(data = filter(dat_l, site == site_df$site[i]), 
+                                      mapping = aes(x = age, y = proportion, 
+                                                    group = year_abn, color = year_abn)) + 
     geom_point() + scale_color_distiller(palette = "Greens") + 
-    scale_x_continuous(n.breaks = 30) +
-    
-    labs(caption = "I(proportion - 1) ~ 0 + log(time_1):cohort + I(time_1 - 1):cohort") + 
+    scale_x_continuous(n.breaks = 6) +
+    geom_hline(yintercept = 0.5, linetype = "dashed") + 
+    labs(title = "Decay of abandoned land over time", 
+         subtitle = site_df$description[i], 
+         caption = "lm formula: (proportion - 1) ~ 0 + log(time_1):cohort + (time_1 - 1):cohort",
+         x = "Time since initial abandonment (years)", 
+         y = "Proportion of abandoned land remaining",
+         color = "Cohort (Year \nFirst Abandoned)",
+         linetype = "") + 
+  
     geom_line(data = mutate(augment(lm_lin_log_lin_l[[i]]),
-                            time_1 = exp(`log(time_1)`),
-                            time_1_check = `I(time_1 - 1)` + 1,
+                            time_1 = round(exp(`log(time_1)`), digits = 0),
                             age = time_1 + 4,
                             proportion = .fitted + 1,
                             year_abn = as.numeric(levels(cohort))[cohort])) + 
     
     # site mean coefficients: (note, needs to be transformed 4 to the right, so that plotting works)
     geom_function(fun = function(x) {
-      site_mn_coef_tmp$mean_est[2] * log(x-4) + site_mn_coef_tmp$mean_est[1] * (x - 4 - 1) + 1},
-                  mapping = aes(linetype = "Mean Decay Rate"),
-                  color = "blue", size = 1, #linetype = "dashed", 
-                  inherit.aes = FALSE) +
-    scale_linetype(name = "")
-
-  gg_lin_log_lin_cohort_tmp <- ggplot(mapping = aes(x = age, y = proportion, group = year_abn, color = year_abn)) + 
-    geom_point(data = filter(dat_l, site == site_df$site[i])) + scale_color_distiller(palette = "Greens") +
-    scale_x_continuous(n.breaks = 30) + 
-    geom_hline(yintercept = 0.5, linetype = "dashed") + 
-    labs(title = "Decay of abandoned land over time", 
-         subtitle = site_df$description[i], 
-         caption = "lm formula: log(proportion) ~ 0 + log(time_1):cohort",
-         x = "Time since initial abandonment (years)", 
-         y = "Proportion of abandoned land remaining",
-         color = "Cohort (Year \nFirst Abandoned)") + 
-    
-    # fitted values
-    geom_line(data = mutate(augment(mod_tmp), 
-                          year_abn = as.numeric(levels(cohort))[cohort]),
-            aes(x = exp(`log(time_1)`) + 4, y = exp(.fitted))) + 
-    
-    # average (needs to be transformed 4 to the right, so that plotting works)
-    geom_function(fun = function(x) { (x-4) ^ (mean(coef(mod_tmp), na.rm = TRUE))},
-                  mapping = aes(linetype = "Mean Decay Rate"),
-                  color = "blue", size = 1, inherit.aes = FALSE) + 
-    scale_linetype(name = "")
+      mean_coef_tmp$mean_est[2]*log(x-4) + mean_coef_tmp$mean_est[1]*((x-4) - 1) + 1},
+      mapping = aes(linetype = "Mean Decay Rate"),
+      color = "blue", size = 1, inherit.aes = FALSE)
   
   png(filename = paste0(p_output, "plots/l3_cohort", site_df$label[i], ".png"), 
     width = 8, height = 6, units = "in", res = 400)
@@ -380,37 +363,33 @@ for (i in 1:11) {
 
 
 
-
 # ------------------------------------------------ #
 # log-log model, with cohort fixed effects
 # ------------------------------------------------ #
 # save plots:
 for (i in 1:11) {
-  # set mod:
-  mod_tmp <- lm(log(proportion) ~ 0 + log(time_1):cohort,  
-               data = filter(dat_l, site == site_df$site[i]))
   
   gg_log2_cohort_tmp <- ggplot(mapping = aes(x = age, y = proportion, group = year_abn, color = year_abn)) + 
     geom_point(data = filter(dat_l, site == site_df$site[i])) + scale_color_distiller(palette = "Greens") +
-    scale_x_continuous(n.breaks = 30) + 
+    scale_x_continuous(n.breaks = 6) + 
     geom_hline(yintercept = 0.5, linetype = "dashed") + 
     labs(title = "Decay of abandoned land over time", 
          subtitle = site_df$description[i], 
          caption = "lm formula: log(proportion) ~ 0 + log(time_1):cohort",
          x = "Time since initial abandonment (years)", 
          y = "Proportion of abandoned land remaining",
-         color = "Cohort (Year \nFirst Abandoned)") + 
+         color = "Cohort (Year \nFirst Abandoned)",
+         linetype = "") + 
     
     # fitted values
-    geom_line(data = mutate(augment(mod_tmp), 
+    geom_line(data = mutate(augment(lm_log2_l[[i]]), 
                           year_abn = as.numeric(levels(cohort))[cohort]),
             aes(x = exp(`log(time_1)`) + 4, y = exp(.fitted))) + 
     
     # average (needs to be transformed 4 to the right, so that plotting works)
-    geom_function(fun = function(x) { (x-4) ^ (mean(coef(mod_tmp), na.rm = TRUE))},
+    geom_function(fun = function(x) { (x-4) ^ (mean(coef(lm_log2_l[[i]]), na.rm = TRUE))},
                   mapping = aes(linetype = "Mean Decay Rate"),
-                  color = "blue", size = 1, inherit.aes = FALSE) + 
-    scale_linetype(name = "")
+                  color = "blue", size = 1, inherit.aes = FALSE)
   
   png(filename = paste0(p_output, "plots/log2_cohort", site_df$label[i], ".png"), 
     width = 8, height = 6, units = "in", res = 400)
@@ -418,7 +397,129 @@ for (i in 1:11) {
   dev.off()
   
 }
+
+
+
+
+
+
+# ------------------------------------------------ #
+# both log-log and linear-log-linear models, together
+# ------------------------------------------------ #
+# save plots:
+for (i in 1:11) {
+  # calculate and extract mean coef estimates:
+  mean_coef_tmp <- tidy(lm_lin_log_lin_l[[i]]) %>% 
+    mutate(site = site_df$site[i],
+           coef_term = sub(":*cohort....:*", "", term),
+           year_abn = ifelse(coef_term == "log(time_1)", gsub(".*cohort", "", term), parse_number(term)),
+           cohort = as.factor(year_abn)) %>% 
+    group_by(coef_term) %>%
+    summarise(mean_est = mean(estimate, na.rm = TRUE)) %>% arrange(coef_term)
+    
+  # plot
+  gg_lin_log_lin_cohort_tmp <- ggplot(data = filter(dat_l, site == site_df$site[i]), 
+                                      mapping = aes(x = age, y = proportion, 
+                                                    group = year_abn, color = year_abn)) + 
+    geom_point() + scale_color_distiller(palette = "Greens") + 
+    scale_x_continuous(n.breaks = 6) +
+    geom_hline(yintercept = 0.5, linetype = "dashed") + 
+    labs(title = "Decay of abandoned land over time", 
+         subtitle = site_df$description[i], 
+         caption = "lm formula: (proportion - 1) ~ 0 + log(time_1):cohort + (time_1 - 1):cohort",
+         x = "Time since initial abandonment (years)", 
+         y = "Proportion of abandoned land remaining",
+         color = "Cohort (Year \nFirst Abandoned)",
+         linetype = "") + 
+  
+    geom_line(data = mutate(augment(lm_lin_log_lin_l[[i]]),
+                            time_1 = round(exp(`log(time_1)`), digits = 0),
+                            age = time_1 + 4,
+                            proportion = .fitted + 1,
+                            year_abn = as.numeric(levels(cohort))[cohort])) + 
+    geom_function(fun = function(x) {
+      mean_coef_tmp$mean_est[2]*log(x-4) + mean_coef_tmp$mean_est[1]*((x-4) - 1) + 1},
+      mapping = aes(linetype = "Mean Decay Rate"),
+      color = "blue", size = 1, inherit.aes = FALSE)
+  
+  
+  # log-log
+  gg_log2_cohort_tmp <- ggplot(mapping = aes(x = age, y = proportion, group = year_abn, color = year_abn)) + 
+    geom_point(data = filter(dat_l, site == site_df$site[i])) + scale_color_distiller(palette = "Greens") +
+    scale_x_continuous(n.breaks = 6) + 
+    geom_hline(yintercept = 0.5, linetype = "dashed") + 
+    labs(title = "Decay of abandoned land over time", 
+         subtitle = site_df$description[i], 
+         caption = "lm formula: log(proportion) ~ 0 + log(time_1):cohort",
+         x = "Time since initial abandonment (years)", 
+         y = "Proportion of abandoned land remaining",
+         color = "Cohort (Year \nFirst Abandoned)",
+         linetype = "") + 
+    
+    # fitted values
+    geom_line(data = mutate(augment(lm_log2_l[[i]]), 
+                          year_abn = as.numeric(levels(cohort))[cohort]),
+            aes(x = exp(`log(time_1)`) + 4, y = exp(.fitted))) + 
+    geom_function(fun = function(x) { (x-4) ^ (mean(coef(lm_log2_l[[i]]), na.rm = TRUE))},
+                  mapping = aes(linetype = "Mean Decay Rate"),
+                  color = "blue", size = 1, inherit.aes = FALSE)
+  
+  
+  y_ranges <- c(ggplot_build(gg_log2_cohort_tmp)$layout$panel_params[[1]]$y.range, 
+                ggplot_build(gg_lin_log_lin_cohort_tmp)$layout$panel_params[[1]]$y.range)
+  
+  png(filename = paste0(p_output, "plots/l3_log2_combo", site_df$label[i], ".png"), 
+    width = 13, height = 7.5, units = "in", res = 400)
+  
+  print(
+    plot_grid(gg_log2_cohort_tmp + theme(legend.position = "none") + 
+                scale_y_continuous(lim = c(min(y_ranges), max(y_ranges)),
+                                   breaks = seq(from = round(min(y_ranges), digits = 1), 
+                                                to = round(max(y_ranges), digits = 1),
+                                                by = 0.1)), 
+              gg_lin_log_lin_cohort_tmp +
+                scale_y_continuous(lim = c(min(y_ranges), max(y_ranges)),
+                                   breaks = seq(from = round(min(y_ranges), digits = 1), 
+                                                to = round(max(y_ranges), digits = 1),
+                                                by = 0.1)), 
+              ncol = 2, rel_widths = c(1, 1.3), align = "v", axis = "l")
+    )
+  dev.off()
+}
+
 ```
+
+```{r full-extrapolation}
+# in order to plot each cohorts trajectory out to an age of 30:
+mutate(augment(lm_log2_l[[i]],
+        newdata = as_tibble(data.frame(time_1 = 1:26,
+                                       cohort = as_factor(rep(1988:2013, each = 26))))),
+       year_abn = as.numeric(levels(cohort))[cohort])
+
+# plot
+ggplot(mapping = aes(x = age, y = proportion, group = year_abn, color = year_abn)) + 
+    geom_point(data = filter(dat_l, site == site_df$site[i])) + scale_color_distiller(palette = "Greens") +
+    scale_x_continuous(n.breaks = 6) + 
+    geom_hline(yintercept = 0.5, linetype = "dashed") + 
+    labs(title = "Decay of abandoned land over time", 
+         subtitle = site_df$description[i], 
+         caption = "lm formula: log(proportion) ~ 0 + log(time_1):cohort",
+         x = "Time since initial abandonment (years)", 
+         y = "Proportion of abandoned land remaining",
+         color = "Cohort (Year \nFirst Abandoned)",
+         linetype = "") + 
+    
+    # fitted values
+    geom_line(data = mutate(augment(lm_log2_l[[i]],
+        newdata = as_tibble(data.frame(time_1 = 1:26,
+                                       cohort = as_factor(rep(1988:2013, each = 26))))),
+       year_abn = as.numeric(levels(cohort))[cohort]),
+            aes(x = time_1 + 4, y = exp(.fitted))) + 
+    geom_function(fun = function(x) { (x-4) ^ (mean(coef(lm_log2_l[[i]]), na.rm = TRUE))},
+                  mapping = aes(linetype = "Mean Decay Rate"),
+                  color = "blue", size = 1, inherit.aes = FALSE)
+```
+
 
 ```{r AIC}
 
