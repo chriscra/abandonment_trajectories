@@ -124,7 +124,8 @@ lm_lin_log_l <- lapply(1:11, FUN = function(i) {
 # linear - log - lin
 lm_lin_log_lin_l <- lapply(1:11, FUN = function(i) {
   lm(I(proportion - 1)  ~ 0 + log(time_1):cohort + I(time_1 - 1):cohort,  
-               data = filter(dat_l, site == site_names[i]))
+               data = filter(dat_l, #year_abn < 2011, 
+                             site == site_names[i]))
 })
 
 # linear - log - lin (uncorrected)
@@ -394,10 +395,25 @@ for (i in 1:11) plot(lm_lin_log_l[[i]], 2, main = site_names[i])
 
 
 
-
+dev.off()
 par(mfrow = c(3, 4))
 for (i in 1:11) plot(lm_lin_log_lin_l[[i]], 1, main = site_names[i])
+
+dev.off()
+par(mfrow = c(3, 4))
 for (i in 1:11) plot(lm_lin_log_lin_l[[i]], 2, main = site_names[i])
+
+plot(lm_lin_log_lin_l[[5]])
+plot()
+
+dev.off()
+par(mfrow = c(2, 2))
+plot(lm_lin_log_lin_l[[2]])
+plot(lm_lin_log_lin_l$belarus, 2)
+plot(lm_lin_log_lin_l$bosnia_herzegovina, 2)
+plot(lm_lin_log_lin_l$chongqing, 2)
+
+
 
 par(mfrow = c(3, 4))
 for (i in 1:11) plot(lm_lin_log_lin_l_not0[[i]], 1, main = paste0(site_names[i], "_not0"))
@@ -611,7 +627,6 @@ mod_AIC <- lapply(mod_ll,
 
 
 # view results
-aic1 %>% filter(site == site_names[1]) %>% print(n = 100)
 mod_AIC %>% #filter(site == site_names[1]) %>% 
   arrange(site, AIC) %>% select(site, AIC, mod, adj.r.squared) %>% print(n = 150)
 
