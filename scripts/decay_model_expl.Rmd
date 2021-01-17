@@ -287,6 +287,66 @@ ggplot(data = filter(dat_l, site == "shaanxi"),
 ```
 
 
+```{r age}
+
+ggplot(data = filter(dat_l, site == "shaanxi"), 
+       mapping = aes(x = time, y = proportion,
+                     group = year_abn, color = year_abn)) + 
+  geom_point() + scale_color_distiller(palette = "Greens") + 
+  # scale_x_continuous(n.breaks = 30) + 
+  labs(title = "I(proportion - 1) ~ 0 + (log(time_1)):cohort + I(time_1):cohort") + 
+  geom_line(data =
+              mutate(
+                augment(lm(formula = I(proportion - 1) ~ 
+                             0 + (log(time + 1)):cohort + 
+                             I(time):cohort,
+                           #time:cohort, 
+                           data = filter(dat_l, site == "shaanxi"))
+                        ),
+                time = round(exp(`log(time + 1)`), digits = 0) - 1,
+                proportion = .fitted + 1,
+                year_abn = as.numeric(levels(cohort))[cohort])
+            )
+
+
+ggplot(data = filter(dat_l, site == "shaanxi"), 
+       mapping = aes(x = time_1, y = proportion,
+                     group = year_abn, color = year_abn)) + 
+  geom_point() + scale_color_distiller(palette = "Greens") + 
+  # scale_x_continuous(n.breaks = 30) + 
+  labs(title = "I(proportion - 1) ~ 0 + (log(time_1)):cohort + I(time_1):cohort") + 
+  geom_line(data = mutate(augment(lm(formula = I(proportion - 1) ~ 
+                                      0 + (log(time_1)):cohort + 
+                                      I(time_1 - 1):cohort,
+                                    #time:cohort, 
+                                    data = filter(dat_l, site == "shaanxi"))),
+                time_1 = round(exp(`log(time_1)`), digits = 0),
+                proportion = .fitted + 1,
+                year_abn = as.numeric(levels(cohort))[cohort]))
+
+
+
+# age:
+ggplot(data = filter(dat_l, site == "shaanxi"), 
+       mapping = aes(x = age, y = proportion,
+                     group = year_abn, color = year_abn)) + 
+  geom_point() + scale_color_distiller(palette = "Greens") + 
+  # scale_x_continuous(n.breaks = 30) + 
+  labs(title = "I(proportion - 1) ~ 0 + (log(time_1)):cohort + I(time_1):cohort") + 
+  geom_line(data = mutate(augment(lm(formula = I(proportion - 1) ~ 
+                                       0 + log(I(age-4)):cohort + 
+                                       I(age-5):cohort,
+                                     data = filter(dat_l, site == "shaanxi"))),
+                          #time_1 = round(exp(`log(time_1)`), digits = 0),
+                          age = `I(age - 5)` + 5,
+                          proportion = .fitted + 1,
+                          year_abn = as.numeric(levels(cohort))[cohort])) + coord_cartesian(xlim = c(4.99, 5.01), ylim = c(0.99, 1.01))
+
+
+
+```
+
+
 
 ```{r plotting-diagnostics}
 
@@ -483,22 +543,59 @@ augment(lm(formula = proportion ~ 0 + log(time_1):cohort + time_1:cohort,
   arrange(desc(.fitted)) %>% 
   print(n = 28)
 
-gg_base_s + 
-  labs(caption = "I(proportion - 1) ~ 0 + log(time_1):cohort + I(time_1 - 1):cohort") + 
+
+
+lm(I(proportion - 1)  ~ 0 + log(time_1):cohort + I(time_1 - 1):cohort,  
+               data = filter(dat_l, #year_abn < 2011, 
+                             site == site_df$site[i]))
+names(lm_lin_log_lin_l) <- site_df$site
+
+
+gg_fiddle <- ggplot(data = filter(dat_l, site == "shaanxi"), 
+       mapping = aes(x = time_1, y = proportion,
+                     group = year_abn, color = year_abn)) + 
+  geom_point() + scale_color_distiller(palette = "Greens") + 
+  # scale_x_continuous(n.breaks = 30) + 
+  labs(title = "I(proportion - 1) ~ 0 + (log(time_1)):cohort + I(time_1):cohort") + 
   geom_line(data =
               mutate(
                 augment(lm(formula = I(proportion - 1) ~ 
-                             0 + log(time_1):cohort + 
-                             I(time_1 - 1):cohort, 
+                             0 + (log(time_1)):cohort + 
+                             I(time_1):cohort,
                            #time:cohort, 
                            data = filter(dat_l, site == "shaanxi"))
                         ),
-                time_1 = exp(`log(time_1)`),
+                time_1 = round(exp(`log(time_1)`), digits = 0),
                 proportion = .fitted + 1,
                 year_abn = as.numeric(levels(cohort))[cohort])
-            ) #+ coord_cartesian(xlim = c(0.9, 2), ylim = c(0.975, 1.025))
+            )
 
-gg_base_s + 
+# combo
+png(filename = paste0(p_output, "plots/fiddling0.png"), 
+    width = 10.5, height = 6, units = "in", res = 400)
+print(plot_grid(gg_fiddle + 
+                  theme(legend.position = "none"),
+                gg_fiddle + 
+                  coord_cartesian(xlim = c(0.95, 1.2), ylim = c(0.975, 1.025)) + 
+                  labs(
+                    title = "",
+                    subtitle = "zoomed in") + 
+                  theme(legend.position = "none",
+                        rect = element_rect(fill = "transparent")),
+                cowplot::get_legend(gg_fiddle),
+                ncol = 3, rel_widths = c(1, 1, 0.2)))
+dev.off()
+
+
+
+
+##### 
+
+ggplot(data = filter(dat_l, site == "shaanxi"), 
+       mapping = aes(x = time_1, y = proportion,
+                     group = year_abn, color = year_abn)) + 
+  geom_point() + scale_color_distiller(palette = "Greens") + 
+  scale_x_continuous(n.breaks = 30) + 
   labs(caption = "log(proportion) ~ 0 + log(time_1):cohort + I(time_1 - 1):cohort") + 
   geom_line(data = 
               mutate(
