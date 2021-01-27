@@ -3757,12 +3757,13 @@ coef_df_l3 <- lapply(lm_lin_log_lin_l, FUN = function(x) {
 
 
 
-# mean_coef per site
+# calculate mean coefficients per site, for both lin and log terms
 mean_coef_df_l3 <- coef_df_l3 %>% 
-  group_by(site, coef_term, term) %>% 
+  group_by(site, coef_term, term) %>% # group by site, term and coef_term (though you only need one of these)
   summarise(mean = mean(estimate, na.rm = TRUE),
             mean_low = mean(conf.low, na.rm = TRUE),
             mean_high = mean(conf.high, na.rm = TRUE))
+
 
 # pivot wider, for use below in the calculation of projections
 mean_coef_df_wide_l3 <- mean_coef_df_l3 %>%
@@ -3771,18 +3772,17 @@ mean_coef_df_wide_l3 <- mean_coef_df_l3 %>%
               names_glue = "{term}_{.value}",
               values_from = c(mean, mean_low, mean_high)) %>%  
   
-  # calculate the time_to_0.5s
+  # calculate the time_to_0.5
   mutate(time_to_0.5 = ((log_mean * lambertW0((lin_mean * exp(lin_mean/log_mean + 0.5/log_mean - 1/log_mean))/log_mean))/lin_mean) + 4,
          time_to_0.5_low = ((log_mean_low * lambertW0((lin_mean_low * exp(lin_mean_low/log_mean_low + 0.5/log_mean_low - 1/log_mean_low))/log_mean_low))/lin_mean_low) + 4,
          time_to_0.5_high = ((log_mean_high * lambertW0((lin_mean_high * exp(lin_mean_high/log_mean_high + 0.5/log_mean_high - 1/log_mean_high))/log_mean_high))/lin_mean_high) + 4
-         
          )
 
 
 # join to all coef df
 coef_df_l3 <- left_join(coef_df_l3, 
                         mean_coef_df_l3 %>% select(-term),
-                        by = c("site", "coef_term"))# %>% filter(site == "belarus") %>% print(n = 30)
+                        by = c("site","coef_term"))# %>% filter(site == "belarus") %>% print(n = 30) # for testing purposes
 
 
 
@@ -3806,16 +3806,16 @@ coef_df_wide_l3 <- left_join(coef_df_wide_l3,
 # calculate the proportion remaining at various times, projection
 mean_coef_proj_l3 <- bind_rows(mean_coef_df_wide_l3, 
                           
-                          # time = i + 4 (since time is age - 5)
-                          lapply(c(1, 6, 11, 16, 21, 26, 36, 46) - 1, FUN = function(x) {
+                          # time + 1 = i + 4 (since time is age - 5)
+                          lapply(c(0, 5, 10, 15, 20, 25, 35, 45), FUN = function(x) {
                             mean_coef_df_wide_l3 %>%
                              # need to update this to reflect the new formula:
                               #{mean_coef_tmp$mean_est[2]*log(x-4) + mean_coef_tmp$mean_est[1]*((x-4) - 1) + 1}
                               # mean*log(x) + mean*(x - 1) + 1
-                               mutate(mean = log_mean*log(x) + lin_mean*(x - 1) + 1,
-                                     mean_low = log_mean_low*log(x) + lin_mean_low*(x - 1) + 1,
-                                     mean_high = log_mean_high*log(x) + lin_mean_high*(x - 1) + 1,
-                                     term = paste0("p", x + 4))
+                               mutate(mean = log_mean*log(x + 1) + lin_mean*(x) + 1,
+                                     mean_low = log_mean_low*log(x + 1) + lin_mean_low*(x) + 1,
+                                     mean_high = log_mean_high*log(x + 1) + lin_mean_high*(x) + 1,
+                                     term = paste0("yr_", x + 5))
                             }))
 
 

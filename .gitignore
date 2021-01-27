@@ -56,3 +56,7 @@ docs/
 
 # translation temp files
 po/*~
+
+# knit output documents
+*.docx
+*.html
