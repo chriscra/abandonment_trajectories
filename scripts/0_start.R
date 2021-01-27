@@ -3,6 +3,7 @@
 # Start File: load packages, functions, and pathnames
 # 
 # --------------------------------------------------------------- #
+setwd("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories")
 
 source("scripts/util/_util_misc_functions.R")
 source("scripts/util/_util_pathnames.R")
@@ -24,6 +25,7 @@ needed_packages <- c(
   "tidymodels", # metapackage including: rsample, parsnip, recipes, workflows, tune, yardstick, broom, & dials
   "lme4", "brms", 
   "broom.mixed", # nb: broom comes preloaded in the tidymodels; this package is specifically intended for mixed effects models
+  "lamW", # to calculate the Lambert's W function, for calculating time to various proportions in abn decay models
   
   # visualization:
   "rasterVis", "RColorBrewer", "viridis", "scales",

@@ -1643,9 +1643,14 @@ plot(noncrop_duration_avg)
 
 
 ```{r install-OpenMP}
+
+# As of 2021.1.19, the most up to date version of this is at:
+# /Users/christophercrawford/Google Drive/Stats_Code_Methods/R/data.table_openmp_threads.R
+
 remove.packages("data.table")
 install.packages("data.table", type = "source",
     repos = "https://Rdatatable.gitlab.io/data.table")
+# 1.19.2021 Update - 
 
 # cran version:
 remove.packages("data.table")
