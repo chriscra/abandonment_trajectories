@@ -33,7 +33,7 @@ Rscript ./analyze_all_sites.R $SLURM_ARRAY_TASK_ID
 # The rest of the them took about 1.5 hours, and ~95 gb. 
 
 
-# Inspection
+# Inspection: 
 # bh - checks out (ncell: 74231964). Used 90.57 GB, 1:28 hours. 
 # c - checks out (ncell: 32234381). Used 39.58 GB, 0:53 hours.
 # g - checks out (ncell: 59898990). Used 76.77 GB, 01:15:29 hours.

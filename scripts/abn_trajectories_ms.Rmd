@@ -166,6 +166,9 @@ One sentence outlining our main finding, and providing a segue into the methods
 - Describe abandonment map data
 - Data processing & filtering
 
+This is the code used for data processing, and should be a good reference for remembering what I did. Probably a good idea to narratively write down what I did in the code, and which SLURM scripts I used, even if just to put in one of the .Rmd analysis documents. 
+~/Google Drive/_Projects/abandonment_trajectories/scripts/cluster/analyze_all_sites.R
+
 
 Sections:
 

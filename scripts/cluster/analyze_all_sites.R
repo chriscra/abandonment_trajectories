@@ -3,7 +3,23 @@
 
 # Script to process rasters for all sites
 # -------------------------------------------------------- #
+# Note: this is the primary script to process land cover rasters from Yin et al. 2020.
+# It contains 6 steps, going from raw rasters to the production of summary data files:
 
+# 0. cc_merge_rasters() // Merge raw raster layers
+# 1. cc_r_to_dt() // Convert raw rasters into data.tables (including renaming and recoding)
+# 2. cc_filter_abn_dt() // Process raw data.tables in order to calculate the length of agricultural abandonment periods.
+    # Steps include:
+    # 1) filtering to just abandonment cells, 
+    # 2) filling recultivation blips based on a threshold,
+    # 3) calculating age, and 
+    # 4) extracting lengths, all the while writing out files.
+# 3. cc_calc_max_age() // Calculate maximum age, in serial.
+# 4. cc_save_dt_as_raster() // Save various data.tables as rasters.
+# 5. cc_summarize_abn_dts() // Summarize the abandonment datatables into dataframes for plotting purposes.
+
+
+# -------------------------------------------------------- #
 # load libraries
 cluster_packages <- c("data.table", "tictoc", "raster",
                       "landscapemetrics", "landscapetools", "sp",
@@ -50,7 +66,7 @@ cat("Set up site parameters:\n")
 print(t(site_df[indx, ]))
 
 
-
+# -------------------------------------------------------- #
 # 0. Merge raw raster layers
 cat("0. Merge raw raster layers", fill = TRUE)
 tic("Merge rasters")
@@ -62,6 +78,8 @@ cc_merge_rasters(site = site,
                  )
 toc(log = TRUE)
 
+
+# -------------------------------------------------------- #
 # 1. Convert raw rasters into data.tables (including renaming and recoding)
 cat("1. Converting raw rasters into data.tables (including renaming and recoding): ", site, fill = TRUE)
 cc_r_to_dt(site = site, site_df = site_df,
@@ -69,6 +87,8 @@ cc_r_to_dt(site = site, site_df = site_df,
            output_path = p_input_rasters # where the recoded .csv and .tif files will go
            )
 
+
+# -------------------------------------------------------- #
 # 2. Process raw data.tables in order to calculate the length of agricultural abandonment periods.
       # Steps include:
       # 1) filtering to just abandonment cells, 
@@ -82,6 +102,8 @@ cc_filter_abn_dt(site = site,
                  blip_label = blip_label,
                  clean_blips = TRUE)
 
+
+# -------------------------------------------------------- #
 # 3 Calculate maximum age, serial
 cat("3. Calculate maximum age, in serial:", site, fill = TRUE)
 cc_calc_max_age(directory = p_input_rasters, 
@@ -90,6 +112,7 @@ cc_calc_max_age(directory = p_input_rasters,
                 label = label)
 
 
+# -------------------------------------------------------- #
 # 4. save various data.tables as rasters:
 cat("4. Save data.tables as rasters: ", site, fill = TRUE)
 
@@ -120,6 +143,7 @@ for (i in dt_types) {
 
 
 
+# -------------------------------------------------------- #
 # 5. Summarize the abandonment datatables into dataframes for plotting purposes
 cat("5. Summarizing abandonment data.tables: ", site, fill = TRUE)
 
