@@ -1,0 +1,265 @@
+---
+title: "Spatial Predictors of Abandonment and Recultivation"
+author: "Christopher L. Crawford"
+date: "2/1/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+bibliography: [/Users/christophercrawford/Google Drive/Library/library.bib]
+---
+## Spatial predictors of abandonment length and recultivation
+
+*Need: read through papers, sort out my contribution.*
+Insert context based on papers by @Estel2015 (recultivation, timing), @Estel2018, @Dara2018 (timing, recultivation, northern Kazakhstan), @Alcantara2013, @Lesiv2018 (methods of mapping), @Smaliychuk2016 (recultivation, predictors, Ukraine), @Prishchepov2013 (predictors), @Baumann2011 (), @Pazur2020 (Slovakia, predictors), @Levers2018a (predictors), @PerpinaCastillo2021 (predictors, model), @Meyfroidt2016 (drivers, tradeoffs, recultivation, timing, Russia/Ukraine/Kazakhstan), @Crouzeilles2020 (Atlantic Forest, predictors)
+
+
+
+Question: what factors best predict abandonment trajectories?
+
+3a. What predicts which pieces of land are abandoned for the longest periods of time? In other words, are some areas more likely to experience more durable abandonment?
+    i. Predicting the *max age* of a pixel [or *age in 2017*] using spatial predictor variables like population, slope, elevation, soil, etc.
+3b. What predicts recultivation? Are less suitable lands recultivated more quickly? Are more recently abandoned lands more frequently recultivated? In other words, does the probability that a piece of abandoned land will be recultivated depend on how long it has been abandoned for?
+    i. My sense, from the abandonment decay plots, is that the longer a piece of land is abandoned for (i.e. the greater the greater the *age*), the less likely it is to be recultivated. This will involve predicting recultivation with factors like current age of abandonment, and the other variables included in the primary regression, etc. How will I signify "recultivation" in the dataset? Options include:
+        A. data for each transition, each transition from abandoned -> not_abandoned is pulled out, and the age is recorded. This will require some fancy DT wrangling.
+        B. all periods of abandonment, including instances when abandoned land remains abandoned (and the age it is), with the cohort, the year, the age, etc.). Each year after a piece of land is defined as abandoned. So, let's say I have a pixel that is in 1995 and stays abandoned for a total of 12 years. This would result in 9 total observations.
+
+```{r, echo = FALSE}
+example_df <- data.frame(cohort = 1995,
+           year = 2000:2012,
+           age = 5:17,
+           abn = c(rep("yes", 8), rep("no", 5)),
+           recultivated = c(rep("no", 8), rep("yes", 5)))
+
+example_df[1:9, ]
+```
+
+### Spatial predictor variables:
+
+1. Agricultural suitability
+    a. Growing Degree Days - https://nelson.wisc.edu/sage/data-and-models/atlas/maps.php?datasetid=31&includerelatedlinks=1&dataset=31
+    b. FAO's Global Agro-Ecological Zones (GAEZ), which includes both general natural resource, soil, terrain, slope, elevation, and other types of biophysical data, typically at the scale of 5 arc minutes (~10km at the equator), as well as crop specific suitability maps (e.g. for rain-fed winter wheat). Specifically:
+        i. Agro-ecological zones (categories such as: steep terrain, dry/good soils, dry/poor soils, sub-humid/good soils...)
+        ii. Soil types
+        iii. Workability (categories such as: no constraints, moderate constraints, severe constraints...)
+        iv. And more.
+    c. Soil Quality: Harmonized World Soil Database - https://daac.ornl.gov/SOILS/guides/HWSD.html
+    d. Global inherent land quality map - https://www.nrcs.usda.gov/wps/portal/nrcs/detail/soils/use/worldsoils/?cid=nrcs142p2_054029
+2. Environmental factors
+    a. Temperature and precipitation
+        i. Terraclimate - http://www.climatologylab.org/terraclimate.html
+        ii. Bioclim - (https://www.worldclim.org)
+    b. Slope, elevation, and other terrain variables will come from @Amatulli2018.
+    c. Surrounding landcover, i.e. proximity to woody veg/grassland
+3. Socioeconomic variables:
+    a. Population - future projections of population growth and urbanization from UN DESA’s World Urbanization Prospects - https://esa.un.org/unpd/wup/
+    b. @Jones2016 created spatially explicit projections of urban, rural, and total population at ten-year intervals between 2010-2100
+
+
+## Results outline:
+
+3. Spatial predictors of age and recultivation
+
+- coefficients on various predictor variables
+- map of *abandonment age in 2017*
+- map of *max age*
+
+Fig. 8. Coefficients on spatial predictors (vertical, showing coefficients on slope, elevation, suitability, population)
+Fig. 9. Maps of a) abandonment *age in 2017* and b) *max age* for example site.
+
+
+
+
+```{r start}
+source("scripts/0_start.R")
+
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load-data}
+# elevation
+# slope
+# soils
+
+s_dt
+s_age
+```
+
+
+
+# Spatial Regression
+Abandonment Age predicted by:
+# Regression Analysis
+
+Question: what factors best predict a) which pixels of agricultural land are abandoned, b) how long that land will stay abandoned for, and relatedly, c) how likely it is to be recultivated?
+
+Factors:
+- Climate variables (temperature, precipitation, growing degree days, etc.)
+    - CHELSA (Swiss Federal Institute for Forest, Snow and Landscape Research WSL) ~1 km, 1979-2013, [CHELSA website](https://chelsa-climate.org/), [Peer reviewed paper, Scientific Data, 2017](https://www.nature.com/articles/sdata2017122)
+    - Worldclim, ~1km, 1970-2000 - [website](https://www.worldclim.org/data/worldclim21.html), [bioclim](https://www.worldclim.org/data/bioclim.html),  [possibly helpful how-to](https://www.benjaminbell.co.uk/2018/01/extracting-data-and-making-climate-maps.html)
+    
+
+- Topography variables (elevation, slope, etc.) [earthenv.org](http://www.earthenv.org/topography)
+- Agricultural economic variables 
+    - soils
+    - "marginality"
+    - agricultural opportunity cost (Naidoo & Iwamura 2007)
+    
+- Socioeconomic variables
+    - population
+    - context
+    - land use decision making
+- 
+
+## Methods:
+- start with a regular OLS regression (lm)
+- check out the residuals (the model errors) - if they are clumped, or there is a clear trend in them, then, they might be spatially autocorrelated.
+- Calculating Moran's I helps identify spatial autocorrelation. 
+- see code Liang shared by Raymond Huey 2020 ("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/Spatial analysis w Depth 2020-03-20.R")
+- see code from Umesh's stats course. 
+
+## Code:
+
+```{r load-data}
+# copied from 6_figures on Feb 1 2021
+
+# for use on cluster:
+p_dat <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
+p_dat_derived <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
+p_output <- paste0("/scratch/network/clc6/abandonment_trajectories/output/")
+list.files(p_dat_derived)
+
+site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
+
+
+# Land use class codes:
+#       1. Non-vegetated area (e.g. water, urban, barren land)
+#       2. Woody vegetation
+#       3. Cropland 
+#       4. Herbaceous land (e.g. grassland)
+
+# testers:
+bs <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
+bt <- brick(paste0(p_dat_derived, "belarus_subset.tif"))
+names(bs) <- paste0("y", 1987:2017)
+names(bt) <- paste0("y", 1987:2017)
+
+
+# -------------------------- rasters --------------------------- #
+# raw rasters
+s <- brick(paste0(p_dat_derived, "input_rasters/shaanxi.tif"))
+b <- brick(paste0(p_dat_derived, "input_rasters/belarus.tif")) # merged version
+
+# age
+s_age_r <- brick(paste0(p_dat_derived, "shaanxi_age.tif"))
+b_age_r <- brick(paste0(p_dat_derived, "belarus_age.tif"))
+
+# max_length
+s_max_length_r <- brick(paste0(p_dat_derived, "shaanxi_max_length.tif"))
+b_max_length_r <- brick(paste0(p_dat_derived, "belarus_max_length.tif"))
+
+# update year names 1987 - 2017
+names(s) <- paste0("y", 1987:2017)
+names(b) <- paste0("y", 1987:2017)
+names(s_age_r) <- paste0("y", 1987:2017)
+names(b_age_r) <- paste0("y", 1987:2017)
+
+
+# prepared input rasters (derived by Chris)
+site_input_raster_files <- list.files(paste0(p_dat_derived, "input_rasters"), full.names = TRUE) %>%
+  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = TRUE)
+
+r <- lapply(seq_along(site_input_raster_files), function(i) {brick(site_input_raster_files[i])})
+names(r) <- site_df$site
+
+# rename raster layers:
+for (i in 1:11) {
+  if (names(r[i]) == "nebraska") {
+    names(r[[i]]) <- paste0("y", 1986:2018)
+  } else {
+    if (names(r[i]) == "wisconsin") {
+      names(r[[i]]) <- paste0("y", 1987:2018)
+    } else {
+      # everything else, just 1987:2017
+      names(r[[i]]) <- paste0("y", 1987:2017)
+    }}}
+
+
+# abandonment age maps (produced by Chris)
+age_files <- list.files(paste0(p_dat_derived, "age_rasters"), full.names = TRUE) %>%
+  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
+
+age_r <- lapply(seq_along(age_files), function(i) {brick(age_files[i])})
+names(age_r) <- site_df$site
+for (i in seq_along(age_r)) {names(age_r[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
+
+# year of first abandonment maps (from He)
+yoa_files <- list.files(paste0(p_dat, "Abandonment/year_of_abandonment/"))
+
+# -------------------------- data.tables --------------------------- #
+b_age <- fread(input = paste0(p_dat_derived, "belarus_age.csv"))
+names(b_age)
+s_age <- fread(input = paste0(p_dat_derived, "shaanxi_age.csv"))
+
+
+b_length <- fread(input = paste0(p_dat_derived, "lengths/", "belarus_length_b1.csv"))
+s_length <- fread(input = paste0(p_dat_derived, "lengths/", "shaanxi_length_b1.csv"))
+
+b_max_length <- fread(input = paste0(p_dat_derived, "lengths/", "belarus_max_length_b1.csv"))
+s_max_length <- fread(input = paste0(p_dat_derived, "lengths/", "shaanxi_max_length_b1.csv"))
+
+# original data
+s_dt <- fread(input = paste0(p_dat_derived, "shaanxi.csv"))
+names(s_dt) <- gsub(pattern = "andcover", replacement = "y", names(s_dt))
+
+b_dt <- fread(input = paste0(p_dat_derived, "belarus.csv")) # caution - huge file! 8.4 GB at least. 
+
+
+
+# -------------------------- summarized data.frames --------------------------- #
+indx <- 9
+site <- site_df$site[indx] # set site:
+site_label <- site_df$label[indx] # set label
+blip_label <- "_b1"
+load(file = paste0(p_output, "abn_dat_products", blip_label, site_label, ".rds"), verbose = TRUE)
+
+# loads:
+area_b1_s
+persistence_list_b1_s
+abn_area_change_b1_s
+
+
+
+```
+
+```{r simple-plots}
+# copied from 6_figures on Feb 1 2021
+
+# -------------------------- plot raw data --------------------------- #
+plot(b$y1987, main = "Belarus 1987", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+legend("bottomleft", cex = 0.6, inset = 0,
+       legend = plot_cols$name, 
+       fill = plot_cols$color)
+
+plot(b$y2017, main = "Belarus 2017", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+legend("bottomleft", cex = 0.6, inset = 0,
+       legend = plot_cols$name, 
+       fill = plot_cols$color)
+
+# ---------------------- plot abandonment age ---------------------- #
+plot(b_age_r$y2017, main = "Belarus Age of Abandonment 2017")
+plot(b_age_r[[28:31]])
+
+
+
+# -------------------------- animate --------------------------- #
+# --------------
+# https://www.rdocumentation.org/packages/raster/versions/3.1-5/topics/animate
+
+animate(bt, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
+        breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+
+```
+
