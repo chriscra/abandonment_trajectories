@@ -8,6 +8,18 @@ scripts/cluster/old/
 scripts/cluster/slurm/
 
 
+# other random files
+*.bib
+
+# knit output documents
+*.docx
+*.html
+*.pdf
+
+# knit temp files - note, I do want to keep the .tex files
+*.log
+
+
 
 ##### below here is the R.gitignore template from https://github.com/github/gitignore/blob/master/R.gitignore
 
@@ -56,7 +68,3 @@ docs/
 
 # translation temp files
 po/*~
-
-# knit output documents
-*.docx
-*.html

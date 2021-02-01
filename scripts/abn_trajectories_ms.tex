@@ -1,0 +1,765 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{lmodern}
+\usepackage{ifxetex,ifluatex}
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  pdftitle={Persistence and Trajectories of Agricultural Abandonment (Draft)},
+  pdfauthor={Christopher L. Crawford,\^{}*\^{}a He Yin,\^{}b Volker Radeloff,\^{}c and David S. Wilcove\^{}\{a, d\}},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+\urlstyle{same} % disable monospaced font for URLs
+\usepackage[margin=1in]{geometry}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{5}
+\ifluatex
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\newlength{\cslhangindent}
+\setlength{\cslhangindent}{1.5em}
+\newlength{\csllabelwidth}
+\setlength{\csllabelwidth}{3em}
+\newenvironment{CSLReferences}[2] % #1 hanging-ident, #2 entry spacing
+ {% don't indent paragraphs
+  \setlength{\parindent}{0pt}
+  % turn on hanging indent if param 1 is 1
+  \ifodd #1 \everypar{\setlength{\hangindent}{\cslhangindent}}\ignorespaces\fi
+  % set entry spacing
+  \ifnum #2 > 0
+  \setlength{\parskip}{#2\baselineskip}
+  \fi
+ }%
+ {}
+\usepackage{calc}
+\newcommand{\CSLBlock}[1]{#1\hfill\break}
+\newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{#1}}
+\newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{#1}\break}
+\newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
+
+\title{Persistence and Trajectories of Agricultural Abandonment (Draft)}
+\author{Christopher L. Crawford,\(^*\)\(^a\) He Yin,\(^b\) Volker Radeloff,\(^c\) and David S. Wilcove\(^{a, d}\)}
+\date{January 29, 2021}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+\(^a\)Princeton School of Public and International Affairs, Princeton University, Princeton, NJ\\
+\(^b\)Department of Geography, Kent State University, Kent, OH\\
+\(^c\)Department of Forest \& Wildlife Ecology, University of Wisconsin - Madison, Madison, WI\\
+\(^d\)Department of Ecology \& Evolutionary Biology, Princeton University, Princeton, NJ\\
+\(^*\)Corresponding Author, \href{mailto:ccrawford@princeton.edu}{\nolinkurl{ccrawford@princeton.edu}}, Robertson Hall, Princeton University, Princeton, NJ
+\end{abstract}
+
+{
+\setcounter{tocdepth}{2}
+\tableofcontents
+}
+\hypertarget{abstract}{%
+\section{Abstract}\label{abstract}}
+
+\hypertarget{keywords}{%
+\subsection{Keywords}\label{keywords}}
+
+\hypertarget{introduction}{%
+\section{Introduction}\label{introduction}}
+
+Populations are in flux around the world, as people seek new economic opportunities in cities and flee changing environments and conflicts.
+Coupled with environmental changes and other factors that render some agricultural lands economically inviable, this rural outmigration has contributed to a growing global trend of agricultural abandonment.
+In a world with increasing competition for land, abandoned agricultural lands are highly sought after for diverse goals such as increased cultivation, biofuel production, and carbon-sequestration; to conservation scientists, this land represents a potentially large source of new habitat for wildlife as vegetation regenerates.
+
+However, understanding agricultural abandonment and its potential impacts on biodiversity requires not only detailed information on where and how abandonment is taking place, but critically, what happens to abandoned lands after they are abandoned.
+Most estimates of abandonment are either inferred from aggregated estimates of regional cultivation (e.g.~from FAO data on cultivated area; (Isbell et al. 2019; Munroe et al. 2013)), or from estimates of the gross area abandoned in a given year (Lark, Salmon, and Gibbs 2015).
+Both approaches lack spatial and temporal detail on the trajectories taken by individual pieces of land, which is critical for understanding the environmental implications of abandonment (Yin et al. 2020).
+
+Recent advances in satellite imagery-based mapping have made it possible to produce maps of agricultural abandonment with both high spatial resolution and temporal resolution, allowing us to ask questions about the timing and trajectories of agricultural abandonment.
+Here, we utilize a new time-series of agricultural abandonment derived from publicly available Landsat imagery (1987-2017, 31 years) to investigate how long abandonment lasts, how abandoned lands ``decay,'' and which factors seem to determine the length of abandonment and recultivation.
+Specifically, we ask the following questions:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  How long is abandoned land typically abandoned for, and how does this differ across sites?
+\item
+  What do abandonment decay rates (recultivation rates) look like at each site, and how do these differ between sites and through time?
+\item
+  Finally, what factors are most important for determining which pieces of land remain abandoned for longer periods of time, and which lands are recultivated?
+\end{enumerate}
+
+We use case studies of Brazil (2), the US (2), Southern \& Eastern Europe (4), the Middle East (1), and China (2) to provide a better understanding of how these patterns vary across regions (Yin et al. 2020) (see Figure \ref{fig:site-locations}).
+
+Yin et al. (2020) established several methodological advances, including improvement in the mapping of 1) the timing of initial abandonment (year first abandoned), and 2) the abandonment rate (amount of abandoned land in a given year divided by the amount of agricultural land in either a) the previous year or b) the beginning of the time series). However, Yin et al.~did not assess the persistence of abandonement (how long abandoned lands stay abandoned for), frequency and patterns of recultivation, the patterns of fragmentation in the resulting landscape, nor the implications of these for biodiversity. (These last two are likely for a second paper.)
+
+Previous studies of Costa Rica (Reid et al. 2018) and the Amazon (Nunes et al. 2020) have focused on the persistence and timing of secondary forest growth and age (as identified by the presence of woody vegetation regrowth), but not exclusively on abandoned agricultural lands.
+Identifying forest regeneration by picking up the signal of woody regrowth in satellite imagery may miss abandonment at earlier stages or that is regenerating into non-forest habitats (Yin et al. 2020).
+Focusing on abandonment itself, not only to detecting woody revegetation, provides a better understanding of the outcomes of abandonment, and provides critical context for understanding the potential that abandonment holds for habitat regeneration, carbon sequestration, and other land uses.
+
+Many studies of regeneration also do not consider patterns of persistence, or age of abandonment or regeneration (Yin et al. 2020).
+Crouzeilles et al. (2020) only consider pixels as regenerated if they were in forest in 2016 and had been forest for at least 3 years, without assessing average persistence.
+Aide et al. (2019) assess changes in woody vegetation over a 14 year period, but do so by averaging across years, losing the temporal pattern or regeneration and recultivation.
+Yin et al. (2020) define land as abandoned when it has been continuously uncultivated for 5 years, but do not assess the length of time abandoned in detail.
+
+These simple insights about the trajectories taken by abandoned agricultural land will provide much needed context to broad statements about recent and future abandonment and the contribution that abandonment many make to habitat regeneration and biodiversity conservation (Chazdon et al. 2020).
+The bulk of abandoned land may be relatively short-lived, from the perspective of ecological succession or carbon sequestration, and unlikely to regenerate into valuable habitat on its own without active policies to protect this land and encourage regeneration.
+
+\hypertarget{research-questions}{%
+\subsection{Research questions}\label{research-questions}}
+
+Our primary goal is to understand the temporal nature of agricultural abandonment by exploring the trajectories taken by each piece of abandoned land through time.
+Our main point is simple: abandoned land is not a permanent phenomenon.
+In fact, the period of abandonment varies quite a bit around the world and through time.
+As a result, in order to assess the effect of abandonment on biodiversity, carbon sequestration, and food security, we need a better understanding of how long abandonment lasts, how abandoned lands ``decay,'' and which factors seem to determine the timing and decay.
+A better understanding of the timing and persistence of abandonment at various sites around the world is crucial to understanding the conservation implications of agricultural abandonment and informing policies designed to manage abandoned lands.
+
+In pursuit of this understanding, we address three specific questions:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  How long is land actually abandoned for, on average, and how does abandonment length vary through space (i.e.~at different sites)?
+\item
+  How quickly is land recultivated, as measured through ``abandonment decay rates?''
+
+  \begin{enumerate}
+  \def\labelenumii{\alph{enumii}.}
+  \tightlist
+  \item
+    How do these decay rates vary through time and space? (What proportion of abandoned land remains abandoned long-term {[}e.g.~\textgreater20 years{]})
+  \end{enumerate}
+\item
+  What factors best predict abandonment trajectories?
+
+  \begin{enumerate}
+  \def\labelenumii{\alph{enumii}.}
+  \tightlist
+  \item
+    What predicts which pieces of land are abandoned for the longest periods of time? In other words, are some areas more likely to experience more durable abandonment?
+  \item
+    What predicts recultivation? Are less suitable lands recultivated more quickly? Are more recently abandoned lands more frequently recultivated? In other words, does the probability that a piece of abandoned land will be recultivated depend on how long it has been abandoned for?
+  \end{enumerate}
+\end{enumerate}
+
+One sentence outlining our main finding, and providing a segue into the methods
+
+\hypertarget{methods}{%
+\section{Methods}\label{methods}}
+
+\hypertarget{outline}{%
+\subsection{Outline}\label{outline}}
+
+\begin{itemize}
+\tightlist
+\item
+  Definitions of abandonment
+\item
+  Describe abandonment map data
+
+  \begin{itemize}
+  \tightlist
+  \item
+    statement about R versions
+  \end{itemize}
+\item
+  Data processing \& filtering steps
+
+  \begin{itemize}
+  \tightlist
+  \item
+    important filtering steps include a) removing non-abandonment pixels, and b) passing a temporal filter to remove instances of recultivation that last only 1 year.
+  \item
+    tracking abandonment trajectories
+  \end{itemize}
+\item
+  Modeling abandonment decay
+
+  \begin{itemize}
+  \tightlist
+  \item
+    why/motivation
+  \item
+    modeling approach, diagnostic steps, etc. mostly pointing towards the SI
+  \item
+    translating the decay models into a modified prediction of mean length abandoned
+  \end{itemize}
+\item
+  Spatial predictors
+
+  \begin{itemize}
+  \tightlist
+  \item
+    what factors are investigated
+  \item
+    modeling approach, short paragraph
+  \end{itemize}
+\item
+  R packages used that we didn't already specifically mention
+\end{itemize}
+
+This is the code used for data processing, and should be a good reference for remembering what I did. Probably a good idea to narratively write down what I did in the code, and which SLURM scripts I used, even if just to put in one of the .Rmd analysis documents.
+\textasciitilde/Google Drive/\_Projects/abandonment\_trajectories/scripts/cluster/analyze\_all\_sites.R
+
+\hypertarget{definitions-of-abandonment}{%
+\subsection{Definitions of abandonment}\label{definitions-of-abandonment}}
+
+One of our main points relates to how we define ``abandonment,'' specifically, showing that abandonment is in many places around the world, not a permanent phenomenon.
+Differentiating ``true'' abandonment from less permanent land-use changes, such as short-term fallowing or crop rotations, is a challenge, in no small part because definitions can vary so widely - by region and by study.
+In fact, abandonment is better viewed as a land-use transition in which land may pass through a spectrum of stages (Munroe et al. 2013).
+Here, when we refer to ``abandonment,'' we aim to capture agricultural land that is no longer being actively cultivated.
+We do not refer to changes from intensive cropped to less intensive uses, such as extensive grazing.
+In order to exclude short-term fallow periods, we define land as abandoned when it has remained uncultivated for five consecutive years {[}following FAO{]}.
+We assess the influence of this threshold in the SI ().
+We focus exclusively on cropland abandonment, not the abandonment of pasturelands, which is more difficult to discern from satellite imagery (though recent advances have been made; cite) and is not incorporated into our current dataset.
+
+\hypertarget{abandonment-maps}{%
+\subsection{Abandonment maps}\label{abandonment-maps}}
+
+Our analysis builds on maps developed in Yin et al. (2020). Yin et al. (2020) used the following approach: {[}\emph{insert sentences here describing, summarizing Yin et al. (2020)}{]}.
+We selected 11 sites from Yin et al. (2020) for which mapping had a high accuracy {[}\emph{insert stat here from He}{]} and which provided a broad geographic coverage.
+These sites were initially chosen by Yin et al. (2020) as places that were highly likely to have experienced agricultural abandonment for a variety of socioeconomic, political, and environmental reasons.
+Due to this selection, our results are likely optimistic about the prevalence of abandoned agricultural land, and may also be optimistic about how long abandonment lasts.
+
+See locations of sites included in this study in Figure \ref{fig:site-locations}.
+
+
+
+\begin{figure}
+\includegraphics[width=50in]{/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/output/plots/site_locations_w_labels_long} \caption{Sites included in this study, from Yin et al. (2020).}\label{fig:site-locations}
+\end{figure}
+
+\hypertarget{data-processing-and-filtering}{%
+\subsection{Data processing and filtering}\label{data-processing-and-filtering}}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{-1}
+\tightlist
+\item
+  cc\_merge\_rasters() // Merge raw raster layers
+\item
+  \texttt{cc\_r\_to\_dt()} // Convert raw rasters into data.tables (including renaming and recoding)
+\item
+  \texttt{cc\_filter\_abn\_dt()} // Process raw data.tables in order to calculate the length of agricultural abandonment periods. Steps include:
+
+  \begin{enumerate}
+  \def\labelenumii{\alph{enumii}.}
+  \tightlist
+  \item
+    filtering to just abandonment cells,
+  \item
+    filling recultivation blips based on a threshold,
+  \item
+    calculating age, and
+  \item
+    extracting lengths, all the while writing out files.
+  \end{enumerate}
+\item
+  \texttt{cc\_calc\_max\_age()} // Calculate maximum age, in serial.
+\item
+  \texttt{cc\_save\_dt\_as\_raster()} // Save various data.tables as rasters.
+\item
+  \texttt{cc\_summarize\_abn\_dts()} // Summarize the abandonment datatables into dataframes for plotting purposes.
+\end{enumerate}
+
+We processed and analyzed our abandonment map data in RStudio version 1.4.993, using R version 4.0.2 (2020-06-22), primarily using the \texttt{raster} (Hijmans 2020) and \texttt{data.table} packages (Dowle and Srinivasan 2021).
+Resource-intensive data processing was conducted on Princeton's large research computing clusters.
+
+These land cover maps contained four classes: 1) non-vegetation (e.g.~water, urban, or barren land), 2) woody vegetation, 3) cropland, and 4) herbaceous vegetation (e.g.~grassland), mapped from 1987 through 2017.
+We identified abandoned cropland as those pixels that transitioned from cropland to either herbaceous or woody vegetation (collectively referred to as ``non-cropland'') at any point during the time-series, and subsequently remained classified as non-cropland for at least 5 consecutive years (following our abandonment definition).
+Pixels that transitioned from cropland to the non-vegetation class were not considered ``abandoned,'' and therefore we excluded all non-vegetation pixels from our analysis. \emph{\footnote{Ask He, Volker, and David about the following: cropland -\textgreater{} non-veg (urban) should not count as abandonment. However, cropland -\textgreater{} abandoned -\textgreater{} non-veg (urban) should count as the loss of abandoned land. My code is currently structured to remove pixels that are classified as urban at any point in the time-series, so we'd miss abandoned land that is converted to non-veg. I doubt this constitutes a significant amount of land, given that non-veg accounts for a relatively small amount of land (CHECK STAT), and seems to be relatively stable through time compared to the other classes. Should I restructure my code to look for pixels that transition from abandonment -\textgreater{} \ldots{} -\textgreater{} non-veg?.}}
+We considered an abandoned pixel to be ``recultivated'' if it transitioned from abandoned (i.e.~non-cropland vegetation) back to cropland.
+Pixels that remained in cropland or non-cropland classes throughout the entire time series were excluded, as were periods of non-cropland that occurred at the start of the time series, even if that pixel was later classified as cropland and subsequently abandoned.
+
+Our abandonment threshold serves to reduce the influence of the misclassification of abandonment, where an active cropland pixel may be misclassified as non-cropland, while at the same time excluding true short-term fallowing periods.
+In order to address misclassification of recultivation, where an abandoned pixel may be misclassified as active cropland, we applied a temporal filter to remove periods of recultivation of only 1 year in between years of abandonment. \emph{\footnote{Ask He: were there any other filtering steps conducted on the lc maps? If not, might consider passing a spatial filter like that used by MapBiomas}}
+We applied a one-year recultivation threshold, automatically reclassifying periods of cropland of only one year as abandoned, therefore considering only recultivation periods that occurred for two or more consecutive years. \emph{{[}Check how many pixels were reclassified as a result of this - see ``site\_blips\_count\_b1.csv.''{]}}
+This serves to reduce the influence of short-term (one year) classification errors.
+We chose not to apply a longer recultivation threshold because even just a year or two of cultivation can serve to entirely reset vegetation succession on that piece of land {[}\emph{needs citation}{]}.
+
+We calculate abandonment length as the time (in years) between the year a pixel first transitions from cropland to non-cropland vegetation and the year it transitions back and is classified as recultivated.
+Given our abandonment threshold, the minimum abandonment length is five years.
+Because a given pixel may go through multiple distinct periods of abandonment (being abandoned and recultivated multiple times) throughout the time series, we calculate the mean abandonment length in two ways: 1) incorporating all distinct periods of abandonment, and 2) considering only the longest period of abandonment for each pixel (``maximum abandonment length'').
+We calculated summary area statistics using the \texttt{raster::area()} function, applying the median pixel area for each site across all pixels.
+
+In order to track the persistence of individual
+
+\hypertarget{tracking-abandonment-trajectories}{%
+\subsubsection{Tracking abandonment trajectories}\label{tracking-abandonment-trajectories}}
+
+This will involve the code in \texttt{cc\_summarize\_abn\_dts()} and \texttt{cc\_calc\_persistence()}.
+Write a simple sentence describing what we did here.
+
+\hypertarget{modeling-abandonment-decay}{%
+\subsection{Modeling abandonment decay}\label{modeling-abandonment-decay}}
+
+\hypertarget{motivation}{%
+\subsubsection{Motivation}\label{motivation}}
+
+How does the average length of time abandoned differ from the decay rate? What does the ``time to half'' actually tell us? What is the importance of looking at decay rates?
+
+The mean length of time abandoned (in years) is based on all periods of abandonment in the time series, because a given pixel can experience multiple periods of abandonment throughout the time series.
+This value tells us about the general persistence of abandoned land at a given site, over the course of the full time series.
+However, this value is limited by when the majority of the abandonment took place at a site, because we have now way of knowing how long abandonment that takes place towards the end of the time series will last for. Will it last for two additional years beyond the end of the time series, or 20?
+As a result, the mean abandonment length does not tell us how long to expect a piece of land to remain abandoned, and does not tell us about how abandonment length varies through time. (Note: assessing temporal changes in mean length abandoned would involve looking at the mean length of time abandoned at each year of Figure \ref{fig:abn-age-class}.)
+Restricting the mean length to only those pixels that are both abandoned and recultivated within the time series excludes a large portion of our data, and may underestimate the eventual lengths of many periods of abandonment that begin close to the end of our time series.
+
+To address this challenge, we look at groups of pixels that are abandoned in a given year (which we call ``cohorts'' of abandonment) and track their trajectories through time.
+For each cohort of abandoned land, we track recultivation, or ``abandonment decay,'' by assessing the proportion of each cohort that remains abandoned through time, relative to when that land was first abandoned (the cohort year).
+Decay rates show us information about how long it takes for land to be recultivated.
+This information complements the mean abandonment length, telling a slightly different story.
+For example, a site may have a relatively short mean length of abandonment (e.g.~Shaanxi/Shanxi Province, with a mean abandonment length of 13 years; see Figure \ref{fig:site-locations}), but also have a gradual decay rate, indicating that land should stay abandoned for a relatively longer amount of time.
+This may result from more abandonment occurring towards the end of the time series; this land simply does not have as long to age and shows up as younger in our data, regardless of how long it may last.
+
+Looking at abandonment decay rates for each cohort individually allows us to produce a decay rate for each site in general in a way that accounts for when during the time series a piece of land was abandoned (i.e.~giving us a sense of how long to expect a given piece of land to remain abandoned, even into the future).
+(Note: the following three sentences may be redundant.)
+For example, imagine two fields, one abandoned in 1990 and the other abandoned in 2010.
+They may both end up remaining abandoned for 15 years, but the second field will show up as having an age of 7 at the end of our time series (which ends in 2017), regardless of how long it lasts.
+One way we could deal with this is to only look at land that was affirmatively recultivated; another is to look at decay rates for each cohort, over time.
+
+Importantly, this approach also allows us to look at changes in persistence over time.
+We are able to see if the rate at which abandonment land decays (i.e.~is recultivated) gets faster, stays the same, or slows down over time.
+
+Translating decay rates into an intuitive metric is difficult. Many studies of exponential decay reference the ``half-life,'' or the time it takes for a quantity to reduce by half. Because we model abandonment decay flexibly, so that the rate at which a given cohort of land is recultivated can speed up or slow down through time, this concept of half-life does not work in our context. Rather, we measure the length of time it takes for a given cohort to decay to a specific proportion: the time it takes for a cohort to fall to a proportion of 50\%.
+
+\hypertarget{decay-model-specification}{%
+\subsubsection{Decay model specification}\label{decay-model-specification}}
+
+To investigate the decay of abandoned land, we ran linear models using the \texttt{stats::lm()} function in R's core statistics package, predicting the proportion of the initial amount of abandoned land remaining abandoned as a function of time since initial abandonment.
+We tested a range of simple model specifications, including linear and log transformations of both \emph{proportion} and \emph{time}.
+Due to a linear relationship between model residuals and time when including only one term for \emph{time}, also tested models containing multiple \emph{time} predictor terms, including log and linear terms.
+Importantly, we also include \emph{cohort} fixed effects, allowing for the estimation of unique coefficients for each cohort of abandoned land.
+
+We compared the quality of each model using Akaike Information Criterion (AIC) values and chose the highest performing model specification, which predicted \emph{proportion} with one log-transformed and one linear term of \emph{time} since abandonment (see Figure \ref{fig:AIC} and Equation \eqref{eq:mod-spec}).
+
+Model assumptions were tested through visual inspection of fitted values vs.~residuals plots and qq plots.
+Full details are contained in Section \ref{mod-AIC-diag}.
+
+\hypertarget{translating-decay-rates-into-a-weighted-mean-abandonment-length}{%
+\subsubsection{Translating decay rates into a weighted mean abandonment length}\label{translating-decay-rates-into-a-weighted-mean-abandonment-length}}
+
+Is it possible to translate decay rates into an average length of time abandoned?
+This would require an assumption about the amount of land being abandoned in a given year (or would this cancel out?).
+
+\hypertarget{spatial-predictors-of-abandonment-length-and-recultivation}{%
+\subsection{Spatial predictors of abandonment length and recultivation}\label{spatial-predictors-of-abandonment-length-and-recultivation}}
+
+Question: what factors best predict abandonment trajectories?
+
+3a. What predicts which pieces of land are abandoned for the longest periods of time? In other words, are some areas more likely to experience more durable abandonment?
+i. Predicting the \emph{max age} of a pixel {[}or \emph{age in 2017}{]} using spatial predictor variables like population, slope, elevation, soil, etc.
+3b. What predicts recultivation? Are less suitable lands recultivated more quickly? Are more recently abandoned lands more frequently recultivated? In other words, does the probability that a piece of abandoned land will be recultivated depend on how long it has been abandoned for?
+i. My sense, from the abandonment decay plots, is that the longer a piece of land is abandoned for (i.e.~the greater the greater the \emph{age}), the less likely it is to be recultivated. This will involve predicting recultivation with factors like current age of abandonment, and the other variables included in the primary regression, etc. How will I signify ``recultivation'' in the dataset? Options include:
+A. data for each transition, each transition from abandoned -\textgreater{} not\_abandoned is pulled out, and the age is recorded. This will require some fancy DT wrangling.
+B. all periods of abandonment, including instances when abandoned land remains abandoned (and the age it is), with the cohort, the year, the age, etc.). Each year after a piece of land is defined as abandoned. So, let's say I have a pixel that is in 1995 and stays abandoned for a total of 12 years. This would result in 9 total observations.
+
+\begin{verbatim}
+##   cohort year age abn recultivated
+## 1   1995 2000   5 yes           no
+## 2   1995 2001   6 yes           no
+## 3   1995 2002   7 yes           no
+## 4   1995 2003   8 yes           no
+## 5   1995 2004   9 yes           no
+## 6   1995 2005  10 yes           no
+## 7   1995 2006  11 yes           no
+## 8   1995 2007  12 yes           no
+## 9   1995 2008  13  no          yes
+\end{verbatim}
+
+\hypertarget{spatial-predictor-variables}{%
+\subsubsection{Spatial predictor variables:}\label{spatial-predictor-variables}}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Agricultural suitability
+
+  \begin{enumerate}
+  \def\labelenumii{\alph{enumii}.}
+  \tightlist
+  \item
+    Growing Degree Days - \url{https://nelson.wisc.edu/sage/data-and-models/atlas/maps.php?datasetid=31\&includerelatedlinks=1\&dataset=31}
+  \item
+    FAO's Global Agro-Ecological Zones (GAEZ), which includes both general natural resource, soil, terrain, slope, elevation, and other types of biophysical data, typically at the scale of 5 arc minutes (\textasciitilde10km at the equator), as well as crop specific suitability maps (e.g.~for rain-fed winter wheat). Specifically:
+
+    \begin{enumerate}
+    \def\labelenumiii{\roman{enumiii}.}
+    \tightlist
+    \item
+      Agro-ecological zones (categories such as: steep terrain, dry/good soils, dry/poor soils, sub-humid/good soils\ldots)
+    \item
+      Soil types
+    \item
+      Workability (categories such as: no constraints, moderate constraints, severe constraints\ldots)
+    \item
+      And more.
+    \end{enumerate}
+  \item
+    Soil Quality: Harmonized World Soil Database - \url{https://daac.ornl.gov/SOILS/guides/HWSD.html}
+  \item
+    Global inherent land quality map - \url{https://www.nrcs.usda.gov/wps/portal/nrcs/detail/soils/use/worldsoils/?cid=nrcs142p2_054029}
+  \end{enumerate}
+\item
+  Environmental factors
+
+  \begin{enumerate}
+  \def\labelenumii{\alph{enumii}.}
+  \tightlist
+  \item
+    Temperature and precipitation
+
+    \begin{enumerate}
+    \def\labelenumiii{\roman{enumiii}.}
+    \tightlist
+    \item
+      Terraclimate - \url{http://www.climatologylab.org/terraclimate.html}
+    \item
+      Bioclim - (\url{https://www.worldclim.org})
+    \end{enumerate}
+  \item
+    Slope, elevation, and other terrain variables will come from Amatulli et al. (2018).
+  \item
+    Surrounding landcover, i.e.~proximity to woody veg/grassland
+  \end{enumerate}
+\item
+  Socioeconomic variables:
+
+  \begin{enumerate}
+  \def\labelenumii{\alph{enumii}.}
+  \tightlist
+  \item
+    Population - future projections of population growth and urbanization from UN DESA's World Urbanization Prospects - \url{https://esa.un.org/unpd/wup/}
+  \item
+    Jones and O'Neill (2016) created spatially explicit projections of urban, rural, and total population at ten-year intervals between 2010-2100
+  \end{enumerate}
+\end{enumerate}
+
+\hypertarget{results}{%
+\section{Results}\label{results}}
+
+\hypertarget{results-outline}{%
+\subsection{Results outline}\label{results-outline}}
+
+Fig. 0. Site locations
+
+\hypertarget{mean-abandonment-lengths-by-site-the-basics}{%
+\subsubsection{1. Mean abandonment lengths, by site {[}the basics{]}}\label{mean-abandonment-lengths-by-site-the-basics}}
+
+\begin{itemize}
+\tightlist
+\item
+  mean length, across sites
+\item
+  area abandoned by age class over time (for a single site)
+\item
+  area by land cover over time (for a single site)
+\end{itemize}
+
+Fig. 1. Mean abandonment length (years) by site, for all periods and max length
+Fig. 2. Area abandoned, by age class (single site)
+Fig. 3. Area by land cover, over time (single site - possible SI)
+
+\hypertarget{decay-rates-a-by-site-average-and-b-rate-of-change-of-decay-rates-by-site}{%
+\subsubsection{2. Decay rates, a) by site (average), and b) rate of change of decay rates, by site}\label{decay-rates-a-by-site-average-and-b-rate-of-change-of-decay-rates-by-site}}
+
+\begin{itemize}
+\tightlist
+\item
+  decay plot for one site (showing individual trajectories, sloping downward)
+\item
+  mean decay rate for each site, compared across sites
+\item
+  decay rate rate of change (decay rates through time at a single site will go in SI)
+\item
+  (?) average abandonment length as derived from decay rates
+\end{itemize}
+
+Fig. 4. Decay trajectories (single site)
+Fig. 5. Mean decay coefficients by site (vertical, two panels, for log and linear terms, for each site)
+Fig. 6. Mean decay trajectory by site.
+Fig. 7. Decay rate rate of change, coefficients (vertical, one coefficient for each site, based on the time to 50\%, or other proportion)
+
+\hypertarget{spatial-predictors-of-age-and-recultivation}{%
+\subsubsection{3. Spatial predictors of age and recultivation}\label{spatial-predictors-of-age-and-recultivation}}
+
+\begin{itemize}
+\tightlist
+\item
+  coefficients on various predictor variables
+\item
+  map of \emph{abandonment age in 2017}
+\item
+  map of \emph{max age}
+\end{itemize}
+
+Fig. 8. Coefficients on spatial predictors (vertical, showing coefficients on slope, elevation, suitability, population)
+Fig. 9. Maps of a) abandonment \emph{age in 2017} and b) \emph{max age} for example site.
+
+Extra results:
+
+\begin{itemize}
+\tightlist
+\item
+  Primary post-abandonment land uses. What is formerly abandoned land typically used for? What is the most common land use immediately after abandonment ends? What are the most common land uses of formerly abandoned land at the end of the time series? {[}Put things into bins: abandoned -\textgreater{} crop, non-crop, urban, and assess frequencies.{]} May not be all that exciting, since most of the land is likely put into agricultural land. But, worth looking into.
+\end{itemize}
+
+The mean length of time abandoned is shown in Figure \ref{fig:mean-abn-length}.
+
+
+
+\begin{figure}
+\includegraphics[width=33.33in]{/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/output/plots/mean_lengths_b1} \caption{Mean length of time abandoned (years) across our study sites. The mean abandonment length is calculated for only the maximum length for each pixel (blue) and across all periods of abandonment (a single pixel may go through multiple periods of abandonment).}\label{fig:mean-abn-length}
+\end{figure}
+
+
+
+\begin{figure}
+\includegraphics[width=33.33in]{/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/output/plots/abn_area_by_class_bins_b1_s} \caption{Abandonment at a single site, showing the progression of abandonment by age class.}\label{fig:abn-age-class}
+\end{figure}
+
+
+
+\begin{figure}
+\includegraphics[width=27.78in]{/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/output/plots/persistence_proportion_b1_s} \caption{Decay of abandoned land at a single site, Shaanxi/Shanxi Provinces, China. This shows, for each cohort of abandoned land (i.e.~land abandoned in a given year), the proportion that remains abandoned over time. This shows the relative speed at which land is recultivated, through time.}\label{fig:abn-decay}
+\end{figure}
+
+\hypertarget{abandonment-persistence-and-decay}{%
+\subsection{Abandonment persistence and decay}\label{abandonment-persistence-and-decay}}
+
+Result in text: interpreting the decay plots to understand, on average, what proportion of abandoned land remains abandoned long-term (e.g.~\textgreater20 years): this is simply looking at the 20 year mark, and noting the proportion remaining at that point. (on average, this ranges between about 67\% for Shaanxi and 5\% for Orenburg. Most sites cluster around 50\%.)
+
+(ref:caption-mean-decay-by-site)
+
+\hypertarget{discussion}{%
+\section{Discussion}\label{discussion}}
+
+\hypertarget{acknowledgements}{%
+\section{Acknowledgements}\label{acknowledgements}}
+
+Our analyses were supported by Princeton University's Research Computing cluster resources. (\emph{Insert text here from PRC website})
+
+\hypertarget{data-availability-statement}{%
+\section{Data Availability Statement}\label{data-availability-statement}}
+
+\hypertarget{supporting-information}{%
+\section{Supporting Information}\label{supporting-information}}
+
+\hypertarget{basics}{%
+\subsection{1. Basics:}\label{basics}}
+
+\begin{itemize}
+\tightlist
+\item
+  Site locations
+\item
+  Area of each site
+\item
+  Abandonment threshold, including a higher threshold (something like 6 or 10 years), along with how thresholds change total pixels/area.
+\end{itemize}
+
+
+
+\begin{itemize}
+\tightlist
+\item
+  Histogram for each site, showing the skew in abandonment length.
+\item
+  Turnover: showing the annual gross area gained and loss, with the net change in black.
+\item
+  For each site, a composite of a) area abandoned by age class, b) turnover, c) decay, and d) land cover over time.
+\end{itemize}
+
+\hypertarget{abandonment-decay}{%
+\subsection{2. Abandonment decay}\label{abandonment-decay}}
+
+\hypertarget{mod-AIC-diag}{%
+\subsubsection{Model comparisons and diagnostics}\label{mod-AIC-diag}}
+
+Model diagnostics:
+
+\begin{itemize}
+\tightlist
+\item
+  residuals vs.~fitted values (for each site)
+\item
+  qqplot (for each site)
+\item
+  residuals vs.~time (all sites)
+\item
+  AIC
+\end{itemize}
+
+We chose a model with the following specifications shown in Equation \eqref{eq:mod-spec}.
+
+\begin{equation}
+(proportion - 1) \sim 0 + log(time + 1):cohort + time:cohort \label{eq:mod-spec}
+\end{equation}
+
+
+
+\begin{figure}
+\centering
+\includegraphics{abn_trajectories_ms_files/figure-latex/AIC-1.pdf}
+\caption{\label{fig:AIC}Absolute value of AIC values for various model specifications tested. Greater absolute values indicate a better model fit.}
+\end{figure}
+
+
+
+Model results:
+
+\begin{itemize}
+\tightlist
+\item
+  Decay rate rate of change for each site, in four quadrants
+\item
+  Single site: decay rates through time, with linear model trend shown.
+\item
+  Projected proportions remaining after set periods of time (10 years, 20 years, 30 years, etc.)
+\item
+  Decay curves with model fitted values for each site.
+\end{itemize}
+
+\hypertarget{spatial-predictors}{%
+\subsection{3. Spatial predictors}\label{spatial-predictors}}
+
+Methods, Model diagnostics:
+
+\begin{itemize}
+\tightlist
+\item
+  residuals vs.~fitted values
+\item
+  qqplot
+\item
+  residuals vs.~time
+\item
+  AIC
+\end{itemize}
+
+Results:
+
+\begin{itemize}
+\tightlist
+\item
+  Maps of a) abandonment \emph{age in 2017} and b) \emph{max age} for all sites.
+\item
+  model coefficients
+\end{itemize}
+
+\hypertarget{references}{%
+\section*{References}\label{references}}
+\addcontentsline{toc}{section}{References}
+
+\hypertarget{refs}{}
+\begin{CSLReferences}{1}{0}
+\leavevmode\hypertarget{ref-Aide2019}{}%
+Aide, T. Mitchell, H. Ricardo Grau, Jordan Graesser, Maria Jose Andrade-Nuñez, Ezequiel Aráoz, Ana P. Barros, Marconi Campos-Cerqueira, et al. 2019. {``{Woody vegetation dynamics in the tropical and subtropical Andes from 2001 to 2014: Satellite image interpretation and expert validation}.''} \emph{Global Change Biology} 25 (6): 2112--26. \url{https://doi.org/10.1111/gcb.14618}.
+
+\leavevmode\hypertarget{ref-Amatulli2018}{}%
+Amatulli, Giuseppe, Sami Domisch, Mao-Ning Tuanmu, Benoit Parmentier, Ajay Ranipeta, Jeremy Malczyk, and Walter Jetz. 2018. {``{A suite of global, cross-scale topographic variables for environmental and biodiversity modeling}.''} \emph{Scientific Data} 5 (180040): 1--15. \url{https://doi.org/10.1038/sdata.2018.40}.
+
+\leavevmode\hypertarget{ref-Chazdon2020}{}%
+Chazdon, Robin L., David Lindenmayer, Manuel R. Guariguata, Renato Crouzeilles, José María Rey Benayas, and Elena Lazos Chavero. 2020. {``{Fostering natural forest regeneration on former agricultural land through economic and policy interventions}.''} \emph{Environmental Research Letters} 15 (4). \url{https://doi.org/10.1088/1748-9326/ab79e6}.
+
+\leavevmode\hypertarget{ref-Crouzeilles2020}{}%
+Crouzeilles, Renato, Hawthorne L. Beyer, Lara M. Monteiro, Rafael Feltran-Barbieri, Ana C. M. Pessôa, Felipe S. M. Barros, David B. Lindenmayer, et al. 2020. {``{Achieving cost‐effective landscape‐scale forest restoration through targeted natural regeneration}.''} \emph{Conservation Letters}, no. February (February): 1--9. \url{https://doi.org/10.1111/conl.12709}.
+
+\leavevmode\hypertarget{ref-R-data.table}{}%
+Dowle, Matt, and Arun Srinivasan. 2021. \emph{Data.table: Extension of `Data.frame`}.
+
+\leavevmode\hypertarget{ref-R-raster}{}%
+Hijmans, Robert J. 2020. \emph{Raster: Geographic Data Analysis and Modeling}. \url{https://rspatial.org/raster}.
+
+\leavevmode\hypertarget{ref-Isbell2019}{}%
+Isbell, Forest, David Tilman, Peter B Reich, and Adam Thomas Clark. 2019. {``{Deficits of biodiversity and productivity linger a century after agricultural abandonment}.''} \emph{Nature Ecology {\&} Evolution} 3 (11): 1533--38. \url{https://doi.org/10.1038/s41559-019-1012-1}.
+
+\leavevmode\hypertarget{ref-Jones2016}{}%
+Jones, Bryan, and B. C. O'Neill. 2016. {``{Spatially explicit global population scenarios consistent with the Shared Socioeconomic Pathways}.''} \emph{Environmental Research Letters} 11 (8). \url{https://doi.org/10.1088/1748-9326/11/8/084003}.
+
+\leavevmode\hypertarget{ref-Lark2015}{}%
+Lark, Tyler J, J Meghan Salmon, and Holly K Gibbs. 2015. {``{Cropland expansion outpaces agricultural and biofuel policies in the United States}.''} \emph{Environmental Research Letters} 10 (4): 044003. \url{https://doi.org/10.1088/1748-9326/10/4/044003}.
+
+\leavevmode\hypertarget{ref-Munroe2013}{}%
+Munroe, Darla K., Derek B. van Berkel, Peter H. Verburg, and Jeffrey L. Olson. 2013. {``{Alternative trajectories of land abandonment: Causes, consequences and research challenges}.''} \emph{Current Opinion in Environmental Sustainability} 5 (5): 471--76. \url{https://doi.org/10.1016/j.cosust.2013.06.010}.
+
+\leavevmode\hypertarget{ref-Nunes2020}{}%
+Nunes, Sâmia, Luis Oliveira, João Siqueira, Douglas C Morton, and Carlos M Souza. 2020. {``{Unmasking secondary vegetation dynamics in the Brazilian Amazon}.''} \emph{Environmental Research Letters} 15 (3): 034057. \url{https://doi.org/10.1088/1748-9326/ab76db}.
+
+\leavevmode\hypertarget{ref-Reid2018}{}%
+Reid, J. Leighton, Matthew E. Fagan, James Lucas, Joshua Slaughter, and Rakan A. Zahawi. 2018. {``{The ephemerality of secondary forests in southern Costa Rica}.''} \emph{Conservation Letters}, no. September: e12607. \url{https://doi.org/10.1111/conl.12607}.
+
+\leavevmode\hypertarget{ref-RStudioTeam2018}{}%
+RStudio Team. 2018. {``{RStudio: Integrated Development Environment for R}.''} Boston, MA: RStudio, Inc. \url{http://www.rstudio.com/}.
+
+\leavevmode\hypertarget{ref-R-bookdown}{}%
+Xie, Yihui. 2020. \emph{{bookdown: Authoring Books and Technical Documents with R Markdown}}. \url{https://cran.r-project.org/package=bookdown}.
+
+\leavevmode\hypertarget{ref-R-knitr}{}%
+---------. 2021. \emph{Knitr: A General-Purpose Package for Dynamic Report Generation in r}. \url{https://yihui.org/knitr/}.
+
+\leavevmode\hypertarget{ref-rmarkdown2018}{}%
+Xie, Yihui, J J Allaire, and Garrett Grolemund. 2018. \emph{{R Markdown: The Definitive Guide}}. Boca Raton, Florida: Chapman; Hall/CRC. \url{https://bookdown.org/yihui/rmarkdown}.
+
+\leavevmode\hypertarget{ref-Yin2020}{}%
+Yin, He, Amintas Brandão, Johanna Buchner, David Helmers, Benjamin G Iuliano, Niwaeli E Kimambo, Katarzyna E. Lewińska, et al. 2020. {``{Monitoring cropland abandonment with Landsat time series}.''} \emph{Remote Sensing of Environment} 246 (September): 111873. \url{https://doi.org/10.1016/j.rse.2020.111873}.
+
+\end{CSLReferences}
+
+\end{document}

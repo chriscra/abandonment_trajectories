@@ -1,27 +1,30 @@
 ---
-title: "Persistence and Trajectories of Agricultural Abandonment"
-author:
-- Christopher L. Crawford,^[Corresponding Author, ccrawford@princeton.edu, Robertson Hall, Princeton University, Princeton, NJ]$^a$ He Yin,$^b$ Volker Radeloff,$^c$ and David S. Wilcove$^{a, d}$
-- $^a$Princeton School of Public and International Affairs, Princeton University, Princeton, NJ
-- $^b$Department of Geography, Kent State University, Kent, OH
-- $^c$Department of Forest & Wildlife Ecology, University of Wisconsin - Madison, Madison, WI
-- $^d$Department of Ecology & Evolutionary Biology, Princeton University, Princeton, NJ
+title: "Timing and persistence of abandoned agricultural land (draft)"
+author: Christopher L. Crawford,$^a$$^*$ He Yin,$^b$ Volker Radeloff,$^c$ and David S. Wilcove$^{a, d}$
 date: "`r format(Sys.time(), '%B %d, %Y')`"
+abstract: |
+  | $^a$Princeton School of Public and International Affairs, Princeton University, Princeton, NJ
+  | $^b$Department of Geography, Kent State University, Kent, OH
+  | $^c$Department of Forest & Wildlife Ecology, University of Wisconsin - Madison, Madison, WI
+  | $^d$Department of Ecology & Evolutionary Biology, Princeton University, Princeton, NJ
+  |
+  | $^*$Corresponding Author, ccrawford@princeton.edu, Robertson Hall, Princeton University, Princeton, NJ
 output:
   bookdown::word_document2:
     reference_docx: /Users/christophercrawford/Google Drive/_Projects/writing/scripts/word_style_ref.docx
     number_sections: false
-  bookdown::html_document2:
-    toc: true
   bookdown::pdf_document2: 
     keep_tex: true
+  bookdown::html_document2:
+    toc: true
 editor_options:
-  chunk_output_type: inline
-bibliography: /Users/christophercrawford/Google Drive/Library/library.bib
+  chunk_output_type: console
+bibliography: [/Users/christophercrawford/Google Drive/Library/library.bib, packages.bib]
 nocite: |
   @RStudioTeam2018, @rmarkdown2018, @R-bookdown, @R-knitr
 ---
 ```{r set-chunk-opts, include = FALSE}
+# /Users/christophercrawford/Google Drive/Library/library.bib
 # set default chunk options
 knitr::opts_chunk$set(#out.width = "1\\textwidth",  # if compiling a pdf, include this option
                       #comment=NA #fig.width=6, fig.height=6
@@ -29,13 +32,33 @@ knitr::opts_chunk$set(#out.width = "1\\textwidth",  # if compiling a pdf, includ
                       )
 ```
 ```{r load-packages-functions, eval = TRUE, echo = FALSE, include = FALSE}
+
 source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
 # source("cc_functions.R")
 # source("cc_libraries.R")
 # source("cc_pathnames.R")
 
 # note that the working directory resets automatically after this chunk.
+
+# devtools::install_github("benmarwick/wordcountaddin", type = "source", dependencies = TRUE)
+
+# word count:
+4117 - 4544
+
+# session 2: progress:
+4561 - 5030
 ```
+
+```{r produce-package-bib, include = FALSE, eval = FALSE}
+needed_packages
+github_packages
+knitr::write_bib(x = c(needed_packages, github_packages), file = 'packages.bib')
+citation(package = needed_packages[1])
+needed_packages[1]
+packageDescription(needed_packages[1])
+
+```
+
 
 ```{r load-files, include = FALSE}
 # Additional paths --------------------------------------------------- #
@@ -57,7 +80,14 @@ p_figures <- "/Users/christophercrawford/Google Drive/_Projects/abandonment_traj
 
 
 ```
-```{r misc-YAML}
+```{r misc-YAML, eval = FALSE}
+
+# 
+# - $^a$Princeton School of Public and International Affairs, Princeton University, Princeton, NJ
+# - $^b$Department of Geography, Kent State University, Kent, OH
+# - $^c$Department of Forest & Wildlife Ecology, University of Wisconsin - Madison, Madison, WI
+# - $^d$Department of Ecology & Evolutionary Biology, Princeton University, Princeton, NJ
+# 
 
 # date: '`r format(Sys.Date(), "%B %d, %Y")`'
 # 
@@ -78,25 +108,31 @@ p_figures <- "/Users/christophercrawford/Google Drive/_Projects/abandonment_traj
 #   $^3$Department of Forest & Wildlife Ecology, University of Wisconsin - Madison, Madison, WI \newline 
 #   $^4$Department of Ecology & Evolutionary Biology, Princeton University, Princeton, NJ
 ```
-```{r include-graphics, eval=FALSE, echo=FALSE, fig.cap="A caption", out.width = '100%'}
+
+```{r rmd-tips}
+# Reference sections by including a tag directly after a header, such as {#section-label}, and then reference in line with the following:
+# See Section \@ref(section-label)
+
+
+
+# figures:
 # this is a chunk for including a pre-existing plot or graphic.
 #knitr::include_graphics("/Users/christophercrawford/Google Drive/_Projects/Zambia/agroEcoTradeoff/external/plots/Estes-plots_test.png")
 
+# Figure captions:
 # https://bookdown.org/yihui/rmarkdown-cookbook/cross-ref.html
 
 # manually write figure captions outside of chunk with the following
-# cross reference in line with: #\@ref(fig:cars-plot) (or eq:label, or tab:label)
+# (ref:caption-label) Figure caption text.
+
+# fig.cap = '(ref:caption-label)' in the chunk options
+
+# cross reference in line with: \@ref(fig:chunk-label) (or eq:label, or tab:label)
 
 # can also include a list of figures by including the following in the YAML
 # lof: True
 # or, as I currently have it.
 # \listoffigures
-
-```
-
-```{r rmd-tips}
-# Reference sections by including a tag directly after a header, such as {#section-label}, and then reference in line with the following:
-# See Section \@ref(section-label)
 
 ```
 
@@ -115,6 +151,12 @@ However, understanding agricultural abandonment and its potential impacts on bio
 Most estimates of abandonment are either inferred from aggregated estimates of regional cultivation (e.g. from FAO data on cultivated area; [@Isbell2019; @Munroe2013]), or from estimates of the gross area abandoned in a given year [@Lark2015].
 Both approaches lack spatial and temporal detail on the trajectories taken by individual pieces of land, which is critical for understanding the environmental implications of abandonment [@Yin2020].
 
+*Need: read through papers, sort out my contribution.*
+Insert context based on papers by @Estel2015 (recultivation, timing), @Estel2018, @Dara2018 (timing, recultivation, northern Kazakhstan), @Alcantara2013, @Lesiv2018 (methods of mapping), @Smaliychuk2016 (recultivation, predictors, Ukraine), @Prishchepov2013 (predictors), @Baumann2011 (), @Pazur2020 (Slovakia), @Levers2018a (predictors), @PerpinaCastillo2021 (predictors, model), @Meyfroidt2016 (drivers, tradeoffs, recultivation, timing, Russia/Ukraine/Kazakhstan), @Crouzeilles2020 (Atlantic Forest, predictors)
+
+*Insert paragraph on predictors:*
+
+
 Recent advances in satellite imagery-based mapping have made it possible to produce maps of agricultural abandonment with both high spatial resolution and temporal resolution, allowing us to ask questions about the timing and trajectories of agricultural abandonment.
 Here, we utilize a new time-series of agricultural abandonment derived from publicly available Landsat imagery (1987-2017, 31 years) to investigate how long abandonment lasts, how abandoned lands "decay," and which factors seem to determine the length of abandonment and recultivation. 
 Specifically, we ask the following questions:
@@ -125,11 +167,11 @@ Specifically, we ask the following questions:
 
 We use case studies of Brazil (2), the US (2), Southern & Eastern Europe (4), the Middle East (1), and China (2) to provide a better understanding of how these patterns vary across regions [@Yin2020] (see Figure \@ref(fig:site-locations)).
 
-@Yin2020 established several methodological advances, including improvement in the mapping of 1) the timing of initial abandonment (year first abandoned), and 2) the abandonment rate (amount of abandoned land in a given year divided by the amount of agricultural land in either a) the previous year or b) the beginning of the time series). However, Yin et al. did not assess the persistence of abandonement (how long abandoned lands stay abandoned for), frequency and patterns of recultivation, the patterns of fragmentation in the resulting landscape, nor the implications of these for biodiversity. (These last two are likely for a second paper.)
+@Yin2020 established several methodological advances, including improvement in the mapping of 1) the timing of initial abandonment (year first abandoned), and 2) the abandonment rate (amount of abandoned land in a given year divided by the amount of agricultural land in either a) the previous year or b) the beginning of the time series). However, Yin et al. did not assess the persistence of abandonment (how long abandoned lands stay abandoned for), frequency and patterns of recultivation, spatial predictors of abandonment persistence and recultivation, patterns of fragmentation in the resulting landscape, nor the implications of these for biodiversity. (These last two are likely for a second paper.)
 
-Previous studies of Costa Rica [@Reid2018] and the Amazon [@Nunes2020] have focused on the persistence and timing of secondary forest growth and age (as identified by the presence of woody vegetation regrowth), but not exclusively on abandoned agricultural lands.
+Previous studies of Costa Rica [@Reid2018] and the Amazon [@Nunes2020, @Smith2020] have focused on the persistence and timing of secondary forest growth and age (as identified by the presence of woody vegetation regrowth), but not exclusively on abandoned agricultural lands.
 Identifying forest regeneration by picking up the signal of woody regrowth in satellite imagery may miss abandonment at earlier stages or that is regenerating into non-forest habitats [@Yin2020].
-Focusing on abandonment itself, not only to detecting woody revegetation, provides a better understanding of the outcomes of abandonment, and provides critical context for understanding the potential that abandonment holds for habitat regeneration, carbon sequestration, and other land uses.
+Focusing on abandonment itself, not only to detecting the regeneration of woody vegetation, provides a better understanding of the outcomes of abandonment, and provides critical context for understanding the potential that abandonment holds for habitat regeneration, carbon sequestration, and other land uses.
 
 Many studies of regeneration also do not consider patterns of persistence, or age of abandonment or regeneration [@Yin2020].
 @Crouzeilles2020 only consider pixels as regenerated if they were in forest in 2016 and had been forest for at least 3 years, without assessing average persistence.
@@ -139,24 +181,24 @@ Many studies of regeneration also do not consider patterns of persistence, or ag
 These simple insights about the trajectories taken by abandoned agricultural land will provide much needed context to broad statements about recent and future abandonment and the contribution that abandonment many make to habitat regeneration and biodiversity conservation [@Chazdon2020].
 The bulk of abandoned land may be relatively short-lived, from the perspective of ecological succession or carbon sequestration, and unlikely to regenerate into valuable habitat on its own without active policies to protect this land and encourage regeneration.
 
+
 ## Research questions
 
 Our primary goal is to understand the temporal nature of agricultural abandonment by exploring the trajectories taken by each piece of abandoned land through time.
 Our main point is simple: abandoned land is not a permanent phenomenon.
 In fact, the period of abandonment varies quite a bit around the world and through time.
-As a result, in order to assess the effect of abandonment on biodiversity, carbon sequestration, and food security, we need a better understanding of how long abandonment lasts, how abandoned lands "decay," and which factors seem to determine the timing and decay. 
-A better understanding of the timing and persistence of abandonment at various sites around the world is crucial to understanding the conservation implications of agricultural abandonment and informing policies designed to manage abandoned lands.
+In order to assess the effect of abandonment on biodiversity, carbon sequestration, and food security, we need a better understanding of how long agricultural abandonment lasts, how abandoned lands "decay," and which factors seem to predict the timing and decay.
 
 In pursuit of this understanding, we address three specific questions:
 
 1. How long is land actually abandoned for, on average, and how does abandonment length vary through space (i.e. at different sites)?
-2. How quickly is land recultivated, as measured through "abandonment decay rates"?
-    a. How do these decay rates vary through time and space? (What proportion of abandoned land remains abandoned long-term [e.g. >20 years])
+2. How quickly is land recultivated, as measured by "abandonment decay rates"?
+    a. How do these decay rates vary through time at each site, and how do they vary across sites? (What proportion of abandoned land remains abandoned long-term [e.g. >20 years])
 3. What factors best predict abandonment trajectories?
     a. What predicts which pieces of land are abandoned for the longest periods of time? In other words, are some areas more likely to experience more durable abandonment?
     b. What predicts recultivation? Are less suitable lands recultivated more quickly? Are more recently abandoned lands more frequently recultivated? In other words, does the probability that a piece of abandoned land will be recultivated depend on how long it has been abandoned for?
 
-One sentence outlining our main finding, and providing a segue into the methods
+Together, these questions provide a clearer picture of the timing and persistence of abandonment at various sites around the world, improving our understanding the conservation implications of agricultural abandonment, and providing crucial context to inform policies designed to manage abandoned lands.
 
 # Methods
 
@@ -164,15 +206,22 @@ One sentence outlining our main finding, and providing a segue into the methods
 
 - Definitions of abandonment
 - Describe abandonment map data
-- Data processing & filtering
+    - statement about R versions
+- Data processing & filtering steps
+    - important filtering steps include a) removing non-abandonment pixels, and b) passing a temporal filter to remove instances of recultivation that last only 1 year.
+    - tracking abandonment trajectories
+- Modeling abandonment decay
+    - why/motivation
+    - modeling approach, diagnostic steps, etc. mostly pointing towards the SI
+    - translating the decay models into a modified prediction of mean length abandoned
+- Spatial predictors
+    - what factors are investigated
+    - modeling approach, short paragraph
+- R packages used that we didn't already specifically mention
+
 
 This is the code used for data processing, and should be a good reference for remembering what I did. Probably a good idea to narratively write down what I did in the code, and which SLURM scripts I used, even if just to put in one of the .Rmd analysis documents. 
 ~/Google Drive/_Projects/abandonment_trajectories/scripts/cluster/analyze_all_sites.R
-
-
-Sections:
-
-1. 
 
 ## Definitions of abandonment
 
@@ -181,13 +230,17 @@ Differentiating "true" abandonment from less permanent land-use changes, such as
 In fact, abandonment is better viewed as a land-use transition in which land may pass through a spectrum of stages [@Munroe2013].
 Here, when we refer to "abandonment," we aim to capture agricultural land that is no longer being actively cultivated. 
 We do not refer to changes from intensive cropped to less intensive uses, such as extensive grazing.
-In order to exclude short-term fallow periods, we define land as abandoned when it has remained uncultivated for five consecutive years [following FAO]. We assess the influence of this threshold in the SI.
+In order to exclude short-term fallow periods, we define land as abandoned when it has remained uncultivated for five consecutive years [following FAO].
+We assess the influence of this threshold in the SI ().
 We focus exclusively on cropland abandonment, not the abandonment of pasturelands, which is more difficult to discern from satellite imagery (though recent advances have been made; cite) and is not incorporated into our current dataset.
 
 
 ## Abandonment maps
 
-See locations of sites included in this study in Figure \@ref(fig:site-locations).
+Our analysis builds on maps developed in @Yin2020. @Yin2020 used the following approach: [*insert sentences here describing, summarizing @Yin2020*].
+We selected 11 sites from @Yin2020 for which mapping had a high accuracy [*insert stat here from He*] and which provided a broad geographic coverage (see Figure \@ref(fig:site-locations)).
+These sites were initially chosen by @Yin2020 as places that were highly likely to have experienced agricultural abandonment for a variety of socioeconomic, political, and environmental reasons.
+Due to this selection, our results are likely optimistic about the prevalence of abandoned agricultural land, and may also be optimistic about how long abandonment lasts.
 
 (ref:caption-site-locations) Sites included in this study, from @Yin2020.
 
@@ -199,21 +252,62 @@ See locations of sites included in this study in Figure \@ref(fig:site-locations
 knitr::include_graphics(path = paste0(p_figures, "site_locations_w_labels_long.png"))
 ```
 
-## Filtering
+## Data processing and filtering
 
-We applied a temporal filter to remove periods of recultivation of only 1 year in between years of abandonment. This had the effect of only considering recultivation periods of 2 or more years.
+0. `cc_merge_rasters()` // Merge raw raster layers
+1. `cc_r_to_dt()` // Convert raw rasters into data.tables (including renaming and recoding)
+2. `cc_filter_abn_dt()` // Process raw data.tables in order to calculate the length of agricultural abandonment periods. Steps include:
+    a. filtering to just abandonment cells, 
+    b. filling recultivation blips based on a threshold,
+    c. calculating age, and 
+    d. extracting lengths, all the while writing out files.
+3. `cc_calc_max_age()` // Calculate maximum age, in serial.
+4. `cc_save_dt_as_raster()` // Save various data.tables as rasters.
+5. `cc_summarize_abn_dts()` // Summarize the abandonment datatables into dataframes for plotting purposes.
 
-## Tracking abandonment trajectories
+We processed and analyzed our abandonment map data in RStudio version `r rstudioapi::versionInfo()$version`, using `r R.Version()$version.string`, primarily using the `raster` [@R-raster] and `data.table` packages [@R-data.table].
+Resource-intensive data processing was conducted on Princeton's large research computing clusters.
+
+These land cover maps contained four classes: 1) non-vegetation (e.g. water, urban, or barren land), 2) woody vegetation, 3) cropland, and 4) herbaceous vegetation (e.g. grassland), mapped from 1987 through 2017.
+We identified abandoned cropland as those pixels that transitioned from cropland to either herbaceous or woody vegetation (collectively referred to as "non-cropland") at any point during the time-series, and subsequently remained classified as non-cropland for at least 5 consecutive years (following our abandonment definition).
+Pixels that transitioned from cropland to the non-vegetation class were not considered "abandoned," and therefore we excluded all non-vegetation pixels from our analysis. *^[Ask He, Volker, and David about the following: cropland -> non-veg (urban) should not count as abandonment. However, cropland -> abandoned -> non-veg (urban) should count as the loss of abandoned land. My code is currently structured to remove pixels that are classified as urban at any point in the time-series, so we'd miss abandoned land that is converted to non-veg. I doubt this constitutes a significant amount of land, given that non-veg accounts for a relatively small amount of land (CHECK STAT), and seems to be relatively stable through time compared to the other classes. Should I restructure my code to look for pixels that transition from abandonment -> ... -> non-veg?.]*
+We considered an abandoned pixel to be "recultivated" if it transitioned from abandoned (i.e. non-cropland vegetation) back to cropland.
+Pixels that remained in cropland or non-cropland classes throughout the entire time series were excluded, as were periods of non-cropland that occurred at the start of the time series, even if that pixel was later classified as cropland and subsequently abandoned.
+
+Our abandonment threshold serves to reduce the influence of the misclassification of abandonment, where an active cropland pixel may be misclassified as non-cropland, while at the same time excluding true short-term fallowing periods.
+In order to address misclassification of recultivation, where an abandoned pixel may be misclassified as active cropland, we applied a temporal filter to remove periods of recultivation of only 1 year in between years of abandonment. *^[Ask He: were there any other filtering steps conducted on the lc maps? If not, might consider passing a spatial filter like that used by MapBiomas]*
+We applied a one-year recultivation threshold, automatically reclassifying periods of cropland of only one year as abandoned, therefore considering only recultivation periods that occurred for two or more consecutive years. *[Check how many pixels were reclassified as a result of this - see "site_blips_count_b1.csv".]*
+This serves to reduce the influence of short-term (one year) classification errors. 
+We chose not to apply a longer recultivation threshold because even just a year or two of cultivation can serve to entirely reset vegetation succession on that piece of land [*needs citation*].
+
+We calculate abandonment length as the time (in years) between the year a pixel first transitions from cropland to non-cropland vegetation and the year it transitions back and is classified as recultivated.
+Given our abandonment threshold, the minimum abandonment length is five years.
+Because a given pixel may go through multiple distinct periods of abandonment (being abandoned and recultivated multiple times) throughout the time series, we calculate the mean abandonment length in two ways: 1) incorporating all distinct periods of abandonment, and 2) considering only the longest period of abandonment for each pixel ("maximum abandonment length").
+We calculated summary area statistics using the `raster::area()` function, applying the median pixel area for each site across all pixels.
+
+In order to track the persistence of individual 
+
+
+
+
+### Tracking abandonment trajectories
+
+
+This will involve the code in `cc_summarize_abn_dts()` and `cc_calc_persistence()`.
+Write a simple sentence describing what we did here.
+
 
 ## Modeling abandonment decay
 
-### Motivation: how does the average length of time abandoned differ from the decay rate? What does the "time to half" actually tell us? What is the importance of looking at decay rates?
+### Motivation
+
+How does the average length of time abandoned differ from the decay rate? What does the "time to half" actually tell us? What is the importance of looking at decay rates?
 
 The mean length of time abandoned (in years) is based on all periods of abandonment in the time series, because a given pixel can experience multiple periods of abandonment throughout the time series.
 This value tells us about the general persistence of abandoned land at a given site, over the course of the full time series. 
 However, this value is limited by when the majority of the abandonment took place at a site, because we have now way of knowing how long abandonment that takes place towards the end of the time series will last for. Will it last for two additional years beyond the end of the time series, or 20?
 As a result, the mean abandonment length does not tell us how long to expect a piece of land to remain abandoned, and does not tell us about how abandonment length varies through time. (Note: assessing temporal changes in mean length abandoned would involve looking at the mean length of time abandoned at each year of Figure \@ref(fig:abn-age-class).)
-Restricting the mean length to only those pixels that are both abandoned and recultivated within the time series excludes a large portion of our data, and may underestimate the eventual lengths of many periods of abandonment that begin close to the end of our time series.
+Restricting the mean length to only those pixels that are both abandoned and recultivated within the time series would exclude a large portion of our data, and may underestimate the eventual lengths of many periods of abandonment that begin close to the end of our time series.
 
 To address this challenge, we look at groups of pixels that are abandoned in a given year (which we call "cohorts" of abandonment) and track their trajectories through time.
 For each cohort of abandoned land, we track recultivation, or "abandonment decay," by assessing the proportion of each cohort that remains abandoned through time, relative to when that land was first abandoned (the cohort year).
@@ -233,7 +327,7 @@ We are able to see if the rate at which abandonment land decays (i.e. is reculti
 
 Translating decay rates into an intuitive metric is difficult. Many studies of exponential decay reference the "half-life," or the time it takes for a quantity to reduce by half. Because we model abandonment decay flexibly, so that the rate at which a given cohort of land is recultivated can speed up or slow down through time, this concept of half-life does not work in our context. Rather, we measure the length of time it takes for a given cohort to decay to a specific proportion: the time it takes for a cohort to fall to a proportion of 50%.
 
-### Decay models
+### Decay model specification
 
 To investigate the decay of abandoned land, we ran linear models using the `stats::lm()` function in R's core statistics package, predicting the proportion of the initial amount of abandoned land remaining abandoned  as a function of time since initial abandonment. 
 We tested a range of simple model specifications, including linear and log transformations of both *proportion* and *time*.
@@ -244,7 +338,6 @@ We compared the quality of each model using Akaike Information Criterion (AIC) v
 
 Model assumptions were tested through visual inspection of fitted values vs. residuals plots and qq plots.
 Full details are contained in Section \@ref(mod-AIC-diag).
-All analyses were conducted RStudio version `r rstudioapi::versionInfo()$version`, using `r R.Version()$version.string`. 
 
 ### Translating decay rates into a weighted mean abandonment length
 
@@ -274,15 +367,21 @@ data.frame(year = 1991:2015,
 ```
 
 
-## Predicting length of abandonment and recultivation
+## Spatial predictors of abandonment length and recultivation
+
+*Need: read through papers, sort out my contribution.*
+Insert context based on papers by @Estel2015 (recultivation, timing), @Estel2018, @Dara2018 (timing, recultivation, northern Kazakhstan), @Alcantara2013, @Lesiv2018 (methods of mapping), @Smaliychuk2016 (recultivation, predictors, Ukraine), @Prishchepov2013 (predictors), @Baumann2011 (), @Pazur2020 (Slovakia, predictors), @Levers2018a (predictors), @PerpinaCastillo2021 (predictors, model), @Meyfroidt2016 (drivers, tradeoffs, recultivation, timing, Russia/Ukraine/Kazakhstan), @Crouzeilles2020 (Atlantic Forest, predictors)
+
+
 
 Question: what factors best predict abandonment trajectories?
-    3a. What predicts which pieces of land are abandoned for the longest periods of time? In other words, are some areas more likely to experience more durable abandonment?
-        i. Predicting the *max age* of a pixel [or *age in 2017*] using spatial predictor variables like population, slope, elevation, soil, etc.
-    3b. What predicts recultivation? Are less suitable lands recultivated more quickly? Are more recently abandoned lands more frequently recultivated? In other words, does the probability that a piece of abandoned land will be recultivated depend on how long it has been abandoned for?
-        i. My sense, from the abandonment decay plots, is that the longer a piece of land is abandoned for (i.e. the greater the greater the *age*), the less likely it is to be recultivated. This will involve predicting recultivation with factors like current age of abandonment, and the other variables included in the primary regression, etc. How will I signify "recultivation" in the dataset? Options include:
-            A. data for each transition, each transition from abandoned -> not_abandoned is pulled out, and the age is recorded. This will require some fancy DT wrangling.
-            B. all periods of abandonment, including instances when abandoned land remains abandoned (and the age it is), with the cohort, the year, the age, etc.). Each year after a piece of land is defined as abandoned. So, let's say I have a pixel that is in 1995 and stays abandoned for a total of 12 years. This would result in 9 total observations.
+
+3a. What predicts which pieces of land are abandoned for the longest periods of time? In other words, are some areas more likely to experience more durable abandonment?
+    i. Predicting the *max age* of a pixel [or *age in 2017*] using spatial predictor variables like population, slope, elevation, soil, etc.
+3b. What predicts recultivation? Are less suitable lands recultivated more quickly? Are more recently abandoned lands more frequently recultivated? In other words, does the probability that a piece of abandoned land will be recultivated depend on how long it has been abandoned for?
+    i. My sense, from the abandonment decay plots, is that the longer a piece of land is abandoned for (i.e. the greater the greater the *age*), the less likely it is to be recultivated. This will involve predicting recultivation with factors like current age of abandonment, and the other variables included in the primary regression, etc. How will I signify "recultivation" in the dataset? Options include:
+        A. data for each transition, each transition from abandoned -> not_abandoned is pulled out, and the age is recorded. This will require some fancy DT wrangling.
+        B. all periods of abandonment, including instances when abandoned land remains abandoned (and the age it is), with the cohort, the year, the age, etc.). Each year after a piece of land is defined as abandoned. So, let's say I have a pixel that is in 1995 and stays abandoned for a total of 12 years. This would result in 9 total observations.
 
 ```{r, echo = FALSE}
 example_df <- data.frame(cohort = 1995,
@@ -294,7 +393,7 @@ example_df <- data.frame(cohort = 1995,
 example_df[1:9, ]
 ```
 
-Spatial predictor variables:
+### Spatial predictor variables:
 
 1. Agricultural suitability
     a. Growing Degree Days - https://nelson.wisc.edu/sage/data-and-models/atlas/maps.php?datasetid=31&includerelatedlinks=1&dataset=31
@@ -324,6 +423,7 @@ Spatial predictor variables:
 Fig. 0. Site locations
 
 ### 1. Mean abandonment lengths, by site [the basics]
+
 - mean length, across sites
 - area abandoned by age class over time (for a single site)
 - area by land cover over time (for a single site)
@@ -333,6 +433,7 @@ Fig. 2. Area abandoned, by age class (single site)
 Fig. 3. Area by land cover, over time (single site - possible SI)
 
 ### 2. Decay rates, a) by site (average), and b) rate of change of decay rates, by site
+
 - decay plot for one site (showing individual trajectories, sloping downward)
 - mean decay rate for each site, compared across sites
 - decay rate rate of change (decay rates through time at a single site will go in SI)
@@ -344,6 +445,7 @@ Fig. 6. Mean decay trajectory by site.
 Fig. 7. Decay rate rate of change, coefficients (vertical, one coefficient for each site, based on the time to 50%, or other proportion)
 
 ### 3. Spatial predictors of age and recultivation
+
 - coefficients on various predictor variables
 - map of *abandonment age in 2017*
 - map of *max age*
@@ -353,33 +455,34 @@ Fig. 9. Maps of a) abandonment *age in 2017* and b) *max age* for example site.
 
 
 Extra results:  
+
 - Primary post-abandonment land uses. What is formerly abandoned land typically used for? What is the most common land use immediately after abandonment ends? What are the most common land uses of formerly abandoned land at the end of the time series? [Put things into bins: abandoned -> crop, non-crop, urban, and assess frequencies.] May not be all that exciting, since most of the land is likely put into agricultural land. But, worth looking into.
 
 
 
 The mean length of time abandoned is shown in Figure \@ref(fig:mean-abn-length).
 
-(ref:mean-abn-length) Mean length of time abandoned (years) across our study sites. The mean abandonment length is calculated for only the maximum length for each pixel (blue) and across all periods of abandonment (a single pixel may go through multiple periods of abandonment).
+(ref:caption-mean-abn-length) Mean length of time abandoned (years) across our study sites. The mean abandonment length is calculated for only the maximum length for each pixel (blue) and across all periods of abandonment (a single pixel may go through multiple periods of abandonment).
 
-```{r mean-abn-length, fig.cap = '(ref:mean-abn-length)', echo=FALSE}
+```{r mean-abn-length, fig.cap = '(ref:caption-mean-abn-length)', echo=FALSE}
 # (ref:caption-mean-abn-length) Sites included in this study, from @Yin2020.
 # (ref:caption-mean-abn-length)
 # cite inline using the following  \@ref(fig:mean-abn-length)
 knitr::include_graphics(path = paste0(p_figures, "mean_lengths_b1.png"))
 ```
 
-(ref:abn-age-class) Abandonment at a single site, showing the progression of abandonment by age class.
+(ref:caption-abn-age-class) Abandonment at a single site, showing the progression of abandonment by age class.
 
-```{r abn-age-class, fig.cap = '(ref:abn-age-class)', echo=FALSE}
+```{r abn-age-class, fig.cap = '(ref:caption-abn-age-class)', echo=FALSE}
 # (ref:caption-mean-abn-length) Sites included in this study, from @Yin2020.
 # (ref:caption-mean-abn-length)
 # cite inline using the following  \@ref(fig:mean-abn-length)
 knitr::include_graphics(path = paste0(p_figures, "abn_area_by_class_bins_b1_s.png"))
 ```
 
-(ref:abn-decay) Decay of abandoned land at a single site, Shaanxi/Shanxi Provinces, China. This shows, for each cohort of abandoned land (i.e. land abandoned in a given year), the proportion that remains abandoned over time. This shows the relative speed at which land is recultivated, through time.
+(ref:caption-abn-decay) Decay of abandoned land at a single site, Shaanxi/Shanxi Provinces, China. This shows, for each cohort of abandoned land (i.e. land abandoned in a given year), the proportion that remains abandoned over time. This shows the relative speed at which land is recultivated, through time.
 
-```{r abn-decay, fig.cap = '(ref:abn-decay)', echo=FALSE}
+```{r abn-decay, fig.cap = '(ref:caption-abn-decay)', echo=FALSE}
 # (ref:caption-mean-abn-length) Sites included in this study, from @Yin2020.
 # (ref:caption-mean-abn-length)
 # cite inline using the following  \@ref(fig:mean-abn-length)
@@ -392,7 +495,10 @@ knitr::include_graphics(path = paste0(p_figures, "persistence_proportion_b1_s.pn
 
 Result in text: interpreting the decay plots to understand, on average, what proportion of abandoned land remains abandoned long-term (e.g. >20 years): this is simply looking at the 20 year mark, and noting the proportion remaining at that point. (on average, this ranges between about 67% for Shaanxi and 5% for Orenburg. Most sites cluster around 50%.)
 
-```{r mean-decay-by-site}
+
+(ref:caption-mean-decay-by-site)
+
+```{r mean-decay-by-site, fig.cap = '(ref:caption-mean-decay-by-site)'}
 
 ```
 
@@ -401,14 +507,24 @@ Result in text: interpreting the decay plots to understand, on average, what pro
 
 # Acknowledgements
 
+Our analyses were supported by Princeton University's Research Computing cluster resources. (*Insert text here from PRC website*)
+
 # Data Availability Statement
 
 # Supporting Information
 
 ## 1. Basics:
+
 - Site locations
 - Area of each site
 - Abandonment threshold, including a higher threshold (something like 6 or 10 years), along with how thresholds change total pixels/area.
+
+(ref:caption-abn-thresholds) Mean abandonment lengths shown for various abandonment thresholds.
+
+```{r abn-thresholds, fig.cap = '(ref:caption-abn-thresholds)'}
+
+```
+
 - Histogram for each site, showing the skew in abandonment length.
 - Turnover: showing the annual gross area gained and loss, with the net change in black.
 - For each site, a composite of a) area abandoned by age class, b) turnover, c) decay, and d) land cover over time.
@@ -417,10 +533,11 @@ Result in text: interpreting the decay plots to understand, on average, what pro
 
 ### Model comparisons and diagnostics {#mod-AIC-diag}
 
-Methods - Model diagnostics: 
-- residuals vs. fitted values - for each site
-- qqplot - for each site
-- residuals vs. time - overall
+Model diagnostics:
+
+- residuals vs. fitted values (for each site)
+- qqplot (for each site)
+- residuals vs. time (all sites)
 - AIC
 
 We chose a model with the following specifications shown in Equation \@ref(eq:mod-spec).
@@ -430,9 +547,9 @@ We chose a model with the following specifications shown in Equation \@ref(eq:mo
 \end{equation}
 
 
-(ref:AIC) Absolute value of AIC values for various model specifications tested. Greater absolute values indicate a better model fit.
+(ref:caption-AIC) Absolute value of AIC values for various model specifications tested. Greater absolute values indicate a better model fit.
 
-```{r AIC, fig.cap = '(ref:AIC)'}
+```{r AIC, fig.cap = '(ref:caption-AIC)'}
 # placeholder for now:
 plot(cars)
 
@@ -465,13 +582,15 @@ plot(cars)
 # at all sites, the lin-log-lin cohort model has the lowest AIC (i.e. best performance).
 ```
 
-```{r diagnostics}
+(ref:caption-diag) Diagnostic plots, including residuals vs. fitted and qq plots.
+
+```{r diagnostics, fig.cap = '(ref:caption-diag)'}
 
 ```
 
 
-
 Model results:
+
 - Decay rate rate of change for each site, in four quadrants
 - Single site: decay rates through time, with linear model trend shown.
 - Projected proportions remaining after set periods of time (10 years, 20 years, 30 years, etc.)
@@ -479,13 +598,15 @@ Model results:
 
 ## 3. Spatial predictors
 
-Methods - Model diagnostics: 
+Methods, Model diagnostics:
+
 - residuals vs. fitted values
 - qqplot
 - residuals vs. time
 - AIC
 
-Results
+Results:  
+
 - Maps of a) abandonment *age in 2017* and b) *max age* for all sites.
 - model coefficients
 

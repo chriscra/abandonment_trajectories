@@ -18,6 +18,10 @@
 # 4. cc_save_dt_as_raster() // Save various data.tables as rasters.
 # 5. cc_summarize_abn_dts() // Summarize the abandonment datatables into dataframes for plotting purposes.
 
+# SLURM Scripts that accompany this are:
+# analyze_all_sites.slurm, which runs for all sites except belarus (1), which requires a greater memory allocation.
+# orenburg was close, but I was able to make it work with 150 gb. total.
+
 
 # -------------------------------------------------------- #
 # load libraries

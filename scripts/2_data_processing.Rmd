@@ -351,7 +351,9 @@ site_df_w_size <- site_df %>%
          area = site_area)
 
 write_csv(site_df_w_size, path = paste0(p_dat_derived, "site_df_w_size.csv"))
+site_df_w_size <- read_csv(file = paste0(p_dat_derived, "site_df_w_size.csv"))
 
+area_b1_s
 
 # 
 gg_site_ncell <- ggplot(data = site_df_w_size) + 

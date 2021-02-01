@@ -3,12 +3,15 @@
 # Start File: load packages, functions, and pathnames
 # 
 # --------------------------------------------------------------- #
-setwd("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories")
+# setwd("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories")
 
-source("scripts/util/_util_misc_functions.R")
-source("scripts/util/_util_pathnames.R")
-source("scripts/util/_util_spatial_functions.R")
-source("scripts/util/_util_dt_filter_functions.R")
+p_proj <- "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/"
+
+source(paste0(p_proj, "scripts/util/_util_misc_functions.R"))
+source(paste0(p_proj, "scripts/util/_util_pathnames.R"))
+source(paste0(p_proj, "scripts/util/_util_spatial_functions.R"))
+source(paste0(p_proj, "scripts/util/_util_dt_filter_functions.R"))
+
 
 # ------------------------- #
 # list the needed packages and load the libraries
@@ -42,6 +45,8 @@ needed_packages <- c(
   "rredlist",
   "landscapemetrics", "landscapetools"
   )
+
+extra_packages <- c("")
 
 
 # cluster_packages <- c(

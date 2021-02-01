@@ -849,6 +849,28 @@ gg_lc_abn_area_s
 
 
 
+ggplot(data = area_b1_s, aes(year, area_ha)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  labs(y = expression("Area  (10"^{6}*" ha)") , 
+       x = "Year", 
+       title = "Area by Land Cover, with Abandonment",
+       subtitle = "Shaanxi/Shanxi Provinces, China",
+       color = "Land Cover") + 
+  geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
+                          group = lc, color = lc),
+            size = 1.2)
+
+area_b1_s %>% filter(lc == "Non-veg.")
+
+
+# area in non-veg
+area_b1_s %>% 
+  select(-count) %>%
+  pivot_wider(id_cols = c(year, lc), 
+              names_from = lc, 
+              values_from = area_ha)
+  
 ```
 
 
