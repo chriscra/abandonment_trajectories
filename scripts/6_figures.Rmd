@@ -16,12 +16,20 @@ source("")
 
 ```{r load-data}
 # for use on cluster:
-p_dat <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
-p_dat_derived <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
-p_output <- paste0("/scratch/network/clc6/abandonment_trajectories/output/")
+# p_dat <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
+# p_dat_derived <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
+# p_output <- paste0("/scratch/network/clc6/abandonment_trajectories/output/")
 list.files(p_dat_derived)
+list.files(p_dat)
 
 site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
+
+0.0008
+1/60/60 * 3 # 3 arc seconds
+# This corresponds to about
+3* 1/60/60 * 110 * 1000
+bs
+res(b) * 110 * 1000
 
 
 # Land use class codes:
@@ -106,6 +114,7 @@ names(s_dt) <- gsub(pattern = "andcover", replacement = "y", names(s_dt))
 
 b_dt <- fread(input = paste0(p_dat_derived, "belarus.csv")) # caution - huge file! 8.4 GB at least. 
 
+env_size(ls())
 
 
 # -------------------------- summarized data.frames --------------------------- #

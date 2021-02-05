@@ -3181,6 +3181,13 @@ ggplot(data = augment(mod_l[[8]]), aes(x = .hat)) + geom_histogram()
 lapply(mod_l, summary)
 ```
 
+```{r shapiro-wilk}
+# http://www.sthda.com/english/wiki/normality-test-in-r
+# https://www.r-bloggers.com/2019/08/shapiro-wilk-test-for-normality-in-r/
+
+```
+
+
 ```{r car}
 # resource from Oscar: 
 # https://dss.princeton.edu/training/Regression101R.pdf
