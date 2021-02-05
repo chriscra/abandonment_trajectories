@@ -351,10 +351,57 @@ plot(sa_agg)
 
 summary(s_age_r$y2017)
 
+
+
+
+plot(sa_agg_mean)
+plot(sa_agg_max)
+plot(sa_agg_median)
+```
+
+```{r age-histogram}
 # histogram of age values in 2017
 s_age[, .N, by = y2017][order(y2017)][y2017 >= 5] %>% data.frame() %>% 
   ggplot(data = ., mapping = aes(x = y2017, y = N)) + 
   geom_col()
+
+
+hist(s_age_r$y2017)
+```
+
+
+```{r save-agg-rasters-to-png}
+pdf(file = paste0(p_output, "plots/age_aggregation_comparison.pdf"),
+      width = 9, height = 3)
+  
+# Set plot layout
+par(mfrow = c(1, 4),
+    oma = c(0,0,0,1))
+
+# left to right
+# age in 2017
+# aggregated with mean
+# aggregated with max
+# aggregated with median
+
+# row 1
+# --------------------------------------- #
+# ------------ Shaanxi ------------------ #
+# --------------------------------------- #
+
+# ------------- raw abandonment age data ---------------- #
+plot(s_age_r$y2017, main = "Shaanxi Age, 2017")
+
+# ------------- aggregated with mean ---------------- #
+plot(sa_agg_mean, main = "Aggregated with mean")
+
+# ------------- aggregated with max ---------------- #
+plot(sa_agg_max, main = "Aggregated with max")
+
+# ------------- aggregated with median ---------------- #
+plot(sa_agg_median, main = "Aggregated with median")
+
+dev.off()
 ```
 
 
