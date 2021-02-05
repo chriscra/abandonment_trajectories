@@ -7,21 +7,24 @@ editor_options:
   chunk_output_type: console
 bibliography: [/Users/christophercrawford/Google Drive/Library/library.bib]
 ---
-## Spatial predictors of abandonment length and recultivation
+# Spatial predictors of abandonment length and recultivation
 
 *Need: read through papers, sort out my contribution.*
 Insert context based on papers by @Estel2015 (recultivation, timing), @Estel2018, @Dara2018 (timing, recultivation, northern Kazakhstan), @Alcantara2013, @Lesiv2018 (methods of mapping), @Smaliychuk2016 (recultivation, predictors, Ukraine), @Prishchepov2013 (predictors), @Baumann2011 (), @Pazur2020 (Slovakia, predictors), @Levers2018a (predictors), @PerpinaCastillo2021 (predictors, model), @Meyfroidt2016 (drivers, tradeoffs, recultivation, timing, Russia/Ukraine/Kazakhstan), @Crouzeilles2020 (Atlantic Forest, predictors)
 
 
 
-Question: what factors best predict abandonment trajectories?
+Question 3: what factors best predict abandonment trajectories?
 
-3a. What predicts which pieces of land are abandoned for the longest periods of time? In other words, are some areas more likely to experience more durable abandonment?
+a. What predicts which pieces of land are abandoned for the longest periods of time? In other words, are some areas more likely to experience more durable abandonment?
     i. Predicting the *max age* of a pixel [or *age in 2017*] using spatial predictor variables like population, slope, elevation, soil, etc.
-3b. What predicts recultivation? Are less suitable lands recultivated more quickly? Are more recently abandoned lands more frequently recultivated? In other words, does the probability that a piece of abandoned land will be recultivated depend on how long it has been abandoned for?
+
+b. What predicts recultivation? Are less suitable lands recultivated more quickly? Are more recently abandoned lands more frequently recultivated? In other words, does the probability that a piece of abandoned land will be recultivated depend on how long it has been abandoned for?
     i. My sense, from the abandonment decay plots, is that the longer a piece of land is abandoned for (i.e. the greater the greater the *age*), the less likely it is to be recultivated. This will involve predicting recultivation with factors like current age of abandonment, and the other variables included in the primary regression, etc. How will I signify "recultivation" in the dataset? Options include:
-        A. data for each transition, each transition from abandoned -> not_abandoned is pulled out, and the age is recorded. This will require some fancy DT wrangling.
-        B. all periods of abandonment, including instances when abandoned land remains abandoned (and the age it is), with the cohort, the year, the age, etc.). Each year after a piece of land is defined as abandoned. So, let's say I have a pixel that is in 1995 and stays abandoned for a total of 12 years. This would result in 9 total observations.
+        1. data for each transition, each transition from abandoned -> not_abandoned is pulled out, and the age is recorded. This will require some fancy DT wrangling.
+        2. all periods of abandonment, including instances when abandoned land remains abandoned (and the age it is), with the cohort, the year, the age, etc.). Each year after a piece of land is defined as abandoned. So, let's say I have a pixel that is in 1995 and stays abandoned for a total of 12 years. This would result in 9 total observations.
+
+c. Taking two steps back - what predicts which pixels of agricultural land are abandoned?
 
 ```{r, echo = FALSE}
 example_df <- data.frame(cohort = 1995,
@@ -33,10 +36,10 @@ example_df <- data.frame(cohort = 1995,
 example_df[1:9, ]
 ```
 
-### Spatial predictor variables:
+## predictor variables:
 
 1. Agricultural suitability
-    a. Growing Degree Days - https://nelson.wisc.edu/sage/data-and-models/atlas/maps.php?datasetid=31&includerelatedlinks=1&dataset=31
+    a. Growing Degree Days (the cumulative number of degrees above growing threshold accumulated over the course of a growing season. 18 - 10 [threshold] * the number of days at that tempt) - https://nelson.wisc.edu/sage/data-and-models/atlas/maps.php?datasetid=31&includerelatedlinks=1&dataset=31
     b. FAO's Global Agro-Ecological Zones (GAEZ), which includes both general natural resource, soil, terrain, slope, elevation, and other types of biophysical data, typically at the scale of 5 arc minutes (~10km at the equator), as well as crop specific suitability maps (e.g. for rain-fed winter wheat). Specifically:
         i. Agro-ecological zones (categories such as: steep terrain, dry/good soils, dry/poor soils, sub-humid/good soils...)
         ii. Soil types
@@ -44,15 +47,67 @@ example_df[1:9, ]
         iv. And more.
     c. Soil Quality: Harmonized World Soil Database - https://daac.ornl.gov/SOILS/guides/HWSD.html
     d. Global inherent land quality map - https://www.nrcs.usda.gov/wps/portal/nrcs/detail/soils/use/worldsoils/?cid=nrcs142p2_054029
+    e. Agricultural opportunity cost (Naidoo & Iwamura 2007)
+    f. Travel time to major cites - [year 2000](https://forobs.jrc.ec.europa.eu/products/gam/), [year 2015](https://map.ox.ac.uk/research-project/accessibility_to_cities/)
 2. Environmental factors
-    a. Temperature and precipitation
+    a. Temperature and precipitation - [possibly helpful how-to](https://www.benjaminbell.co.uk/2018/01/extracting-data-and-making-climate-maps.html)
         i. Terraclimate - http://www.climatologylab.org/terraclimate.html
-        ii. Bioclim - (https://www.worldclim.org)
-    b. Slope, elevation, and other terrain variables will come from @Amatulli2018.
+        ii. Bioclim - (https://www.worldclim.org) - ~1km, 1970-2000 - [website](https://www.worldclim.org/data/worldclim21.html),
+        iii. CHELSA (Swiss Federal Institute for Forest, Snow and Landscape Research WSL) ~1 km, 1979-2013, [CHELSA website](https://chelsa-climate.org/), [Peer reviewed paper, Scientific Data, 2017](https://www.nature.com/articles/sdata2017122)
+        iv. Climate Hazards group Infrared Precipitation with States ([CHIRPS](https://www.nature.com/articles/sdata201566))
+    b. Slope, elevation, and other terrain variables:
+        + @Amatulli2018 (~1 km, [see earthenv.org](http://www.earthenv.org/topography)), which has a lot of different variables at 1km (elevation, slope, aspect, eastness, northness, roughness, terrain roughness index, topographic position index, vector ruggedness measure)
+        + SRTM ~90m, 3 arc seconds (~ 3 / 60 / 60 * 110 * 1000 = `r 3/60/60 * 110 * 1000` at equator) from [EarthEnv](http://www.earthenv.org/DEM)
+        + 3 arc second DEM from Jonathan de Ferranti (de Ferranti, J. Digital Elevation Data. Viewfinder Panoramas http://www.viewfinderPanoramas.org/dem3.html (2015). Used in development of WorldPop.
     c. Surrounding landcover, i.e. proximity to woody veg/grassland
 3. Socioeconomic variables:
-    a. Population - future projections of population growth and urbanization from UN DESA’s World Urbanization Prospects - https://esa.un.org/unpd/wup/
-    b. @Jones2016 created spatially explicit projections of urban, rural, and total population at ten-year intervals between 2010-2100
+    a. Population, either from SEDAC (GPW, GRUMP, etc.), WorldPop, or [UN DESA’s World Urbanization Prospects](https://esa.un.org/unpd/wup/)
+    b. Land use decision making - @Malek2020. [download dataset here](https://dataverse.nl/dataset.xhtml?persistentId=doi:10.34894/JEDNM5)
+
+
+### population data sources
+
+SEDAC - Columbia University's CIESIN (Center for International Earth Science Information Network)  
+* Gridded Population of the World (GPW v4.11) years *2000, 2005, 2010, 2015, 2020*, ~ 1 km resolution, for 
+  + [population density (# people per km$^2$)](https://beta.sedac.ciesin.columbia.edu/data/set/gpw-v4-population-density-rev11). 
+  + [population counts](https://beta.sedac.ciesin.columbia.edu/data/set/gpw-v4-population-count-rev11)
+  + [density adjusted to match UN country totals](https://beta.sedac.ciesin.columbia.edu/data/set/gpw-v4-population-density-adjusted-to-2015-unwpp-country-totals-rev11)
+  + [counts adj to UN](https://beta.sedac.ciesin.columbia.edu/data/set/gpw-v4-population-count-adjusted-to-2015-unwpp-country-totals-rev11)
+  + [see collection overview (this is SEDAC's flagship data product)](https://beta.sedac.ciesin.columbia.edu/data/collection/gpw-v4)
+
+* Global Rural-Urban Mapping Project (GRUMP) v1, years *1990, 1995, 2000*, at ~ 1 km resolution
+  + [population density (population per km$^2$)](https://sedac.ciesin.columbia.edu/data/set/grump-v1-population-density)
+  + [population counts](https://beta.sedac.ciesin.columbia.edu/data/set/grump-v1-population-count)
+
+* Global Population Density Grid Time Series back-casts: *1970, 1980, 1990, 2000*, ~ 1km
+  + [population density](https://sedac.ciesin.columbia.edu/data/set/popdynamics-global-pop-density-time-series-estimates)
+  + [population counts](https://sedac.ciesin.columbia.edu/data/set/popdynamics-global-pop-count-time-series-estimates)
+
+* Global Estimate Net Migration Grids, for *1970, 1980, 1990, 2000*, ~ 1km
+  + [download here](https://sedac.ciesin.columbia.edu/data/set/popdynamics-global-est-net-migration-grids-1970-2000)
+
+* SSP Future projections: decadal estimates or projections of urban, rural, and total population at ten-year intervals between *2000-2100* [download from SEDAC here](https://beta.sedac.ciesin.columbia.edu/data/set/popdynamics-1-km-downscaled-pop-base-year-projection-ssp-2000-2100-rev01), based on @Jones2016.
+
+
+UN DESA  
+- future projections of population growth and urbanization from UN DESA’s World Urbanization Prospects [see here](https://esa.un.org/unpd/wup/). Note, this is not a raster, just a spreadsheet with country totals.
+
+
+WorldPop: high resolution (~100m, 1 km), annually from *2000-2020* - [download at WorldPop.org](https://www.worldpop.org/project/categories?id=3), [scientific data paper](https://www.nature.com/articles/sdata20171).  
+* Download individual countries, at either 100m or 1km resolution.
+* Like GPW, they have raw counts as well as those that have been adjusted to match UN population estimates from 2019.
+* Note: "constrained" vs. "unconstrained" just refers to whether the top-down datasets have been constrained based on satellite image derived maps of the built environment. This data is only available for the year 2020, so I'm going to use the "unconstrained top-down" dataset so that I can use multiple years.
+* Top-down vs. bottom-up refers to whether estimates are downscaled from accurate national statistics onto a grid (top-down), or derived from local estimates at particular sample locations scaled up to a grid (bottom-up). I'm using the "top-down" datasets.
+* Seems like WorldPop may be more accurate than GPW, [at least in places like China](https://link.springer.com/article/10.1007/s11111-020-00366-2). 
+
+
+Pros and Cons:
+* WorldPop may be more accurate, but only exists for 2000-2020. On the otherhand, GPW/GRUMP covers the full period from 1970-2020, covering more of the time series. And, with consistency across datasets which allows for comparison. 
+
+
+Other:  
+- Human Footprint maybe? No - just use the direct population density.
+
 
 
 ## Results outline:
@@ -78,57 +133,13 @@ source("scripts/0_start.R")
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r load-data}
-# elevation
-# slope
-# soils
-
-s_dt
-s_age
-```
-
-
-
-# Spatial Regression
-Abandonment Age predicted by:
-# Regression Analysis
-
-Question: what factors best predict a) which pixels of agricultural land are abandoned, b) how long that land will stay abandoned for, and relatedly, c) how likely it is to be recultivated?
-
-Factors:
-- Climate variables (temperature, precipitation, growing degree days, etc.)
-    - CHELSA (Swiss Federal Institute for Forest, Snow and Landscape Research WSL) ~1 km, 1979-2013, [CHELSA website](https://chelsa-climate.org/), [Peer reviewed paper, Scientific Data, 2017](https://www.nature.com/articles/sdata2017122)
-    - Worldclim, ~1km, 1970-2000 - [website](https://www.worldclim.org/data/worldclim21.html), [bioclim](https://www.worldclim.org/data/bioclim.html),  [possibly helpful how-to](https://www.benjaminbell.co.uk/2018/01/extracting-data-and-making-climate-maps.html)
-    
-
-- Topography variables (elevation, slope, etc.) [earthenv.org](http://www.earthenv.org/topography)
-- Agricultural economic variables 
-    - soils
-    - "marginality"
-    - agricultural opportunity cost (Naidoo & Iwamura 2007)
-    
-- Socioeconomic variables
-    - population
-    - context
-    - land use decision making
-- 
-
-## Methods:
-- start with a regular OLS regression (lm)
-- check out the residuals (the model errors) - if they are clumped, or there is a clear trend in them, then, they might be spatially autocorrelated.
-- Calculating Moran's I helps identify spatial autocorrelation. 
-- see code Liang shared by Raymond Huey 2020 ("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/Spatial analysis w Depth 2020-03-20.R")
-- see code from Umesh's stats course. 
-
-## Code:
-
-```{r load-data}
+```{r load-site-data}
 # copied from 6_figures on Feb 1 2021
 
 # for use on cluster:
-p_dat <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
-p_dat_derived <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
-p_output <- paste0("/scratch/network/clc6/abandonment_trajectories/output/")
+# p_dat <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
+# p_dat_derived <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
+# p_output <- paste0("/scratch/network/clc6/abandonment_trajectories/output/")
 list.files(p_dat_derived)
 
 site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
@@ -234,25 +245,35 @@ abn_area_change_b1_s
 
 ```
 
+```{r load-predictor-data}
+# elevation
+# de Ferranti's data:
+# 110 - 112 E
+# 38 - 40 N
+
+
+# slope
+# soils
+
+```
+
 ```{r simple-plots}
 # copied from 6_figures on Feb 1 2021
 
 # -------------------------- plot raw data --------------------------- #
-plot(b$y1987, main = "Belarus 1987", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+plot(s$y1987, main = "Sha(a)nxi 1987", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
 legend("bottomleft", cex = 0.6, inset = 0,
        legend = plot_cols$name, 
        fill = plot_cols$color)
 
-plot(b$y2017, main = "Belarus 2017", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+plot(s$y2017, main = "Sha(a)nxi 2017", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
 legend("bottomleft", cex = 0.6, inset = 0,
        legend = plot_cols$name, 
        fill = plot_cols$color)
 
 # ---------------------- plot abandonment age ---------------------- #
-plot(b_age_r$y2017, main = "Belarus Age of Abandonment 2017")
-plot(b_age_r[[28:31]])
-
-
+plot(s_age_r$y2017, main = "Sha(a)nxi Age of Abandonment 2017")
+plot(s_age_r[[28:31]])
 
 # -------------------------- animate --------------------------- #
 # --------------
@@ -262,4 +283,79 @@ animate(bt, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
         breaks = c(0, plot_cols$breaks), col = plot_cols$color)
 
 ```
+
+## Methods:
+- start with a regular OLS regression (lm)
+- check out the residuals (the model errors) - if they are clumped, or there is a clear trend in them, then, they might be spatially autocorrelated.
+- Calculating Moran's I helps identify spatial autocorrelation. 
+- see code Liang shared by Raymond Huey 2020 ("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/Spatial analysis w Depth 2020-03-20.R")
+- see code from Umesh's stats course. 
+
+```{r}
+
+```
+
+In order to perform a regression, I need to aggregate abandonment age pixels to match the coarser scale of my predictors (most of which are ~1km)
+```{r aggregate-abn-age}
+# plot
+# -------------------------- plot raw data --------------------------- #
+plot(s$y1987, main = "Sha(a)nxi 1987", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+legend("bottomleft", cex = 0.6, inset = 0,
+       legend = plot_cols$name, 
+       fill = plot_cols$color)
+
+plot(s$y2017, main = "Sha(a)nxi 2017", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
+legend("bottomleft", cex = 0.6, inset = 0,
+       legend = plot_cols$name, 
+       fill = plot_cols$color)
+
+# ---------------------- plot abandonment age ---------------------- #
+plot(s_age_r$y2017, main = "Sha(a)nxi Age of Abandonment 2017")
+plot(s_age_r[[28:31]])
+
+
+
+# 30 m resolution -> 1000 m resolution
+s_disagg <- disaggregate(s_age_r$y2017, fact = 3)
+object_size(s_disagg)
+plot(s_disagg)
+s_agg <- aggregate(s_disagg, fact = 100, fun = "mean")
+
+object_size(s_agg)
+
+plot(s_agg, main = "Aggregated to ~1km resolution")
+# doesn't quite look right... might need to fill the NA values with 0s...
+
+ncell(s_age_r$y2017)
+
+sa <- s_age_r$y2017
+sa[is.na(sa)] <- 0
+# r[r == 2] <- 5 # take, woody veg (2), set to 5
+plot(sa)
+
+sa_agg_mean <- aggregate(
+  disaggregate(sa, fact = 3), 
+  fact = 100, fun = mean)
+
+sa_agg_max <- aggregate(
+  disaggregate(sa, fact = 3), 
+  fact = 100, fun = max)
+
+sa_agg_median <- aggregate(
+  disaggregate(sa, fact = 3), 
+  fact = 100, fun = median)
+
+
+plot(s_agg)
+plot(sa_agg)
+
+summary(s_age_r$y2017)
+
+# histogram of age values in 2017
+s_age[, .N, by = y2017][order(y2017)][y2017 >= 5] %>% data.frame() %>% 
+  ggplot(data = ., mapping = aes(x = y2017, y = N)) + 
+  geom_col()
+```
+
+
 
