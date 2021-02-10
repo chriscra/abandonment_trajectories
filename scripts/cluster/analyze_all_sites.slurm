@@ -4,8 +4,8 @@
 #SBATCH --ntasks=1	 				                              # total number of tasks across all nodes
 #SBATCH --cpus-per-task=1                                 # cpu-cores per task (>1 if multi-threaded tasks)
 #SBATCH --time=5:59:00 			                              # total run time limit (HH:MM:SS)
-#SBATCH --array=2-11                                      # array ID variables (i.e. like "i")
-#SBATCH --mem-per-cpu=150G			                          # memory per cpu-core (4 GB is default).
+#SBATCH --array=1-11                                      # array ID variables (i.e. like "i")
+#SBATCH --mem-per-cpu=160G			                          # memory per cpu-core (4 GB is default).
 #SBATCH --mail-type=all				                            
 #SBATCH --mail-user=clc6@princeton.edu
 #SBATCH --output=slurm/slurm_out_%x_%A_%a.txt             # "%x" = job name, "%A" = job ID, "%a" = array index
@@ -35,6 +35,12 @@ Rscript ./analyze_all_sites.R $SLURM_ARRAY_TASK_ID
 
 # Inspection: test the memory usage of completed jobs with 
 # $ seff <JobID>
+# Initially, I ran this code for just 2-11 (excluding belarus). 
+# Orenburg also failed, since it's even bigger than belarus, so I ran those two separately. 
+# If I up the memory allocation to ~160 GB, all sites should run in an array.
+
+# Site inspection.
+
 # bh - checks out (ncell: 74231964). Used 90.57 GB, 1:28 hours. 
 # c - checks out (ncell: 32234381). Used 39.58 GB, 0:53 hours.
 # g - checks out (ncell: 59898990). Used 76.77 GB, 01:15:29 hours.
@@ -42,7 +48,8 @@ Rscript ./analyze_all_sites.R $SLURM_ARRAY_TASK_ID
 # mg - checks out (ncell: 38256075). Used 46.44 GB, 00:31:14 hours.
 # n - checks out (ncell: 66156714). Used 97.64 GB, 01:26:15 hours.
 # o - failed, out of memory (ncell: 101661520). Used 109.96 GB (failed), 03:10:37 hours.
-#### o - ran again, seems good so far... Used 145.22 GB, 03:38:41 hours.
+#### o - ran again, seems to have completed, despite weird message at the end of the slurm output:
+#### looks like it used 145.22 GB, 03:38:41 hours.
 # s - checks out (ncell: 22573740). Used 30.41 GB, 00:33:20 hours.
 # v - checks out (ncell: 93444494). Used 115.60 GB, 03:03:51 hours.
 # w - checks out (ncell: 70874020). Used 91.32 GB, 01:26:15 hours.

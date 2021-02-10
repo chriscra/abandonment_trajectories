@@ -25,6 +25,17 @@ library(VIF) # for selecting models for a linear model. Recommended by Liang.
 
 ```
 
+```{r install-packages, eval = FALSE}
+install.packages("FSA")
+install.packages("agricolae")
+```
+
+```{r load-packages}
+library(FSA)
+library(agricolae)
+```
+
+
 # Exponential Decay:
 
 

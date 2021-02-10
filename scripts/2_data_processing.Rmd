@@ -1665,3 +1665,24 @@ gg_10_px_traj
 
 
 ```
+
+
+# Investigate cluster data products
+```{r check-blips}
+
+b_blips <- fread(input = paste0(p_dat_derived, "belarus1_length.csv"))
+
+list.files(p_dat_derived) %>% grep("*blips_count_b1.csv", ., value = TRUE)
+
+site
+s_blips <- fread(file = paste0(p_dat_derived, site, "_blips_count_b1.csv"))
+
+# plot blips:
+
+blips_long <- pivot_longer(s_blips, cols = c(2:4), names_to = "threshold", values_to = "count")
+
+ggplot(data = blips_long, mapping = aes(x = year, y = count, 
+                                        group = threshold, fill = threshold)) + 
+  geom_col(position = position_dodge())
+```
+

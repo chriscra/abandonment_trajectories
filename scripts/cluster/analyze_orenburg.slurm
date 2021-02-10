@@ -32,6 +32,11 @@ Rscript ./analyze_all_sites.R $SLURM_ARRAY_TASK_ID
 # Iraq test took about 1.5 hours and exactly 60 gb. Should give it 70 or 80 next time to be safe.
 # The rest of the them took about 1.5 hours, and ~95 gb. 
 
+# It looks like Orenburg finished successfully, given the slurm COMPLETED email message I got. 11/13/2020
+# However, it gave a weird message at the end of the slurm.out, 
+# "Warning message: 
+#     system call failed: Cannot allocate memory "
+
 
 # Inspection
 # bh - checks out (ncell: 74231964)

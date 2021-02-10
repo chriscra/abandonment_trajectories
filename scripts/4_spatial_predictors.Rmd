@@ -36,36 +36,84 @@ example_df <- data.frame(cohort = 1995,
 example_df[1:9, ]
 ```
 
-## predictor variables:
+## Predictor variables:
 
 1. Agricultural suitability
-    a. Growing Degree Days (the cumulative number of degrees above growing threshold accumulated over the course of a growing season. 18 - 10 [threshold] * the number of days at that tempt) - https://nelson.wisc.edu/sage/data-and-models/atlas/maps.php?datasetid=31&includerelatedlinks=1&dataset=31
-    b. FAO's Global Agro-Ecological Zones (GAEZ), which includes both general natural resource, soil, terrain, slope, elevation, and other types of biophysical data, typically at the scale of 5 arc minutes (~10km at the equator), as well as crop specific suitability maps (e.g. for rain-fed winter wheat). Specifically:
+    a. *Growing Degree Days* (the cumulative number of degrees above growing threshold accumulated over the course of a growing season. 18 - 10 [threshold] * the number of days at that temp.). See [the University of Wisconsin's website](https://nelson.wisc.edu/sage/data-and-models/atlas/maps.php?datasetid=31&includerelatedlinks=1&dataset=31) for a good description of how GDD works. I plan to make use of GDD above base of 5 degrees C, [from the ENVIREM dataset](http://envirem.github.io/).  
+    b. *Soil Quality*: 
+        + [ISRIC World Soil Grids](https://www.isric.org/explore/soilgrids), at a resolution of 250 m. Used by @Levers2018a.
+        + [Harmonized World Soil Database](https://daac.ornl.gov/SOILS/guides/HWSD.html), which has a resolution of ~ 5.5 km (0.05 degrees). (I plan to use soil organic carbon, soil pH, and soil fertility)
+    c. FAO's Global Agro-Ecological Zones (GAEZ), which includes both general natural resource, soil, terrain, slope, elevation, and other types of biophysical data, typically at the scale of 5 arc minutes (~10km at the equator), as well as crop specific suitability maps (e.g. for rain-fed winter wheat). Specifically:
         i. Agro-ecological zones (categories such as: steep terrain, dry/good soils, dry/poor soils, sub-humid/good soils...)
         ii. Soil types
         iii. Workability (categories such as: no constraints, moderate constraints, severe constraints...)
         iv. And more.
-    c. Soil Quality: Harmonized World Soil Database - https://daac.ornl.gov/SOILS/guides/HWSD.html
-    d. Global inherent land quality map - https://www.nrcs.usda.gov/wps/portal/nrcs/detail/soils/use/worldsoils/?cid=nrcs142p2_054029
+    d. [Global inherent land quality map](https://www.nrcs.usda.gov/wps/portal/nrcs/detail/soils/use/worldsoils/?cid=nrcs142p2_054029)
     e. Agricultural opportunity cost (Naidoo & Iwamura 2007)
-    f. Travel time to major cites - [year 2000](https://forobs.jrc.ec.europa.eu/products/gam/), [year 2015](https://map.ox.ac.uk/research-project/accessibility_to_cities/)
+    f. Travel time to major cites - [Year 2000](https://forobs.jrc.ec.europa.eu/products/gam/), [Year 2015](https://map.ox.ac.uk/research-project/accessibility_to_cities/)
 2. Environmental factors
-    a. Temperature and precipitation - [possibly helpful how-to](https://www.benjaminbell.co.uk/2018/01/extracting-data-and-making-climate-maps.html)
-        i. Terraclimate - http://www.climatologylab.org/terraclimate.html
-        ii. Bioclim - (https://www.worldclim.org) - ~1km, 1970-2000 - [website](https://www.worldclim.org/data/worldclim21.html),
+    a. Temperature and precipitation (*use GDD, see above, as a nice*). [Possibly helpful how-to](https://www.benjaminbell.co.uk/2018/01/extracting-data-and-making-climate-maps.html)
+        i. [Terraclimate](http://www.climatologylab.org/terraclimate.html)
+        ii. [Bioclim](https://www.worldclim.org) - ~1km, 1970-2000, [website](https://www.worldclim.org/data/worldclim21.html),
         iii. CHELSA (Swiss Federal Institute for Forest, Snow and Landscape Research WSL) ~1 km, 1979-2013, [CHELSA website](https://chelsa-climate.org/), [Peer reviewed paper, Scientific Data, 2017](https://www.nature.com/articles/sdata2017122)
         iv. Climate Hazards group Infrared Precipitation with States ([CHIRPS](https://www.nature.com/articles/sdata201566))
-    b. Slope, elevation, and other terrain variables:
+    b. *Slope, elevation, ruggedness*, and other terrain variables:
+        + see what is on GEE!
+        + *Ruggedness (Terrain Ruggedness Index)* is a metric of elevation differences between neighboring cells, first derived by @Riley1999. It calculates the "the difference in elevation values from a center cell and eight cells directly surrounding it. Then, the eight elevation differences are squared and averaged. The square root of this average results is a TRI measurement for the center cell" ([see more here](https://community.esri.com/t5/water-resources-blog/terrain-ruggedness-index-tri-and-vector-ruggedness-measurement/ba-p/884340)). Other people use the "vector ruggedness measure," one of the variables supplied by @Amatulli2018.
         + @Amatulli2018 (~1 km, [see earthenv.org](http://www.earthenv.org/topography)), which has a lot of different variables at 1km (elevation, slope, aspect, eastness, northness, roughness, terrain roughness index, topographic position index, vector ruggedness measure)
         + SRTM ~90m, 3 arc seconds (~ 3 / 60 / 60 * 110 * 1000 = `r 3/60/60 * 110 * 1000` at equator) from [EarthEnv](http://www.earthenv.org/DEM)
         + 3 arc second DEM from Jonathan de Ferranti (de Ferranti, J. Digital Elevation Data. Viewfinder Panoramas http://www.viewfinderPanoramas.org/dem3.html (2015). Used in development of WorldPop.
     c. Surrounding landcover, i.e. proximity to woody veg/grassland
+        + Distance to grassland
+        + Distance to forest
+        + Proportion of pixel that is abandoned. If the pixels are aggregated to a coarser scale, from 30m x 30m to 1km x 1km ($1 km^2$), this is the proportion of pixels within that $1 km^2$ that were abandoned at all. This is similar to "Distance to permanently fallowed areas" variable used by @Levers2018a. 
+        + Distance to pixels that had experienced abandonment at any point prior to that year.
+        + 
 3. Socioeconomic variables:
     a. Population, either from SEDAC (GPW, GRUMP, etc.), WorldPop, or [UN DESA’s World Urbanization Prospects](https://esa.un.org/unpd/wup/)
-    b. Land use decision making - @Malek2020. [download dataset here](https://dataverse.nl/dataset.xhtml?persistentId=doi:10.34894/JEDNM5)
+        + Population rates of change
+        + Proportion of population in elderly age class (or average age of population)
+        + Population in working age
+        + Birth rates
+    c. Land use decision making, @Malek2020. [download dataset here](https://dataverse.nl/dataset.xhtml?persistentId=doi:10.34894/JEDNM5). 10 km resolution.
+4. Farm management factors:
+    a. Field size. This was found by @Levers2018a to be a 
+
+@Levers2018a explored the following predictors:
+1. Area equipped for irrigation
+2. Field size.
+3. Average livestock density
+4. Average yields from grain crops
+5. Aridity index (mean annual precip. / mean annual potential evapotranspiration)
+6. Growing degree days
+7. Soil cation exchange (soil fertility)
+8. Distance to forested areas
+9. Distance to permanent fallow areas (i.e. areas that were fallow for most of the time series between 2001-2012)
+10. Soil organic carbon (overall soil health).
+11. Soil pH value.
+12. Terrain ruggedness
+13. Access - travel time to cities with more than 50,000 inhabitants
+14. Population density
+15. Change in population density from 2001-2006, 2007-2012. 
+16. Average unemployment ratio.
+
+@Levers2018a also used a method that allowed the coefficient on each predictor to vary spatially, meaning that something like field size could have a positive effect in the UK, but a negative one in the Alps. In my case, I'll allow for this by allowing for site-level fixed effects. 
+
+@Levers2018a found that the factors that seemed to be the best predictors were (in order):
+1. Growing degree days (which varied through space).
+2. Field size (which strongly varied through space)
+3. Distance to permanently fallowed land.
+4. Unemployment
+5. Soil pH
+6. Soil organic carbon
+7. Change in population density
+8. Yields.
 
 
-### population data sources
+
+
+
+### Population data sources
 
 SEDAC - Columbia University's CIESIN (Center for International Earth Science Information Network)  
 * Gridded Population of the World (GPW v4.11) years *2000, 2005, 2010, 2015, 2020*, ~ 1 km resolution, for 
@@ -98,19 +146,23 @@ WorldPop: high resolution (~100m, 1 km), annually from *2000-2020* - [download a
 * Like GPW, they have raw counts as well as those that have been adjusted to match UN population estimates from 2019.
 * Note: "constrained" vs. "unconstrained" just refers to whether the top-down datasets have been constrained based on satellite image derived maps of the built environment. This data is only available for the year 2020, so I'm going to use the "unconstrained top-down" dataset so that I can use multiple years.
 * Top-down vs. bottom-up refers to whether estimates are downscaled from accurate national statistics onto a grid (top-down), or derived from local estimates at particular sample locations scaled up to a grid (bottom-up). I'm using the "top-down" datasets.
-* Seems like WorldPop may be more accurate than GPW, [at least in places like China](https://link.springer.com/article/10.1007/s11111-020-00366-2). 
 
-
-Pros and Cons:
-* WorldPop may be more accurate, but only exists for 2000-2020. On the otherhand, GPW/GRUMP covers the full period from 1970-2020, covering more of the time series. And, with consistency across datasets which allows for comparison. 
+#### Pros and Cons:
+* WorldPop may be more accurate than GPW, [at least in places like China](https://link.springer.com/article/10.1007/s11111-020-00366-2). However, it only exists for 2000-2020. 
+* On the other hand, SEDAC's datasets (GPW/GRUMP) cover the full period from 1970-2020, with consistency across datasets that allows for comparison. 
+* Decision: due to the fact that WorldPop only covers the time period from 2000-2020, I will use SEDAC's datasets. 
 
 
 Other:  
 - Human Footprint maybe? No - just use the direct population density.
 
 
+### My chosen predictors
 
-## Results outline:
+
+
+
+## Results outline
 
 3. Spatial predictors of age and recultivation
 
@@ -126,6 +178,7 @@ Fig. 9. Maps of a) abandonment *age in 2017* and b) *max age* for example site.
 
 ```{r start}
 source("scripts/0_start.R")
+env_size(ls())
 
 ```
 
@@ -284,12 +337,23 @@ animate(bt, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
 
 ```
 
-## Methods:
+## Methods
+
 - start with a regular OLS regression (lm)
-- check out the residuals (the model errors) - if they are clumped, or there is a clear trend in them, then, they might be spatially autocorrelated.
+- check out the residuals (the model errors) - if they are clumped, or there is a clear trend in them, then, they might be spatially auto-correlated.
 - Calculating Moran's I helps identify spatial autocorrelation. 
 - see code Liang shared by Raymond Huey 2020 ("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/Spatial analysis w Depth 2020-03-20.R")
 - see code from Umesh's stats course. 
+
+@Levers2018a use the R package `mboost` from [Hothorn et al. 201o](http://mboost.r-forge.r-project.org/) to implement "boosted regression trees" or BRT. This method has an advantage because, as quoted from @Pazur2020, "The advantages of BRT modelling compared to conventional statistical methods, such as ordinary least squares and logistic regressions, is that it allows capturing the non-linear relationship between the dependent and independent variables, does not require a normal distribution assumption and is robust against the multicollinearity of variables (Elith et al. 2008)." 
+
+I had initially been thinking that I wouldn't need to account for too much spatial variation, since the models can have site fixed effects that account for this spatial variation. But, it might be worth exploring these BRT models.
+
+See also the package `gbm`, and the documentation from the package [`dismo`](https://rspatial.org/raster/sdm/9_sdm_brt.html).
+
+@Dara2018
+
+@Pazur2020 and @Pazur2020a also use boosted regression trees
 
 ```{r}
 
@@ -315,27 +379,67 @@ plot(s_age_r[[28:31]])
 
 
 
-# 30 m resolution -> 1000 m resolution
-s_disagg <- disaggregate(s_age_r$y2017, fact = 3)
-object_size(s_disagg)
-plot(s_disagg)
-s_agg <- aggregate(s_disagg, fact = 100, fun = "mean")
+# 30 m resolution -> 1000 m resolution ------------------------------------------- #
+# In order to go from 30 m to 1000m, first I downscale the 30 m grid to a 10 m grid, 
+# by disaggregating with a factor of 3. This yields nine 10 m x 10 m pixels within each 
+# of the original pixels. These are then aggregated by factor of 100, in order to 
+# get to a 1000 m x 1000 m grid.
 
-object_size(s_agg)
+(1 / (3^2)) * (30/1000)^2 # 1/10,000
+(1/100)^2
 
-plot(s_agg, main = "Aggregated to ~1km resolution")
-# doesn't quite look right... might need to fill the NA values with 0s...
+(1/3)^2 * (100)^2 # There are 1111.11 30m x 30m pixels in a 1km x 1km pixel.
+
 
 ncell(s_age_r$y2017)
 
+# create intermediary raster, to aggregate 
 sa <- s_age_r$y2017
-sa[is.na(sa)] <- 0
-# r[r == 2] <- 5 # take, woody veg (2), set to 5
-plot(sa)
 
+
+# age raster, with NA values set to 0:
+sa_na_0 <- s_age_r$y2017
+sa_na_0[is.na(sa_na_0)] <- 0
+
+# all the same:
+plot(sa, main = "sa, including NA")
+plot(sa_na_0, main = "sa, with NA set to 0")
+plot(s_age_r$y2017, main = "(a) Shaanxi: abandonment age in 2017")
+
+
+# aggregate pixels to 1km x 1km.
 sa_agg_mean <- aggregate(
   disaggregate(sa, fact = 3), 
   fact = 100, fun = mean)
+
+sa_agg_mean_na_0 <- aggregate(
+  disaggregate(sa_na_0, fact = 3), 
+  fact = 100, fun = mean)
+
+plot(sa_agg_mean, main = "(b) Aggregated with mean, NA removed")
+plot(sa_agg_mean_na_0, main = "(c) Aggregated with mean, NA set to 0")
+
+
+# create a binary abandonment raster
+sa_bin <- sa
+sa_bin[!is.na(sa_bin)] <- 1
+plot(sa_bin, main = "Binary abandonment map (2017)")
+
+# calculate the proportion of 30m x 30m pixels within 1km x 1km pixel
+# that are abandoned:
+sa_count <- aggregate(
+  disaggregate(sa_bin, fact = 3), 
+  fact = 100, fun = sum) / (100^2) # note that because the count is of 10 m pixels (there are 9 of these in each 30m pixel), this must be divided by 100^2
+
+plot(sa_count, main = "(d) Proportion of pixel abandoned")
+
+
+# note that this is the same as mean with NAs set to 0
+plot(sa_agg_mean*sa_count, main = "Weighted average age")
+plot(sa_agg_mean_na_0, main = "(c) Aggregated with mean, NA set to 0")
+
+
+# other aggregation functions ----------------------------------------------- #
 
 sa_agg_max <- aggregate(
   disaggregate(sa, fact = 3), 
@@ -345,64 +449,56 @@ sa_agg_median <- aggregate(
   disaggregate(sa, fact = 3), 
   fact = 100, fun = median)
 
-
-plot(s_agg)
-plot(sa_agg)
-
-summary(s_age_r$y2017)
-
-
-
-
-plot(sa_agg_mean)
-plot(sa_agg_max)
-plot(sa_agg_median)
+plot(sa_agg_max, main = "aggregation method: max")
+plot(sa_agg_median, main = "aggregation method: median")
 ```
 
 ```{r age-histogram}
+s_age <- fread(input = paste0(p_dat_derived, "shaanxi_age.csv"))
+
+
 # histogram of age values in 2017
 s_age[, .N, by = y2017][order(y2017)][y2017 >= 5] %>% data.frame() %>% 
   ggplot(data = ., mapping = aes(x = y2017, y = N)) + 
   geom_col()
 
 
-hist(s_age_r$y2017)
+# hist(s_age_r$y2017) # Caution: this is very slow. 
 ```
 
 
 ```{r save-agg-rasters-to-png}
-pdf(file = paste0(p_output, "plots/age_aggregation_comparison.pdf"),
-      width = 9, height = 3)
-  
-# Set plot layout
-par(mfrow = c(1, 4),
-    oma = c(0,0,0,1))
+# First, comparing the aggregation methods: decided to use the mean.
+png(file = paste0(p_output, "plots/age_aggregation_comparison.png"),
+      width = 10, height = 3, units = "in", res = 400)
+par(mfrow = c(1, 4), oma = c(0,0,0,1))
 
-# left to right
-# age in 2017
-# aggregated with mean
-# aggregated with max
-# aggregated with median
-
-# row 1
-# --------------------------------------- #
-# ------------ Shaanxi ------------------ #
-# --------------------------------------- #
-
-# ------------- raw abandonment age data ---------------- #
 plot(s_age_r$y2017, main = "Shaanxi Age, 2017")
-
-# ------------- aggregated with mean ---------------- #
-plot(sa_agg_mean, main = "Aggregated with mean")
-
-# ------------- aggregated with max ---------------- #
-plot(sa_agg_max, main = "Aggregated with max")
-
-# ------------- aggregated with median ---------------- #
-plot(sa_agg_median, main = "Aggregated with median")
-
+plot(sa_agg_mean, main = "Aggregated w mean")
+plot(sa_agg_max, main = "Aggregated w max")
+plot(sa_agg_median, main = "Aggregated w median")
 dev.off()
+
+
+
+
+# Second, comparing the NA removal methods: decided to leave the NAs removed 
+
+png(file = paste0(p_output, "plots/age_agg_na_rm_v_na_0_wide.png"),
+    width = 11, height = 3,
+    units = "in", res = 400)
+par(mfrow = c(1, 4), oma = c(0,0,0,1))
+plot(s_age_r$y2017, main = "(a) Shaanxi: abandonment age in 2017")
+plot(sa_agg_mean, main = "(b) Aggregated with mean, NA removed")
+plot(sa_agg_mean_na_0, main = "(c) Aggregated with mean, NA set to 0")
+plot(sa_count, main = "(d) Proportion of pixel abandoned")
+dev.off()
+
 ```
 
+
+```{r regression-methods}
+
+```
 
 
