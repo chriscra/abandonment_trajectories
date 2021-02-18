@@ -1677,12 +1677,33 @@ list.files(p_dat_derived) %>% grep("*blips_count_b1.csv", ., value = TRUE)
 site
 s_blips <- fread(file = paste0(p_dat_derived, site, "_blips_count_b1.csv"))
 
+blips_df <- lapply(1:11, FUN = function(x) {
+  site <- site_df$site[x] # set site:
+  site_label <- site_df$label[x] # set label
+  
+  dat_temp <- fread(file = paste0(p_dat_derived, site, "_blips_count_b1.csv"))
+  dat_temp <- pivot_longer(dat_temp, cols = c("one", "two", "three"), 
+                           names_to = "threshold", values_to = "count")
+  })
+
+names(blips_df) <- site_df$site
+blips_df <- blips_df %>% bind_rows(.id = "site")
+
 # plot blips:
+png(filename = paste0(p_output, "plots/recultivation_temp_filter_blips.png"), 
+    width = 9, height = 5, units = "in", res = 400)
 
-blips_long <- pivot_longer(s_blips, cols = c(2:4), names_to = "threshold", values_to = "count")
+ggplot(data = blips_df, # filter(blips_df, site == "shaanxi"), 
+       mapping = aes(x = year, y = count/(10^5), 
+                     group = threshold, color = threshold)) + 
+  labs(title = "Temporal Filter for short-term recultivation", 
+       y = "Count (100,000)", x = "Year", color = "Threshold \n(Years)",
+       caption = "Passing temporal filter on recultivation: 1-0-1, 1-0-0-1, vs. 1-0-0-0-1") + 
+  geom_point(size = 1.5, alpha = 0.7) + 
+  facet_wrap(vars(site), scales = "free_y") + 
+  theme(legend.position = )
 
-ggplot(data = blips_long, mapping = aes(x = year, y = count, 
-                                        group = threshold, fill = threshold)) + 
-  geom_col(position = position_dodge())
+dev.off()
+
 ```
 

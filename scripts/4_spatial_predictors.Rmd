@@ -77,7 +77,7 @@ example_df[1:9, ]
         + Birth rates
     c. Land use decision making, @Malek2020. [download dataset here](https://dataverse.nl/dataset.xhtml?persistentId=doi:10.34894/JEDNM5). 10 km resolution.
 4. Farm management factors:
-    a. Field size. This was found by @Levers2018a to be a 
+    a. Field size, from Fritz et al. 2015. This was found by @Levers2018a to be a significant factor (though not the most significant)
 
 @Levers2018a explored the following predictors:
 1. Area equipped for irrigation

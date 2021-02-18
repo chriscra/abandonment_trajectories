@@ -41,18 +41,18 @@ Rscript ./analyze_all_sites.R $SLURM_ARRAY_TASK_ID
 
 # Site inspection.
 
-# bh - checks out (ncell: 74231964). Used 90.57 GB, 1:28 hours. 
-# c - checks out (ncell: 32234381). Used 39.58 GB, 0:53 hours.
-# g - checks out (ncell: 59898990). Used 76.77 GB, 01:15:29 hours.
-# i - checks out (ncell: 46461240). Used 63.15 GB, 00:52:25 hours.
-# mg - checks out (ncell: 38256075). Used 46.44 GB, 00:31:14 hours.
-# n - checks out (ncell: 66156714). Used 97.64 GB, 01:26:15 hours.
-# o - failed, out of memory (ncell: 101661520). Used 109.96 GB (failed), 03:10:37 hours.
+# bh - checks out (ncell: 74,231,964). Used 90.57 GB, 1:28 hours. 
+# c - checks out (ncell: 32,234,381). Used 39.58 GB, 0:53 hours.
+# g - checks out (ncell: 59,898,990). Used 76.77 GB, 01:15:29 hours.
+# i - checks out (ncell: 46,461,240). Used 63.15 GB, 00:52:25 hours.
+# mg - checks out (ncell: 38,256,075). Used 46.44 GB, 00:31:14 hours.
+# n - checks out (ncell: 66,156,714). Used 97.64 GB, 01:26:15 hours.
+# o - failed, out of memory (ncell: 101,661,520). Used 109.96 GB (failed), 03:10:37 hours.
 #### o - ran again, seems to have completed, despite weird message at the end of the slurm output:
 #### looks like it used 145.22 GB, 03:38:41 hours.
-# s - checks out (ncell: 22573740). Used 30.41 GB, 00:33:20 hours.
-# v - checks out (ncell: 93444494). Used 115.60 GB, 03:03:51 hours.
-# w - checks out (ncell: 70874020). Used 91.32 GB, 01:26:15 hours.
+# s - checks out (ncell: 22,573,740). Used 30.41 GB, 00:33:20 hours.
+# v - checks out (ncell: 93,444,494). Used 115.60 GB, 03:03:51 hours.
+# w - checks out (ncell: 70,874,020). Used 91.32 GB, 01:26:15 hours.
 
 # To submit a specific set of array sub-jobs, use the comma delimiter in the array index list.
 # $ sbatch --array=1,3,5,7 or

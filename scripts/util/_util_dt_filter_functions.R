@@ -1097,6 +1097,9 @@ cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster
 # calculate area of abandoned land over time, for a particular abn_age_dt
 # ------------------------------------------------------------------------------------ #
 
+# idea: 2.12.2021: have a column with the area of each pixel. subset a year column by a class, 
+# and sum the second column of the areas to calculate the total area.
+
 cc_calc_abn_area <- function(abn_age_dt, land_cover_raster, abandonment_definition = 5) {
   area_raster <- raster::area(land_cover_raster) # calculate area in km2
   median_cell_area_km2 <- median(getValues(area_raster))
@@ -1203,7 +1206,7 @@ cc_calc_persistence <- function(abn_age_dt,
   if (NA_first) {
     persistence_long <- persistence_long %>% 
       mutate(age = year - year_abn + 1) %>% 
-      mutate(bins = ifelse(age > 0 & age < 5, "1 to 5 years",
+      mutate(bins = ifelse(age > 0 & age < 5, "<5 years",
                            ifelse(age >= 5 & age < 10, "5 to 10 years",
                                   ifelse(age >= 10 & age < 15, "10 to 15 years",
                                          ifelse(age >= 15 & age < 20, "15 to 20 years",
