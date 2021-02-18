@@ -178,6 +178,14 @@ Many studies of regeneration also do not consider patterns of persistence, or ag
 @Aide2019 assess changes in woody vegetation over a 14 year period, but do so by averaging across years, losing the temporal pattern or regeneration and recultivation.
 @Yin2020 define land as abandoned when it has been continuously uncultivated for 5 years, but do not assess the length of time abandoned in detail.
 
+Add additional detail on what makes our study special: 
+This will be the first study with multiple sites and a global perspective. It also:
+- makes use of more accurate and finer resolution abandonment maps 
+- covers a longer time period than other recent studies
+- provides more detail on not just when recultivation happens, but the total time abandoned land is actually abandoned for
+- looks at predictors of abandonment length, not just whether abandonment happens at all. 
+- characterizes this recultivation as decay rates for the first time, and looks at trends in this by site, and over time. 
+
 These simple insights about the trajectories taken by abandoned agricultural land will provide much needed context to broad statements about recent and future abandonment and the contribution that abandonment many make to habitat regeneration and biodiversity conservation [@Chazdon2020].
 The bulk of abandoned land may be relatively short-lived, from the perspective of ecological succession or carbon sequestration, and unlikely to regenerate into valuable habitat on its own without active policies to protect this land and encourage regeneration.
 
@@ -185,7 +193,8 @@ The bulk of abandoned land may be relatively short-lived, from the perspective o
 ## Research questions
 
 Our primary goal is to understand the temporal nature of agricultural abandonment by exploring the trajectories taken by each piece of abandoned land through time.
-Our main point is simple: abandoned land is not a permanent phenomenon.
+Our main questions are simple: How long is abandoned farmland really "abandoned"? If some farmland is not truly abandoned, what happens to it? 
+Abandonment is not a permanent phenomenon.
 In fact, the period of abandonment varies quite a bit around the world and through time.
 In order to assess the effect of abandonment on biodiversity, carbon sequestration, and food security, we need a better understanding of how long agricultural abandonment lasts, how abandoned lands "decay," and which factors seem to predict the timing and decay.
 
@@ -225,12 +234,12 @@ This is the code used for data processing, and should be a good reference for re
 
 ## Definitions of abandonment
 
-One of our main points relates to how we define "abandonment," specifically, showing that abandonment is in many places around the world, not a permanent phenomenon.
+Our focus relates to how we define "abandonment," specifically, showing that abandonment is in many places around the world, not a permanent phenomenon.
 Differentiating "true" abandonment from less permanent land-use changes, such as short-term fallowing or crop rotations, is a challenge, in no small part because definitions can vary so widely - by region and by study.
 In fact, abandonment is better viewed as a land-use transition in which land may pass through a spectrum of stages [@Munroe2013].
 Here, when we refer to "abandonment," we aim to capture agricultural land that is no longer being actively cultivated. 
 We do not refer to changes from intensive cropped to less intensive uses, such as extensive grazing.
-In order to exclude short-term fallow periods, we define land as abandoned when it has remained uncultivated for five consecutive years [following FAO].
+In order to exclude short-term fallow periods, we define land as abandoned when it remains uncultivated for five or more consecutive years [following FAO].
 We assess the influence of this threshold in the SI ().
 We focus exclusively on cropland abandonment, not the abandonment of pasturelands, which is more difficult to discern from satellite imagery (though recent advances have been made; cite) and is not incorporated into our current dataset.
 
@@ -268,16 +277,22 @@ knitr::include_graphics(path = paste0(p_figures, "site_locations_w_labels_long.p
 We processed and analyzed our abandonment map data in RStudio version `r rstudioapi::versionInfo()$version`, using `r R.Version()$version.string`, primarily using the `raster` [@R-raster] and `data.table` packages [@R-data.table].
 Resource-intensive data processing was conducted on Princeton's large research computing clusters.
 
-These land cover maps contained four classes: 1) non-vegetation (e.g. water, urban, or barren land), 2) woody vegetation, 3) cropland, and 4) herbaceous vegetation (e.g. grassland), mapped from 1987 through 2017.
-We identified abandoned cropland as those pixels that transitioned from cropland to either herbaceous or woody vegetation (collectively referred to as "non-cropland") at any point during the time-series, and subsequently remained classified as non-cropland for at least 5 consecutive years (following our abandonment definition).
-Pixels that transitioned from cropland to the non-vegetation class were not considered "abandoned," and therefore we excluded all non-vegetation pixels from our analysis. *^[Ask He, Volker, and David about the following: cropland -> non-veg (urban) should not count as abandonment. However, cropland -> abandoned -> non-veg (urban) should count as the loss of abandoned land. My code is currently structured to remove pixels that are classified as urban at any point in the time-series, so we'd miss abandoned land that is converted to non-veg. I doubt this constitutes a significant amount of land, given that non-veg accounts for a relatively small amount of land (CHECK STAT), and seems to be relatively stable through time compared to the other classes. Should I restructure my code to look for pixels that transition from abandonment -> ... -> non-veg?.]*
-We considered an abandoned pixel to be "recultivated" if it transitioned from abandoned (i.e. non-cropland vegetation) back to cropland.
-Pixels that remained in cropland or non-cropland classes throughout the entire time series were excluded, as were periods of non-cropland that occurred at the start of the time series, even if that pixel was later classified as cropland and subsequently abandoned.
+These land cover maps contained four classes: 1) cropland, 2) herbaceous vegetation (e.g. grassland), 3) woody vegetation (forests), and 4) non-vegetation (e.g. water, urban, or barren land), mapped annual from 1987 through 2017.
+We identify periods of cropland abandonment by tracking changes in a given pixel's land cover classification through time and looking for changes that mark the start (and potentially the end) of periods of abandonment, specifically changes between two statuses: agricultural activity and abandonment.
+Taking a conservative approach, we considered agricultural activity to include both periods of stable cultivation (continuous classification as cropland) and periods of cyclical fallowing (multiple years of cropland followed by multiple years of non cropland that do not meet our abandonment threshold).
+We classified a pixel as "abandoned" when it transitioned from cropland to either herbaceous or woody vegetation (collectively referred to as "non-cropland"), and subsequently remained classified as non-cropland for five or more consecutive years (following our abandonment definition). 
+This transition from cropland to abandonment could take place at any point during the time-series, allowing for the abandonment of newly converted lands as well as the abandonment of that were cultivated at the start of the time series.
+We considered a pixel to be "recultivated" if it transitioned from abandoned back to cropland (i.e. 5 or more years of continuously non-cropland followed by cropland), therefore marking the end of that period of abandonment.
 
-Our abandonment threshold serves to reduce the influence of the misclassification of abandonment, where an active cropland pixel may be misclassified as non-cropland, while at the same time excluding true short-term fallowing periods.
-In order to address misclassification of recultivation, where an abandoned pixel may be misclassified as active cropland, we applied a temporal filter to remove periods of recultivation of only 1 year in between years of abandonment. *^[Ask He: were there any other filtering steps conducted on the lc maps? If not, might consider passing a spatial filter like that used by MapBiomas]*
-We applied a one-year recultivation threshold, automatically reclassifying periods of cropland of only one year as abandoned, therefore considering only recultivation periods that occurred for two or more consecutive years. *[Check how many pixels were reclassified as a result of this - see "site_blips_count_b1.csv".]*
-This serves to reduce the influence of short-term (one year) classification errors. 
+Pixels that remained in cropland or non-cropland classes throughout the entire time series were excluded, as were periods of non-cropland that occurred at the start of the time series, even if that pixel was later classified as cropland and subsequently abandoned (leaving only periods of abandonment that we could verify followed agricultural activity that took place within our time series).
+Pixels that transitioned from cropland to the non-vegetation class were not considered "abandoned," and therefore we excluded all non-vegetation pixels from our analysis. *^[These pixels represent a very small portion of our dataset, and at most sites non-vegetated land remained about constant or declined over time.]*
+
+In order to address potential classification errors, we implemented a series of temporal filters designed to smooth the trajectories in our time series by looking for short term changes in classification that are temporally unlikely.
+We applied five-year and eight-year moving window filters designed to search for short periods that do not match the classifications immediately before and after, and subsequently update them to match the surrounding classifications.
+Specifically, the five-year filter searched for one year periods that did not match the two years immediately before and after (i.e. patterns of 11011 or 00100), and our eight-year filter searched for two year periods that did not match the three years before and after (i.e. 11100111 and 00011000). The central classifications were then updated to match the classes on either end.
+
+These filters, frequently used in remote sensing studies (insert citation here), serve to minimize the effect of unlikely flips between classifications. 
+In our case, together with our five year abandonment threshold, these filters have the ultimate effect of minimizing the effect of very short-term misclassifications that would otherwise look like recultivation. 
 We chose not to apply a longer recultivation threshold because even just a year or two of cultivation can serve to entirely reset vegetation succession on that piece of land [*needs citation*].
 
 We calculate abandonment length as the time (in years) between the year a pixel first transitions from cropland to non-cropland vegetation and the year it transitions back and is classified as recultivated.
