@@ -45,7 +45,15 @@ plot_breaks <- c(0, 1, 2, 3, 4)
 #       4. Herbaceous land (e.g. grassland)
 
 bs <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
+names(bs) <- paste0("y", 1987:2017)
 bs_dt <- as.data.table.raster(bs)
+
+bt <- brick(paste0(p_dat_derived, "belarus_subset.tif"))
+names(bt) <- paste0("y", 1987:2017)
+bt_dt <- as.data.table.raster(bt)
+
+object_size(bs_dt)
+object_size(bt_dt)
 
 
 # GEE
@@ -1667,7 +1675,7 @@ gg_10_px_traj
 ```
 
 
-# Investigate cluster data products
+## Investigate cluster data products
 ```{r check-blips}
 
 b_blips <- fread(input = paste0(p_dat_derived, "belarus1_length.csv"))
@@ -1704,6 +1712,85 @@ ggplot(data = blips_df, # filter(blips_df, site == "shaanxi"),
   theme(legend.position = )
 
 dev.off()
+
+```
+
+```{r new-temporal-filter}
+# load test dt:
+dt <- copy(bs_dt)
+dt
+dt <- copy(s_dt)
+
+dt[, .N, by = y1987]
+
+
+cc_update_lc(dt, crop_code = 0, noncrop_code = 1)  # update land cover classes
+dt <- na.omit(dt)   # remove NAs
+nrow(dt) # 21587
+
+dt <- cc_remove_non_abn(dt)   # filter non abandonment pixels (i.e. those that are either all crop or all noncrop)
+nrow(dt) # 17674
+
+# Count number of periods of recultivation that fall below a continuous recultivation threshold.
+blips_count <- cc_count_blips(dt, start_year = 1987)
+
+five_yr_count <- sapply(5:(ncol(dt) - 2), function(i) {
+    dt[get(names(dt)[i-2]) == 1 & 
+         get(names(dt)[i-1]) == 1 & 
+         get(names(dt)[i]) == 0 & 
+         get(names(dt)[i+1]) == 1 & 
+         get(names(dt)[i+2]) == 1, .N]
+  }
+  )
+(five_yr_count/nrow(dt))*100
+
+# count of the first 0 position
+eight_yr_count <- sapply(6:(ncol(dt) - 4), function(i) {
+    dt[get(names(dt)[i-3]) == 1 & # index here has to start at 3
+         get(names(dt)[i-2]) == 1 & 
+         get(names(dt)[i-1]) == 1 & 
+         get(names(dt)[i]) == 0 & 
+         get(names(dt)[i+1]) == 0 & 
+         get(names(dt)[i+2]) == 1 & 
+         get(names(dt)[i+3]) == 1 & 
+         get(names(dt)[i+4]) == 1, .N]
+  }
+  )
+(eight_yr_count/nrow(dt))*100
+
+data.frame(
+    year = 1:length(grep("x$|y$", invert = T, names(dt))) - 1 + 1987,
+    five_yr = c(rep.int(0, 2), five_yr_count, rep.int(0, 2)),
+    eight_yr = c(rep.int(0, 3), eight_yr_count, rep.int(0, 4)))
+
+
+# Fill short periods of recultivation that fall below a continuous recultivation threshold.
+cc_fill_blips(dt, recultivation_threshold = recultivation_threshold, 
+              replacement_value = recultivation_replacement_value)
+
+  # notes:
+  # This function fills short periods of recultivation that fall below a recultivation threshold.
+  # It recodes from crop back to non-crop, based on how many continuous years 
+  # of crop classification are required by the threshold.
+  # This cleaning step should occur before calculating the age.
+  # Use as follows:
+  # cc_fill_blips(dt)
+
+
+# after passing the temporal filter, I run the following functions:
+
+cc_calc_age(dt)  # calculate age
+cc_erase_non_abn_periods(dt)  # erase non abandonment periods (i.e. those that start the time series as non-crop)
+
+
+
+
+# -------------------------------------------------------------------------- #
+# New temporal filter (Februar 18th, 2021)
+# -------------------------------------------------------------------------- #
+cc_temporal_filter <- function(dt) {
+
+}  
 
 ```
 
