@@ -247,6 +247,7 @@ cc_make_dt_binary <- function(dt) {
 # Filter out pixels that are either all crop or all noncrop
 # -------------------------------------------------------------------------- #
 cc_remove_non_abn <- function(dt) {
+  # this function filters out all rows for which 
   dt[dt[, rowSums(.SD) > 0 & rowSums(.SD) < length(.SD), 
         .SDcols = grep("[xy]$", names(dt), invert = TRUE)], ] 
   
@@ -269,6 +270,7 @@ cc_count_blips <- function(dt, start_year = 1987) {
   # This function counts the number of short recultivation periods that fall
   # below a specified threshold of continuous recultivation, in each year.
   
+  # check that dt starts with x & y
   if (length(grep("[xy]$", names(dt))) > 0) {
     if (!identical(names(dt)[1:2], c("x", "y"))) {
       stop("x and y must be the first two columns in the data.table")
@@ -535,8 +537,9 @@ cc_calc_age <- function(dt) {
 # Erase noncrop non-abn periods
 # -------------------------------------------------------------------------- #
 # set any value that is equal to the column number to 0. 
-# This removes age values for noncrop vegetation that start time-series as noncrop - 
-# this can't be classified as abandonment, since we don't know what came before the time-series.
+# This removes age values for noncrop vegetation that start the time-series as noncrop - 
+# this can't be classified as abandonment, since we don't know what came before the time-series, but we
+# also can't just exclude the entire pixel, since there may be abandonment following a period of cropland.
 
 cc_erase_non_abn_periods <- function(dt) {
   
@@ -554,7 +557,6 @@ cc_erase_non_abn_periods <- function(dt) {
     dt[get(names(dt)[i + adjustment]) == i,  # filter rows with values equal to column number
        names(dt)[i + adjustment] := 0] # set value to 0
   }
-  
 }
 
 
@@ -718,6 +720,7 @@ cc_recode_lc_dt <- function(dt, site, site_df) {
 }
 
 
+# meta functions ---- 
 
 # -------------------------------------------------------------------------- #
 # Save raw raster as data.table

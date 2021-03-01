@@ -38,13 +38,15 @@ cc_create_dt <- function(numrow = 15, numcol = 15, seed = 34L) {
 # ------------------------- #
 #
 # ------------------------- #
-cc_create_bin <- function(x) {
-  dt <- cc_create_dt()
+cc_create_bin <- function(numrow = 15, numcol = 15, seed = 34L) {
+  dt <- cc_create_dt(numrow = numrow, numcol = numcol, seed = seed)
   dt[3] <- 1
   dt[13] <- 1
   dt[12] <- 0
   dt[4, 1:4] <- 1
   dt[14, 1] <- 1
+  dt[1, 9] <- 1
+  dt[3, 1:2] <- 0
   dt
 }
 

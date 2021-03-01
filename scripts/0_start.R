@@ -7,6 +7,7 @@
 
 p_proj <- "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/"
 
+# load other util scripts
 source(paste0(p_proj, "scripts/util/_util_misc_functions.R"))
 source(paste0(p_proj, "scripts/util/_util_pathnames.R"))
 source(paste0(p_proj, "scripts/util/_util_spatial_functions.R"))
@@ -24,7 +25,7 @@ needed_packages <- c(
   "tidyverse", "lobstr", "pryr", "reshape2", "rlang",
   # tidyverse includes ggplot2, dplyr, tidyr, readr, purrr, tibble, stringr, and forcats
   
-  # modelling:
+  # modeling:
   "tidymodels", # metapackage including: rsample, parsnip, recipes, workflows, tune, yardstick, broom, & dials
   "lme4", "brms", 
   "broom.mixed", # nb: broom comes preloaded in the tidymodels; this package is specifically intended for mixed effects models
@@ -72,10 +73,13 @@ install_missing_packages <- function(list_of_packages) {
 }
 
 install_missing_packages(needed_packages)
+# update.packages(needed_packages) # every now and then a good idea to update the packages
+
+
 
 #install.packages(needed_packages) # old method
 # install <- lapply(needed_packages, library, character.only = TRUE) # load them
-#update.packages()
+
 
 
 

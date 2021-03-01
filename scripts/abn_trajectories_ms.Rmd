@@ -293,7 +293,7 @@ Specifically, the five-year filter searched for one year periods that did not ma
 
 These filters, frequently used in remote sensing studies (insert citation here), serve to minimize the effect of unlikely flips between classifications. 
 In our case, together with our five year abandonment threshold, these filters have the ultimate effect of minimizing the effect of very short-term misclassifications that would otherwise look like recultivation. 
-We chose not to apply a longer recultivation threshold because even just a year or two of cultivation can serve to entirely reset vegetation succession on that piece of land [*needs citation*].
+We chose to apply this brief recultivation threshold because even just a year or two of cultivation can serve to entirely reset vegetation succession on that piece of land [*needs citation*].
 
 We calculate abandonment length as the time (in years) between the year a pixel first transitions from cropland to non-cropland vegetation and the year it transitions back and is classified as recultivated.
 Given our abandonment threshold, the minimum abandonment length is five years.

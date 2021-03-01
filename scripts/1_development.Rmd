@@ -11,7 +11,7 @@ Abandonment Trajectories investigates the trajectories of abandoned agricultural
 
 
 ```{r initialize}
-source("scripts/0_start.R")
+source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
 ```
 
 ```{r colors}
