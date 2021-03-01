@@ -9,7 +9,7 @@ R notebook for loading and processing the land cover time-series raster data fro
 
 
 ```{r initialize}
-source("scripts/0_start.R")
+source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
 
 # define color palette for plotting:
 # 1. Non-veg
@@ -1715,54 +1715,261 @@ dev.off()
 
 ```
 
-```{r new-temporal-filter}
-# load test dt:
-dt <- copy(bs_dt)
+## Develop new temporal filter
+
+```{r create-test-dt}
+# create a test dt
+numcol <- 31
+dt <- cc_create_bin(numcol = numcol)
 dt
-dt <- copy(s_dt)
+names(dt) <- paste0("y", 1986 + 1:numcol)
+dt[, ':='(x = 7, y = 8)] # add x and y columns
+setcolorder(dt, c("x", "y", paste0("y", 1986+1:numcol))) #, instead of doing x <- x[, neworder, with=FALSE]
+# note: dplyr methods also work:
+# select(dt, x, y, everything())
+dt
+```
 
-dt[, .N, by = y1987]
 
-
-cc_update_lc(dt, crop_code = 0, noncrop_code = 1)  # update land cover classes
-dt <- na.omit(dt)   # remove NAs
-nrow(dt) # 21587
-
-dt <- cc_remove_non_abn(dt)   # filter non abandonment pixels (i.e. those that are either all crop or all noncrop)
-nrow(dt) # 17674
+```{r load-test-dt}
+# load test dt:
+# dt <- copy(bs_dt)
+# cc_update_lc(dt, crop_code = 0, noncrop_code = 1)  # update land cover classes
+# dt <- na.omit(dt)   # remove NAs
+# nrow(dt) # 21587
+# dt <- cc_remove_non_abn(dt)   # filter non abandonment pixels (i.e. those that are either all crop or all noncrop)
+# nrow(dt) # 17674
 
 # Count number of periods of recultivation that fall below a continuous recultivation threshold.
-blips_count <- cc_count_blips(dt, start_year = 1987)
 
-five_yr_count <- sapply(5:(ncol(dt) - 2), function(i) {
-    dt[get(names(dt)[i-2]) == 1 & 
-         get(names(dt)[i-1]) == 1 & 
-         get(names(dt)[i]) == 0 & 
-         get(names(dt)[i+1]) == 1 & 
-         get(names(dt)[i+2]) == 1, .N]
+# s_dt
+s_dt <- fread(input = paste0(p_dat_derived, "shaanxi.csv"))
+names(s_dt) <- gsub(pattern = "andcover", replacement = "y", names(s_dt))
+cc_update_lc(s_dt, crop_code = 0, noncrop_code = 1)  # update land cover classes
+s_dt <- na.omit(s_dt)   # remove NAs
+nrow(s_dt) # 17,477,812 rows
+
+tic()
+s_dt <- cc_remove_non_abn(s_dt)   # filter non abandonment pixels (i.e. those that are either all crop or all noncrop)
+nrow(s_dt) # 8,290,074 rows
+toc()
+```
+
+
+```{r new-temporal-filter-count}
+# -------------------------------------------------------------------------- #
+# Count
+# -------------------------------------------------------------------------- #
+cc_temporal_filter_count <- function(dt) {
+  
+  # check that dt starts with x & y
+  if (length(grep("[xy]$", names(dt))) > 0) {
+    if (!identical(names(dt)[1:2], c("x", "y"))) {
+      stop("x and y must be the first two columns in the data.table")
+    } else {
+      start <- 4
+    }
+  } else {
+    start <- 2
   }
-  )
-(five_yr_count/nrow(dt))*100
+  
+  # for each column, determine the number of number of rows that match the following pattern:
+  five_yr_count <- sapply(5:(ncol(dt) - 2), function(i) {
+      dt[get(names(dt)[i-2]) == 1 & 
+           get(names(dt)[i-1]) == 1 & 
+           get(names(dt)[i]) == 0 & 
+           get(names(dt)[i+1]) == 1 & 
+           get(names(dt)[i+2]) == 1, .N]
+    }
+    )
 
-# count of the first 0 position
-eight_yr_count <- sapply(6:(ncol(dt) - 4), function(i) {
-    dt[get(names(dt)[i-3]) == 1 & # index here has to start at 3
-         get(names(dt)[i-2]) == 1 & 
-         get(names(dt)[i-1]) == 1 & 
-         get(names(dt)[i]) == 0 & 
-         get(names(dt)[i+1]) == 0 & 
-         get(names(dt)[i+2]) == 1 & 
-         get(names(dt)[i+3]) == 1 & 
-         get(names(dt)[i+4]) == 1, .N]
+  # for each column, return the row indices that match the following pattern, iterating across all columns
+  affected_rows_5 <- lapply(5:(ncol(dt) - 2), function(i) {
+      dt[get(names(dt)[i-2]) == 1 & 
+           get(names(dt)[i-1]) == 1 & 
+           get(names(dt)[i]) == 0 & 
+           get(names(dt)[i+1]) == 1 & 
+           get(names(dt)[i+2]) == 1, which = TRUE] # which = TRUE returns the row indices
+    }
+    ) %>% unlist() %>% unique() # then condense the list into a single vector and remove duplicates
+  
+  # do the same, but for the eight year moving window filter, counting from the first 0 position
+  eight_yr_count <- sapply(6:(ncol(dt) - 4), function(i) {
+      dt[get(names(dt)[i-3]) == 1 & # index here has to start at 3
+           get(names(dt)[i-2]) == 1 & 
+           get(names(dt)[i-1]) == 1 & 
+           get(names(dt)[i]) == 0 & 
+           get(names(dt)[i+1]) == 0 & 
+           get(names(dt)[i+2]) == 1 & 
+           get(names(dt)[i+3]) == 1 & 
+           get(names(dt)[i+4]) == 1, .N]
+    }
+    )
+  
+  affected_rows_8 <- lapply(6:(ncol(dt) - 4), function(i) {
+      dt[get(names(dt)[i-3]) == 1 & # index here has to start at 3
+           get(names(dt)[i-2]) == 1 & 
+           get(names(dt)[i-1]) == 1 & 
+           get(names(dt)[i]) == 0 & 
+           get(names(dt)[i+1]) == 0 & 
+           get(names(dt)[i+2]) == 1 & 
+           get(names(dt)[i+3]) == 1 & 
+           get(names(dt)[i+4]) == 1, which = TRUE]
+    }
+    ) %>% unlist() %>% unique()
+  
+  # construct data.frame
+  cases_df <- data.frame(
+      year = 1:length(grep("x$|y$", invert = T, names(dt))) - 1 + 1987,
+      five_yr = c(rep.int(0, 2), five_yr_count, rep.int(0, 2)),
+      eight_yr = c(rep.int(0, 3), eight_yr_count, rep.int(0, 4)))
+  
+  nrow_affected <- data.frame(
+    filter = c("five_yr", "eight_yr", "either"),
+    nrow_affected = c(length(affected_rows_5),
+                      length(affected_rows_8),
+                      length(unique(c(affected_rows_5, affected_rows_8)))
+                      )
+    )
+  
+    # return the lists
+    list(cases_df = cases_df,
+         affected_rows_5 = affected_rows_5, 
+         affected_rows_8 = affected_rows_8,
+         nrow_affected = nrow_affected)
+}
+
+```
+
+
+```{r new-temporal-filter}
+# -------------------------------------------------------------------------- #
+# New temporal filter (February 19th, 2021)
+# -------------------------------------------------------------------------- #
+cc_temporal_filter <- function(dt, replacement_value = 1) {
+  
+  # check that dt starts with x & y
+  if (length(grep("[xy]$", names(dt))) > 0) {
+    if (!identical(names(dt)[1:2], c("x", "y"))) {
+      stop("x and y must be the first two columns in the data.table")
+    } else {
+      start <- 4
+    }
+  } else {
+    start <- 2
   }
-  )
-(eight_yr_count/nrow(dt))*100
+  
+  # ---------------------------------------------------------- #
+  # five year moving window: 
+  # fill 1-1-0-1-1
+  for (i in 5:(ncol(dt) - 2)) {
+    dt[get(names(dt)[i-2]) == 1 &  # subset to 1-1-0-1-1
+        get(names(dt)[i-1]) == 1 & 
+        get(names(dt)[i]) == 0 & 
+        get(names(dt)[i+1]) == 1 & 
+        get(names(dt)[i+2]) == 1,
+      
+       names(dt)[i] := replacement_value # update value
+       ]
+  }
+  
+  # ---------------------------------------------------------- #
+  # eight year moving window filter:
+  # fill 1-1-1-0-0-1-1-1
+  for (i in 6:(ncol(dt) - 4)) { # index here has to start at 3
+    dt[get(names(dt)[i-3]) == 1 & # subset to 1-1-1-0-0-1-1-1
+           get(names(dt)[i-2]) == 1 & 
+           get(names(dt)[i-1]) == 1 & 
+           get(names(dt)[i]) == 0 & 
+           get(names(dt)[i+1]) == 0 & 
+           get(names(dt)[i+2]) == 1 & 
+           get(names(dt)[i+3]) == 1 & 
+           get(names(dt)[i+4]) == 1, 
+       
+       c(names(dt)[i], 
+         names(dt)[i+1]) := replacement_value # update value
+       ]
+  }
+}
+```
 
-data.frame(
-    year = 1:length(grep("x$|y$", invert = T, names(dt))) - 1 + 1987,
-    five_yr = c(rep.int(0, 2), five_yr_count, rep.int(0, 2)),
-    eight_yr = c(rep.int(0, 3), eight_yr_count, rep.int(0, 4)))
+```{r test-new-filter}
 
+# pick up here: doesn't seem to be working. I don't know if it the filter filling and counting actually works. 
+
+# count
+tic()
+counts_df <- cc_temporal_filter_count(dt)
+toc()
+
+counts_df %>% group_by() %>% summarise(sum_5 = sum(five_yr), sum8 = sum(eight_yr))
+sum(counts_df$five_yr)
+colSums(counts_df)
+
+# filter
+tic()
+cc_temporal_filter(dt, replacement_value = -7)
+toc()
+dt[]
+
+
+# testing with s_dt
+tic()
+cc_temporal_filter(dt = s_dt, replacement_value = -7)
+toc() # 9.902 seconds
+
+s_dt[y1996 == "-7", .N]
+
+s_dt[get("y1996") == -7 | get("y1997") == -7, .N]
+s_dt[get("y1996") == -7, .N]
+s_dt[get("y1997") == -7, .N]
+
+tic()
+counts_sdf <- cc_temporal_filter_count(dt = s_dt)
+toc() # 11.129 seconds
+
+# how many cases are found by the 5 and 8 year filters?
+counts_sdf %>% group_by() %>% summarise(sum_5 = sum(five_yr), sum8 = sum(eight_yr)) 
+nrow(s_dt) # after the initial filtering steps, 8.3 m rows. Before that it's 17.5 m pixels
+# so, it's between
+counts_sdf %>% group_by() %>% 
+  summarise(sum_5 = sum(five_yr), sum8 = sum(eight_yr)) /
+  # nrow(s_dt) * 100
+  17500000 * 100
+
+
+
+# count the number of pixels that are affected:
+# two options for this:
+# 1. [I used this version] I can run the count function to return the indices of the matching rows, iterate across all columns, concatenate the list into a single vector, then run unique() to reduce that vector to just the rows affected in *any* year. I do this for the five year and the eight year vector, return them in a list, which I can then combine and use to calculate the number of rows affected by the filter, using length().
+
+# 2. Alternatively, I could do either of the following things: I can run the temporal filter filling with something like -7, then count the number of rows that are affected by counting the number of rows where one of the columns matches -7.
+
+tic() # I can do this, but it takes a while: 
+counts <- apply(s_dt, 1, function(row) any(row == -7))
+sum(counts)
+toc() # 23.714 seconds
+
+tic() # this is much much faster, though less efficient to code, of course. 
+s_dt[y1987 == -7 | y1988 == -7 | y1989 == -7 | y1990 == -7 | 
+       y1991 == -7 | y1992 == -7 | y1993 == -7 | y1994 == -7 | y1995 == -7 | 
+       y1996 == -7 | y1997 == -7 | y1998 == -7 | y1999 == -7 | y2000 == -7 | 
+       y2001 == -7 | y2002 == -7 | y2003 == -7 | y2004 == -7 | y2005 == -7 | 
+       y2006 == -7 | y2007 == -7 | y2008 == -7 | y2009 == -7 | y2010 == -7 | 
+       y2011 == -7 | y2012 == -7 | y2013 == -7 | y2014 == -7 | y2015 == -7 | 
+       y2016 == -7 | y2017 == -7, .N]
+toc() # something like 2 seconds.
+1954756 / 17500000 * 100 # this filter affects 11% of the pixels in this 
+
+tic()
+counts_sdf <- cc_temporal_filter_count(dt = s_dt)
+toc() # 22.3 sec
+
+c(counts_sdf$affected_rows_5, counts_sdf$affected_rows_8) %>% unique() %>% length()
+
+s_dt[counts_sdf$affected_rows_5, ]
+
+# old: 
 
 # Fill short periods of recultivation that fall below a continuous recultivation threshold.
 cc_fill_blips(dt, recultivation_threshold = recultivation_threshold, 
@@ -1782,15 +1989,438 @@ cc_fill_blips(dt, recultivation_threshold = recultivation_threshold,
 cc_calc_age(dt)  # calculate age
 cc_erase_non_abn_periods(dt)  # erase non abandonment periods (i.e. those that start the time series as non-crop)
 
+```
+
+```{r final-filtering steps}
+
+# count first
+tic()
+count_test <- cc_temporal_filter_count(dt = s_dt)
+toc()
+count_test$nrow_affected
+
+# run the filter:
+tic()
+cc_temporal_filter(dt = s_dt, replacement_value = 1)
+toc()
 
 
+# then the next steps
+tic()
+cc_calc_age(dt = s_dt)  # calculate age
+toc() # 9 seconds
 
+tic()
+cc_erase_non_abn_periods(dt = s_dt)
+toc() # 1 second
+
+
+# just dt
+dt <- cc_remove_non_abn(dt)   # filter non abandonment pixels (i.e. those that are either all crop or all noncrop)
+count_test <- cc_temporal_filter_count(dt)
+count_test$nrow_affected
+cc_temporal_filter(dt, replacement_value = 1)
+cc_calc_age(dt)  # calculate age
+cc_erase_non_abn_periods(dt)
+
+
+```
+
+
+### filtering edge cases
+
+Text for the manuscript's methods section.
+
+To be more conservative about misclassification of pixels, we also applied modified versions of these five- and eight-year moving window filters to the start of the times series, to address short periods of cropland that may be misclassified.
+By conservatively assuming the years immediately prior to our time series to be classified as non-cropland, we are able to use our moving window filters to exclude additional cases where a one or two year period of cropland may not represent stable cultivation.
+This has the effect of applying a partial threshold on the number of consecutive years of cropland needed at the start of the time series in order to confidently signify agricultural activity, which are required in order to represent abandonment rather than the continuation of previously uncultivated non-cropland.
+These modified filters for the start of the time series affected only a small area, totaling less than X% of pixels at each site.
+
+No special actions were taken on the end of the time series, with the possible effect of erroneously indicating recultivation right at the end of the time series, making our estimates of the length of time abandoned conservative. 
+These edge patterns were very uncommon, however, affecting fewer than X% of pixels at each site. 
+
+Also note: we focused on filtering short-term periods of cropland among long periods of non-cropland, because we are only concerned with instances of misclassifications of cropland. 
+Misclassified short term periods of non-cropland in the middle of cropland do not affect the identification of abandonment, because these would merely represent short-term fallow periods, and therefore are excluded by our five year abandonment threshold.
+We decided to address the edge cases at the start of the time series, rather than the end of the time series, because we prefer to be conservative in excluding lands that may be consistently noncrop lands from our estimate of abandoned lands.
+In contrast, the edge cases at the end of the time series only affect our estimate of the length of time abandoned, because one or two year periods of cropland, if misclassified, may erroneously mark recultivation in the final years of the time series.
+However, we decline to address any potential misclassifications here in order to take the more conservative approach with regards to recultivation.
+
+```{r count-edge-cases}
 # -------------------------------------------------------------------------- #
-# New temporal filter (Februar 18th, 2021)
+# count edge cases
 # -------------------------------------------------------------------------- #
-cc_temporal_filter <- function(dt) {
 
-}  
+# only count the occurrences at the end, do not fill them
+cc_temporal_filter_count_edge_cases <- function(dt){
+  
+  # ---------------------------------------------------------- #
+  # five year filter, edge cases
+  
+  # ------ start ------ #
+  partial5_start_1 <- 
+    dt[y1987 == 0 & 
+       y1988 == 1 & 
+       y1989 == 1, which = TRUE]
+  
+  partial5_start_2 <- 
+    dt[y1987 == 1 & 
+       y1988 == 0 & 
+       y1989 == 1 &
+       y1990 == 1, which = TRUE]
+  
+  # ------ end ------ #
+  partial5_end_1 <- 
+    dt[y2015 == 1 & 
+       y2016 == 1 & 
+       y2017 == 0, which = TRUE]
+  
+  partial5_end_2 <- 
+    dt[y2014 == 1 & 
+       y2015 == 1 & 
+       y2016 == 0 & 
+       y2017 == 1, which = TRUE]
+  
+  # ---------------------------------------------------------- #
+  # eight year filter, edge cases
+  
+  # ------ start ------ #
+  partial8_start_1 <- 
+    dt[y1987 == 0 & 
+       y1988 == 1 & 
+       y1989 == 1 &
+       y1990 == 1, which = TRUE]
+  
+  partial8_start_2 <- 
+    dt[y1987 == 0 & 
+       y1988 == 0 & 
+       y1989 == 1 & 
+       y1990 == 1 &
+       y1991 == 1, which = TRUE]
+  
+  partial8_start_3 <- 
+    dt[y1987 == 1 & 
+       y1988 == 0 & 
+       y1989 == 0 & 
+       y1990 == 1 &
+       y1991 == 1 &
+       y1992 == 1, which = TRUE]
+  
+  partial8_start_4 <- 
+    dt[y1987 == 1 & 
+       y1988 == 1 & 
+       y1989 == 0 & 
+       y1990 == 0 &
+       y1991 == 1 &
+       y1992 == 1 & 
+       y1993 == 1, which = TRUE]
+  
+  # ------ end ------ #
+  partial8_end_1 <- 
+    dt[y2014 == 1 & 
+       y2015 == 1 & 
+       y2016 == 1 & 
+       y2017 == 0, which = TRUE]
+  
+  partial8_end_2 <- 
+    dt[y2013 == 1 & 
+       y2014 == 1 & 
+       y2015 == 1 & 
+       y2016 == 0 & 
+       y2017 == 0, which = TRUE]
+  
+  partial8_end_3 <- 
+    dt[y2012 == 1 & 
+       y2013 == 1 & 
+       y2014 == 1 & 
+       y2015 == 0 & 
+       y2016 == 0 & 
+       y2017 == 1, which = TRUE]
+  
+  partial8_end_4 <- 
+    dt[y2011 == 1 & 
+       y2012 == 1 & 
+       y2013 == 1 & 
+       y2014 == 0 & 
+       y2015 == 0 & 
+       y2016 == 1 & 
+       y2017 == 1, which = TRUE]
+  
+  # ---------------------------------------------------------- #
+  # count the total number of pixels affected by any of the edge cases:
+  
+  # ------ start ------ #
+  num_pixels_affected_start <- 
+  dt[(y1987 == 0 & 
+      y1988 == 1 & 
+      y1989 == 1) | 
+     
+     (y1987 == 1 & 
+      y1988 == 0 & 
+      y1989 == 1 &
+      y1990 == 1) |
+     
+     (y1987 == 0 & 
+      y1988 == 1 & 
+      y1989 == 1 &
+      y1990 == 1) |
+     
+     (y1987 == 0 & 
+      y1988 == 0 & 
+      y1989 == 1 & 
+      y1990 == 1 &
+      y1991 == 1) |
+     
+     (y1987 == 1 & 
+      y1988 == 0 & 
+      y1989 == 0 & 
+      y1990 == 1 &
+      y1991 == 1 &
+      y1992 == 1) |
+     
+     (y1987 == 1 & 
+      y1988 == 1 & 
+      y1989 == 0 & 
+      y1990 == 0 &
+      y1991 == 1 &
+      y1992 == 1 & 
+      y1993 == 1), 
+   .N]
+  
+  
+  # ------ end ------ #
+  num_pixels_affected_end <- 
+  dt[(y2015 == 1 & 
+      y2016 == 1 & 
+      y2017 == 0) |
+     
+     (y2014 == 1 & 
+      y2015 == 1 & 
+      y2016 == 0 &
+      y2017 == 1) |
+     
+     (y2014 == 1 & 
+      y2015 == 1 & 
+      y2016 == 1 & 
+      y2017 == 0) |
+     
+     (y2013 == 1 & 
+      y2014 == 1 & 
+      y2015 == 1 & 
+      y2016 == 0 & 
+      y2017 == 0) |
+     
+     (y2012 == 1 & 
+      y2013 == 1 & 
+      y2014 == 1 & 
+      y2015 == 0 & 
+      y2016 == 0 & 
+      y2017 == 1) | 
+     
+     (y2011 == 1 & 
+      y2012 == 1 & 
+      y2013 == 1 & 
+      y2014 == 0 & 
+      y2015 == 0 & 
+      y2016 == 1 & 
+      y2017 == 1), 
+   .N]
+  
+  # ------ either start or end cases ------ #
+  num_pixels_affected_either <- 
+  dt[
+    # five year window, start
+     (y1987 == 0 &  
+      y1988 == 1 & 
+      y1989 == 1) |
+       
+     (y1987 == 1 & 
+      y1988 == 0 & 
+      y1989 == 1 &
+      y1990 == 1) |
+     
+    # five year window, end
+     (y2015 == 1 &
+      y2016 == 1 & 
+      y2017 == 0) |
+     
+     (y2014 == 1 & 
+      y2015 == 1 & 
+      y2016 == 0 &
+      y2017 == 1) |
+     
+    # eight year window, start
+     (y1987 == 0 & 
+      y1988 == 1 & 
+      y1989 == 1 &
+      y1990 == 1) |
+     
+     (y1987 == 0 & 
+      y1988 == 0 & 
+      y1989 == 1 & 
+      y1990 == 1 &
+      y1991 == 1) |
+     
+     (y1987 == 1 & 
+      y1988 == 0 & 
+      y1989 == 0 & 
+      y1990 == 1 &
+      y1991 == 1 &
+      y1992 == 1) |
+     
+     (y1987 == 1 & 
+      y1988 == 1 & 
+      y1989 == 0 & 
+      y1990 == 0 &
+      y1991 == 1 &
+      y1992 == 1 & 
+      y1993 == 1) |
+     
+    # eight year window, end
+     (y2014 == 1 &
+      y2015 == 1 & 
+      y2016 == 1 & 
+      y2017 == 0) |
+     
+     (y2013 == 1 & 
+      y2014 == 1 & 
+      y2015 == 1 & 
+      y2016 == 0 & 
+      y2017 == 0) |
+     
+     (y2012 == 1 & 
+      y2013 == 1 & 
+      y2014 == 1 & 
+      y2015 == 0 & 
+      y2016 == 0 & 
+      y2017 == 1) | 
+     
+     (y2011 == 1 & 
+      y2012 == 1 & 
+      y2013 == 1 & 
+      y2014 == 0 & 
+      y2015 == 0 & 
+      y2016 == 1 & 
+      y2017 == 1), 
+   .N]
+  
+  c(partial5_start_1, partial5_start_2,
+              partial8_start_1, partial8_start_2, partial8_start_3, partial8_start_4,
+              partial5_end_1, partial5_end_2,
+              partial8_end_1, partial8_end_2, partial8_end_3, partial8_end_4) %>% unique %>% length
+  
+  # ---------------------------------------------------------- #
+  # construct data.frame
+  edge_case_counts <- data.frame(
+    filter = rep(c(rep("five", 2), rep("eight", 4)), 2),
+    edge = c(rep("start", 6), rep("end", 6)),
+    pattern = c(
+      c("|011", "|1011", 
+        "|0111", "|00111", "|100111", "|1100111"),
+      c("110|","1101|", 
+        "1110|", "11100|", "111001|", "1110011|")),
+    type = "cases",
+    value = c(partial5_start_1, partial5_start_2,
+              partial8_start_1, partial8_start_2, partial8_start_3, partial8_start_4,
+              partial5_end_1, partial5_end_2,
+              partial8_end_1, partial8_end_2, partial8_end_3, partial8_end_4))
+  
+  edge_pixels_affected <- data.frame(
+    filter = "both",
+    edge = c("start", "end", "either"),
+    type = "pixels_affected",
+    value = c(num_pixels_affected_start, num_pixels_affected_end, num_pixels_affected_either)
+    ) %>%
+    mutate(percent_affected = value/nrow(dt))
+  
+  
+  pixel_count <- data.frame(
+    type = "pixel_count",
+    value = nrow(dt)
+  )
+  
+  # return the data.frames bound together:
+  bind_rows(edge_case_counts, edge_pixels_affected, pixel_count)
+}
+
+count_df <- cc_temporal_filter_count_edge_cases(dt)
+
+tic()
+count_edge_cases_bs_dt <- cc_temporal_filter_count_edge_cases(dt)
+toc()
+
+env_size(ls())
+
+```
+
+
+```{r filter-edge-cases}
+cc_temporal_filter_edge_cases <- function(dt, replacement_value = 1) {
+  # note: this filter only addresses edge cases at the start of the time series.
+  
+  # ---------------------------------------------------------- #
+  # five year moving window
+    dt[y1987 == 0 & 
+       y1988 == 1 & 
+       y1989 == 1, 
+       c("y1987") := replacement_value]
+  
+    dt[y1987 == 1 & 
+       y1988 == 0 & 
+       y1989 == 1 &
+       y1990 == 1, 
+      c("y1988") := replacement_value]
+
+  # ---------------------------------------------------------- #
+  # eight year filter, edge cases
+    dt[y1987 == 0 & 
+       y1988 == 1 & 
+       y1989 == 1 &
+       y1990 == 1, 
+       c("y1987") := replacement_value]
+  
+    dt[y1987 == 0 & 
+       y1988 == 0 & 
+       y1989 == 1 & 
+       y1990 == 1 &
+       y1991 == 1, 
+       c("y1987", "y1988") := replacement_value]
+  
+    dt[y1987 == 1 & 
+       y1988 == 0 & 
+       y1989 == 0 & 
+       y1990 == 1 &
+       y1991 == 1 &
+       y1992 == 1, 
+       c("y1988", "y1989") := replacement_value]
+  
+    dt[y1987 == 1 & 
+       y1988 == 1 & 
+       y1989 == 0 & 
+       y1990 == 0 &
+       y1991 == 1 &
+       y1992 == 1 & 
+       y1993 == 1, 
+       c("y1989", "y1990") := replacement_value]
+}
+```
+
+```{r test-edge-functions}
+# pick up here: doesn't seem to be working. I don't know if it the filter filling and counting actually works. 
+
+tic()
+cc_temporal_filter_count_edge_cases(dt = s_dt)
+toc()
+
+
+tic()
+cc_temporal_filter_edge_cases(dt, replacement_value = 99)
+toc()
+dt[]
+
+count_df <- cc_temporal_filter_count_edge_cases(dt)
+
+env_size(ls())
+
 
 ```
 
