@@ -501,11 +501,333 @@ cc_fill_blips <- function(dt, recultivation_threshold = 1, replacement_value = 1
 
 
 # -------------------------------------------------------------------------- #
-# Calculate age of each noncrop cell
+# Count the number of pixels affected by the 5- and 8-year moving window temporal filters
 # -------------------------------------------------------------------------- #
-cc_temporal_filter <- function(dt) {
+cc_temporal_filter_count <- function(dt) {
+  
+  # check that dt starts with x & y
+  if (length(grep("[xy]$", names(dt))) > 0) {
+    if (!identical(names(dt)[1:2], c("x", "y"))) {
+      stop("x and y must be the first two columns in the data.table")
+    } else {
+      start <- 4
+    }
+  } else {
+    start <- 2
+  }
+  
+  # for each column, determine the number of number of rows that match the following pattern:
+  five_yr_count <- sapply(5:(ncol(dt) - 2), function(i) {
+    dt[get(names(dt)[i-2]) == 1 & 
+         get(names(dt)[i-1]) == 1 & 
+         get(names(dt)[i]) == 0 & 
+         get(names(dt)[i+1]) == 1 & 
+         get(names(dt)[i+2]) == 1, .N]
+  }
+  )
+  
+  # for each column, return the row indices that match the following pattern, iterating across all columns
+  affected_rows_5 <- lapply(5:(ncol(dt) - 2), function(i) {
+    dt[get(names(dt)[i-2]) == 1 & 
+         get(names(dt)[i-1]) == 1 & 
+         get(names(dt)[i]) == 0 & 
+         get(names(dt)[i+1]) == 1 & 
+         get(names(dt)[i+2]) == 1, which = TRUE] # which = TRUE returns the row indices
+  }
+  ) %>% unlist() %>% unique() # then condense the list into a single vector and remove duplicates
+  
+  # do the same, but for the eight year moving window filter, counting from the first 0 position
+  eight_yr_count <- sapply(6:(ncol(dt) - 4), function(i) {
+    dt[get(names(dt)[i-3]) == 1 & # index here has to start at 3
+         get(names(dt)[i-2]) == 1 & 
+         get(names(dt)[i-1]) == 1 & 
+         get(names(dt)[i]) == 0 & 
+         get(names(dt)[i+1]) == 0 & 
+         get(names(dt)[i+2]) == 1 & 
+         get(names(dt)[i+3]) == 1 & 
+         get(names(dt)[i+4]) == 1, .N]
+  }
+  )
+  
+  affected_rows_8 <- lapply(6:(ncol(dt) - 4), function(i) {
+    dt[get(names(dt)[i-3]) == 1 & # index here has to start at 3
+         get(names(dt)[i-2]) == 1 & 
+         get(names(dt)[i-1]) == 1 & 
+         get(names(dt)[i]) == 0 & 
+         get(names(dt)[i+1]) == 0 & 
+         get(names(dt)[i+2]) == 1 & 
+         get(names(dt)[i+3]) == 1 & 
+         get(names(dt)[i+4]) == 1, which = TRUE]
+  }
+  ) %>% unlist() %>% unique()
+  
+  # construct data.frame
+  cases_df <- data.frame(
+    year = 1:length(grep("x$|y$", invert = T, names(dt))) - 1 + 1987,
+    five_yr = c(rep.int(0, 2), five_yr_count, rep.int(0, 2)),
+    eight_yr = c(rep.int(0, 3), eight_yr_count, rep.int(0, 4)))
+  
+  nrow_affected <- data.frame(
+    filter = c("five_yr", "eight_yr", "either"),
+    nrow_affected = c(length(affected_rows_5),
+                      length(affected_rows_8),
+                      length(unique(c(affected_rows_5, affected_rows_8)))
+    )
+  )
+  
+  # return the lists
+  list(cases_df = cases_df,
+       affected_rows_5 = affected_rows_5, 
+       affected_rows_8 = affected_rows_8,
+       nrow_affected = nrow_affected)
+}
 
-}  
+# -------------------------------------------------------------------------- #
+# Temporal filters, 5-year and 8-year moving window filters (added February 19th, 2021)
+# -------------------------------------------------------------------------- #
+cc_temporal_filter <- function(dt, replacement_value = 1) {
+  # Five- and eight-year moving window filters designed to address potential misclassification errors
+  # in the Yin et al. 2018 time series data.
+  
+  # check that dt starts with x & y
+  if (length(grep("[xy]$", names(dt))) > 0) {
+    if (!identical(names(dt)[1:2], c("x", "y"))) {
+      stop("x and y must be the first two columns in the data.table")
+    } else {
+      start <- 4
+    }
+  } else {
+    start <- 2
+  }
+  
+  # ---------------------------------------------------------- #
+  # five year moving window: 
+  # fill 1-1-0-1-1
+  for (i in 5:(ncol(dt) - 2)) {
+    dt[get(names(dt)[i-2]) == 1 &  # subset to 1-1-0-1-1
+         get(names(dt)[i-1]) == 1 & 
+         get(names(dt)[i]) == 0 & 
+         get(names(dt)[i+1]) == 1 & 
+         get(names(dt)[i+2]) == 1,
+       
+       names(dt)[i] := replacement_value # update value
+    ]
+  }
+  
+  # ---------------------------------------------------------- #
+  # eight year moving window filter:
+  # fill 1-1-1-0-0-1-1-1
+  for (i in 6:(ncol(dt) - 4)) { # index here has to start at 3
+    dt[get(names(dt)[i-3]) == 1 & # subset to 1-1-1-0-0-1-1-1
+         get(names(dt)[i-2]) == 1 & 
+         get(names(dt)[i-1]) == 1 & 
+         get(names(dt)[i]) == 0 & 
+         get(names(dt)[i+1]) == 0 & 
+         get(names(dt)[i+2]) == 1 & 
+         get(names(dt)[i+3]) == 1 & 
+         get(names(dt)[i+4]) == 1, 
+       
+       c(names(dt)[i], 
+         names(dt)[i+1]) := replacement_value # update value
+    ]
+  }
+}
+
+# -------------------------------------------------------------------------- #
+# Count edge cases of 5- and 8-year moving window temporal filters
+# -------------------------------------------------------------------------- #
+
+# only count the occurrences at the end, do not fill them
+cc_temporal_filter_edge_count <- function(dt){
+  # return row indices that match specific edge cases for each filter
+  # ---------------------------------------------------------- #
+  # five year filter, edge cases
+  
+  # ------ start ------ #
+  edge5_start_1 <- 
+    dt[y1987 == 0 & 
+         y1988 == 1 & 
+         y1989 == 1, which = TRUE]
+  
+  edge5_start_2 <- 
+    dt[y1987 == 1 & 
+         y1988 == 0 & 
+         y1989 == 1 &
+         y1990 == 1, which = TRUE]
+  
+  # ------ end ------ #
+  edge5_end_1 <- 
+    dt[y2015 == 1 & 
+         y2016 == 1 & 
+         y2017 == 0, which = TRUE]
+  
+  edge5_end_2 <- 
+    dt[y2014 == 1 & 
+         y2015 == 1 & 
+         y2016 == 0 & 
+         y2017 == 1, which = TRUE]
+  
+  # ---------------------------------------------------------- #
+  # eight year filter, edge cases
+  
+  # ------ start ------ #
+  edge8_start_1 <- 
+    dt[y1987 == 0 & 
+         y1988 == 1 & 
+         y1989 == 1 &
+         y1990 == 1, which = TRUE]
+  
+  edge8_start_2 <- 
+    dt[y1987 == 0 & 
+         y1988 == 0 & 
+         y1989 == 1 & 
+         y1990 == 1 &
+         y1991 == 1, which = TRUE]
+  
+  edge8_start_3 <- 
+    dt[y1987 == 1 & 
+         y1988 == 0 & 
+         y1989 == 0 & 
+         y1990 == 1 &
+         y1991 == 1 &
+         y1992 == 1, which = TRUE]
+  
+  edge8_start_4 <- 
+    dt[y1987 == 1 & 
+         y1988 == 1 & 
+         y1989 == 0 & 
+         y1990 == 0 &
+         y1991 == 1 &
+         y1992 == 1 & 
+         y1993 == 1, which = TRUE]
+  
+  # ------ end ------ #
+  edge8_end_1 <- 
+    dt[y2014 == 1 & 
+         y2015 == 1 & 
+         y2016 == 1 & 
+         y2017 == 0, which = TRUE]
+  
+  edge8_end_2 <- 
+    dt[y2013 == 1 & 
+         y2014 == 1 & 
+         y2015 == 1 & 
+         y2016 == 0 & 
+         y2017 == 0, which = TRUE]
+  
+  edge8_end_3 <- 
+    dt[y2012 == 1 & 
+         y2013 == 1 & 
+         y2014 == 1 & 
+         y2015 == 0 & 
+         y2016 == 0 & 
+         y2017 == 1, which = TRUE]
+  
+  edge8_end_4 <- 
+    dt[y2011 == 1 & 
+         y2012 == 1 & 
+         y2013 == 1 & 
+         y2014 == 0 & 
+         y2015 == 0 & 
+         y2016 == 1 & 
+         y2017 == 1, which = TRUE]
+  
+  # ---------------------------------------------------------- #
+  # make a list containing the indices that match the edge cases:
+  edge_cases_l <- list(edge5_start_1 = edge5_start_1, 
+                       edge5_start_2 = edge5_start_2,
+                       edge8_start_1 = edge8_start_1, 
+                       edge8_start_2 = edge8_start_2, 
+                       edge8_start_3 = edge8_start_3, 
+                       edge8_start_4 = edge8_start_4,
+                       edge5_end_1 = edge5_end_1, 
+                       edge5_end_2 = edge5_end_2,
+                       edge8_end_1 = edge8_end_1, 
+                       edge8_end_2 = edge8_end_2, 
+                       edge8_end_3 = edge8_end_3, 
+                       edge8_end_4 = edge8_end_4)
+  
+  # ---------------------------------------------------------- #
+  # construct data.frame
+  edge_case_counts <- data.frame(
+    filter = rep(c(rep("five", 2), rep("eight", 4)), 2),
+    edge = c(rep("start", 6), rep("end", 6)),
+    pattern = c(
+      c("|011", "|1011", 
+        "|0111", "|00111", "|100111", "|1100111"),
+      c("110|","1101|", 
+        "1110|", "11100|", "111001|", "1110011|")),
+    type = "cases",
+    value = sapply(edge_cases_l, function(x) {length(x)})) # calculate the number of pixels affected by each edge case
+  
+  edge_pixels_affected <- data.frame(
+    filter = "both",
+    edge = c("start", "end", "either"),
+    type = "pixels_affected",
+    value = c(edge_cases_l[grep("start", names(edge_cases_l))] %>% unlist %>% unique %>% length, # count the pixels affected by any of the edge cases at the start
+              edge_cases_l[grep("end", names(edge_cases_l))] %>% unlist %>% unique %>% length,
+              edge_cases_l %>% unlist %>% unique %>% length # count pixels affected by either filter, either end)
+    )) %>%
+    mutate(percent_affected = value/nrow(dt))
+  
+  # return the list and data.frames bound together:
+  list(indices = edge_cases_l[1:8], 
+       edge_case_counts = edge_case_counts, 
+       edge_pixels_affected = edge_pixels_affected)
+}
+
+# -------------------------------------------------------------------------- #
+# Temporal filter, edge cases (start only)
+# -------------------------------------------------------------------------- #
+cc_temporal_filter_edge <- function(dt, replacement_value = 1) {
+  # note: this filter only addresses edge cases at the start of the time series.
+  
+  # ---------------------------------------------------------- #
+  # five year moving window
+  dt[y1987 == 0 & 
+       y1988 == 1 & 
+       y1989 == 1, 
+     c("y1987") := replacement_value]
+  
+  dt[y1987 == 1 & 
+       y1988 == 0 & 
+       y1989 == 1 &
+       y1990 == 1, 
+     c("y1988") := replacement_value]
+  
+  # ---------------------------------------------------------- #
+  # eight year filter, edge cases
+  dt[y1987 == 0 & 
+       y1988 == 1 & 
+       y1989 == 1 &
+       y1990 == 1, 
+     c("y1987") := replacement_value]
+  
+  dt[y1987 == 0 & 
+       y1988 == 0 & 
+       y1989 == 1 & 
+       y1990 == 1 &
+       y1991 == 1, 
+     c("y1987", "y1988") := replacement_value]
+  
+  dt[y1987 == 1 & 
+       y1988 == 0 & 
+       y1989 == 0 & 
+       y1990 == 1 &
+       y1991 == 1 &
+       y1992 == 1, 
+     c("y1988", "y1989") := replacement_value]
+  
+  dt[y1987 == 1 & 
+       y1988 == 1 & 
+       y1989 == 0 & 
+       y1990 == 0 &
+       y1991 == 1 &
+       y1992 == 1 & 
+       y1993 == 1, 
+     c("y1989", "y1990") := replacement_value]
+}
+
 
 # -------------------------------------------------------------------------- #
 # Calculate age of each noncrop cell

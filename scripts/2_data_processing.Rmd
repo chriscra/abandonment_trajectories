@@ -2051,7 +2051,7 @@ However, we decline to address any potential misclassifications here in order to
 # -------------------------------------------------------------------------- #
 
 # only count the occurrences at the end, do not fill them
-cc_temporal_filter_count_edge_cases <- function(dt){
+cc_temporal_filter_edge_count <- function(dt){
   # return row indices that match specific edge cases for each filter
   # ---------------------------------------------------------- #
   # five year filter, edge cases
@@ -2183,7 +2183,7 @@ cc_temporal_filter_count_edge_cases <- function(dt){
     )) %>%
     mutate(percent_affected = value/nrow(dt))
   
-  # return the data.frames bound together:
+  # return the list and data.frames bound together:
   list(indices = edge_cases_l[1:8], 
        edge_case_counts = edge_case_counts, 
        edge_pixels_affected = edge_pixels_affected)
@@ -2192,7 +2192,7 @@ cc_temporal_filter_count_edge_cases <- function(dt){
 
 
 ```{r filter-edge-cases}
-cc_temporal_filter_edge_cases <- function(dt, replacement_value = 1) {
+cc_temporal_filter_edge <- function(dt, replacement_value = 1) {
   # note: this filter only addresses edge cases at the start of the time series.
   
   # ---------------------------------------------------------- #
@@ -2246,11 +2246,11 @@ cc_temporal_filter_edge_cases <- function(dt, replacement_value = 1) {
 # pick up here: doesn't seem to be working. I don't know if it the filter filling and counting actually works. 
 
 tic()
-count_edge_df <- cc_temporal_filter_count_edge_cases(dt = dt)
+count_edge_df <- cc_temporal_filter_edge_count(dt = dt)
 toc()
 
 tic()
-cc_temporal_filter_edge_cases(dt, replacement_value = -7)
+cc_temporal_filter_edge(dt, replacement_value = -7)
 toc()
 dt[]
 
@@ -2258,11 +2258,11 @@ dt[]
 # with s_dt
 
 tic()
-count_edge_df <- cc_temporal_filter_count_edge_cases(dt = s_dt)
+count_edge_df <- cc_temporal_filter_edge_count(dt = s_dt)
 toc()
 
 tic()
-cc_temporal_filter_edge_cases(dt = s_dt, replacement_value = -7)
+cc_temporal_filter_edge(dt = s_dt, replacement_value = -7)
 toc()
 s_dt[]
 ```
