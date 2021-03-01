@@ -2052,29 +2052,29 @@ However, we decline to address any potential misclassifications here in order to
 
 # only count the occurrences at the end, do not fill them
 cc_temporal_filter_count_edge_cases <- function(dt){
-  
+  # return row indices that match specific edge cases for each filter
   # ---------------------------------------------------------- #
   # five year filter, edge cases
   
   # ------ start ------ #
-  partial5_start_1 <- 
+  edge5_start_1 <- 
     dt[y1987 == 0 & 
        y1988 == 1 & 
        y1989 == 1, which = TRUE]
   
-  partial5_start_2 <- 
+  edge5_start_2 <- 
     dt[y1987 == 1 & 
        y1988 == 0 & 
        y1989 == 1 &
        y1990 == 1, which = TRUE]
   
   # ------ end ------ #
-  partial5_end_1 <- 
+  edge5_end_1 <- 
     dt[y2015 == 1 & 
        y2016 == 1 & 
        y2017 == 0, which = TRUE]
   
-  partial5_end_2 <- 
+  edge5_end_2 <- 
     dt[y2014 == 1 & 
        y2015 == 1 & 
        y2016 == 0 & 
@@ -2084,20 +2084,20 @@ cc_temporal_filter_count_edge_cases <- function(dt){
   # eight year filter, edge cases
   
   # ------ start ------ #
-  partial8_start_1 <- 
+  edge8_start_1 <- 
     dt[y1987 == 0 & 
        y1988 == 1 & 
        y1989 == 1 &
        y1990 == 1, which = TRUE]
   
-  partial8_start_2 <- 
+  edge8_start_2 <- 
     dt[y1987 == 0 & 
        y1988 == 0 & 
        y1989 == 1 & 
        y1990 == 1 &
        y1991 == 1, which = TRUE]
   
-  partial8_start_3 <- 
+  edge8_start_3 <- 
     dt[y1987 == 1 & 
        y1988 == 0 & 
        y1989 == 0 & 
@@ -2105,7 +2105,7 @@ cc_temporal_filter_count_edge_cases <- function(dt){
        y1991 == 1 &
        y1992 == 1, which = TRUE]
   
-  partial8_start_4 <- 
+  edge8_start_4 <- 
     dt[y1987 == 1 & 
        y1988 == 1 & 
        y1989 == 0 & 
@@ -2115,20 +2115,20 @@ cc_temporal_filter_count_edge_cases <- function(dt){
        y1993 == 1, which = TRUE]
   
   # ------ end ------ #
-  partial8_end_1 <- 
+  edge8_end_1 <- 
     dt[y2014 == 1 & 
        y2015 == 1 & 
        y2016 == 1 & 
        y2017 == 0, which = TRUE]
   
-  partial8_end_2 <- 
+  edge8_end_2 <- 
     dt[y2013 == 1 & 
        y2014 == 1 & 
        y2015 == 1 & 
        y2016 == 0 & 
        y2017 == 0, which = TRUE]
   
-  partial8_end_3 <- 
+  edge8_end_3 <- 
     dt[y2012 == 1 & 
        y2013 == 1 & 
        y2014 == 1 & 
@@ -2136,7 +2136,7 @@ cc_temporal_filter_count_edge_cases <- function(dt){
        y2016 == 0 & 
        y2017 == 1, which = TRUE]
   
-  partial8_end_4 <- 
+  edge8_end_4 <- 
     dt[y2011 == 1 & 
        y2012 == 1 & 
        y2013 == 1 & 
@@ -2146,168 +2146,20 @@ cc_temporal_filter_count_edge_cases <- function(dt){
        y2017 == 1, which = TRUE]
   
   # ---------------------------------------------------------- #
-  # count the total number of pixels affected by any of the edge cases:
-  
-  # ------ start ------ #
-  num_pixels_affected_start <- 
-  dt[(y1987 == 0 & 
-      y1988 == 1 & 
-      y1989 == 1) | 
-     
-     (y1987 == 1 & 
-      y1988 == 0 & 
-      y1989 == 1 &
-      y1990 == 1) |
-     
-     (y1987 == 0 & 
-      y1988 == 1 & 
-      y1989 == 1 &
-      y1990 == 1) |
-     
-     (y1987 == 0 & 
-      y1988 == 0 & 
-      y1989 == 1 & 
-      y1990 == 1 &
-      y1991 == 1) |
-     
-     (y1987 == 1 & 
-      y1988 == 0 & 
-      y1989 == 0 & 
-      y1990 == 1 &
-      y1991 == 1 &
-      y1992 == 1) |
-     
-     (y1987 == 1 & 
-      y1988 == 1 & 
-      y1989 == 0 & 
-      y1990 == 0 &
-      y1991 == 1 &
-      y1992 == 1 & 
-      y1993 == 1), 
-   .N]
-  
-  
-  # ------ end ------ #
-  num_pixels_affected_end <- 
-  dt[(y2015 == 1 & 
-      y2016 == 1 & 
-      y2017 == 0) |
-     
-     (y2014 == 1 & 
-      y2015 == 1 & 
-      y2016 == 0 &
-      y2017 == 1) |
-     
-     (y2014 == 1 & 
-      y2015 == 1 & 
-      y2016 == 1 & 
-      y2017 == 0) |
-     
-     (y2013 == 1 & 
-      y2014 == 1 & 
-      y2015 == 1 & 
-      y2016 == 0 & 
-      y2017 == 0) |
-     
-     (y2012 == 1 & 
-      y2013 == 1 & 
-      y2014 == 1 & 
-      y2015 == 0 & 
-      y2016 == 0 & 
-      y2017 == 1) | 
-     
-     (y2011 == 1 & 
-      y2012 == 1 & 
-      y2013 == 1 & 
-      y2014 == 0 & 
-      y2015 == 0 & 
-      y2016 == 1 & 
-      y2017 == 1), 
-   .N]
-  
-  # ------ either start or end cases ------ #
-  num_pixels_affected_either <- 
-  dt[
-    # five year window, start
-     (y1987 == 0 &  
-      y1988 == 1 & 
-      y1989 == 1) |
-       
-     (y1987 == 1 & 
-      y1988 == 0 & 
-      y1989 == 1 &
-      y1990 == 1) |
-     
-    # five year window, end
-     (y2015 == 1 &
-      y2016 == 1 & 
-      y2017 == 0) |
-     
-     (y2014 == 1 & 
-      y2015 == 1 & 
-      y2016 == 0 &
-      y2017 == 1) |
-     
-    # eight year window, start
-     (y1987 == 0 & 
-      y1988 == 1 & 
-      y1989 == 1 &
-      y1990 == 1) |
-     
-     (y1987 == 0 & 
-      y1988 == 0 & 
-      y1989 == 1 & 
-      y1990 == 1 &
-      y1991 == 1) |
-     
-     (y1987 == 1 & 
-      y1988 == 0 & 
-      y1989 == 0 & 
-      y1990 == 1 &
-      y1991 == 1 &
-      y1992 == 1) |
-     
-     (y1987 == 1 & 
-      y1988 == 1 & 
-      y1989 == 0 & 
-      y1990 == 0 &
-      y1991 == 1 &
-      y1992 == 1 & 
-      y1993 == 1) |
-     
-    # eight year window, end
-     (y2014 == 1 &
-      y2015 == 1 & 
-      y2016 == 1 & 
-      y2017 == 0) |
-     
-     (y2013 == 1 & 
-      y2014 == 1 & 
-      y2015 == 1 & 
-      y2016 == 0 & 
-      y2017 == 0) |
-     
-     (y2012 == 1 & 
-      y2013 == 1 & 
-      y2014 == 1 & 
-      y2015 == 0 & 
-      y2016 == 0 & 
-      y2017 == 1) | 
-     
-     (y2011 == 1 & 
-      y2012 == 1 & 
-      y2013 == 1 & 
-      y2014 == 0 & 
-      y2015 == 0 & 
-      y2016 == 1 & 
-      y2017 == 1), 
-   .N]
-  
-  c(partial5_start_1, partial5_start_2,
-              partial8_start_1, partial8_start_2, partial8_start_3, partial8_start_4,
-              partial5_end_1, partial5_end_2,
-              partial8_end_1, partial8_end_2, partial8_end_3, partial8_end_4) %>% unique %>% length
-  
+  # make a list containing the indices that match the edge cases:
+  edge_cases_l <- list(edge5_start_1 = edge5_start_1, 
+                       edge5_start_2 = edge5_start_2,
+                       edge8_start_1 = edge8_start_1, 
+                       edge8_start_2 = edge8_start_2, 
+                       edge8_start_3 = edge8_start_3, 
+                       edge8_start_4 = edge8_start_4,
+                       edge5_end_1 = edge5_end_1, 
+                       edge5_end_2 = edge5_end_2,
+                       edge8_end_1 = edge8_end_1, 
+                       edge8_end_2 = edge8_end_2, 
+                       edge8_end_3 = edge8_end_3, 
+                       edge8_end_4 = edge8_end_4)
+
   # ---------------------------------------------------------- #
   # construct data.frame
   edge_case_counts <- data.frame(
@@ -2319,37 +2171,23 @@ cc_temporal_filter_count_edge_cases <- function(dt){
       c("110|","1101|", 
         "1110|", "11100|", "111001|", "1110011|")),
     type = "cases",
-    value = c(partial5_start_1, partial5_start_2,
-              partial8_start_1, partial8_start_2, partial8_start_3, partial8_start_4,
-              partial5_end_1, partial5_end_2,
-              partial8_end_1, partial8_end_2, partial8_end_3, partial8_end_4))
+    value = sapply(edge_cases_l, FUN = function(x) {length(x)})) # calculate the number of pixels affected by each edge case
   
   edge_pixels_affected <- data.frame(
     filter = "both",
     edge = c("start", "end", "either"),
     type = "pixels_affected",
-    value = c(num_pixels_affected_start, num_pixels_affected_end, num_pixels_affected_either)
-    ) %>%
+    value = c(edge_cases_l[grep("start", names(edge_cases_l))] %>% unlist %>% unique %>% length, # count the pixels affected by any of the edge cases at the start
+              edge_cases_l[grep("end", names(edge_cases_l))] %>% unlist %>% unique %>% length,
+              edge_cases_l %>% unlist %>% unique %>% length # count pixels affected by either filter, either end)
+    )) %>%
     mutate(percent_affected = value/nrow(dt))
   
-  
-  pixel_count <- data.frame(
-    type = "pixel_count",
-    value = nrow(dt)
-  )
-  
   # return the data.frames bound together:
-  bind_rows(edge_case_counts, edge_pixels_affected, pixel_count)
+  list(indices = edge_cases_l[1:8], 
+       edge_case_counts = edge_case_counts, 
+       edge_pixels_affected = edge_pixels_affected)
 }
-
-count_df <- cc_temporal_filter_count_edge_cases(dt)
-
-tic()
-count_edge_cases_bs_dt <- cc_temporal_filter_count_edge_cases(dt)
-toc()
-
-env_size(ls())
-
 ```
 
 
@@ -2408,19 +2246,24 @@ cc_temporal_filter_edge_cases <- function(dt, replacement_value = 1) {
 # pick up here: doesn't seem to be working. I don't know if it the filter filling and counting actually works. 
 
 tic()
-cc_temporal_filter_count_edge_cases(dt = s_dt)
+count_edge_df <- cc_temporal_filter_count_edge_cases(dt = dt)
 toc()
 
-
 tic()
-cc_temporal_filter_edge_cases(dt, replacement_value = 99)
+cc_temporal_filter_edge_cases(dt, replacement_value = -7)
 toc()
 dt[]
 
-count_df <- cc_temporal_filter_count_edge_cases(dt)
 
-env_size(ls())
+# with s_dt
 
+tic()
+count_edge_df <- cc_temporal_filter_count_edge_cases(dt = s_dt)
+toc()
 
+tic()
+cc_temporal_filter_edge_cases(dt = s_dt, replacement_value = -7)
+toc()
+s_dt[]
 ```
 
