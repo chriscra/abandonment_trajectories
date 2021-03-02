@@ -1118,7 +1118,7 @@ cc_r_to_dt <- function(site,
   # 2. updating names
   # 3. converting raw raster to raw data.table,
   # 4. writing raw dt to csv.
-  # 5. recode raw data.table to correct land cover classes
+  # 5. recode raw data.table to correct land cover classes: cc_recode_lc_dt()
   # 6. write out the recoded dt to csv.
   
   # requires raster, data.table, devtools, tictoc, dtraster
@@ -1198,6 +1198,29 @@ cc_r_to_dt <- function(site,
 # -------------------------------------------------------------------------- #
 # Process data.tables to calculate and extract abandonment periods
 # -------------------------------------------------------------------------- #
+cc_filter_abn_dt_simple <- function(dt) {
+  # 3. Update land cover classes to lump grassland and woody vegetation into 
+  # single non-crop category, and binarize crop and noncrop
+  cc_update_lc(dt, crop_code = 0, noncrop_code = 1)  # update land cover classes
+
+  # 4. Remove NAs
+  dt <- na.omit(dt)   # remove NAs
+  
+  # 5. Filter out the non-abandonment pixels (i.e. those that are either all crop or all noncrop)
+  dt <- cc_remove_non_abn(dt)   # filter non abandonment pixels
+  
+  # 7. Pass temporal filter, to address potential cases of misclassification 
+  # (five- and eight-year moving windows):
+  cc_temporal_filter(dt, replacement_value = 1, filter_edge = TRUE)
+  
+  # 8. Calculate age of abandonment in each pixel that experiences abandonment
+  cc_calc_age(dt)  # calculate age
+  
+  # 9. Erase non abandonment periods (i.e. those that start the time series as non-crop)
+  cc_erase_non_abn_periods(dt)  # erase non abandonment periods
+  
+  dt[]
+}
 
 cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
                              path = p_dat_derived,
@@ -1447,18 +1470,22 @@ cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster
 
 cc_calc_abn_area <- function(abn_age_dt, land_cover_raster, abandonment_definition = 5) {
   area_raster <- raster::area(land_cover_raster) # calculate area in km2
-  median_cell_area_km2 <- median(getValues(area_raster))
-
+  area_dt <- as.data.table.raster(area_raster) # convert to data.table
+  setnames(area_dt, old = "layer", new = "area") # update layer names
+  
+  # merge area to the abn_age_dt, based on the x and y coordinates, 
+  # saving only those rows in area_dt that match abn_age_dt:
+  abn_age_dt <- merge(x = abn_age_dt, y = area_dt, all.x = TRUE, by = c("x","y"), sort = FALSE) 
+  
   abandoned_area_df <- tibble(
     year = 1987:2017,
     lc = "Abandoned",
-    count = sapply(1:31, function(i) {abn_age_dt[get(paste0("y", 1987:2017)[i]) >= abandonment_threshold, .N]}),
-    count_all = sapply(1:31, function(i) {abn_age_dt[get(paste0("y", 1987:2017)[i]) > 0, .N]}),
+    count = sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) >= abandonment_threshold, .N]}),
+    count_all = sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) > 0, .N]}),
     
-    area_ha = count * median_cell_area_km2 * 100,
-    area_all_ha = count_all * median_cell_area_km2 * 100
+    area_ha = 100 * sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) >= abandonment_threshold, sum(area)]}),
+    area_all_ha = 100 * sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) > 0, sum(area)]})
   )
-  
 }
 
 

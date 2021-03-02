@@ -2271,12 +2271,161 @@ s_dt[]
 ```
 
 
-```{r}
 
-# pick up here, by combining the temporal count filters into a single function.
-# the edge temporal filter can remain separate, just so that it's a bit easier to see what's going on in the meta function.
+# Update area calculations
+```{r update-area-basic}
 
 
+# ------------------------------------------------------------------------------------ #
+# calculate area of abandoned land over time, for a particular abn_age_dt
+# ------------------------------------------------------------------------------------ #
+
+# idea: 2.12.2021: have a column with the area of each pixel. subset a year column by a class, 
+# and sum the second column of the areas to calculate the total area.
+
+# load in the land cover raster
+s # land cover raster:
+s_dt[, 1:3]
+
+# try it for the small bit first:
+bs <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
+names(bs) <- paste0("y", 1987:2017)
+bs_dt <- as.data.table.raster(bs)
+
+plot(bs$y1987)
+
+dt <- copy(bs_dt)
+abn_age_dt <- copy(bs_dt)
+
+
+tic()
+abn_age_dt <- cc_filter_abn_dt_simple(dt = abn_age_dt)
+toc()
+abn_age_dt
+
+# calculate the area of each pixel
+land_cover_raster <- bs
+
+
+# cc_calc_abn_area <- function(abn_age_dt, land_cover_raster, abandonment_definition = 5) {
+area_raster <- raster::area(land_cover_raster) # calculate area in km2
+area_dt <- as.data.table.raster(area_raster)
+setnames(area_dt, old = "layer", new = "area")
+
+# merge that to the age dt based on x and y
+abn_age_dt <- merge(x = abn_age_dt, y = area_dt, all.x = TRUE, by = c("x","y"), sort = FALSE) # keep all of rows in x, but only those that match in y
+
+tibble(
+  year = 1987:2017,
+  lc = "Abandoned",
+  count = sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) >= 5, .N]}),
+  count_all = sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) > 0, .N]}),
+  
+  area_ha = 100 * sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) >= 5, sum(area)]}),
+  area_all_ha = 100 * sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) > 0, sum(area)]})
+)
+
+
+# filter to all pixels with age >= 5, and sum over those pixels. Should be pretty easy
+abn_age_dt[y1995 >= 5, sum(area)]
+
+abn_age_dt[y1995 >= 5, .N] * median_cell_area_km2
+area_1 <- 100 * sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) >= 5, sum(area)]})
+area_2 <- 100 * sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) >= 5, .N]}) * median_cell_area_km2
+(area_1 - area_2)
+
+# what would this look like scaled up to the whole of belarus?
+(ncell(b)/nrow(abn_age_dt)) * (area_1 - area_2) # not huge, but it's somewhat significant. 
+
+sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) >= 5, sum(area)]})
+sapply(1:31, function(i) {age_dt[get(paste0("y", 1987:2017)[i]) >= 5, sum(area)]})
+
+
+
+
+abandoned_area_df <- tibble(
+  year = 1987:2017,
+  lc = "Abandoned",
+  count = sapply(1:31, function(i) {abn_age_dt[get(paste0("y", 1987:2017)[i]) >= abandonment_threshold, .N]}),
+  count_all = sapply(1:31, function(i) {abn_age_dt[get(paste0("y", 1987:2017)[i]) > 0, .N]}),
+  
+  area_ha = count * median_cell_area_km2 * 100,
+  area_all_ha = count_all * median_cell_area_km2 * 100
+)
+  
+# }
+
+
+
+
+```
+
+
+```{r update-area-more-complicated}
+# -------------------------------------------------------------------------- #
+# calculate the total area in:
+# each land cover class in the original land cover data, and
+# that is abandoned, over time
+# -------------------------------------------------------------------------- #
+cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster, 
+                                    abandonment_threshold = 5) {
+  # names(abn_age_dt) <- c("x","y", paste0("y", 1987:2017))
+  col_names <- grep("x$|y$", names(land_cover_dt), value = TRUE, invert = TRUE)
+  area_raster <- raster::area(land_cover_raster) # calculate area in km2
+  median_cell_area_km2 <- median(getValues(area_raster))
+  
+  for (i in seq_along(col_names)) {
+    temp_dt <- land_cover_dt[, .N, by = c(col_names[i])][order(get(col_names[i]))]
+    setnames(temp_dt, old = col_names[i], new = "lc")
+    setnames(temp_dt, old = "N", new = col_names[i])
+    
+    if(i>1) {
+      lc_area_df <- merge(lc_area_df, temp_dt, by = "lc")
+    } else {
+      lc_area_df <- temp_dt
+    }
+  }
+  
+  # now, recode and pivot
+  lc_area_df <- lc_area_df %>% 
+    as_tibble() %>%
+    filter(lc != 0) %>% 
+    mutate(lc = as_factor(lc),
+           lc = recode(lc, # old = new
+                       "1" = "Non-veg.", 
+                       "2" = "Woody veg.",
+                       "3" = "Cropland", 
+                       "4" = "Grassland")
+    ) %>%
+    pivot_longer(cols = starts_with("y"), names_to = "year", values_to = "count") %>%
+    mutate(year = as.integer(gsub("y", "", year))) %>%
+    select(year, lc, count)
+  
+  # calculate area of each category of land cover, 
+  # based on the median cell size
+  lc_area_df <- lc_area_df %>%
+    mutate(area_ha = count * median_cell_area_km2 * 100)
+  
+  
+  abandoned_area_df_threshold <- tibble(
+    year = 1987:2017,
+    lc = paste0("Abandoned (>", abandonment_threshold, ")"),
+    count = sapply(1:31, function(i) {abn_age_dt[get(paste0("y", 1987:2017)[i]) >= abandonment_threshold, .N]}),
+    area_ha = count * median_cell_area_km2 * 100,
+  )
+  
+  abandoned_area_df_all <- tibble(
+    year = 1987:2017,
+    lc = "Abandoned (>1)",
+    count = sapply(1:31, function(i) {abn_age_dt[get(paste0("y", 1987:2017)[i]) > 0, .N]}),
+    area_ha = count * median_cell_area_km2 * 100,
+  )
+  
+  
+  # return the tibble
+  area_df <- bind_rows(lc_area_df, abandoned_area_df_threshold, abandoned_area_df_all)
+  
+}
 
 ```
 
