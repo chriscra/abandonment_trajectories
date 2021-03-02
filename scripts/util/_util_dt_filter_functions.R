@@ -1406,14 +1406,30 @@ cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster
   # names(abn_age_dt) <- c("x","y", paste0("y", 1987:2017))
   col_names <- grep("x$|y$", names(land_cover_dt), value = TRUE, invert = TRUE)
   area_raster <- raster::area(land_cover_raster) # calculate area in km2
-  median_cell_area_km2 <- median(getValues(area_raster))
+  area_dt <- as.data.table.raster(area_raster) # convert to data.table
+  setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
+  
+  # merge area to abn_age_dt and land_cover_dt, based on the x and y coordinates, 
+  # saving only those rows in area_dt that match abn_age_dt and land_cover_dt, respectively:
+  abn_age_dt <- merge(x = abn_age_dt, y = area_dt, all.x = TRUE, 
+                      by = c("x","y"), sort = FALSE)
+  land_cover_dt <- merge(x = land_cover_dt, y = area_dt, all.x = TRUE, 
+                         by = c("x","y"), sort = FALSE)
   
   for (i in seq_along(col_names)) {
-    temp_dt <- land_cover_dt[, .N, by = c(col_names[i])][order(get(col_names[i]))]
-    setnames(temp_dt, old = col_names[i], new = "lc")
-    setnames(temp_dt, old = "N", new = col_names[i])
+    temp_dt <- 
+      land_cover_dt[, by = c(col_names[i]), # by land cover categories in column i,
+                    
+                    # sum all pixel_area values (km2) and multiply by 100 to get total area in ha
+                    .("total_area" = sum(pixel_area) * 100)  
+                    
+                    # then reorder by lc class
+                    ][order(get(col_names[i]))] 
     
-    if(i>1) {
+    setnames(temp_dt, old = col_names[i], new = "lc")
+    setnames(temp_dt, old = "total_area", new = col_names[i]) # rename the total_area column to that specific year
+    
+    if(i > 1) {
       lc_area_df <- merge(lc_area_df, temp_dt, by = "lc")
     } else {
       lc_area_df <- temp_dt
@@ -1431,30 +1447,30 @@ cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster
                        "3" = "Cropland", 
                        "4" = "Grassland")
     ) %>%
-    pivot_longer(cols = starts_with("y"), names_to = "year", values_to = "count") %>%
+    pivot_longer(cols = starts_with("y"), names_to = "year", values_to = "area_ha") %>%
     mutate(year = as.integer(gsub("y", "", year))) %>%
-    select(year, lc, count)
-  
-  # calculate area of each category of land cover, 
-  # based on the median cell size
-  lc_area_df <- lc_area_df %>%
-    mutate(area_ha = count * median_cell_area_km2 * 100)
-  
+    select(year, lc, area_ha)
   
   abandoned_area_df_threshold <- tibble(
     year = 1987:2017,
-    lc = paste0("Abandoned (>", abandonment_threshold, ")"),
-    count = sapply(1:31, function(i) {abn_age_dt[get(paste0("y", 1987:2017)[i]) >= abandonment_threshold, .N]}),
-    area_ha = count * median_cell_area_km2 * 100,
-  )
+    lc = paste0("Abandoned (>=", abandonment_threshold, ")"),
+    area_ha = sapply(1:31, function(i) {
+      abn_age_dt[get(paste0("y", 1987:2017)[i]) >= abandonment_threshold, 
+                 sum(pixel_area) * 100]
+      }
+      )
+    )
+  
   
   abandoned_area_df_all <- tibble(
     year = 1987:2017,
     lc = "Abandoned (>1)",
-    count = sapply(1:31, function(i) {abn_age_dt[get(paste0("y", 1987:2017)[i]) > 0, .N]}),
-    area_ha = count * median_cell_area_km2 * 100,
-  )
-  
+    area_ha = sapply(1:31, function(i) {
+      abn_age_dt[get(paste0("y", 1987:2017)[i]) > 0, 
+                 sum(pixel_area) * 100]
+      }
+      )
+    )
   
   # return the tibble
   area_df <- bind_rows(lc_area_df, abandoned_area_df_threshold, abandoned_area_df_all)
