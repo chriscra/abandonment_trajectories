@@ -47,8 +47,11 @@ tic.clearlog()
 tic("full script")
 # load the data
 # -------------------------------------------------------- #
+
+# note, look at cc_save_dt_as_raster() function, it does basically the same thing as below
+
 tic("load data")
-dt <- fread(file = paste0(p_input, site, "_max_length.csv"))
+dt <- fread(file = paste0(p_input, site, "_max_age.csv"))
 toc()
 
 # convert age dt to raster
@@ -58,7 +61,7 @@ toc()
 
 # write raster
 tic("write raster")
-writeRaster(r, filename = paste0(p_input, site, "_max_length", blip_label, ".tif"))
+writeRaster(r, filename = paste0(p_input, site, "_max_age", blip_label, ".tif"))
 toc()
 
 names(r)

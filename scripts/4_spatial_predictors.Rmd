@@ -497,6 +497,25 @@ dev.off()
 ```
 
 
+### Regression methods
+
+1. Regular OLS regression, with a site-level fixed effect to allow for different relationships with predictors at the different sites.
+2. A fancier boosted regression tree machine learning approach:
+    + [Gradient boosting machines](http://uc-r.github.io/gbm_regression)
+    + [Boosted regression trees for ecological modeling](https://rspatial.org/raster/sdm/9_sdm_brt.html)
+
+See:
+@Levers2018a
+@Pazur2020a
+
+Machine learning packages suggested by Alex:
+- [`randomForest`](https://cran.r-project.org/web/packages/randomForest/index.html)
+- [`ranger`](https://github.com/imbs-hl/ranger)
+- [`https://xgboost.ai/`](https://xgboost.ai/)
+
+
+
+
 ```{r regression-methods}
 
 ```

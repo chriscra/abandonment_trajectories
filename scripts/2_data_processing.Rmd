@@ -1753,6 +1753,9 @@ tic()
 s_dt <- cc_remove_non_abn(s_dt)   # filter non abandonment pixels (i.e. those that are either all crop or all noncrop)
 nrow(s_dt) # 8,290,074 rows
 toc()
+
+dt <- s_dt
+
 ```
 
 
@@ -1925,7 +1928,7 @@ s_dt[get("y1996") == -7, .N]
 s_dt[get("y1997") == -7, .N]
 
 tic()
-counts_sdf <- cc_temporal_filter_count(dt = s_dt)
+counts_sdf <- cc_temporal_filter_count(dt = dt)
 toc() # 11.129 seconds
 
 # how many cases are found by the 5 and 8 year filters?
@@ -2001,7 +2004,7 @@ count_test$nrow_affected
 
 # run the filter:
 tic()
-cc_temporal_filter(dt = s_dt, replacement_value = 1)
+cc_temporal_filter(dt = dt, replacement_value = -9, filter_edge = TRUE)
 toc()
 
 
@@ -2265,5 +2268,15 @@ tic()
 cc_temporal_filter_edge(dt = s_dt, replacement_value = -7)
 toc()
 s_dt[]
+```
+
+
+```{r}
+
+# pick up here, by combining the temporal count filters into a single function.
+# the edge temporal filter can remain separate, just so that it's a bit easier to see what's going on in the meta function.
+
+
+
 ```
 

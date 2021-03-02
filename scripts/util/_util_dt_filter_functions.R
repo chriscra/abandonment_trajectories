@@ -516,40 +516,26 @@ cc_temporal_filter_count <- function(dt) {
     start <- 2
   }
   
-  # for each column, determine the number of number of rows that match the following pattern:
-  five_yr_count <- sapply(5:(ncol(dt) - 2), function(i) {
-    dt[get(names(dt)[i-2]) == 1 & 
-         get(names(dt)[i-1]) == 1 & 
-         get(names(dt)[i]) == 0 & 
-         get(names(dt)[i+1]) == 1 & 
-         get(names(dt)[i+2]) == 1, .N]
-  }
-  )
-  
+  # ----------------------------------------- #
   # for each column, return the row indices that match the following pattern, iterating across all columns
-  affected_rows_5 <- lapply(5:(ncol(dt) - 2), function(i) {
+  affected_rows_5_l <- lapply(5:(ncol(dt) - 2), function(i) {
     dt[get(names(dt)[i-2]) == 1 & 
          get(names(dt)[i-1]) == 1 & 
          get(names(dt)[i]) == 0 & 
          get(names(dt)[i+1]) == 1 & 
          get(names(dt)[i+2]) == 1, which = TRUE] # which = TRUE returns the row indices
   }
-  ) %>% unlist() %>% unique() # then condense the list into a single vector and remove duplicates
-  
-  # do the same, but for the eight year moving window filter, counting from the first 0 position
-  eight_yr_count <- sapply(6:(ncol(dt) - 4), function(i) {
-    dt[get(names(dt)[i-3]) == 1 & # index here has to start at 3
-         get(names(dt)[i-2]) == 1 & 
-         get(names(dt)[i-1]) == 1 & 
-         get(names(dt)[i]) == 0 & 
-         get(names(dt)[i+1]) == 0 & 
-         get(names(dt)[i+2]) == 1 & 
-         get(names(dt)[i+3]) == 1 & 
-         get(names(dt)[i+4]) == 1, .N]
-  }
   )
   
-  affected_rows_8 <- lapply(6:(ncol(dt) - 4), function(i) {
+  # then condense the list into a single vector and remove duplicates
+  affected_rows_5 <- affected_rows_5_l %>% unlist() %>% unique() 
+  
+  # for each column, determine the number of number of rows that match the following pattern:
+  affected_rows_5_count_by_year <- sapply(affected_rows_5_l, function(i) length(i)) 
+
+  # ----------------------------------------- #
+  # do the same, but for the eight year moving window filter, counting from the first 0 position
+  affected_rows_8_l <- lapply(6:(ncol(dt) - 4), function(i) {
     dt[get(names(dt)[i-3]) == 1 & # index here has to start at 3
          get(names(dt)[i-2]) == 1 & 
          get(names(dt)[i-1]) == 1 & 
@@ -559,87 +545,19 @@ cc_temporal_filter_count <- function(dt) {
          get(names(dt)[i+3]) == 1 & 
          get(names(dt)[i+4]) == 1, which = TRUE]
   }
-  ) %>% unlist() %>% unique()
-  
-  # construct data.frame
-  cases_df <- data.frame(
-    year = 1:length(grep("x$|y$", invert = T, names(dt))) - 1 + 1987,
-    five_yr = c(rep.int(0, 2), five_yr_count, rep.int(0, 2)),
-    eight_yr = c(rep.int(0, 3), eight_yr_count, rep.int(0, 4)))
-  
-  nrow_affected <- data.frame(
-    filter = c("five_yr", "eight_yr", "either"),
-    nrow_affected = c(length(affected_rows_5),
-                      length(affected_rows_8),
-                      length(unique(c(affected_rows_5, affected_rows_8)))
-    )
   )
   
-  # return the lists
-  list(cases_df = cases_df,
-       affected_rows_5 = affected_rows_5, 
-       affected_rows_8 = affected_rows_8,
-       nrow_affected = nrow_affected)
-}
-
-# -------------------------------------------------------------------------- #
-# Temporal filters, 5-year and 8-year moving window filters (added February 19th, 2021)
-# -------------------------------------------------------------------------- #
-cc_temporal_filter <- function(dt, replacement_value = 1) {
-  # Five- and eight-year moving window filters designed to address potential misclassification errors
-  # in the Yin et al. 2018 time series data.
+  # then condense the list into a single vector and remove duplicates
+  affected_rows_8 <- affected_rows_8_l %>% unlist() %>% unique() 
   
-  # check that dt starts with x & y
-  if (length(grep("[xy]$", names(dt))) > 0) {
-    if (!identical(names(dt)[1:2], c("x", "y"))) {
-      stop("x and y must be the first two columns in the data.table")
-    } else {
-      start <- 4
-    }
-  } else {
-    start <- 2
-  }
+  # for each column, determine the number of number of rows that match the following pattern:
+  affected_rows_8_count_by_year <- sapply(affected_rows_8_l, function(i) length(i)) 
   
-  # ---------------------------------------------------------- #
-  # five year moving window: 
-  # fill 1-1-0-1-1
-  for (i in 5:(ncol(dt) - 2)) {
-    dt[get(names(dt)[i-2]) == 1 &  # subset to 1-1-0-1-1
-         get(names(dt)[i-1]) == 1 & 
-         get(names(dt)[i]) == 0 & 
-         get(names(dt)[i+1]) == 1 & 
-         get(names(dt)[i+2]) == 1,
-       
-       names(dt)[i] := replacement_value # update value
-    ]
-  }
+  # -------------------------------------------------------------------------- #
+  # Count edge cases of 5- and 8-year moving window temporal filters
+  # -------------------------------------------------------------------------- #
   
-  # ---------------------------------------------------------- #
-  # eight year moving window filter:
-  # fill 1-1-1-0-0-1-1-1
-  for (i in 6:(ncol(dt) - 4)) { # index here has to start at 3
-    dt[get(names(dt)[i-3]) == 1 & # subset to 1-1-1-0-0-1-1-1
-         get(names(dt)[i-2]) == 1 & 
-         get(names(dt)[i-1]) == 1 & 
-         get(names(dt)[i]) == 0 & 
-         get(names(dt)[i+1]) == 0 & 
-         get(names(dt)[i+2]) == 1 & 
-         get(names(dt)[i+3]) == 1 & 
-         get(names(dt)[i+4]) == 1, 
-       
-       c(names(dt)[i], 
-         names(dt)[i+1]) := replacement_value # update value
-    ]
-  }
-}
-
-# -------------------------------------------------------------------------- #
-# Count edge cases of 5- and 8-year moving window temporal filters
-# -------------------------------------------------------------------------- #
-
-# only count the occurrences at the end, do not fill them
-cc_temporal_filter_edge_count <- function(dt){
-  # return row indices that match specific edge cases for each filter
+  # return row indices that match specific edge cases for each temporal filter
   # ---------------------------------------------------------- #
   # five year filter, edge cases
   
@@ -748,8 +666,23 @@ cc_temporal_filter_edge_count <- function(dt){
                        edge8_end_4 = edge8_end_4)
   
   # ---------------------------------------------------------- #
-  # construct data.frame
-  edge_case_counts <- data.frame(
+  # construct data.frames
+  
+  # non-edge cases:
+  cases_df <- data.frame(
+    year = 1:length(grep("x$|y$", invert = T, names(dt))) - 1 + 1987,
+    five_yr = c(rep.int(0, 2), affected_rows_5_count_by_year, rep.int(0, 2)),
+    eight_yr = c(rep.int(0, 3), affected_rows_8_count_by_year, rep.int(0, 4)))
+  
+  nrow_affected <- data.frame(
+    filter = c("five_yr", "eight_yr", "either"),
+    nrow_affected = c(length(affected_rows_5),
+                      length(affected_rows_8),
+                      length(unique(c(affected_rows_5, affected_rows_8)))
+    )
+  )
+  
+  edge_cases_df <- data.frame(
     filter = rep(c(rep("five", 2), rep("eight", 4)), 2),
     edge = c(rep("start", 6), rep("end", 6)),
     pattern = c(
@@ -760,7 +693,7 @@ cc_temporal_filter_edge_count <- function(dt){
     type = "cases",
     value = sapply(edge_cases_l, function(x) {length(x)})) # calculate the number of pixels affected by each edge case
   
-  edge_pixels_affected <- data.frame(
+  edge_nrow_affected <- data.frame(
     filter = "both",
     edge = c("start", "end", "either"),
     type = "pixels_affected",
@@ -770,62 +703,128 @@ cc_temporal_filter_edge_count <- function(dt){
     )) %>%
     mutate(percent_affected = value/nrow(dt))
   
-  # return the list and data.frames bound together:
-  list(indices = edge_cases_l[1:8], 
-       edge_case_counts = edge_case_counts, 
-       edge_pixels_affected = edge_pixels_affected)
+  # ---------------------------------------------------------- #
+  # return the various lists and data.frames bound together:
+  # return the lists
+  list(
+    # lists
+    affected_rows_5 = affected_rows_5, 
+    affected_rows_8 = affected_rows_8,
+    affected_rows_edge_l = edge_cases_l[1:8], 
+    
+    # dfs
+    cases_df = cases_df,
+    edge_cases_df = edge_cases_df, 
+    nrow_affected = nrow_affected,
+    edge_nrow_affected = edge_nrow_affected)
 }
 
+
 # -------------------------------------------------------------------------- #
-# Temporal filter, edge cases (start only)
+# Temporal filters, 5-year and 8-year moving window filters (added February 19th, 2021)
 # -------------------------------------------------------------------------- #
-cc_temporal_filter_edge <- function(dt, replacement_value = 1) {
-  # note: this filter only addresses edge cases at the start of the time series.
+cc_temporal_filter <- function(dt, replacement_value = 1, filter_edge = TRUE) {
+  # Five- and eight-year moving window filters designed to address potential misclassification errors
+  # in the Yin et al. 2018 time series data.
+  
+  # check that dt starts with x & y
+  if (length(grep("[xy]$", names(dt))) > 0) {
+    if (!identical(names(dt)[1:2], c("x", "y"))) {
+      stop("x and y must be the first two columns in the data.table")
+    } else {
+      start <- 4
+    }
+  } else {
+    start <- 2
+  }
+  
+  # default filters:
+  # ---------------------------------------------------------- #
+  # five year moving window: 
+  # fill 1-1-0-1-1
+  for (i in 5:(ncol(dt) - 2)) {
+    dt[get(names(dt)[i-2]) == 1 &  # subset to 1-1-0-1-1
+         get(names(dt)[i-1]) == 1 & 
+         get(names(dt)[i]) == 0 & 
+         get(names(dt)[i+1]) == 1 & 
+         get(names(dt)[i+2]) == 1,
+       
+       names(dt)[i] := replacement_value # update value
+    ]
+  }
   
   # ---------------------------------------------------------- #
-  # five year moving window
-  dt[y1987 == 0 & 
-       y1988 == 1 & 
-       y1989 == 1, 
-     c("y1987") := replacement_value]
+  # eight year moving window filter:
+  # fill 1-1-1-0-0-1-1-1
+  for (i in 6:(ncol(dt) - 4)) { # index here has to start at 3
+    dt[get(names(dt)[i-3]) == 1 & # subset to 1-1-1-0-0-1-1-1
+         get(names(dt)[i-2]) == 1 & 
+         get(names(dt)[i-1]) == 1 & 
+         get(names(dt)[i]) == 0 & 
+         get(names(dt)[i+1]) == 0 & 
+         get(names(dt)[i+2]) == 1 & 
+         get(names(dt)[i+3]) == 1 & 
+         get(names(dt)[i+4]) == 1, 
+       
+       c(names(dt)[i], 
+         names(dt)[i+1]) := replacement_value # update value
+    ]
+  }
   
-  dt[y1987 == 1 & 
-       y1988 == 0 & 
-       y1989 == 1 &
-       y1990 == 1, 
-     c("y1988") := replacement_value]
   
-  # ---------------------------------------------------------- #
-  # eight year filter, edge cases
-  dt[y1987 == 0 & 
-       y1988 == 1 & 
-       y1989 == 1 &
-       y1990 == 1, 
-     c("y1987") := replacement_value]
+  # -------------------------------------------------------------------------- #
+  # Temporal filter, edge cases (start only)
+  # -------------------------------------------------------------------------- #
+  if(filter_edge) {
+    # note: this filter only addresses edge cases at the start of the time series.
+    
+    # ---------------------------------------------------------- #
+    # five year moving window
+    dt[y1987 == 0 & 
+         y1988 == 1 & 
+         y1989 == 1, 
+       c("y1987") := replacement_value]
+    
+    dt[y1987 == 1 & 
+         y1988 == 0 & 
+         y1989 == 1 &
+         y1990 == 1, 
+       c("y1988") := replacement_value]
+    
+    # ---------------------------------------------------------- #
+    # eight year filter, edge cases
+    dt[y1987 == 0 & 
+         y1988 == 1 & 
+         y1989 == 1 &
+         y1990 == 1, 
+       c("y1987") := replacement_value]
+    
+    dt[y1987 == 0 & 
+         y1988 == 0 & 
+         y1989 == 1 & 
+         y1990 == 1 &
+         y1991 == 1, 
+       c("y1987", "y1988") := replacement_value]
+    
+    dt[y1987 == 1 & 
+         y1988 == 0 & 
+         y1989 == 0 & 
+         y1990 == 1 &
+         y1991 == 1 &
+         y1992 == 1, 
+       c("y1988", "y1989") := replacement_value]
+    
+    dt[y1987 == 1 & 
+         y1988 == 1 & 
+         y1989 == 0 & 
+         y1990 == 0 &
+         y1991 == 1 &
+         y1992 == 1 & 
+         y1993 == 1, 
+       c("y1989", "y1990") := replacement_value]
+  }
   
-  dt[y1987 == 0 & 
-       y1988 == 0 & 
-       y1989 == 1 & 
-       y1990 == 1 &
-       y1991 == 1, 
-     c("y1987", "y1988") := replacement_value]
-  
-  dt[y1987 == 1 & 
-       y1988 == 0 & 
-       y1989 == 0 & 
-       y1990 == 1 &
-       y1991 == 1 &
-       y1992 == 1, 
-     c("y1988", "y1989") := replacement_value]
-  
-  dt[y1987 == 1 & 
-       y1988 == 1 & 
-       y1989 == 0 & 
-       y1990 == 0 &
-       y1991 == 1 &
-       y1992 == 1 & 
-       y1993 == 1, 
-     c("y1989", "y1990") := replacement_value]
+  dt
 }
 
 
@@ -1042,6 +1041,69 @@ cc_recode_lc_dt <- function(dt, site, site_df) {
 }
 
 
+
+
+# -------------------------------------------------------------------------- #
+# save processed data.tables showing age of abandonment as rasters
+# -------------------------------------------------------------------------- #
+cc_save_dt_as_raster <- function(site, type, 
+                                 input_path = p_dat_derived,
+                                 output_path = p_dat_derived) {
+  # load dt
+  dt <- fread(file = paste0(input_path, site, type, ".csv"))
+  
+  # merge the data_table back to the original land cover data.table, if necessary
+  if (grepl("age", type)){
+    cat("Joining age data.table to input land cover data.table, filling non-abandonment pixels with NA", fill = TRUE)
+    cat("Land cover data.table location:", paste0(input_path, site, ".csv"), fill = TRUE)
+    lc_dt <- fread(file = paste0(input_path, site, ".csv"))
+    dt <- merge(lc_dt[, .(x, y)], dt, all = TRUE, by = c("x", "y"), sort = FALSE)
+  }
+  
+  # convert age dt to raster
+  r <- dt_to_raster(dt, crs("+proj=longlat +datum=WGS84 +no_defs"))
+  
+  # write raster
+  writeRaster(r, filename = paste0(output_path, site, type, ".tif"), overwrite = TRUE)
+  
+  cat("Saved data.table as raster at:", paste0(output_path, site, type, ".tif"), fill = TRUE)
+  
+  
+  # reload, and assign
+  # brick(paste0(directory, name, "_age.tif"))
+}
+
+# I need to write some code to bind the original x and y columns from 
+# the first raster to the age csv, so that even the non-abandonment rows 
+# with NAs are included. 
+# sp::points2grid()
+# sp::coordinates()
+
+
+
+# -------------------------------------------------------------------------- #
+# calculate the maximum length of time abandoned (max age) for each pixel 
+# -------------------------------------------------------------------------- #
+cc_calc_max_age <- function(directory = p_dat_derived, site, outfile_label, label = NULL) {
+  
+  tic("load data")
+  abn_age_dt <- fread(file = paste0(directory, site, "_age", outfile_label, ".csv"))
+  toc(log = TRUE)
+  
+  
+  tic("calculate max age in abn_age_dt")
+  abn_age_dt[, max_age := max(.SD), .SDcols = -c("x", "y"), by = .(x, y)]
+  toc(log = TRUE)
+  
+  cat(fill = TRUE, "Write out max age dt:", paste0(directory, site, "_max_age", outfile_label, label, ".csv"))
+  tic("write out max age dt")
+  fwrite(abn_age_dt[, .(x, y, max_age)], file = paste0(directory, site, "_max_age", outfile_label, label, ".csv"))
+  toc(log = TRUE)
+  
+}
+
+
+
 # meta functions ---- 
 
 # -------------------------------------------------------------------------- #
@@ -1139,10 +1201,9 @@ cc_r_to_dt <- function(site,
 
 cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
                              path = p_dat_derived,
-                             blip_label = NULL,
-                             clean_blips = TRUE,
-                             recultivation_threshold = 1,
-                             recultivation_replacement_value = 1) {
+                             pass_temporal_filter = TRUE, filter_edge = TRUE,
+                             outfile_label = format(Sys.time(), "_%Y-%m-%d_%H%M%S"),
+                             temporal_filter_replacement_value = 1) {
   
   # Steps:
   # 1. (re)load recoded dt
@@ -1151,22 +1212,27 @@ cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
   # 4. Remove NAs
   # 5. Filter out the non-abandonment pixels (i.e. those that are either all crop or all noncrop)
   # 6. Count recultivation blips, and clean (i.e. periods of recultivation that do not last longer than the recultivation threshold, which is by default 1 year)
-  # 7. Calculate age of abandonment in each pixel that experiences abandonment
-  # 8. Erase non abandonment periods (i.e. those that start the time series as non-crop)
-  # 9. Write out cleaned abandonment age data.table
-  # 10. Make diff data.table, each year subtracted by the previous year produces a data.table with year-to-year lagged differences (much like base::diff())
-  # 11. Write out dt_diff
-  # 12. Extract the length of each period of abandonment
-  # 13. Create a data.table listing the lengths, write to file.
+  # 7. Pass temporal filter
+  # 8. Calculate age of abandonment in each pixel that experiences abandonment
+  # 9. Erase non abandonment periods (i.e. those that start the time series as non-crop)
+  # 10. Write out cleaned abandonment age data.table
+  # 11. Make diff data.table, each year subtracted by the previous year produces a data.table with year-to-year lagged differences (much like base::diff())
+  # 12. Write out dt_diff
+  # 13. Extract the length of each period of abandonment
+  # 14. Create a data.table listing the lengths, write to file.
   
   # requires raster, data.table, devtools, tictoc, dtraster
 
   #tic("full script processing time")
   cat(fill = TRUE, "cc_filter_abn_dt(): Processing data.table for site: ", site)
   cat(fill = TRUE, "Path: ", path)
-  cat(fill = TRUE, "blip_label: ", blip_label)
-  cat(fill = TRUE, "recultivation_threshold: >" , recultivation_threshold)
-  cat(fill = TRUE, "recultivation_replacement_value", recultivation_replacement_value)
+  cat(fill = TRUE, "outfile_label: ", outfile_label)
+  if(pass_temporal_filter) cat(fill = TRUE, "Passing temporal filter, replacing with:", 
+                               "temporal_filter_replacement_value =", temporal_filter_replacement_value)
+  if(filter_edge) {
+    cat(fill = TRUE, "Note: temporal filter filtered edge cases (beginning of time series only).")
+  } else {
+      cat(fill = TRUE, "Note: temporal filter did not filter edge cases.")}
     
   # -------------------------------------------------------- #
   # 1. load raw dt
@@ -1221,76 +1287,79 @@ cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
   dt <- cc_remove_non_abn(dt)   # filter non abandonment pixels
   toc(log = TRUE)
   
-  # 6. Count recultivation blips, and clean (i.e. periods of recultivation that do not last longer than the
-  # recultivation threshold, which is by default 1 year)
-  if(clean_blips) {
+  # 6. Count the number of cases identified by the temporal filter:
+  if(pass_temporal_filter) {
+    temporal_filter_counts_l <- cc_temporal_filter_count(dt = dt)
+
+    # save files
+    save(temporal_filter_counts_l, 
+         file = paste0(output_path, site, "_temporal_filter_counts_l", outfile_label, ".rds"))
     
-    tic("counted and write blips_count")
-    cat(fill = TRUE, "vi. Part 1. cc_count_blips(): count recultivation blips, write data.frame to: ", 
-        paste0(path, site, "_blips_count", blip_label, ".csv"))
-    blips_count <- cc_count_blips(dt)
-    fwrite(blips_count, file = paste0(path, site, "_blips_count", blip_label, ".csv"))
-    toc(log = TRUE)
+    cat(fill = TRUE, "vi. Used cc_temporal_filter_count() to count cases filtered by temporal filter, including edge cases.
+        Wrote resulting list to: ", paste0(output_path, site, "_temporal_filter_counts_l", outfile_label, ".rds"))
+  }
+  
+  # 7. Pass temporal filter, to address potential cases of misclassification 
+  # (five- and eight-year moving windows):
+  if(pass_temporal_filter) {
     
-    tic("filled recultivation blips")
-    cat(fill = TRUE, "vi. Part 2. cc_fill_blips(): fill recultivation blips with 
-        recultivation threshold (", recultivation_threshold, "), and 
-        replacement value (", recultivation_replacement_value, ")")
-    cc_fill_blips(dt, recultivation_threshold = recultivation_threshold, 
-                  replacement_value = recultivation_replacement_value)
-    toc(log = TRUE)
+    cc_temporal_filter(dt = dt, 
+                       replacement_value = temporal_filter_replacement_value, 
+                       filter_edge = filter_edge)
+    
+    cat(fill = TRUE, "vii. cc_temporal_filter(): passed temporal filter (5 and 8 year moving windows),
+        with replacement value (", temporal_filter_replacement_value, ").", "Note:",
+        if(filter_edge) {"also filtered edge cases (beginning only)."} else {"did not filter edge cases."})
     
   } else {
-    
-    warning("vi. Did not count or fill recultivation blips.")
-    
-    }
+    warning("vi & vii. Did not pass temporal filters or count cases.")
+  }
   
-  # 7. Calculate age of abandonment in each pixel that experiences abandonment
-  cat(fill = TRUE, "vii. Calculate age of abandonment for each pixel that experiences abandonment: cc_calc_age()")
+  # 8. Calculate age of abandonment in each pixel that experiences abandonment
+  cat(fill = TRUE, "viii. Calculate age of abandonment for each pixel that experiences abandonment: cc_calc_age()")
   tic("calculated age")
   cc_calc_age(dt)  # calculate age
   toc(log = TRUE)
   
-  # 8. Erase non abandonment periods (i.e. those that start the time series as non-crop)
-  cat(fill = TRUE, "viii. Erase non abandonment periods (i.e. those that start the time series as non-crop): cc_erase_non_abn_periods()")
+  # 9. Erase non abandonment periods (i.e. those that start the time series as non-crop)
+  cat(fill = TRUE, "ix. Erase non abandonment periods (i.e. those that start the time series as non-crop): cc_erase_non_abn_periods()")
   tic("erased non abandonment periods")
   cc_erase_non_abn_periods(dt)  # erase non abandonment periods
   toc(log = TRUE)
   
-  # 9. Write out cleaned abandonment age data.table
-  cat(fill = TRUE, "ix. Write out cleaned abandonment age data.table to:", paste0(path, site, "_age", blip_label,".csv"))
+  # 10. Write out cleaned abandonment age data.table
+  cat(fill = TRUE, "x. Write out cleaned abandonment age data.table to:", paste0(path, site, "_age", outfile_label,".csv"))
   tic("wrote out cleaned abandonment age data.table")
-  fwrite(dt, file = paste0(path, site, "_age", blip_label,".csv"))
+  fwrite(dt, file = paste0(path, site, "_age", outfile_label,".csv"))
   toc(log = TRUE)
   
-  # 10. Make diff data.table, each year subtracted by the previous year
+  # 11. Make diff data.table, each year subtracted by the previous year
   # produces a data.table with year-to-year lagged differences (much like base::diff())
-  cat(fill = TRUE, "x. Make dt_diff, with year-to-year lagged differences: cc_diff_dt()")
+  cat(fill = TRUE, "xi. Make dt_diff, with year-to-year lagged differences: cc_diff_dt()")
   tic("made diff")
   dt_diff <- cc_diff_dt(dt)
   toc(log = TRUE)
   
-  # 11. Write out dt_diff
-  cat(fill = TRUE, "xi. Write out dt_diff to:", paste0(path, site, "_diff", blip_label,".csv"))
+  # 12. Write out dt_diff
+  cat(fill = TRUE, "xii. Write out dt_diff to:", paste0(path, site, "_diff", outfile_label,".csv"))
   tic("write out dt_diff")
-  fwrite(dt_diff, file = paste0(path, site, "_diff", blip_label,".csv"))
+  fwrite(dt_diff, file = paste0(path, site, "_diff", outfile_label,".csv"))
   toc(log = TRUE)
   
-  # 12. Extract the length of each period of abandonment
-  cat(fill = TRUE, "xii. Extract the length of each period of abandonment: cc_extract_length()")
+  # 13. Extract the length of each period of abandonment
+  cat(fill = TRUE, "xiii. Extract the length of each period of abandonment: cc_extract_length()")
   tic("extracted length")
   length <- cc_extract_length(dt_diff)
   toc(log = TRUE)
   
-  # 13. Create a data.table listing the lengths, write to file.
-  cat(fill = TRUE, "xiii. Create a data.table listing the lengths, write to:", paste0(path, site, "_length", blip_label,".csv"))
+  # 14. Create a data.table listing the lengths, write to file.
+  cat(fill = TRUE, "xiv. Create a data.table listing the lengths, write to:", paste0(path, site, "_length", outfile_label,".csv"))
   tic("created data.table of lengths")
   length <- data.table(length = length)
   toc(log = TRUE)
   
   tic("wrote out length data.table")
-  fwrite(length, file = paste0(path, site, "_length", blip_label,".csv"))
+  fwrite(length, file = paste0(path, site, "_length", outfile_label,".csv"))
   toc(log = TRUE)
   
 
@@ -1299,64 +1368,6 @@ cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
 
 
 
-# -------------------------------------------------------------------------- #
-# save processed data.tables showing age of abandonment as rasters
-# -------------------------------------------------------------------------- #
-cc_save_dt_as_raster <- function(site, type, 
-                                 input_path = p_dat_derived,
-                                 output_path = p_dat_derived) {
-  # load dt
-  dt <- fread(file = paste0(input_path, site, type, ".csv"))
-  
-  # merge the data_table back to the original land cover data.table, if necessary
-  if (grepl("age", type)){
-    cat("Joining age data.table to input land cover data.table, filling non-abandonment pixels with NA", fill = TRUE)
-    cat("Land cover data.table location:", paste0(input_path, site, ".csv"), fill = TRUE)
-    lc_dt <- fread(file = paste0(input_path, site, ".csv"))
-    dt <- merge(lc_dt[, .(x, y)], dt, all = TRUE, by = c("x", "y"), sort = FALSE)
-  }
-  
-  # convert age dt to raster
-  r <- dt_to_raster(dt, crs("+proj=longlat +datum=WGS84 +no_defs"))
-  
-  # write raster
-  writeRaster(r, filename = paste0(output_path, site, type, ".tif"), overwrite = TRUE)
-  
-  cat("Saved data.table as raster at:", paste0(output_path, site, type, ".tif"), fill = TRUE)
-  
-  
-  # reload, and assign
-  # brick(paste0(directory, name, "_age.tif"))
-}
-
-# I need to write some code to bind the original x and y columns from 
-# the first raster to the age csv, so that even the non-abandonment rows 
-# with NAs are included. 
-# sp::points2grid()
-# sp::coordinates()
-
-
-
-# -------------------------------------------------------------------------- #
-# calculate the maximum length of time abandoned (max age) for each pixel 
-# -------------------------------------------------------------------------- #
-cc_calc_max_age <- function(directory = p_dat_derived, site, blip_label, label = NULL) {
-  
-  tic("load data")
-  abn_age_dt <- fread(file = paste0(directory, site, "_age", blip_label, ".csv"))
-  toc(log = TRUE)
-  
-  
-  tic("calculate max age in abn_age_dt")
-  abn_age_dt[, max_length := max(.SD), .SDcols = -c("x", "y"), by = .(x, y)]
-  toc(log = TRUE)
-  
-  cat(fill = TRUE, "Write out max age dt:", paste0(directory, site, "_max_length", blip_label, label, ".csv"))
-  tic("write out max age dt")
-  fwrite(abn_age_dt[, .(x, y, max_length)], file = paste0(directory, site, "_max_length", blip_label, label, ".csv"))
-  toc(log = TRUE)
-  
-}
 
 
 
@@ -1773,7 +1784,7 @@ cc_calc_abn_area_diff <- function(abn_age_dt, land_cover_raster,
 cc_summarize_abn_dts <- function(input_path,
                                  output_path,
                                  site,
-                                 blip_label = "_b1",
+                                 outfile_label = "_b1",
                                  # land_cover_dt,
                                  # abn_age_dt, 
                                  # land_cover_raster, 
@@ -1783,7 +1794,7 @@ cc_summarize_abn_dts <- function(input_path,
                                  include_all = FALSE) {
   cat(fill = TRUE, "cc_summarize_abn_dts(): Summarizing results for site: ", site)
   cat(fill = TRUE, "input_path: ", input_path)
-  cat(fill = TRUE, "blip_label: ", blip_label)
+  cat(fill = TRUE, "outfile_label: ", outfile_label)
   cat(fill = TRUE, "abandonment_threshold: >=" , abandonment_threshold)
 
   # load files:
@@ -1823,7 +1834,7 @@ cc_summarize_abn_dts <- function(input_path,
   
   lc_dt <- fread(input = paste0(input_path, site, ".csv")) 
   
-  age_dt <- fread(input = paste0(input_path, site, "_age", blip_label, ".csv"))
+  age_dt <- fread(input = paste0(input_path, site, "_age", outfile_label, ".csv"))
   
   cat("calculating total area in each land cover class, and that is abandoned (for at least as long as the abandonment threshold), over time.", fill = TRUE)
   # ------------- calculate total area per lc, with abandonment ---------------- #
@@ -1881,6 +1892,7 @@ cc_summarize_abn_dts <- function(input_path,
 # ------------------------------------------------------------------------------------ #
 # plot histograms
 # ------------------------------------------------------------------------------------ #
+
 
 
 # ------------------------------------------------------------------------------------ #
@@ -2160,18 +2172,18 @@ cc_save_plot_area_by_age_class <- function(input_list, subtitle, outfile_label,
 cc_save_area_persistence_plots <- function(input_path, 
                                            output_path,
                                            site_label,
-                                           blip_label,
+                                           outfile_label,
                                            outfile_label,
                                            subtitle, 
                                            subtitle_all = paste0(subtitle, ", all abandonment"), 
                                            save_all = TRUE) {
   
   # load the data
-  load(file = paste0(input_path, "abn_dat_products", blip_label, site_label, ".rds"), verbose = TRUE)
+  load(file = paste0(input_path, "abn_dat_products", outfile_label, site_label, ".rds"), verbose = TRUE)
   
   
   # ------------- calculate total area per lc, with abandonment ---------------- #
-  cc_save_plot_lc_abn_area(input_area_df = eval(parse(text = paste0("area", blip_label, site_label))), 
+  cc_save_plot_lc_abn_area(input_area_df = eval(parse(text = paste0("area", outfile_label, site_label))), 
                            subtitle = subtitle, outfile_label = outfile_label,
                            save_all = save_all,
                            output_path = output_path,
@@ -2179,7 +2191,7 @@ cc_save_area_persistence_plots <- function(input_path,
   
   
   # ------------------------ abandonment persistence --------------------------- #
-  cc_save_plot_abn_persistence(input_list = eval(parse(text = paste0("persistence_list", blip_label, site_label))), 
+  cc_save_plot_abn_persistence(input_list = eval(parse(text = paste0("persistence_list", outfile_label, site_label))), 
                                subtitle = subtitle, outfile_label = outfile_label,
                                save_all = save_all, subtitle_all = subtitle_all,
                                output_path = output_path,
@@ -2187,7 +2199,7 @@ cc_save_area_persistence_plots <- function(input_path,
   
   
   # -------------------- calculate the abandonment area turnover ------------------- #
-  cc_save_plot_area_gain_loss(input_area_change_df = eval(parse(text = paste0("abn_area_change", blip_label, site_label))), 
+  cc_save_plot_area_gain_loss(input_area_change_df = eval(parse(text = paste0("abn_area_change", outfile_label, site_label))), 
                               subtitle = subtitle, outfile_label = outfile_label,
                               save_all = save_all,
                               subtitle_all = subtitle_all,
@@ -2196,7 +2208,7 @@ cc_save_area_persistence_plots <- function(input_path,
   
   
   # -------------------- plot abandonment area by age class ------------------- #
-  cc_save_plot_area_by_age_class(input_list = eval(parse(text = paste0("persistence_list", blip_label, site_label))), 
+  cc_save_plot_area_by_age_class(input_list = eval(parse(text = paste0("persistence_list", outfile_label, site_label))), 
                                  subtitle = subtitle, outfile_label = outfile_label,
                                  save_all = save_all,
                                  output_path = output_path,
@@ -2716,7 +2728,7 @@ cc_save_map_lc_age_rasters <- function(maxpixels, width = 9, height = 5.5) {
        maxpixels = maxpixels)
   
   # ------------- max abandonment length (age) ---------------- #
-  plot(s_max_length_r, main = "Shaanxi: Maximum \nTime abandoned (years)",
+  plot(s_max_age_r, main = "Shaanxi: Maximum \nTime abandoned (years)",
        maxpixels = maxpixels)
   
   # row two
@@ -2746,7 +2758,7 @@ cc_save_map_lc_age_rasters <- function(maxpixels, width = 9, height = 5.5) {
        maxpixels = maxpixels)
   
   # ------------- max abandonment length (age) ---------------- #
-  plot(b_max_length_r, main = "Belarus: Maximum \nTime abandoned (years)",
+  plot(b_max_age_r, main = "Belarus: Maximum \nTime abandoned (years)",
        maxpixels = maxpixels)
   
   dev.off()

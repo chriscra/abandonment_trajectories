@@ -63,15 +63,23 @@ site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
 site <- site_df$site[indx] # set site:
 site_label <- site_df$label[indx] # set label
 
-blip_label <- "_b1"
+blip_label <- "_b1" # remove this - unnecessary with the timestamp.
 label <- NULL # for calculating the max age
+
+
+# time stamp
+time_stamp <- format(Sys.time(), "%Y-%m-%d_%H%M%S")
+
+outfile_label <- paste0(blip_label, site_label, time_stamp)
+
+
 
 cat("Set up site parameters:\n")
 print(t(site_df[indx, ]))
 
 
 # -------------------------------------------------------- #
-# 0. Merge raw raster layers
+# 0. Merge raw raster layers ----
 cat("0. Merge raw raster layers", fill = TRUE)
 tic("Merge rasters")
 cc_merge_rasters(site = site, 
@@ -84,7 +92,7 @@ toc(log = TRUE)
 
 
 # -------------------------------------------------------- #
-# 1. Convert raw rasters into data.tables (including renaming and recoding)
+# 1. Convert raw rasters into data.tables (including renaming and recoding) ----
 cat("1. Converting raw rasters into data.tables (including renaming and recoding): ", site, fill = TRUE)
 cc_r_to_dt(site = site, site_df = site_df,
            input_path = p_raw_rasters_path, # with the raw, merged raster files directly in the directory
@@ -93,7 +101,7 @@ cc_r_to_dt(site = site, site_df = site_df,
 
 
 # -------------------------------------------------------- #
-# 2. Process raw data.tables in order to calculate the length of agricultural abandonment periods.
+# 2. Process raw data.tables in order to calculate the length of agricultural abandonment periods. ----
       # Steps include:
       # 1) filtering to just abandonment cells, 
       # 2) filling recultivation blips based on a threshold,
@@ -108,7 +116,7 @@ cc_filter_abn_dt(site = site,
 
 
 # -------------------------------------------------------- #
-# 3 Calculate maximum age, serial
+# 3 Calculate maximum age, serial ----
 cat("3. Calculate maximum age, in serial:", site, fill = TRUE)
 cc_calc_max_age(directory = p_input_rasters, 
                 site = site, 
@@ -117,7 +125,7 @@ cc_calc_max_age(directory = p_input_rasters,
 
 
 # -------------------------------------------------------- #
-# 4. save various data.tables as rasters:
+# 4. save various data.tables as rasters ----
 cat("4. Save data.tables as rasters: ", site, fill = TRUE)
 
 dt_types <- c(
@@ -148,7 +156,7 @@ for (i in dt_types) {
 
 
 # -------------------------------------------------------- #
-# 5. Summarize the abandonment datatables into dataframes for plotting purposes
+# 5. Summarize the abandonment datatables into dataframes for plotting purposes ----
 cat("5. Summarizing abandonment data.tables: ", site, fill = TRUE)
 
 cc_summarize_abn_dts(
@@ -156,7 +164,7 @@ cc_summarize_abn_dts(
   output_path = p_input_rasters, # could also be p_output, this is just where the .rds goes.
   site = site,
   blip_label = blip_label,
-  outfile_label = paste0(blip_label, site_label),
+  outfile_label = outfile_label,
   abandonment_threshold = 5,
   include_all = TRUE
 )
