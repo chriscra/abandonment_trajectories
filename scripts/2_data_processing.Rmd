@@ -2342,7 +2342,7 @@ sapply(1:31, function(i) {age_dt[get(paste0("y", 1987:2017)[i]) >= 5, sum(area)]
 ```
 
 
-```{r update-area-more-complicated}
+```{r update-area_per_lc_abn}
 bs <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
 names(bs) <- paste0("y", 1987:2017)
 bs_dt <- as.data.table.raster(bs)
@@ -2358,6 +2358,7 @@ area_df_test <- cc_calc_area_per_lc_abn(land_cover_dt = bs_dt,
                                         land_cover_raster = bs)
 
 identical(area_df_test, area_df)
+
 
 # cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster, 
 #                                     abandonment_threshold = 5) {
@@ -2419,8 +2420,139 @@ identical(area_df_test, area_df)
   area_df <- bind_rows(lc_area_df, abandoned_area_df_threshold, abandoned_area_df_all)
   
 # }
+
+```
+
+```{r update_abn_area_diff}
+area_raster <- raster::area(land_cover_raster) # calculate area in km2
+area_dt <- as.data.table.raster(area_raster) # convert to data.table
+setnames(area_dt, old = "layer", new = "area") # update layer names
+
+# merge area to the abn_age_dt, based on the x and y coordinates, 
+# saving only those rows in area_dt that match abn_age_dt:
+abn_age_dt <- merge(x = abn_age_dt, y = area_dt, all.x = TRUE, by = c("x","y"), sort = FALSE) 
+
+abandoned_area_df <- tibble(
+  year = 1987:2017,
+  lc = "Abandoned",
+  count = sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) >= abandonment_threshold, .N]}),
+  count_all = sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) > 0, .N]}),
+  
+  area_ha = 100 * sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) >= abandonment_threshold, sum(area)]}),
+  area_all_ha = 100 * sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) > 0, sum(area)]})
+)
+
+
+######## 
+
+
+bs <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
+names(bs) <- paste0("y", 1987:2017)
+bs_dt <- as.data.table.raster(bs)
+
+land_cover_dt <- bs_dt
+abn_age_dt <- copy(bs_dt)
+abn_age_dt <- cc_filter_abn_dt_simple(dt = abn_age_dt)
+land_cover_raster <- bs
+
+test1 <- cc_calc_abn_area_diff_new(abn_age_dt = abn_age_dt, 
+                                   land_cover_raster = land_cover_raster)
+test2 <- cc_calc_abn_area_diff(abn_age_dt = abn_age_dt, 
+                                   land_cover_raster = land_cover_raster)
+
+
+cc_calc_abn_area_diff_new <- function(abn_age_dt, land_cover_raster,
+                                  abandonment_threshold = 5) {
+  
+  area_raster <- raster::area(land_cover_raster) # calculate area in km2
+  area_dt <- as.data.table.raster(area_raster) # convert to data.table
+  setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
+  
+  # merge area to the abn_age_dt, based on the x and y coordinates, 
+  abn_age_dt <- merge(x = abn_age_dt, y = area_dt, all.x = TRUE, by = c("x","y"), sort = FALSE)
+  
+  # first calculate a list of 30 vectors corresponding to abandonment originating in a particular year.
+  abn_turnover_list <- lapply(1:30, function(j) {
+    # Calculate a vector of counts of abandoned pixels that originate in a particular year, 
+    # and the count of those pixels in each year following, starting in 1988.
+    # Filled with 0s for periods that are beyond the length of the time series.
+    # Then, calculate the difference year-to-year for each abandonment cohort.
+    
+    # count the number of rows where age = 1 in 1st year of abandonment, age = 2 in 2nd, age = 3 in 3rd, etc. For js that increase progressively, representing different cohorts of abandonment (i.e. year of first abandonment). E.g. j = 1 represents 1988, and the vector represents the amount of land from that cohort that is abandoned in 1988, 1989, 1990, etc. 
+    
+    temp_vector_diff <- c(
+      rep(0, j), # add 0s to the front of this vector, to get j to match the cohort year
+      sapply(1:(31 - j), function(i) {
+        # abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, .N] # to calculate just the count
+        abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, sum(pixel_area) * 100] # calculate the area in ha
+      })
+    ) 
+    
+    # remove cells for cohort years that fall below abandonment threshold
+    if (abandonment_threshold > 1) {
+      temp_vector_diff[c(j + 1:(abandonment_threshold - 1))] <- 0
+    }
+    
+    # trim to right length
+    if(length(temp_vector_diff) > 31){
+      temp_vector_diff <- temp_vector_diff[c(1:31)]
+    }
+    
+    # calculate diff (annual change)
+    temp_vector_diff <- diff(temp_vector_diff)
+  }
+  )
+  
+  # combine list into a data.frame
+  abn_turnover_df <- data.frame(
+    do.call("cbind", abn_turnover_list)) %>%
+    as.tibble()
+  
+  names(abn_turnover_df) <- paste0("y", 1988:2017)
+  
+  abn_turnover_df <- abn_turnover_df %>%
+    mutate(year = 1988:2017) %>%
+    select(year, everything())
+  
+  # pivot to long format
+  abn_turnover_long <- abn_turnover_df %>%
+    pivot_longer(cols = paste0("y", 1988:2017), 
+                 names_to = "year_abn", 
+                 values_to = "area_ha", # update here
+                 values_drop_na = TRUE) %>%
+    mutate(year_abn = as.integer(gsub("y", "", year_abn)))
   
   
+  # calculate net, gain, and loss:
+  # net gain in abandoned land area
+  abn_area_net <- abn_turnover_long %>%
+    group_by(year) %>% 
+    summarise(net = sum(area_ha)) # update here
+  
+  # gain
+  abn_area_gain <- abn_turnover_long %>%
+    group_by(year) %>% 
+    filter(area_ha > 0) %>%
+    summarise(gain = sum(area_ha)) # update here
+  
+  # loss
+  abn_area_loss <- abn_turnover_long %>%
+    group_by(year) %>% 
+    filter(area_ha < 0) %>%
+    summarise(loss = sum(area_ha)) # update here
+
+  abn_area_change_df <- abn_area_net %>% 
+    full_join(., abn_area_gain, by = "year") %>%
+    full_join(., abn_area_loss, by = "year") %>%
+    pivot_longer(cols = c("net", "gain", "loss"),
+                 names_to = "change", 
+                 values_to = "area_ha", # update here
+                 values_drop_na = TRUE) # %>%
+    # mutate(area_ha = count * median_cell_area_km2 * 100)  # old method for calculate area 
+  
+  abn_area_change_df
+  
+}
 
 ```
 

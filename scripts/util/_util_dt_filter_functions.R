@@ -1487,7 +1487,7 @@ cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster
 cc_calc_abn_area <- function(abn_age_dt, land_cover_raster, abandonment_definition = 5) {
   area_raster <- raster::area(land_cover_raster) # calculate area in km2
   area_dt <- as.data.table.raster(area_raster) # convert to data.table
-  setnames(area_dt, old = "layer", new = "area") # update layer names
+  setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
   
   # merge area to the abn_age_dt, based on the x and y coordinates, 
   # saving only those rows in area_dt that match abn_age_dt:
@@ -1499,8 +1499,8 @@ cc_calc_abn_area <- function(abn_age_dt, land_cover_raster, abandonment_definiti
     count = sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) >= abandonment_threshold, .N]}),
     count_all = sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) > 0, .N]}),
     
-    area_ha = 100 * sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) >= abandonment_threshold, sum(area)]}),
-    area_all_ha = 100 * sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) > 0, sum(area)]})
+    area_ha = 100 * sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) >= abandonment_threshold, sum(pixel_area)]}),
+    area_all_ha = 100 * sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) > 0, sum(pixel_area)]})
   )
 }
 
@@ -1736,8 +1736,12 @@ cc_calc_abn_area_diff <- function(abn_age_dt, land_cover_raster,
                                   abandonment_threshold = 5) {
   
   area_raster <- raster::area(land_cover_raster) # calculate area in km2
-  median_cell_area_km2 <- median(getValues(area_raster))
+  area_dt <- as.data.table.raster(area_raster) # convert to data.table
+  setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
   
+  # merge area to the abn_age_dt, based on the x and y coordinates, 
+  abn_age_dt <- merge(x = abn_age_dt, y = area_dt, all.x = TRUE, by = c("x","y"), sort = FALSE)
+
   # first calculate a list of 30 vectors corresponding to abandonment originating in a particular year.
   abn_turnover_list <- lapply(1:30, function(j) {
     # Calculate a vector of counts of abandoned pixels that originate in a particular year, 
@@ -1745,10 +1749,16 @@ cc_calc_abn_area_diff <- function(abn_age_dt, land_cover_raster,
     # Filled with 0s for periods that are beyond the length of the time series.
     # Then, calculate the difference year-to-year for each abandonment cohort.
     
+    # count the number of rows where age = 1 in 1st year of abandonment, 
+    # age = 2 in 2nd, age = 3 in 3rd, etc. For js that increase progressively, 
+    # representing different cohorts of abandonment (i.e. year of first abandonment). 
+    # E.g. j = 1 represents 1988, and the vector represents the amount of land from that 
+    # cohort that is abandoned in 1988, 1989, 1990, etc. 
+    
     temp_vector_diff <- c(
       rep(0, j),
       sapply(1:(31 - j), function(i) {
-        abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, .N]
+        abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, sum(pixel_area) * 100] # calculate the area in ha
       })
     ) 
     
@@ -1782,7 +1792,7 @@ cc_calc_abn_area_diff <- function(abn_age_dt, land_cover_raster,
   abn_turnover_long <- abn_turnover_df %>%
     pivot_longer(cols = paste0("y", 1988:2017), 
                  names_to = "year_abn", 
-                 values_to = "count",
+                 values_to = "area_ha",
                  values_drop_na = TRUE) %>%
     mutate(year_abn = as.integer(gsub("y", "", year_abn)))
   
@@ -1791,27 +1801,26 @@ cc_calc_abn_area_diff <- function(abn_age_dt, land_cover_raster,
   # net gain in abandoned land area
   abn_area_net <- abn_turnover_long %>%
     group_by(year) %>% 
-    summarise(net = sum(count))
+    summarise(net = sum(area_ha))
   
   # gain
   abn_area_gain <- abn_turnover_long %>%
     group_by(year) %>% 
-    filter(count > 0) %>%
-    summarise(gain = sum(count))
+    filter(area_ha > 0) %>%
+    summarise(gain = sum(area_ha))
   
   # loss
   abn_area_loss <- abn_turnover_long %>%
     group_by(year) %>% 
-    filter(count < 0) %>%
-    summarise(loss = sum(count))
+    filter(area_ha < 0) %>%
+    summarise(loss = sum(area_ha))
   
   abn_area_change_df <- abn_area_net %>% 
     full_join(., abn_area_gain, by = "year") %>%
     full_join(., abn_area_loss, by = "year") %>%
     pivot_longer(cols = c("net", "gain", "loss"),
-                 names_to = "direction", values_to = "count",
-                 values_drop_na = TRUE) %>%
-    mutate(area_ha = count * median_cell_area_km2 * 100)
+                 names_to = "change", values_to = "area_ha",
+                 values_drop_na = TRUE)
   
   abn_area_change_df
   
@@ -1830,9 +1839,7 @@ cc_summarize_abn_dts <- function(input_path,
                                  outfile_label = "_b1",
                                  # land_cover_dt,
                                  # abn_age_dt, 
-                                 # land_cover_raster, 
-                                 
-                                 outfile_label,
+                                 # land_cover_raster,
                                  abandonment_threshold = 5,
                                  include_all = FALSE) {
   cat(fill = TRUE, "cc_summarize_abn_dts(): Summarizing results for site: ", site)
@@ -1911,7 +1918,7 @@ cc_summarize_abn_dts <- function(input_path,
     
     # join
     abn_area_change <- full_join(x = abn_area_change, y = abn_area_change_all, 
-                                 by = c("year", "direction"))
+                                 by = c("year", "change"))
   }
   
   # updating object names names
@@ -2116,18 +2123,18 @@ cc_save_plot_area_gain_loss <- function(input_area_change_df, subtitle, outfile_
     theme(legend.position = "bottom")
   
   gg_abn_area_change <- gg_abn_area_change_base +
-    geom_col(data = filter(input_area_change_df, direction != "net"),
+    geom_col(data = filter(input_area_change_df, change != "net"),
              mapping = aes(x = year, y = area_ha / (10^3), 
-                           group = direction, fill = direction)) + 
-    geom_line(data = filter(input_area_change_df, direction == "net"),
+                           group = change, fill = change)) + 
+    geom_line(data = filter(input_area_change_df, change == "net"),
               mapping = aes(x = year, y = area_ha / (10^3), color = "Net Change in Area"),
               size = 1.5)
   
   gg_abn_area_change_all <- gg_abn_area_change_base +
-    geom_col(data = filter(input_area_change_df, direction != "net"),
+    geom_col(data = filter(input_area_change_df, change != "net"),
              mapping = aes(x = year, y = area_ha_all / (10^3), 
-                           group = direction, fill = direction)) + 
-    geom_line(data = filter(input_area_change_df, direction == "net"),
+                           group = change, fill = change)) + 
+    geom_line(data = filter(input_area_change_df, change == "net"),
               mapping = aes(x = year, y = area_ha_all / (10^3), color = "Net Change in Area"),
               size = 1.5)
   
@@ -2215,7 +2222,6 @@ cc_save_plot_area_by_age_class <- function(input_list, subtitle, outfile_label,
 cc_save_area_persistence_plots <- function(input_path, 
                                            output_path,
                                            site_label,
-                                           outfile_label,
                                            outfile_label,
                                            subtitle, 
                                            subtitle_all = paste0(subtitle, ", all abandonment"), 
