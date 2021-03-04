@@ -1409,12 +1409,38 @@ cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster
   area_dt <- as.data.table.raster(area_raster) # convert to data.table
   setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
   
+  # round x and y columns to deal with floating point imprecision:
+  round_digits1 <- 11
+
+  while(merge(x = abn_age_dt[, 1:3], y = area_dt, 
+              all.x = TRUE, by = c("x", "y"), sort = FALSE
+  )[is.na(pixel_area), .N] > 0) {
+    round_digits1 <- round_digits1 - 1
+    abn_age_dt[, ':='(x = round(x, round_digits1), y = round(y, round_digits1))]
+    area_dt[, ':='(x = round(x, round_digits1), y = round(y, round_digits1))]
+  }
+  cat(fill = TRUE, "Note: abn_age_dt x and y columns rounded to", round_digits1, "digits to facilitate merge.")
+  
+  round_digits2 <- 11
+  while(merge(x = land_cover_dt[, 1:3], y = area_dt, 
+              all.x = TRUE, by = c("x", "y"), sort = FALSE
+  )[is.na(pixel_area), .N] > 0) {
+    round_digits2 <- round_digits2 - 1
+    land_cover_dt[, ':='(x = round(x, round_digits2), y = round(y, round_digits2))]
+    area_dt[, ':='(x = round(x, round_digits2), y = round(y, round_digits2))]
+  }
+  cat(fill = TRUE, "Note: land_cover_dt x and y columns rounded to", round_digits2, "digits to facilitate merge.")
+  
   # merge area to abn_age_dt and land_cover_dt, based on the x and y coordinates, 
   # saving only those rows in area_dt that match abn_age_dt and land_cover_dt, respectively:
   abn_age_dt <- merge(x = abn_age_dt, y = area_dt, all.x = TRUE, 
                       by = c("x","y"), sort = FALSE)
   land_cover_dt <- merge(x = land_cover_dt, y = area_dt, all.x = TRUE, 
                          by = c("x","y"), sort = FALSE)
+  
+  
+  if(abn_age_dt[is.na(pixel_area), .N] + 
+      land_cover_dt[is.na(pixel_area), .N] > 0 ) {stop("Merge did not match at 100%")}
   
   for (i in seq_along(col_names)) {
     temp_dt <- 
@@ -1489,10 +1515,23 @@ cc_calc_abn_area <- function(abn_age_dt, land_cover_raster, abandonment_definiti
   area_dt <- as.data.table.raster(area_raster) # convert to data.table
   setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
   
-  # merge area to the abn_age_dt, based on the x and y coordinates, 
-  # saving only those rows in area_dt that match abn_age_dt:
-  abn_age_dt <- merge(x = abn_age_dt, y = area_dt, all.x = TRUE, by = c("x","y"), sort = FALSE) 
+  # round x and y columns to deal with floating point imprecision:
+  round_digits <- 11
   
+  while(merge(x = abn_age_dt[, 1:3], y = area_dt, 
+              all.x = TRUE, by = c("x", "y"), sort = FALSE
+  )[is.na(pixel_area), .N] > 0) {
+    round_digits <- round_digits - 1
+    abn_age_dt[, ':='(x = round(x, round_digits), y = round(y, round_digits))]
+    area_dt[, ':='(x = round(x, round_digits), y = round(y, round_digits))]
+  }
+  
+  # merge area to the abn_age_dt, based on the x and y coordinates, 
+  abn_age_dt <- merge(x = abn_age_dt, y = area_dt, all.x = TRUE, by = c("x", "y"), sort = FALSE)
+  
+  if(abn_age_dt[is.na(pixel_area), .N] > 0) {stop("Merge did not match at 100%")}
+  
+  cat(fill = TRUE, "Note: x and y columns rounded to", round_digits, "digits to facilitate merge.")
   abandoned_area_df <- tibble(
     year = 1987:2017,
     lc = "Abandoned",
@@ -1511,54 +1550,51 @@ cc_calc_abn_area <- function(abn_age_dt, land_cover_raster, abandonment_definiti
 # ------------------------------------------------------------------------------------ #
 cc_calc_persistence <- function(abn_age_dt, 
                                 land_cover_raster,
-                                stat_proportion = TRUE, 
-                                NA_first = FALSE,
-                                include_wide = FALSE,
                                 abandonment_threshold = 5) {
   if(length(abn_age_dt) > 33) {stop("Code is designed to work with abn_age_dt for just 1987:2017.")}
   area_raster <- raster::area(land_cover_raster) # calculate area in km2
-  median_cell_area_km2 <- median(getValues(area_raster))
+  area_dt <- as.data.table.raster(area_raster) # convert to data.table
+  setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
+  
+  # round x and y columns to deal with floating point imprecision between area_dt and abn_age_dt:
+  round_digits <- 11
+  
+  while(merge(x = abn_age_dt[, 1:3], y = area_dt,  # conditional test
+              all.x = TRUE, by = c("x", "y"), sort = FALSE
+  )[is.na(pixel_area), .N] > 0) {
+    round_digits <- round_digits - 1
+    abn_age_dt[, ':='(x = round(x, round_digits), y = round(y, round_digits))] # rounding step
+    area_dt[, ':='(x = round(x, round_digits), y = round(y, round_digits))] # rounding step
+  }
+  
+  # merge area to the abn_age_dt, based on the x and y coordinates, 
+  abn_age_dt <- merge(x = abn_age_dt, y = area_dt, all.x = TRUE, by = c("x", "y"), sort = FALSE)
+  
+  if(abn_age_dt[is.na(pixel_area), .N] > 0) {stop("Merge did not match at 100%")}
+  
+  cat(fill = TRUE, "Note: x and y columns rounded to", round_digits, "digits to facilitate merge.")
   
   # first calculate a list of 30 vectors corresponding to abandonment originating in a particular year.
   persistence_list <- lapply(1:30, function(j) {
-    # calculate a vector of counts of abandoned pixels that originate in a particular year, 
-    # and the count of those pixels in each year following, starting in 1988.
+    # calculate a vector of the summed area (ha) of abandoned pixels that originate 
+    # in a particular year (i.e. cohort), and the area (ha) of those pixels in each 
+    # subsequent year, starting in 1988. 
     # Filled with NAs for periods that are beyond the length of the time series.
     
-    # old
-    temp_vector <- c(
-      if (NA_first) {rep(NA, j)} else {rep(NA, 0)},
-      sapply(1:(31 - j), function(i) {
-        abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, .N]
-      }),
-      if (NA_first) {rep(NA, 0)} else {rep(NA, j)}
-    )
+    temp_vector <- c(rep(NA, j),
+                     sapply(1:(31 - j), function(i) {
+                       abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, 
+                                  sum(pixel_area) * 100] # calculate area in km2, then convert to ha
+                     }))
     
-    # new. remove cells that are below threshold
-    
+    # remove cells that are below abandonment threshold:
     if (abandonment_threshold > 1) {
-      if (NA_first){
-        temp_vector[c((1:(abandonment_threshold - 1)) + j)] <- NA
-      } else {
-        temp_vector[c(1:(abandonment_threshold - 1))] <- NA
-      }
-      
-      if(length(temp_vector) > 31){
-        temp_vector <- temp_vector[c(1:31)]
-      }
+      temp_vector[c(1:(abandonment_threshold - 1) + j)] <- NA
+      if(length(temp_vector) > 31){temp_vector <- temp_vector[c(1:31)]}
     }
     
-    # convert this vector to a proportion of original cohort of abandoned pixels
-    if(stat_proportion) {
-      if(sum(temp_vector, na.rm = TRUE) > 0) {
-        temp_vector / max(temp_vector, na.rm = TRUE) # calculate as proportion
-      } else {
-          temp_vector
-        }
-      } else {
-      temp_vector
-    }
-  
+    # return vector
+    temp_vector
   }
   )
   
@@ -1569,164 +1605,140 @@ cc_calc_persistence <- function(abn_age_dt,
   names(persistence_df) <- paste0("y", 1988:2017)
   
   persistence_df <- persistence_df %>%
-    mutate(time_abn = if(NA_first) {1987:2017} else {1:31}) %>%
-    select(time_abn, everything())
-  
-  if(NA_first) {names(persistence_df)[1] <- "year"} else {persistence_df}
-  
-  # pivot to long format
-  persistence_long <- persistence_df %>%
+    mutate(year = 1987:2017) %>%
+    select(year, everything()) %>%
+    
+    # pivot to long format
     pivot_longer(cols = paste0("y", 1988:2017), 
                  names_to = "year_abn", 
-                 values_to = if (stat_proportion) {"proportion"} else {"count"},
+                 values_to = "area_ha",
                  values_drop_na = TRUE) %>%
-    mutate(year_abn = as.integer(gsub("y", "", year_abn))) 
+    mutate(year_abn = as.integer(gsub("y", "", year_abn))) %>% 
+    
+    # calculate proportion remaining
+    group_by(year_abn) %>% mutate(proportion = area_ha / max(area_ha)) %>% ungroup() %>% 
+    
+    # calculate age bins, keeping in mind that these bins are [) 
+    # i.e. closed on the left side, open on the right 5 <= x < 10
+    mutate(age = year - year_abn + 1,
+           bins = cut(age, breaks = c(0, 5, 10, 15, 20, 25, 30), right = FALSE, include.lowest = TRUE),
+           bins = as_factor(bins))
   
-  if (stat_proportion) {
-    persistence_long <- persistence_long
-  } else {
-    persistence_long <- persistence_long %>%
-      mutate(area_ha = count * median_cell_area_km2 * 100)
-  }
-  
-  # add age bins, if NA_first:
-  # keep in mind that these bins are [) i.e. closed on the left side, open on the right 5 <= x < 10
-  if (NA_first) {
-    persistence_long <- persistence_long %>% 
-      mutate(age = year - year_abn + 1) %>% 
-      mutate(bins = ifelse(age > 0 & age < 5, "<5 years",
-                           ifelse(age >= 5 & age < 10, "5 to 10 years",
-                                  ifelse(age >= 10 & age < 15, "10 to 15 years",
-                                         ifelse(age >= 15 & age < 20, "15 to 20 years",
-                                                ifelse(age >= 20 & age < 25, "20 to 25 years", 
-                                                       ifelse(age >= 25 & age <= 30, "25 to 30 years", NA)
-                                         )))))) %>%
-      mutate(bins = as_factor(bins))
-  } else {
-    persistence_long <- persistence_long
-  }
-  
-  
-  # return product
-  if (include_wide) {
-    list(
-      long = persistence_long,
-      wide = persistence_df
-    )
-  } else {
-    persistence_long
-  }
-  
+  persistence_df
 }
 
 
 # ------------------------------------------------------------------------------------ #
 # save all permutations of abandonment persistence
+# old, no longer used: only good for previous iteration of cc_calc_persistence prior to 
+# 3.4.2021
 # ------------------------------------------------------------------------------------ #
-
-cc_calc_persistence_all <- function(abn_age_dt, 
-                                    land_cover_raster, 
-                                    include_wide = FALSE,
-                                    abandonment_threshold = 5,
-                                    include_all_abandonment = TRUE){
-
-  count <- cc_calc_persistence(abn_age_dt = abn_age_dt, 
-                               land_cover_raster = land_cover_raster, 
-                               stat_proportion = FALSE, NA_first = FALSE, 
-                               include_wide = include_wide,
-                               abandonment_threshold = abandonment_threshold)
-  
-  proportion <- cc_calc_persistence(abn_age_dt = abn_age_dt, 
-                                    land_cover_raster = land_cover_raster, 
-                                    stat_proportion = TRUE, NA_first = FALSE, 
-                                    include_wide = include_wide,
-                                    abandonment_threshold = abandonment_threshold)
-  
-  count_na_first <- cc_calc_persistence(abn_age_dt = abn_age_dt, 
-                                        land_cover_raster = land_cover_raster, 
-                                        stat_proportion = FALSE, NA_first = TRUE, 
-                                        include_wide = include_wide,
-                                        abandonment_threshold = abandonment_threshold)
-  
-  proportion_na_first <- cc_calc_persistence(abn_age_dt = abn_age_dt, 
-                                             land_cover_raster = land_cover_raster, 
-                                             stat_proportion = TRUE, NA_first = TRUE, 
-                                             include_wide = include_wide,
-                                             abandonment_threshold = abandonment_threshold)
-  
-  if(include_all_abandonment) {
-    count_all <- cc_calc_persistence(abn_age_dt = abn_age_dt, 
-                                 land_cover_raster = land_cover_raster, 
-                                 stat_proportion = FALSE, NA_first = FALSE, 
-                                 include_wide = include_wide,
-                                 abandonment_threshold = 1)
-    
-    proportion_all <- cc_calc_persistence(abn_age_dt = abn_age_dt, 
-                                      land_cover_raster = land_cover_raster, 
-                                      stat_proportion = TRUE, NA_first = FALSE, 
-                                      include_wide = include_wide,
-                                      abandonment_threshold = 1)
-    
-    count_all_na_first <- cc_calc_persistence(abn_age_dt = abn_age_dt, 
-                                          land_cover_raster = land_cover_raster, 
-                                          stat_proportion = FALSE, NA_first = TRUE, 
-                                          include_wide = include_wide,
-                                          abandonment_threshold = 1)
-    
-    proportion_all_na_first <- cc_calc_persistence(abn_age_dt = abn_age_dt, 
-                                               land_cover_raster = land_cover_raster, 
-                                               stat_proportion = TRUE, NA_first = TRUE, 
-                                               include_wide = include_wide,
-                                               abandonment_threshold = 1)
-    
-  }
-
-  # return the products as a list
-  if(include_wide) {
-    c(
-      list(
-        count = count,
-        count_na_first = count_na_first,
-        proportion = proportion,
-        proportion_na_first = proportion_na_first
-         ),
-      if(include_all_abandonment) {
-        list(
-          count_all = count_all,
-          count_all_na_first = count_all_na_first,
-          proportion_all = proportion_all,
-          proportion_all_na_first = proportion_all_na_first
-        )
-      }
-      )
-    } else {
-      # join the dfs
-      
-      na_last <- left_join(x = count, y = proportion, 
-                         by = c("time_abn", "year_abn"))
-      na_first <- left_join(x = count_na_first, y = proportion_na_first, 
-                          by = c("year", "year_abn", "age", "bins"))
-      
-      if(include_all_abandonment) {
-        na_last_all <- left_join(x = count_all, y = proportion_all, 
-                             by = c("time_abn", "year_abn"))
-        na_first_all <- left_join(x = count_all_na_first, y = proportion_all_na_first, 
-                              by = c("year", "year_abn", "age", "bins"))
-      }
-    
-      # return list
-      c(
-        list(na_last = na_last,
-             na_first = na_first),
-        if(include_all_abandonment) {
-          list(
-            na_last_all = na_last_all,
-            na_first_all = na_first_all
-          )
-          }
-      )
-    }
-}
+# 
+# cc_calc_persistence_all <- function(abn_age_dt, 
+#                                     land_cover_raster, 
+#                                     include_wide = FALSE,
+#                                     abandonment_threshold = 5,
+#                                     include_all_abandonment = TRUE){
+# 
+#   count <- cc_calc_persistence(abn_age_dt = abn_age_dt, 
+#                                land_cover_raster = land_cover_raster, 
+#                                stat_proportion = FALSE, NA_first = FALSE, 
+#                                include_wide = include_wide,
+#                                abandonment_threshold = abandonment_threshold)
+#   
+#   proportion <- cc_calc_persistence(abn_age_dt = abn_age_dt, 
+#                                     land_cover_raster = land_cover_raster, 
+#                                     stat_proportion = TRUE, NA_first = FALSE, 
+#                                     include_wide = include_wide,
+#                                     abandonment_threshold = abandonment_threshold)
+#   
+#   count_na_first <- cc_calc_persistence(abn_age_dt = abn_age_dt, 
+#                                         land_cover_raster = land_cover_raster, 
+#                                         stat_proportion = FALSE, NA_first = TRUE, 
+#                                         include_wide = include_wide,
+#                                         abandonment_threshold = abandonment_threshold)
+#   
+#   proportion_na_first <- cc_calc_persistence(abn_age_dt = abn_age_dt, 
+#                                              land_cover_raster = land_cover_raster, 
+#                                              stat_proportion = TRUE, NA_first = TRUE, 
+#                                              include_wide = include_wide,
+#                                              abandonment_threshold = abandonment_threshold)
+#   # na_first <- left_join(x = count_na_first, y = proportion_na_first, 
+#   #                       by = c("year", "year_abn", "age", "bins"))
+#   
+#   if(include_all_abandonment) {
+#     count_all <- cc_calc_persistence(abn_age_dt = abn_age_dt, 
+#                                  land_cover_raster = land_cover_raster, 
+#                                  stat_proportion = FALSE, NA_first = FALSE, 
+#                                  include_wide = include_wide,
+#                                  abandonment_threshold = 1)
+#     
+#     proportion_all <- cc_calc_persistence(abn_age_dt = abn_age_dt, 
+#                                       land_cover_raster = land_cover_raster, 
+#                                       stat_proportion = TRUE, NA_first = FALSE, 
+#                                       include_wide = include_wide,
+#                                       abandonment_threshold = 1)
+#     
+#     count_all_na_first <- cc_calc_persistence(abn_age_dt = abn_age_dt, 
+#                                           land_cover_raster = land_cover_raster, 
+#                                           stat_proportion = FALSE, NA_first = TRUE, 
+#                                           include_wide = include_wide,
+#                                           abandonment_threshold = 1)
+#     
+#     proportion_all_na_first <- cc_calc_persistence(abn_age_dt = abn_age_dt, 
+#                                                land_cover_raster = land_cover_raster, 
+#                                                stat_proportion = TRUE, NA_first = TRUE, 
+#                                                include_wide = include_wide,
+#                                                abandonment_threshold = 1)
+#     
+#   }
+# 
+#   # return the products as a list
+#   if(include_wide) {
+#     c(
+#       list(
+#         count = count,
+#         count_na_first = count_na_first,
+#         proportion = proportion,
+#         proportion_na_first = proportion_na_first
+#          ),
+#       if(include_all_abandonment) {
+#         list(
+#           count_all = count_all,
+#           count_all_na_first = count_all_na_first,
+#           proportion_all = proportion_all,
+#           proportion_all_na_first = proportion_all_na_first
+#         )
+#       }
+#       )
+#     } else {
+#       # join the dfs
+#       
+#       na_last <- left_join(x = count, y = proportion, 
+#                          by = c("time_abn", "year_abn"))
+#       na_first <- left_join(x = count_na_first, y = proportion_na_first, 
+#                           by = c("year", "year_abn", "age", "bins"))
+#       
+#       if(include_all_abandonment) {
+#         na_last_all <- left_join(x = count_all, y = proportion_all, 
+#                              by = c("time_abn", "year_abn"))
+#         na_first_all <- left_join(x = count_all_na_first, y = proportion_all_na_first, 
+#                               by = c("year", "year_abn", "age", "bins"))
+#       }
+#     
+#       # return list
+#       c(
+#         list(na_last = na_last,
+#              na_first = na_first),
+#         if(include_all_abandonment) {
+#           list(
+#             na_last_all = na_last_all,
+#             na_first_all = na_first_all
+#           )
+#           }
+#       )
+#     }
+# }
 
 
 # ------------------------------------------------------------------------------------ #
@@ -1739,9 +1751,25 @@ cc_calc_abn_area_diff <- function(abn_age_dt, land_cover_raster,
   area_dt <- as.data.table.raster(area_raster) # convert to data.table
   setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
   
+  # round x and y columns to deal with floating point imprecision between area_dt and abn_age_dt:
+  round_digits <- 11
+  
+  while(merge(x = abn_age_dt[, 1:3], y = area_dt,  # conditional test
+              all.x = TRUE, by = c("x", "y"), sort = FALSE
+  )[is.na(pixel_area), .N] > 0) {
+    round_digits <- round_digits - 1
+    abn_age_dt[, ':='(x = round(x, round_digits), y = round(y, round_digits))] # rounding step
+    area_dt[, ':='(x = round(x, round_digits), y = round(y, round_digits))] # rounding step
+  }
+  
   # merge area to the abn_age_dt, based on the x and y coordinates, 
-  abn_age_dt <- merge(x = abn_age_dt, y = area_dt, all.x = TRUE, by = c("x","y"), sort = FALSE)
-
+  abn_age_dt <- merge(x = abn_age_dt, y = area_dt, all.x = TRUE, by = c("x", "y"), sort = FALSE)
+  
+  if(abn_age_dt[is.na(pixel_area), .N] > 0) {stop("Merge did not match at 100%")}
+  
+  cat(fill = TRUE, "Note: x and y columns rounded to", round_digits, "digits to facilitate merge.")
+  
+  
   # first calculate a list of 30 vectors corresponding to abandonment originating in a particular year.
   abn_turnover_list <- lapply(1:30, function(j) {
     # Calculate a vector of counts of abandoned pixels that originate in a particular year, 
