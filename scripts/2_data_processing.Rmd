@@ -2415,6 +2415,19 @@ area_df_test_s <- cc_calc_area_per_lc_abn(land_cover_dt = s_dt,
                                            abn_age_dt = s_dt_age,
                                            land_cover_raster = s$y1987)
 area_df_test_s
+
+ggplot(data = area_df_test_s) +
+    theme_classic() +
+    # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+    labs(y = expression("Area  (10"^{6}*" ha)") , 
+         x = "Year", 
+         title = "Area by Land Cover, with Abandonment",
+         color = "Land Cover") + 
+    geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
+                            group = lc, color = lc),
+              size = 1.2) + 
+    scale_x_continuous(n.breaks = 10)
+
 identical(area_df_test, area_df)
 
 
@@ -2852,7 +2865,6 @@ rm(s_dt)
 
   # merge area to the abn_age_dt, based on the x and y coordinates, 
   # abn_age_dt <- merge(x = abn_age_dt, y = area_dt, all.x = TRUE, by = c("x", "y"), sort = FALSE)
-  
   
   test_merge <- merge(x = abn_age_dt, y = area_dt, all.x = TRUE, by = c("x", "y"), sort = FALSE)
   test_merge

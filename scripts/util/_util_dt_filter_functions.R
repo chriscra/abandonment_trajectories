@@ -1872,46 +1872,13 @@ cc_summarize_abn_dts <- function(input_path,
                                  include_all = FALSE) {
   cat(fill = TRUE, "cc_summarize_abn_dts(): Summarizing results for site: ", site)
   cat(fill = TRUE, "input_path: ", input_path)
+  cat(fill = TRUE, "output_path: ", output_path)
   cat(fill = TRUE, "outfile_label: ", outfile_label)
   cat(fill = TRUE, "abandonment_threshold: >=" , abandonment_threshold)
 
   # load files:
   lc_r <- raster(paste0(input_path, site, ".tif"))
-  # lc_r <- brick(paste0(input_path, site, ".tif"))
-  # lc_r <- ws_r
-  
-  # # (Note: not strictly necessary to rename layers, and select only 1987:2017. 
-  # # The land cover raster is only used for calculating the total area.)
-  # # 2. Update land_cover_raster layer names, then select only 1987:2017.
-  # cat(fill = TRUE, "ii. Update land_cover_raster layer names, select only 1987:2017")
-  # cat(fill = TRUE, "raster layer names, before update:")
-  # print(names(lc_r)) # before update
-  # 
-  # tic("update raster layer names")
-  # if (site == "nebraska") {
-  #   cat(fill = TRUE, "number of layers in ", site, ": ", nlayers(lc_r))
-  #   names(lc_r) <- paste0("y", 1986:2018)
-  # } else {
-  #   if (site == "wisconsin") {
-  #     cat(fill = TRUE, "number of layers in ", site, ": ", nlayers(lc_r))
-  #     names(lc_r) <- paste0("y", 1987:2018)
-  #   } else {
-  #     # everything else, just 1987:2017
-  #     cat(fill = TRUE, "number of layers in ", site, ": ", nlayers(lc_r))
-  #     names(lc_r) <- paste0("y", 1987:2017)
-  #   }
-  # }
-  # 
-  # cat(fill = TRUE, "raster layer names, after update:")
-  # print(names(lc_r)) # after update
-  # toc(log = TRUE)
-  # 
-  # # select only 1987:2017
-  # lc_r <- lc_r[[paste0("y", 1987:2017)]]
-  
-  
   lc_dt <- fread(input = paste0(input_path, site, ".csv")) 
-  
   age_dt <- fread(input = paste0(input_path, site, "_age", outfile_label, ".csv"))
   
   cat("calculating total area in each land cover class, and that is abandoned (for at least as long as the abandonment threshold), over time.", fill = TRUE)
@@ -1923,11 +1890,9 @@ cc_summarize_abn_dts <- function(input_path,
   
   cat("calculate abandonment persistence", fill = TRUE)
   # ------------------------ abandonment persistence --------------------------- #
-  persistence_list <- cc_calc_persistence_all(abn_age_dt = age_dt, 
-                                              land_cover_raster = lc_r,
-                                              include_wide = FALSE,
-                                              abandonment_threshold = abandonment_threshold,
-                                              include_all_abandonment = include_all)
+  persistence <- cc_calc_persistence(abn_age_dt = age_dt, 
+                                          land_cover_raster = lc_r,
+                                          abandonment_threshold = abandonment_threshold)
   
   cat("calculate abandonment area turnover", fill = TRUE)
   # -------------------- calculate the abandonment area turnover ------------------- #
@@ -1935,32 +1900,23 @@ cc_summarize_abn_dts <- function(input_path,
                                            land_cover_raster = lc_r,
                                            abandonment_threshold = abandonment_threshold)
   
-  if(include_all) {
-    abn_area_change_all <- cc_calc_abn_area_diff(
-      abn_age_dt = age_dt, 
-      land_cover_raster = lc_r,
-      abandonment_threshold = 1) %>% 
-      
-      # rename columns
-      rename(count_all = count, area_ha_all = area_ha)
-    
-    # join
-    abn_area_change <- full_join(x = abn_area_change, y = abn_area_change_all, 
-                                 by = c("year", "change"))
-  }
+  # save individual results_df
+  write_csv(area, file = paste0(path, site, "_result_area", outfile_label,".csv"))
+  write_csv(persistence, file = paste0(path, site, "_result_persistence", outfile_label,".csv"))
+  write_csv(abn_area_change, file = paste0(path, site, "_result_abn_area_change", outfile_label,".csv"))
   
   # updating object names names
   assign(paste0("area", outfile_label), area)
-  assign(paste0("persistence_list", outfile_label), persistence_list)
+  assign(paste0("persistence", outfile_label), persistence)
   assign(paste0("abn_area_change", outfile_label), abn_area_change)
   
-  cat("saving files:", paste0(output_path, "abn_dat_products", outfile_label, ".rds"), fill = TRUE)
+  cat("saving files:", paste0(output_path, site, "_result_dfs", outfile_label, ".rds"), fill = TRUE)
   # save files
   save(list = c(paste0("area", outfile_label), 
-                paste0("persistence_list", outfile_label),
+                paste0("persistence", outfile_label),
                 paste0("abn_area_change", outfile_label)
                 ), 
-       file = paste0(output_path, "abn_dat_products", outfile_label, ".rds")
+       file = paste0(output_path, site, "_result_dfs", outfile_label, ".rds")
        )
 }
 
@@ -2016,12 +1972,12 @@ cc_save_plot_lc_abn_area <- function(input_area_df, subtitle, outfile_label,
 # plot persistence of abandonment over time
 # ------------------------------------------------------------------------------------ #
 
-cc_save_plot_abn_persistence <- function(input_list, subtitle, outfile_label,
+cc_save_plot_abn_persistence <- function(persistence_df, subtitle, outfile_label,
                                          width = 7, height = 5,
                                          save_all = TRUE, subtitle_all = NULL,
                                          output_path) {
   
-  gg_base <- ggplot(data = input_list$na_first) + 
+  gg_base <- ggplot(data = persistence_df) + 
     theme_classic() + 
     labs(title = "Persistence of Abandoned Land",
          subtitle = subtitle,
