@@ -1675,7 +1675,7 @@ gg_10_px_traj
 ```
 
 
-## Investigate cluster data products
+# Investigate cluster data products
 ```{r check-blips}
 
 b_blips <- fread(input = paste0(p_dat_derived, "belarus1_length.csv"))
@@ -1715,7 +1715,7 @@ dev.off()
 
 ```
 
-## Develop new temporal filter
+# Develop new temporal filter
 
 ```{r create-test-dt}
 # create a test dt
@@ -1740,21 +1740,45 @@ dt
 # dt <- cc_remove_non_abn(dt)   # filter non abandonment pixels (i.e. those that are either all crop or all noncrop)
 # nrow(dt) # 17674
 
+# 
+# bs <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
+# names(bs) <- paste0("y", 1987:2017)
+# bs_dt <- as.data.table.raster(bs)
+# 
+# land_cover_dt <- bs_dt
+# abn_age_dt <- copy(bs_dt)
+# abn_age_dt <- cc_filter_abn_dt_simple(dt = abn_age_dt)
+# land_cover_raster <- bs
+
+
 # Count number of periods of recultivation that fall below a continuous recultivation threshold.
 
 # s_dt
+s <- brick(paste0(p_dat_derived, "input_rasters/shaanxi.tif"))
+names(s) <- paste0("y", 1987:2017)
+s_dt <- as.data.table.raster(s)
+
+object_size(s_dt)
 s_dt <- fread(input = paste0(p_dat_derived, "shaanxi.csv"))
 names(s_dt) <- gsub(pattern = "andcover", replacement = "y", names(s_dt))
-cc_update_lc(s_dt, crop_code = 0, noncrop_code = 1)  # update land cover classes
-s_dt <- na.omit(s_dt)   # remove NAs
-nrow(s_dt) # 17,477,812 rows
+nrow(s_dt)
 
+# cc_update_lc(s_dt, crop_code = 0, noncrop_code = 1)  # update land cover classes
+# s_dt <- na.omit(s_dt)   # remove NAs
+# s_dt <- cc_remove_non_abn(s_dt)   # filter non abandonment pixels
+
+s_dt_age <- copy(s_dt)
 tic()
-s_dt <- cc_remove_non_abn(s_dt)   # filter non abandonment pixels (i.e. those that are either all crop or all noncrop)
-nrow(s_dt) # 8,290,074 rows
-toc()
 
-dt <- s_dt
+
+# s_dt_age <- cc_filter_abn_dt_simple(dt = s_dt_age)
+toc()
+nrow(s_dt_age) # 8,290,074 rows
+
+s
+s_dt
+s_dt_age
+
 
 ```
 
@@ -2273,6 +2297,40 @@ s_dt[]
 
 
 # Update area calculations
+```{r load-bs-testing-data}
+bs <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
+names(bs) <- paste0("y", 1987:2017)
+bs_dt <- as.data.table.raster(bs)
+
+land_cover_dt <- bs_dt
+abn_age_dt <- copy(bs_dt)
+abn_age_dt <- cc_filter_abn_dt_simple(dt = abn_age_dt)
+
+land_cover_raster <- bs
+```
+
+```{r load-datasets-test_s}
+# s_dt
+s <- brick(paste0(p_dat_derived, "input_rasters/shaanxi.tif"))
+names(s) <- paste0("y", 1987:2017)
+
+s_dt <- fread(input = paste0(p_dat_derived, "input_data.tables/shaanxi.csv"))
+
+s_dt_age <- copy(s_dt)
+rm(s_dt)
+s_dt_age <- cc_filter_abn_dt_simple(dt = s_dt_age)
+fwrite(s_dt_age, file = paste0(p_dat_derived, "shaanxi_age_", Sys.Date(), ".csv"))
+s_dt_age <- fread(file = paste0(p_dat_derived, "shaanxi_age_2021-03-03.csv"))
+
+# also:
+# abn_age_dt <- fread(file = paste0(p_dat_derived, "s_dt_test_2021-03-03.csv"))
+
+# s
+# s_dt
+# s_dt_age
+```
+
+
 ```{r update-area-basic}
 # ------------------------------------------------------------------------------------ #
 # calculate area of abandoned land over time, for a particular abn_age_dt
@@ -2339,19 +2397,13 @@ sapply(paste0("y", 1987:2017), function(i) {abn_age_dt[get(i) >= 5, sum(area)]})
 sapply(1:31, function(i) {age_dt[get(paste0("y", 1987:2017)[i]) >= 5, sum(area)]})
 
 
+test <- cc_calc_abn_area(abn_age_dt = abn_age_dt, land_cover_raster = s$y1987)
+
 ```
 
 
 ```{r update-area_per_lc_abn}
-bs <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
-names(bs) <- paste0("y", 1987:2017)
-bs_dt <- as.data.table.raster(bs)
 
-land_cover_dt <- bs_dt
-abn_age_dt <- copy(bs_dt)
-abn_age_dt <- cc_filter_abn_dt_simple(dt = abn_age_dt)
-
-land_cover_raster <- bs
 
 area_df_test <- cc_calc_area_per_lc_abn(land_cover_dt = bs_dt, 
                                         abn_age_dt = abn_age_dt,
@@ -2553,6 +2605,392 @@ cc_calc_abn_area_diff_new <- function(abn_age_dt, land_cover_raster,
   abn_area_change_df
   
 }
+
+```
+
+```{r update_cc_calc_persistence}
+bs <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
+names(bs) <- paste0("y", 1987:2017)
+bs_dt <- as.data.table.raster(bs)
+
+land_cover_dt <- bs_dt
+abn_age_dt <- copy(bs_dt)
+abn_age_dt <- cc_filter_abn_dt_simple(dt = abn_age_dt)
+land_cover_raster <- bs
+
+# see load above:
+s
+s_dt
+s_dt_age 
+
+abn_age_dt <- copy(s_dt_age)
+land_cover_raster <- s$y1987
+
+
+# ------------------------------------------------------------------------------------ #
+# calculate persistence of abandoned land over time, either as a raw count or as a percentage
+# ------------------------------------------------------------------------------------ #
+
+cc_calc_persistence_new <- function(abn_age_dt, 
+                                    land_cover_raster,
+                                    abandonment_threshold = 5) {
+  if(length(abn_age_dt) > 33) {stop("Code is designed to work with abn_age_dt for just 1987:2017.")}
+  
+  area_raster <- raster::area(land_cover_raster) # calculate area in km2
+  area_dt <- as.data.table.raster(area_raster) # convert to data.table
+  setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
+  
+  # round x and y columns to deal with floating point imprecision:
+  round_digits <- 11
+  
+  while(merge(x = abn_age_dt[, 1:3], y = area_dt, 
+              all.x = TRUE, by = c("x", "y"), sort = FALSE
+              )[is.na(pixel_area), .N] > 0) {
+    round_digits <- round_digits - 1
+    abn_age_dt[, ':='(x = round(x, round_digits), y = round(y, round_digits))]
+    area_dt[, ':='(x = round(x, round_digits), y = round(y, round_digits))]
+  }
+
+  # merge area to the abn_age_dt, based on the x and y coordinates, 
+  abn_age_dt <- merge(x = abn_age_dt, y = area_dt, all.x = TRUE, by = c("x", "y"), sort = FALSE)
+  
+  if(abn_age_dt[is.na(pixel_area), .N] > 0) {stop("Merge did not match at 100%")}
+ 
+  cat("Note: x and y columns rounded to", round_digits, "digits to facilitate merge.")
+  
+  # first calculate a list of 30 vectors corresponding to abandonment originating in a particular year.
+  persistence_list <- lapply(1:30, function(j) {
+    # calculate a vector of the summed area (ha) of abandoned pixels that originate 
+    # in a particular year (i.e. cohort), and the area (ha) of those pixels in each 
+    # subsequent year, starting in 1988. 
+    # Filled with NAs for periods that are beyond the length of the time series.
+    
+    temp_vector <- c(rep(NA, j),
+                     sapply(1:(31 - j), function(i) {
+                       abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, 
+                                  sum(pixel_area) * 100] # calculate area in km2, then convert to ha
+                       }))
+    
+    # remove cells that are below abandonment threshold:
+    if (abandonment_threshold > 1) {
+        temp_vector[c(1:(abandonment_threshold - 1) + j)] <- NA
+        if(length(temp_vector) > 31){temp_vector <- temp_vector[c(1:31)]}
+    }
+    
+    # return vector
+    temp_vector
+  }
+  )
+
+  # combine list into a data.frame
+  persistence_df <- data.frame(
+    do.call("cbind", persistence_list))
+
+  names(persistence_df) <- paste0("y", 1988:2017)
+  
+  persistence_df <- persistence_df %>%
+    mutate(year = 1987:2017) %>%
+    select(year, everything()) %>%
+  
+    # pivot to long format
+    pivot_longer(cols = paste0("y", 1988:2017), 
+                 names_to = "year_abn", 
+                 values_to = "area_ha",
+                 values_drop_na = TRUE) %>%
+    mutate(year_abn = as.integer(gsub("y", "", year_abn))) %>% 
+    
+    # calculate proportion remaining
+    group_by(year_abn) %>% mutate(proportion = area_ha / max(area_ha)) %>% ungroup() %>% 
+    
+    # calculate age bins, keeping in mind that these bins are [) 
+    # i.e. closed on the left side, open on the right 5 <= x < 10
+    mutate(age = year - year_abn + 1,
+           bins = cut(age, breaks = c(0, 5, 10, 15, 20, 25, 30), right = FALSE, include.lowest = TRUE),
+           bins = as_factor(bins))
+  
+  persistence_df
+}
+
+```
+
+```{r test_persistence_new}
+test1 <- cc_calc_persistence_new(abn_age_dt = abn_age_dt, 
+                                   land_cover_raster = bs)
+test2 <- cc_calc_persistence(abn_age_dt = abn_age_dt, 
+                             land_cover_raster = s,
+                             stat_proportion = FALSE, NA_first = TRUE)
+
+round(test1$area_ha - test2$area_ha, 3)
+
+tic()
+s_test_old <- cc_calc_persistence(abn_age_dt = s_dt_age_b1, 
+                             land_cover_raster = s,
+                             stat_proportion = FALSE, NA_first = TRUE)
+toc()
+
+tic()
+s_test_new1 <- cc_calc_persistence_new(abn_age_dt = s_dt_age_b1, 
+                                      land_cover_raster = s$y1987)
+toc()
+
+
+tic()
+s_test_new <- cc_calc_persistence_new(abn_age_dt = s_dt_age, 
+                                      land_cover_raster = s$y1987)
+toc()
+
+identical(s_test_new1, s_test_new)
+s_test_old
+
+
+tic()
+s_test_new <- cc_calc_persistence_new(abn_age_dt = abn_age_dt, 
+                                      land_cover_raster = s$y1987)
+toc()
+
+persistence_list_b1_s
+persistence_list_b1_s$na_first
+persistence_list_b1_s$na_last
+```
+
+
+
+
+
+```{r fixing-merge-issue}
+
+# this is the raster from the della run in november...
+# so maybe there is some mismatch between this raster's x and y coordinates and the 
+# x and y coordinates of the dt I've been loading from data_derived... hm..
+s <- brick(paste0(p_dat_derived, "input_rasters/shaanxi.tif"))
+names(s) <- paste0("y", 1987:2017)
+
+
+# try 1
+# directly loading in the age raster
+# s_dt_age_b1_r <- brick("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/age_rasters/shaanxi_age_b1.tif")
+# names(s_dt_age_b1_r) <- paste0("y", 1987:2017)
+# s_dt_age_b1 <- as.data.table.raster(s_dt_age_b1_r)
+# s_dt_age_b1 <- na.omit(s_dt_age_b1)   # remove NAs
+# fwrite(s_dt_age_b1, file = paste0(p_dat_derived, "shaanxi_age_b1_", Sys.Date(), ".csv"))
+s_dt_age_b1 <- fread(file = paste0(p_dat_derived, "shaanxi_age_b1_2021-03-03.csv")) 
+
+# this age_b1 dt works, but somehow, the direct shaanxi_dt run through the simple age calculator still doesn't work
+
+# 
+
+# ---------
+# s_dt_age_b1 <- fread(input = paste0(p_dat_derived, "shaanxi.csv"))
+names(s_dt) <- gsub(pattern = "andcover", replacement = "y", names(s_dt))
+# /Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/age_rasters/shaanxi_age_b1.tif
+
+
+
+
+# ------ trying from basics:
+# directly derive as.data.table.raster(s):
+s <- brick(paste0(p_dat_derived, "input_rasters/shaanxi.tif"))
+names(s) <- paste0("y", 1987:2017)
+
+s_dt <- as.data.table.raster(s)
+
+# processing steps:
+cc_update_lc(s_dt, crop_code = 0, noncrop_code = 1)
+s_dt <- na.omit(s_dt)
+s_dt <- cc_remove_non_abn(s_dt)
+cc_temporal_filter(s_dt, replacement_value = 1, filter_edge = TRUE)
+cc_calc_age(s_dt)
+cc_erase_non_abn_periods(s_dt)
+# fwrite(s_dt, file = paste0(p_dat_derived, "s_dt_test_", Sys.Date(), ".csv"))
+
+# the from shaanxi derived dt
+abn_age_dt <- fread(file = paste0(p_dat_derived, "s_dt_test_2021-03-03.csv"))
+s_dt <- fread(file = paste0(p_dat_derived, "s_dt_test_2021-03-03.csv"))
+
+# s_dt_age <- copy(s_dt)
+# s_dt_age <- cc_filter_abn_dt_simple(dt = s_dt_age)
+
+# the merge seems to work, so test with the new function:
+tic()
+sdt_test3 <- cc_calc_persistence_new(abn_age_dt = abn_age_dt, 
+                                      land_cover_raster = s$y1987)
+toc()
+# with the rounding added, it now works:
+sdt_test3
+test2
+
+left_join(rename(sdt_test3, area_new = area_ha), test2, by = c("year", "year_abn")) %>%
+  mutate(diff = area_new - area_ha,
+         percent = (diff/area_new)*100) # 0.14 % difference in area 
+
+
+
+# this still doesn't work.... fuck
+sdt_test3
+
+
+# let's go through things step by step
+
+abn_age_dt <- copy(s_dt)
+land_cover_raster <- s
+rm(s_dt)
+  if(length(abn_age_dt) > 33) {stop("Code is designed to work with abn_age_dt for just 1987:2017.")}
+  
+  area_raster <- raster::area(land_cover_raster) # calculate area in km2
+  area_dt <- as.data.table.raster(area_raster) # convert to data.table
+  
+  setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
+
+  # merge area to the abn_age_dt, based on the x and y coordinates, 
+  # abn_age_dt <- merge(x = abn_age_dt, y = area_dt, all.x = TRUE, by = c("x", "y"), sort = FALSE)
+  
+  
+  test_merge <- merge(x = abn_age_dt, y = area_dt, all.x = TRUE, by = c("x", "y"), sort = FALSE)
+  test_merge
+  test_merge[pixel_area > 0, .N]
+  stopifnot(test_merge[is.na(pixel_area), .N] == 0)
+  
+  nrow(abn_age_dt)
+  nrow(test_merge)
+  
+  
+  # round x and y columns to deal with floating point imprecision:
+  abn_age_dt[, ':='(x = round(x, 8), y = round(y, 8))]
+  area_dt[, ':='(x = round(x, 8), y = round(y, 8))]
+  
+  abn_age_dt[50, x]
+  area_dt[,x]
+  
+  # do any of these match?
+  abn_age_dt[50, x]
+  area_dt[201:300, x]
+  area_dt[284, x] == abn_age_dt[50, x] # these look identical - what's going on?
+  
+  x1 <- area_dt[284, x]
+  x2 <- abn_age_dt[50, x]
+  x1 == x2 # false
+  
+  class(x1)
+  class(x2)
+  
+  x1 <- as.numeric(x1)
+  x2 <- as.numeric(x2)
+  
+  # this issue has to do with how R represents numbers with floating decimal points. 
+  sprintf("%.54f", x1)
+  sprintf("%.54f", x2)
+  
+  sprintf("%.54f", x1 - x2)
+  
+  sprintf("%a", x1)
+  sprintf("%a", x2)
+  sprintf("%a", x1 - x2)
+  
+  all.equal(x1, x2)
+
+  0.1 + 0.2
+  print(x1, digits = 18)
+  print(x2, digits = 18)
+
+  
+  
+  round(x1, 11) == round(x2, 11) # true
+  for(i in 1:20) {cat("i: ", i)
+    print(round(x1, i) == round(x2, i))} # true
+  
+  round(x1, 14) == round(x2, 14) # true
+
+  
+  
+  x1 <- area_dt[284, x]
+  x2 <- abn_age_dt[50, x]
+  
+  area_dt[, x := round(x, digits = 10)]
+  area_dt[x == abn_age_dt[50, x], ]
+  
+  
+  # do any of the y cells 
+  
+  cellFromRowCol(x, c(tr$row[i], tr$row[i] + 
+                  tr$nrows[i] - 1), c(1, ncol(x)))
+  dt_to_raster()
+  coordinates(area_dt) = ~x + y
+  
+
+
+  # first calculate a list of 30 vectors corresponding to abandonment originating in a particular year.
+  persistence_list <- lapply(1:30, function(j) {
+    # calculate a vector of the summed area (ha) of abandoned pixels that originate 
+    # in a particular year (i.e. cohort), and the area (ha) of those pixels in each 
+    # subsequent year, starting in 1988. 
+    # Filled with NAs for periods that are beyond the length of the time series.
+    
+    temp_vector <- c(rep(NA, j),
+                     sapply(1:(31 - j), function(i) {
+                       abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, 
+                                  sum(pixel_area) * 100] # calculate area in km2, then convert to ha
+                       }))
+    
+    # remove cells that are below abandonment threshold:
+    if (abandonment_threshold > 1) {
+        temp_vector[c(1:(abandonment_threshold - 1) + j)] <- NA
+        if(length(temp_vector) > 31){temp_vector <- temp_vector[c(1:31)]}
+    }
+    
+    # return vector
+    temp_vector
+  }
+  )
+
+  # combine list into a data.frame
+  persistence_df <- data.frame(
+    do.call("cbind", persistence_list))
+
+  names(persistence_df) <- paste0("y", 1988:2017)
+  
+  persistence_df <- persistence_df %>%
+    mutate(year = 1987:2017) %>%
+    select(year, everything()) %>%
+  
+    # pivot to long format
+    pivot_longer(cols = paste0("y", 1988:2017), 
+                 names_to = "year_abn", 
+                 values_to = "area_ha",
+                 values_drop_na = TRUE) %>%
+    mutate(year_abn = as.integer(gsub("y", "", year_abn))) %>% 
+    
+    # calculate proportion remaining
+    group_by(year_abn) %>% mutate(proportion = area_ha / max(area_ha)) %>% ungroup() %>% 
+    
+    # calculate age bins, keeping in mind that these bins are [) 
+    # i.e. closed on the left side, open on the right 5 <= x < 10
+    mutate(age = year - year_abn + 1,
+           bins = cut(age, breaks = c(0, 5, 10, 15, 20, 25, 30), right = FALSE, include.lowest = TRUE),
+           bins = as_factor(bins))
+  
+  persistence_df
+
+  
+  
+  
+
+# now, s_dt has gone through the age calculation:
+
+area_raster <- raster::area(s) # calculate area in km2
+area_dt <- as.data.table.raster(area_raster) # convert to data.table
+setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
+
+# merge area to the abn_age_dt, based on the x and y coordinates, 
+ # <- 
+  merge(x = s_dt, y = area_dt, all.x = TRUE, by = c("x", "y"), sort = FALSE)
+
+dt <- merge(x = abn_age_dt[1:100000, ], y = area_dt[1:100000, ], by = c("x", "y"), all = TRUE, sort = FALSE)
+dt[!is.na(pixel_area), ]
+
+nrow(abn_age_dt) + nrow(area_dt)
+
+# 
+
 
 ```
 
