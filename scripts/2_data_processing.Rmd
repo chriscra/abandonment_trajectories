@@ -2315,13 +2315,15 @@ s <- brick(paste0(p_dat_derived, "input_rasters/shaanxi.tif"))
 names(s) <- paste0("y", 1987:2017)
 
 s_dt <- fread(input = paste0(p_dat_derived, "input_data.tables/shaanxi.csv"))
+names(s_dt)
 
 s_dt_age <- copy(s_dt)
 rm(s_dt)
 s_dt_age <- cc_filter_abn_dt_simple(dt = s_dt_age)
 fwrite(s_dt_age, file = paste0(p_dat_derived, "shaanxi_age_", Sys.Date(), ".csv"))
-s_dt_age <- fread(file = paste0(p_dat_derived, "shaanxi_age_2021-03-03.csv"))
 
+s_dt_age <- fread(file = paste0(p_dat_derived, "shaanxi_age_2021-03-03.csv"))
+names(s_dt_age)
 # also:
 # abn_age_dt <- fread(file = paste0(p_dat_derived, "s_dt_test_2021-03-03.csv"))
 
@@ -2405,10 +2407,14 @@ test <- cc_calc_abn_area(abn_age_dt = abn_age_dt, land_cover_raster = s$y1987)
 ```{r update-area_per_lc_abn}
 
 
-area_df_test <- cc_calc_area_per_lc_abn(land_cover_dt = bs_dt, 
+area_df_test_bs <- cc_calc_area_per_lc_abn(land_cover_dt = bs_dt, 
                                         abn_age_dt = abn_age_dt,
                                         land_cover_raster = bs)
 
+area_df_test_s <- cc_calc_area_per_lc_abn(land_cover_dt = s_dt, 
+                                           abn_age_dt = s_dt_age,
+                                           land_cover_raster = s$y1987)
+area_df_test_s
 identical(area_df_test, area_df)
 
 
@@ -2512,6 +2518,9 @@ test1 <- cc_calc_abn_area_diff_new(abn_age_dt = abn_age_dt,
 test2 <- cc_calc_abn_area_diff(abn_age_dt = abn_age_dt, 
                                    land_cover_raster = land_cover_raster)
 
+test3 <- cc_calc_abn_area_diff(abn_age_dt = s_dt_age,
+                               land_cover_raster = s$y1987)
+View(test3)
 
 cc_calc_abn_area_diff_new <- function(abn_age_dt, land_cover_raster,
                                   abandonment_threshold = 5) {
