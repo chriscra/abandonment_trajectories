@@ -295,6 +295,22 @@ These filters, frequently used in remote sensing studies (insert citation here),
 In our case, together with our five year abandonment threshold, these filters have the ultimate effect of minimizing the effect of very short-term misclassifications that would otherwise look like recultivation. 
 We chose to apply this brief recultivation threshold because even just a year or two of cultivation can serve to entirely reset vegetation succession on that piece of land [*needs citation*].
 
+To be more conservative about misclassification of pixels, we also applied modified versions of these five- and eight-year moving window filters to the start of the times series, to address short periods of cropland that may be misclassified.
+By conservatively assuming the years immediately prior to our time series to be classified as non-cropland, we are able to use our moving window filters to exclude additional cases where a one or two year period of cropland may not represent stable cultivation.
+This has the effect of applying a partial threshold on the number of consecutive years of cropland needed at the start of the time series in order to confidently signify agricultural activity, which are required in order to represent abandonment rather than the continuation of previously uncultivated non-cropland.
+These modified filters for the start of the time series affected only a small area, totaling less than X% of pixels at each site.
+
+No special actions were taken on the end of the time series, with the possible effect of erroneously indicating recultivation right at the end of the time series, making our estimates of the length of time abandoned conservative. 
+These edge patterns were very uncommon, however, affecting fewer than X% of pixels at each site. *^[Needs updating]*
+
+Also note: we focused on filtering short-term periods of cropland among long periods of non-cropland, because we are only concerned with instances of misclassifications of cropland. 
+Misclassified short term periods of non-cropland in the middle of cropland do not affect the identification of abandonment, because these would merely represent short-term fallow periods, and therefore are excluded by our five year abandonment threshold.
+We decided to address the edge cases at the start of the time series, rather than the end of the time series, because we prefer to be conservative in excluding lands that may be consistently noncrop lands from our estimate of abandoned lands.
+In contrast, the edge cases at the end of the time series only affect our estimate of the length of time abandoned, because one or two year periods of cropland, if misclassified, may erroneously mark recultivation in the final years of the time series.
+However, we decline to address any potential misclassifications here in order to take the more conservative approach with regards to recultivation.
+
+
+
 We calculate abandonment length as the time (in years) between the year a pixel first transitions from cropland to non-cropland vegetation and the year it transitions back and is classified as recultivated.
 Given our abandonment threshold, the minimum abandonment length is five years.
 Because a given pixel may go through multiple distinct periods of abandonment (being abandoned and recultivated multiple times) throughout the time series, we calculate the mean abandonment length in two ways: 1) incorporating all distinct periods of abandonment, and 2) considering only the longest period of abandonment for each pixel ("maximum abandonment length").
