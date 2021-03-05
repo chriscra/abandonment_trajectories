@@ -1046,7 +1046,7 @@ cc_recode_lc_dt <- function(dt, site, site_df) {
 # -------------------------------------------------------------------------- #
 # save processed data.tables showing age of abandonment as rasters
 # -------------------------------------------------------------------------- #
-cc_save_dt_as_raster <- function(site, type, 
+ cc_save_dt_as_raster <- function(site, type, 
                                  input_path = p_dat_derived,
                                  output_path = p_dat_derived) {
   # load dt
@@ -1084,20 +1084,19 @@ cc_save_dt_as_raster <- function(site, type,
 # -------------------------------------------------------------------------- #
 # calculate the maximum length of time abandoned (max age) for each pixel 
 # -------------------------------------------------------------------------- #
-cc_calc_max_age <- function(directory = p_dat_derived, site, outfile_label, label = NULL) {
+cc_calc_max_age <- function(directory = p_dat_derived, site, run_label) {
   
   tic("load data")
-  abn_age_dt <- fread(file = paste0(directory, site, "_age", outfile_label, ".csv"))
+  abn_age_dt <- fread(file = paste0(directory, site, "_age", run_label, ".csv"))
   toc(log = TRUE)
-  
   
   tic("calculate max age in abn_age_dt")
   abn_age_dt[, max_age := max(.SD), .SDcols = -c("x", "y"), by = .(x, y)]
   toc(log = TRUE)
   
-  cat(fill = TRUE, "Write out max age dt:", paste0(directory, site, "_max_age", outfile_label, label, ".csv"))
+  cat(fill = TRUE, "Write out max age dt:", paste0(directory, site, "_max_age", run_label, ".csv"))
   tic("write out max age dt")
-  fwrite(abn_age_dt[, .(x, y, max_age)], file = paste0(directory, site, "_max_age", outfile_label, label, ".csv"))
+  fwrite(abn_age_dt[, .(x, y, max_age)], file = paste0(directory, site, "_max_age", run_label, ".csv"))
   toc(log = TRUE)
   
 }
@@ -1225,7 +1224,7 @@ cc_filter_abn_dt_simple <- function(dt) {
 cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
                              path = p_dat_derived,
                              pass_temporal_filter = TRUE, filter_edge = TRUE,
-                             outfile_label = format(Sys.time(), "_%Y-%m-%d_%H%M%S"),
+                             run_label = paste0("_", Sys.Date()), # format(Sys.time(), "_%Y-%m-%d_%H%M%S")
                              temporal_filter_replacement_value = 1) {
   
   # Steps:
@@ -1249,7 +1248,7 @@ cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
   #tic("full script processing time")
   cat(fill = TRUE, "cc_filter_abn_dt(): Processing data.table for site: ", site)
   cat(fill = TRUE, "Path: ", path)
-  cat(fill = TRUE, "outfile_label: ", outfile_label)
+  cat(fill = TRUE, "run_label: ", run_label)
   if(pass_temporal_filter) cat(fill = TRUE, "Passing temporal filter, replacing with:", 
                                "temporal_filter_replacement_value =", temporal_filter_replacement_value)
   if(filter_edge) {
@@ -1312,20 +1311,22 @@ cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
   
   # 6. Count the number of cases identified by the temporal filter:
   if(pass_temporal_filter) {
+    tic("count cases identified by temporal filter")
     temporal_filter_counts_l <- cc_temporal_filter_count(dt = dt)
 
     # save files
     save(temporal_filter_counts_l, 
-         file = paste0(output_path, site, "_temporal_filter_counts_l", outfile_label, ".rds"))
+         file = paste0(output_path, site, "_temporal_filter_counts_l", run_label, ".rds"))
+    toc(log = TRUE)
     
     cat(fill = TRUE, "vi. Used cc_temporal_filter_count() to count cases filtered by temporal filter, including edge cases.
-        Wrote resulting list to: ", paste0(output_path, site, "_temporal_filter_counts_l", outfile_label, ".rds"))
+        Wrote resulting list to: ", paste0(output_path, site, "_temporal_filter_counts_l", run_label, ".rds"))
   }
   
   # 7. Pass temporal filter, to address potential cases of misclassification 
   # (five- and eight-year moving windows):
   if(pass_temporal_filter) {
-    
+    tic("pass temporal filter")
     cc_temporal_filter(dt = dt, 
                        replacement_value = temporal_filter_replacement_value, 
                        filter_edge = filter_edge)
@@ -1333,6 +1334,7 @@ cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
     cat(fill = TRUE, "vii. cc_temporal_filter(): passed temporal filter (5 and 8 year moving windows),
         with replacement value (", temporal_filter_replacement_value, ").", "Note:",
         if(filter_edge) {"also filtered edge cases (beginning only)."} else {"did not filter edge cases."})
+    toc(log = TRUE)
     
   } else {
     warning("vi & vii. Did not pass temporal filters or count cases.")
@@ -1351,9 +1353,9 @@ cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
   toc(log = TRUE)
   
   # 10. Write out cleaned abandonment age data.table
-  cat(fill = TRUE, "x. Write out cleaned abandonment age data.table to:", paste0(path, site, "_age", outfile_label,".csv"))
+  cat(fill = TRUE, "x. Write out cleaned abandonment age data.table to:", paste0(path, site, "_age", run_label,".csv"))
   tic("wrote out cleaned abandonment age data.table")
-  fwrite(dt, file = paste0(path, site, "_age", outfile_label,".csv"))
+  fwrite(dt, file = paste0(path, site, "_age", run_label,".csv"))
   toc(log = TRUE)
   
   # 11. Make diff data.table, each year subtracted by the previous year
@@ -1364,9 +1366,9 @@ cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
   toc(log = TRUE)
   
   # 12. Write out dt_diff
-  cat(fill = TRUE, "xii. Write out dt_diff to:", paste0(path, site, "_diff", outfile_label,".csv"))
+  cat(fill = TRUE, "xii. Write out dt_diff to:", paste0(path, site, "_diff", run_label,".csv"))
   tic("write out dt_diff")
-  fwrite(dt_diff, file = paste0(path, site, "_diff", outfile_label,".csv"))
+  fwrite(dt_diff, file = paste0(path, site, "_diff", run_label,".csv"))
   toc(log = TRUE)
   
   # 13. Extract the length of each period of abandonment
@@ -1376,13 +1378,13 @@ cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
   toc(log = TRUE)
   
   # 14. Create a data.table listing the lengths, write to file.
-  cat(fill = TRUE, "xiv. Create a data.table listing the lengths, write to:", paste0(path, site, "_length", outfile_label,".csv"))
+  cat(fill = TRUE, "xiv. Create a data.table listing the lengths, write to:", paste0(path, site, "_length", run_label,".csv"))
   tic("created data.table of lengths")
   length <- data.table(length = length)
   toc(log = TRUE)
   
   tic("wrote out length data.table")
-  fwrite(length, file = paste0(path, site, "_length", outfile_label,".csv"))
+  fwrite(length, file = paste0(path, site, "_length", run_label,".csv"))
   toc(log = TRUE)
   
 
@@ -1742,9 +1744,9 @@ cc_calc_persistence <- function(abn_age_dt,
 
 
 # ------------------------------------------------------------------------------------ #
-# calculate gains and losses of abandoned land over time
+# calculate gains and losses of abandoned land over time (turnover)
 # ------------------------------------------------------------------------------------ #
-cc_calc_abn_area_diff <- function(abn_age_dt, land_cover_raster,
+cc_calc_abn_diff <- function(abn_age_dt, land_cover_raster,
                                   abandonment_threshold = 5) {
   
   area_raster <- raster::area(land_cover_raster) # calculate area in km2
@@ -1843,14 +1845,14 @@ cc_calc_abn_area_diff <- function(abn_age_dt, land_cover_raster,
     filter(area_ha < 0) %>%
     summarise(loss = sum(area_ha))
   
-  abn_area_change_df <- abn_area_net %>% 
+  turnover_df <- abn_area_net %>% 
     full_join(., abn_area_gain, by = "year") %>%
     full_join(., abn_area_loss, by = "year") %>%
     pivot_longer(cols = c("net", "gain", "loss"),
                  names_to = "change", values_to = "area_ha",
                  values_drop_na = TRUE)
   
-  abn_area_change_df
+  turnover_df
   
 }
 
@@ -1864,22 +1866,19 @@ cc_calc_abn_area_diff <- function(abn_age_dt, land_cover_raster,
 cc_summarize_abn_dts <- function(input_path,
                                  output_path,
                                  site,
-                                 outfile_label = "_b1",
-                                 # land_cover_dt,
-                                 # abn_age_dt, 
-                                 # land_cover_raster,
+                                 run_label = paste0("_", Sys.Date()),
                                  abandonment_threshold = 5,
                                  include_all = FALSE) {
   cat(fill = TRUE, "cc_summarize_abn_dts(): Summarizing results for site: ", site)
   cat(fill = TRUE, "input_path: ", input_path)
   cat(fill = TRUE, "output_path: ", output_path)
-  cat(fill = TRUE, "outfile_label: ", outfile_label)
+  cat(fill = TRUE, "run_label: ", run_label)
   cat(fill = TRUE, "abandonment_threshold: >=" , abandonment_threshold)
 
   # load files:
   lc_r <- raster(paste0(input_path, site, ".tif"))
   lc_dt <- fread(input = paste0(input_path, site, ".csv")) 
-  age_dt <- fread(input = paste0(input_path, site, "_age", outfile_label, ".csv"))
+  age_dt <- fread(input = paste0(input_path, site, "_age", run_label, ".csv"))
   
   cat("calculating total area in each land cover class, and that is abandoned (for at least as long as the abandonment threshold), over time.", fill = TRUE)
   # ------------- calculate total area per lc, with abandonment ---------------- #
@@ -1896,27 +1895,27 @@ cc_summarize_abn_dts <- function(input_path,
   
   cat("calculate abandonment area turnover", fill = TRUE)
   # -------------------- calculate the abandonment area turnover ------------------- #
-  abn_area_change <- cc_calc_abn_area_diff(abn_age_dt = age_dt, 
+  turnover <- cc_calc_abn_diff(abn_age_dt = age_dt, 
                                            land_cover_raster = lc_r,
                                            abandonment_threshold = abandonment_threshold)
   
   # save individual results_df
-  write_csv(area, file = paste0(path, site, "_result_area", outfile_label,".csv"))
-  write_csv(persistence, file = paste0(path, site, "_result_persistence", outfile_label,".csv"))
-  write_csv(abn_area_change, file = paste0(path, site, "_result_abn_area_change", outfile_label,".csv"))
+  write_csv(area, file = paste0(path, site, "_result_area", run_label,".csv"))
+  write_csv(persistence, file = paste0(path, site, "_result_persistence", run_label,".csv"))
+  write_csv(turnover, file = paste0(path, site, "_result_turnover", run_label,".csv"))
   
   # updating object names names
-  assign(paste0("area", outfile_label), area)
-  assign(paste0("persistence", outfile_label), persistence)
-  assign(paste0("abn_area_change", outfile_label), abn_area_change)
+  assign(paste0("area", run_label), area)
+  assign(paste0("persistence", run_label), persistence)
+  assign(paste0("turnover", run_label), turnover)
   
-  cat("saving files:", paste0(output_path, site, "_result_dfs", outfile_label, ".rds"), fill = TRUE)
+  cat("saving files:", paste0(output_path, site, "_result_dfs", run_label, ".rds"), fill = TRUE)
   # save files
-  save(list = c(paste0("area", outfile_label), 
-                paste0("persistence", outfile_label),
-                paste0("abn_area_change", outfile_label)
+  save(list = c(paste0("area", run_label), 
+                paste0("persistence", run_label),
+                paste0("turnover", run_label)
                 ), 
-       file = paste0(output_path, site, "_result_dfs", outfile_label, ".rds")
+       file = paste0(output_path, site, "_result_dfs", run_label, ".rds")
        )
 }
 
@@ -2092,7 +2091,7 @@ cc_save_plot_area_gain_loss <- function(input_area_change_df, subtitle, outfile_
                                         output_path) {
   
   # gain, loss, and net change in abandoned area, over time
-  gg_abn_area_change_base <- ggplot() + 
+  gg_turnover_base <- ggplot() + 
     theme_classic() + 
     labs(y = expression("Change in area abandoned (10"^{3}*" ha)"), 
          x = "Year", 
@@ -2106,7 +2105,7 @@ cc_save_plot_area_gain_loss <- function(input_area_change_df, subtitle, outfile_
                       labels = c("Area Gained", "Area Lost")) + 
     theme(legend.position = "bottom")
   
-  gg_abn_area_change <- gg_abn_area_change_base +
+  gg_turnover <- gg_turnover_base +
     geom_col(data = filter(input_area_change_df, change != "net"),
              mapping = aes(x = year, y = area_ha / (10^3), 
                            group = change, fill = change)) + 
@@ -2114,27 +2113,28 @@ cc_save_plot_area_gain_loss <- function(input_area_change_df, subtitle, outfile_
               mapping = aes(x = year, y = area_ha / (10^3), color = "Net Change in Area"),
               size = 1.5)
   
-  gg_abn_area_change_all <- gg_abn_area_change_base +
-    geom_col(data = filter(input_area_change_df, change != "net"),
-             mapping = aes(x = year, y = area_ha_all / (10^3), 
-                           group = change, fill = change)) + 
-    geom_line(data = filter(input_area_change_df, change == "net"),
-              mapping = aes(x = year, y = area_ha_all / (10^3), color = "Net Change in Area"),
-              size = 1.5)
-  
+  if(save_all){
+    gg_turnover_all <- gg_turnover_base +
+      geom_col(data = filter(input_area_change_df, change != "net"),
+               mapping = aes(x = year, y = area_ha_all / (10^3), 
+                             group = change, fill = change)) + 
+      geom_line(data = filter(input_area_change_df, change == "net"),
+                mapping = aes(x = year, y = area_ha_all / (10^3), color = "Net Change in Area"),
+                size = 1.5)
+  }
   
   # save to file
-  png(filename = paste0(output_path, "abn_area_change", outfile_label, ".png"), 
+  png(filename = paste0(output_path, "turnover", outfile_label, ".png"), 
       width = width, height = height, units = "in", res = 400)
-  print(gg_abn_area_change)
+  print(gg_turnover)
   dev.off()
   
   
   # save plots with all abandonment cells, regardless of abandonment threshold
   if(save_all) {
-    png(filename = paste0(output_path, "abn_area_change_all", outfile_label, ".png"), 
+    png(filename = paste0(output_path, "turnover_all", outfile_label, ".png"), 
         width = width, height = height, units = "in", res = 400)
-    print(gg_abn_area_change_all)
+    print(gg_turnover_all)
     dev.off()
   }
   
@@ -2144,12 +2144,12 @@ cc_save_plot_area_gain_loss <- function(input_area_change_df, subtitle, outfile_
 # ------------------------------------------------------------------------------------ #
 # plot area of abandonment, by age class
 # ------------------------------------------------------------------------------------ #
-cc_save_plot_area_by_age_class <- function(input_list, subtitle, outfile_label,
+cc_save_plot_area_by_age_class <- function(persistence_df, subtitle, outfile_label,
                                            width = 7, height = 5,
                                            save_all = TRUE,
                                            output_path) {
   
-  age_class_base <- ggplot(data = input_list$na_first) + 
+  age_class_base <- ggplot(data = persistence_df) + 
     theme_classic() +
     labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
          x = "Year", 
@@ -2206,17 +2206,17 @@ cc_save_plot_area_by_age_class <- function(input_list, subtitle, outfile_label,
 cc_save_area_persistence_plots <- function(input_path, 
                                            output_path,
                                            site_label,
+                                           run_label,
                                            outfile_label,
                                            subtitle, 
                                            subtitle_all = paste0(subtitle, ", all abandonment"), 
                                            save_all = TRUE) {
   
   # load the data
-  load(file = paste0(input_path, "abn_dat_products", outfile_label, site_label, ".rds"), verbose = TRUE)
-  
-  
+  load(file = paste0(input_path, site, "_result_dfs", run_label, ".rds"), verbose = TRUE)
+
   # ------------- calculate total area per lc, with abandonment ---------------- #
-  cc_save_plot_lc_abn_area(input_area_df = eval(parse(text = paste0("area", outfile_label, site_label))), 
+  cc_save_plot_lc_abn_area(input_area_df = eval(parse(text = paste0("area", run_label))), 
                            subtitle = subtitle, outfile_label = outfile_label,
                            save_all = save_all,
                            output_path = output_path,
@@ -2224,7 +2224,7 @@ cc_save_area_persistence_plots <- function(input_path,
   
   
   # ------------------------ abandonment persistence --------------------------- #
-  cc_save_plot_abn_persistence(input_list = eval(parse(text = paste0("persistence_list", outfile_label, site_label))), 
+  cc_save_plot_abn_persistence(input_list = eval(parse(text = paste0("persistence", run_label))), 
                                subtitle = subtitle, outfile_label = outfile_label,
                                save_all = save_all, subtitle_all = subtitle_all,
                                output_path = output_path,
@@ -2232,7 +2232,7 @@ cc_save_area_persistence_plots <- function(input_path,
   
   
   # -------------------- calculate the abandonment area turnover ------------------- #
-  cc_save_plot_area_gain_loss(input_area_change_df = eval(parse(text = paste0("abn_area_change", outfile_label, site_label))), 
+  cc_save_plot_area_gain_loss(input_area_change_df = eval(parse(text = paste0("turnover", run_label))), 
                               subtitle = subtitle, outfile_label = outfile_label,
                               save_all = save_all,
                               subtitle_all = subtitle_all,
@@ -2241,7 +2241,7 @@ cc_save_area_persistence_plots <- function(input_path,
   
   
   # -------------------- plot abandonment area by age class ------------------- #
-  cc_save_plot_area_by_age_class(input_list = eval(parse(text = paste0("persistence_list", outfile_label, site_label))), 
+  cc_save_plot_area_by_age_class(input_list = eval(parse(text = paste0("persistence", run_label))), 
                                  subtitle = subtitle, outfile_label = outfile_label,
                                  save_all = save_all,
                                  output_path = output_path,

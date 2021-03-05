@@ -125,6 +125,9 @@ area_b1_s
 persistence_list_b1_s
 abn_area_change_b1_s
 
+# note, on 3/4/21 I made the following changes:
+# replace abn_area_change with turnover
+# replace abn_area_diff with abn_diff
 
 
 ```

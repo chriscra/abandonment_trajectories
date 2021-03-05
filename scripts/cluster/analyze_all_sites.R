@@ -66,14 +66,6 @@ site_label <- site_df$label[indx] # set label
 blip_label <- "_b1" # remove this - unnecessary with the timestamp.
 label <- NULL # for calculating the max age
 
-
-# time stamp
-time_stamp <- format(Sys.time(), "%Y-%m-%d_%H%M%S")
-
-outfile_label <- paste0(blip_label, site_label, time_stamp)
-
-
-
 cat("Set up site parameters:\n")
 print(t(site_df[indx, ]))
 

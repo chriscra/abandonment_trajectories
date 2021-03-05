@@ -2535,6 +2535,41 @@ test3 <- cc_calc_abn_area_diff(abn_age_dt = s_dt_age,
                                land_cover_raster = s$y1987)
 View(test3)
 
+# plot
+gg_turnover_base <- ggplot() + 
+    theme_classic() + 
+    labs(y = expression("Change in area abandoned (10"^{3}*" ha)"), 
+         x = "Year", 
+         title = "Change in Area of Abandoned Land",
+         fill = NULL, #"Change in Area",
+         color = NULL) + 
+    scale_color_manual(values = c("black"),
+                       labels = "Net Change in Area") + 
+    scale_fill_manual(values = brewer_pal(palette = "Greens")(5)[3:2],
+                      labels = c("Area Gained", "Area Lost")) + 
+    theme(legend.position = "bottom")
+  
+  gg_turnover <- gg_turnover_base +
+    geom_col(data = filter(test3, change != "net"),
+             mapping = aes(x = year, y = area_ha / (10^3), 
+                           group = change, fill = change)) + 
+    geom_line(data = filter(test3, change == "net"),
+              mapping = aes(x = year, y = area_ha / (10^3), color = "Net Change in Area"),
+              size = 1.5)
+  
+  gg_turnover_all <- gg_turnover_base +
+    geom_col(data = filter(test3, change != "net"),
+             mapping = aes(x = year, y = area_ha_all / (10^3), 
+                           group = change, fill = change)) + 
+    geom_line(data = filter(test3, change == "net"),
+              mapping = aes(x = year, y = area_ha_all / (10^3), color = "Net Change in Area"),
+              size = 1.5)
+  
+
+
+
+# # # # #
+
 cc_calc_abn_area_diff_new <- function(abn_age_dt, land_cover_raster,
                                   abandonment_threshold = 5) {
   
@@ -2615,7 +2650,7 @@ cc_calc_abn_area_diff_new <- function(abn_age_dt, land_cover_raster,
     filter(area_ha < 0) %>%
     summarise(loss = sum(area_ha)) # update here
 
-  abn_area_change_df <- abn_area_net %>% 
+  turnover_df <- abn_area_net %>% 
     full_join(., abn_area_gain, by = "year") %>%
     full_join(., abn_area_loss, by = "year") %>%
     pivot_longer(cols = c("net", "gain", "loss"),
@@ -2624,7 +2659,7 @@ cc_calc_abn_area_diff_new <- function(abn_age_dt, land_cover_raster,
                  values_drop_na = TRUE) # %>%
     # mutate(area_ha = count * median_cell_area_km2 * 100)  # old method for calculate area 
   
-  abn_area_change_df
+  turnover_df
   
 }
 
@@ -2766,13 +2801,78 @@ s_test_old
 
 
 tic()
-s_test_new <- cc_calc_persistence_new(abn_age_dt = abn_age_dt, 
+s_test_new <- cc_calc_persistence(abn_age_dt = s_dt_age, 
                                       land_cover_raster = s$y1987)
 toc()
+
 
 persistence_list_b1_s
 persistence_list_b1_s$na_first
 persistence_list_b1_s$na_last
+
+gg_base <- ggplot(data = s_test_new) + 
+  theme_classic() + 
+  labs(title = "Persistence of Abandoned Land",
+       color = "Year Abandoned") + 
+  scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
+  theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
+
+# raw area
+gg_persistence_count <- gg_base + 
+  geom_line(mapping = aes(x = age, y = area_ha / 10^3,
+                          group = year_abn, color = year_abn), 
+            size = 1.25) + 
+  labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
+       x = "Years since initial abandonment")
+  
+# as percentage
+gg_persistence_proportion <- gg_base + 
+  geom_line(mapping = aes(x = age, y = proportion,
+                          group = year_abn, color = year_abn), 
+            size = 1.25) + 
+  labs(y = "Proportion remaining abandoned", 
+       x = "Years since initial abandonment")
+
+# na_first ----------- #
+gg_persistence_count_na_first <- gg_base + 
+  geom_line(mapping = aes(x = year, y = area_ha / 10^3,
+                          group = year_abn, color = year_abn), 
+            size = 1.25) + 
+  labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
+       x = "Year")
+
+gg_persistence_proportion_na_first <- gg_base + 
+  geom_line(mapping = aes(x = year, y = proportion,
+                          group = year_abn, color = year_abn), 
+            size = 1.25) + 
+  labs(y = "Proportion remaining abandoned", 
+       x = "Year")
+
+
+
+
+
+# by age class:
+age_class_base <- ggplot(data = s_test_new) + 
+    theme_classic() +
+    labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
+         x = "Year", 
+         title = "Area of Abandoned Land, by Age Class",
+         fill = "Age") 
+
+age_class_base +
+    geom_col(mapping = aes(x = year, y = area_ha / 10^3, group = age, fill = age),
+             position = position_stack(reverse = TRUE)
+    ) + 
+    scale_fill_distiller(palette = "Greens", direction = 1)
+  
+  
+age_class_base +
+    geom_col(mapping = aes(x = year, y = area_ha / 10^3, group = bins, fill = bins),
+             position = position_stack(reverse = TRUE)
+    ) +
+    scale_fill_brewer(palette = "Greens", direction = 1) 
+  
 ```
 
 
@@ -2840,6 +2940,9 @@ toc()
 # with the rounding added, it now works:
 sdt_test3
 test2
+
+# swap abn_area_change for turnover
+# swap abn_area_diff for abn_diff
 
 left_join(rename(sdt_test3, area_new = area_ha), test2, by = c("year", "year_abn")) %>%
   mutate(diff = area_new - area_ha,
