@@ -99,8 +99,8 @@ cc_filter_abn_dt(site = site,
 # -------------------------------------------------------- #
 # 2. Calculate maximum age, serial ----
 cat("2. Calculate maximum age, in serial:", site, fill = TRUE)
-cc_calc_max_age(directory = p_input_rasters, 
-                site = site, 
+cc_calc_max_age(directory = p_input_rasters,
+                site = site,
                 run_label = run_label)
 
 
@@ -118,9 +118,9 @@ cat("types of data.tables to save as rasters:", fill = TRUE)
 print(dt_ids)
 
 for (i in dt_ids) {
-  cc_save_dt_as_raster(site = site, 
-                       type = i, 
-                       input_path = p_input_rasters, 
+  cc_save_dt_as_raster(site = site,
+                       type = i,
+                       input_path = p_input_rasters,
                        output_path = p_input_rasters)
 }
 
@@ -149,8 +149,7 @@ cc_summarize_abn_dts(
   input_path = p_input_rasters,
   output_path = p_input_rasters, # could also be p_output, this is just where the .rds goes.
   site = site,
-  blip_label = blip_label,
-  outfile_label = outfile_label,
+  run_label = run_label,
   abandonment_threshold = 5,
   include_all = TRUE
 )

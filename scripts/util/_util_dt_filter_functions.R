@@ -1316,11 +1316,11 @@ cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
 
     # save files
     save(temporal_filter_counts_l, 
-         file = paste0(output_path, site, "_temporal_filter_counts_l", run_label, ".rds"))
+         file = paste0(path, site, "_temporal_filter_counts_l", run_label, ".rds"))
     toc(log = TRUE)
     
     cat(fill = TRUE, "vi. Used cc_temporal_filter_count() to count cases filtered by temporal filter, including edge cases.
-        Wrote resulting list to: ", paste0(output_path, site, "_temporal_filter_counts_l", run_label, ".rds"))
+        Wrote resulting list to: ", paste0(path, site, "_temporal_filter_counts_l", run_label, ".rds"))
   }
   
   # 7. Pass temporal filter, to address potential cases of misclassification 
@@ -1900,9 +1900,9 @@ cc_summarize_abn_dts <- function(input_path,
                                            abandonment_threshold = abandonment_threshold)
   
   # save individual results_df
-  write_csv(area, file = paste0(path, site, "_result_area", run_label,".csv"))
-  write_csv(persistence, file = paste0(path, site, "_result_persistence", run_label,".csv"))
-  write_csv(turnover, file = paste0(path, site, "_result_turnover", run_label,".csv"))
+  write_csv(area, file = paste0(output_path, site, "_result_area", run_label,".csv"))
+  write_csv(persistence, file = paste0(output_path, site, "_result_persistence", run_label,".csv"))
+  write_csv(turnover, file = paste0(output_path, site, "_result_turnover", run_label,".csv"))
   
   # updating object names names
   assign(paste0("area", run_label), area)
