@@ -1708,8 +1708,7 @@ ggplot(data = blips_df, # filter(blips_df, site == "shaanxi"),
        y = "Count (100,000)", x = "Year", color = "Threshold \n(Years)",
        caption = "Passing temporal filter on recultivation: 1-0-1, 1-0-0-1, vs. 1-0-0-0-1") + 
   geom_point(size = 1.5, alpha = 0.7) + 
-  facet_wrap(vars(site), scales = "free_y") + 
-  theme(legend.position = )
+  facet_wrap(vars(site), scales = "free_y")
 
 dev.off()
 
@@ -2292,6 +2291,79 @@ tic()
 cc_temporal_filter_edge(dt = s_dt, replacement_value = -7)
 toc()
 s_dt[]
+```
+
+```{r check-temporal-filter-counts}
+# note that in the run: _2021-03-05, the temporal filter counter calculated the percent_affected without multiplying by 100, so percent_affected = value/nrow(dt), and therefore, nrow(dt) = value/percent_affected
+
+percent_affected_df <- 
+  lapply(site_df$site, function(x) {
+    # load the counts list
+    load(file = paste0(p_dat_derived, run_label, "/", x, 
+                       "_temporal_filter_counts_l", run_label, ".rds"), verbose = TRUE)
+    
+    cat(fill = TRUE, 
+        "digits:", 
+        temporal_filter_counts_l$edge_nrow_affected %>%
+               mutate(nrow = value/percent_affected) %>% 
+               .$nrow %>% unique())
+    
+    percent_affected_df <- 
+      bind_rows(temporal_filter_counts_l$nrow_affected,
+                temporal_filter_counts_l$edge_nrow_affected %>% 
+                  filter(edge == "start") %>% 
+                  select(filter = edge, nrow_affected = value)
+                ) %>%
+      mutate(site = x,
+             nrow_abn = temporal_filter_counts_l$edge_nrow_affected %>%
+               mutate(nrow = value/percent_affected) %>% 
+               .$nrow %>% round(digits = 0) %>% unique(),
+             # percent_affected = 100 * nrow_affected/nrow
+             ) %>% 
+      as_tibble() %>% mutate(filter = recode(filter, 
+                                             "start" = "starting_edge"))
+    
+    percent_affected_df
+    
+}) %>% bind_rows()
+
+site_df_w_size <- read_csv(file = "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/site_df_w_size.csv") 
+
+percent_affected_df <- percent_affected_df %>% 
+  left_join(. , select(site_df_w_size, site, nrow_total = ncell)) %>%
+  pivot_longer(cols = c("nrow_abn", "nrow_total"), 
+               names_to = "relative_to", names_prefix = "nrow_", 
+               values_to = "nrow") %>%
+  mutate(percent_affected = 100 * nrow_affected/nrow)
+
+gg_temp_filter_counts <- 
+  ggplot(data = percent_affected_df# %>% filter(filter %in% c("either", "starting_edge"))
+         ,
+       mapping = aes(x = fct_reorder(site, percent_affected), y = percent_affected, color = filter)) +
+  geom_point() +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 340, vjust = 1, hjust = 0)) + 
+  labs(x = "Site", y = "Percent of abandoned pixels affected by filters",
+       title = "Scope of pixels affected by moving window temporal filters") + 
+  scale_colour_discrete(labels = c(
+    eight_yr = "8-year filter",
+    five_yr = "5-year filter",
+    either = "Either 5- or 8-year filters", 
+    starting_edge = "Starting edge filter")) + 
+  facet_grid(rows = vars(relative_to), scales = "free_y", 
+             labeller = labeller(relative_to = c(abn = "Relative to abandoned pixels", #old = "new",
+                                                 total = "Relative to total pixels")))
+
+# save
+png(filename = paste0(p_output, "plots/", run_label, "/temp_filter_counts_plot_full.png"), 
+    width = 8, height = 6, units = "in", res = 400)
+print(gg_temp_filter_counts)
+dev.off()
+
+
+# 
+percent_affected_df %>% group_by(filter, relative_to) %>% summarize(max = max(percent_affected))
+
 ```
 
 
