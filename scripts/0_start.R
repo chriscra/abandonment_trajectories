@@ -7,15 +7,14 @@
 
 p_proj <- "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/"
 
-# load other util scripts
+# load other util scripts ----
 source(paste0(p_proj, "scripts/util/_util_misc_functions.R"))
 source(paste0(p_proj, "scripts/util/_util_pathnames.R"))
-source(paste0(p_proj, "scripts/util/_util_spatial_functions.R"))
 source(paste0(p_proj, "scripts/util/_util_dt_filter_functions.R"))
 
 
 # ------------------------- #
-# list the needed packages and load the libraries
+# list the needed packages and load the libraries ----
 # ------------------------- #
 
 needed_packages <- c(
@@ -32,7 +31,7 @@ needed_packages <- c(
   "lamW", # to calculate the Lambert's W function, for calculating time to various proportions in abn decay models
   
   # visualization:
-  "rasterVis", "RColorBrewer", "viridis", "scales",
+  "rasterVis", "RColorBrewer", "viridis", "scales", "colorspace",
   "patchwork", "cowplot", # for combining multiple plots
   "animation", "magick", "ggrepel",
   "plotly", # plotly makes interactive graphics!
@@ -84,7 +83,7 @@ install_missing_packages(needed_packages)
 
 
 # ------------------------- #
-# Additional development packages, to be installed with devtools:
+# Additional development packages, to be installed with devtools: ----
 # ------------------------- #
 
 # ---- #
@@ -104,12 +103,23 @@ install_missing_packages(needed_packages)
 # others
 # devtools::install_github('BigelowLab/dismotools')
 
+# colorblindr 
+# remotes::install_github("wilkelab/cowplot")
+# remotes::install_github("clauswilke/colorblindr")
+
 # ---- #
 # load
 github_packages <- c(
   "dtraster", "lmisc", "agroEcoTradeoff",
   "rnaturalearthdata", "rnaturalearthhires",
-  "dismotools")
+  "dismotools", 
+  "cowplot", 
+  "colorblindr")
 
 github_packages_inst <- sapply(github_packages, library, character.only = TRUE) # load them
+
+
+
+# ----- load other functions ----
+source(paste0(p_proj, "scripts/util/_util_spatial_functions.R"))
 
