@@ -225,44 +225,62 @@ library(tidyr, data.table)
 ```
 
 ```{r dat-all-sites}
-dat_l <- lapply(1:11, FUN = function(x) {
-  site <- site_df$site[x] # set site:
-  site_label <- site_df$label[x] # set label
+run_label <- "_2021-03-05"
 
-  load(file = paste0(p_output, "abn_dat_products", blip_label, site_label, ".rds"), verbose = TRUE)
-  assign("dat", eval(parse(text = paste0("persistence_list", blip_label, site_label)))[["na_first"]])
-  dat <- left_join(dat,
-                   dat %>% filter(age == 5) %>% select(year_abn, initial_area_abn = area_ha), 
-                   by = "year_abn") %>%
-    mutate(year_abn_bins = cut(year_abn, breaks = 5, include.lowest = TRUE)) %>%
-    mutate(year_abn_bins = as_factor(year_abn_bins), # convert both to factors
-           time = age - 5,
-           time_1 = time + 1,
-           cohort = factor(year_abn)) 
-  })
+# find file path names to persistence data.frames:
+persistence_file_paths <- list.files(path = paste0(p_dat_derived, run_label)) %>% 
+  grep("pers", ., value = TRUE)
+
+# load csvs into a list
+dat_l <- lapply(persistence_file_paths, function(i) {
+  read.csv(file = paste0(p_dat_derived, run_label, "/", i))
+})
+
+# old, for "_b1", loading .rds, assigning 
+# run_label <- "_b1"
+# dat_l <- lapply(1:11, FUN = function(x) {
+#   load(file = paste0(p_output, "abn_dat_products", run_label, site_df$label[x], ".rds"), verbose = TRUE)
+#   # extract just one data.frame
+#   assign("dat", eval(parse(text = paste0("persistence_list", run_label, site_df$label[x])))[["na_first"]])
+#   })
 
 names(dat_l) <- site_df$site
-dat_l <- dat_l %>% bind_rows(.id = "site")
+dat_l <- dat_l %>% bind_rows(.id = "site") %>% as_tibble()
 
-dat_l <- mutate(dat_l, site = as_factor(site))
+dat_l <- left_join(dat_l,
+            dat_l %>% filter(age == 5) %>% select(site, year_abn, initial_area_abn = area_ha), 
+            by = c("site", "year_abn")) %>%
+  mutate(year_abn_bins = cut(year_abn, breaks = 5, include.lowest = TRUE)) %>%
+  mutate(year_abn_bins = as_factor(year_abn_bins), # convert both to factors
+         time = age - 5,
+         time_1 = time + 1,
+         cohort = factor(year_abn)) %>% 
+  mutate(site = as_factor(site)) %>%
+  filter(!is.na(proportion)) # remove all na proportions
 
 dat_l_0 <- select(dat_l, site, time_1, age, initial_area_abn, cohort, year_abn) # for predictions
 
-object_size(dat_l)
-glimpse(dat_l)
+write_csv(dat_l, path = paste0(p_dat_derived, "abn_decay_data", run_label, ".csv"))
 
-write_csv(dat_l, path = paste0(p_dat_derived, "abn_decay_data.csv"))
+# when is the first year abandonment can take place?
+dat_l %>% filter(area_ha > 0) %>% group_by(site) %>% summarize(first_year = min(year_abn))
 
+
+
+# ------------------------------------------ #
 # when reloading, must restructure factors:
-dat_l <- read_csv(file = paste0(p_dat_derived, "abn_decay_data.csv"))
-dat_l <- mutate(dat_l, 
-                site = as.factor(site),
-                bins = as.factor(bins),
-                year_abn_bins = as.factor(year_abn_bins),
-                cohort = as.factor(cohort))
+
+# run_label <- "_2021-03-05"
+# run_label <- "_b1"
+
+dat_l <- read_csv(file = paste0(p_dat_derived, "abn_decay_data", run_label, ".csv")) %>%
+  mutate(site = as.factor(site),
+         bins = as.factor(bins),
+         year_abn_bins = as.factor(year_abn_bins),
+         cohort = as.factor(cohort))
+
 
 ```
-
 
 ```{r run-lm-all-sites}
 # run lms for each site individually, store in lists.
@@ -293,7 +311,6 @@ lm_lin_log_lin_l <- lapply(1:11, FUN = function(i) {
                data = filter(dat_l, #year_abn < 2011, 
                              site == site_df$site[i]))
 })
-
 
 # log-log model, without cohort fixed effects
 lm_log2_no_cohort_l <- lapply(1:11, FUN = function(i) {
@@ -342,7 +359,14 @@ names(lm_0_l) <- site_df$site
 # ------------------------------------------------ #
 # linear-log-linear model, with cohort fixed effects
 # ------------------------------------------------ #
-i <- 1
+i <- 9
+
+# create directory, if it doesn't exist for this run yet:
+run_label <- "_b1"
+if(!dir.exists(paste0(p_plots, run_label, "/decay/"))) {
+  dir.create(paste0(p_plots, run_label,  "/decay/"))
+}
+
 # save plots:
 for (i in 1:11) {
   # calculate and extract mean coef estimates:
@@ -381,7 +405,7 @@ for (i in 1:11) {
       mapping = aes(linetype = "Mean Decay Rate"),
       color = "blue", size = 1, inherit.aes = FALSE)
   
-  png(filename = paste0(p_output, "plots/l3_cohort", site_df$label[i], ".png"), 
+  png(filename = paste0(p_plots, run_label, "/decay/", "l3_cohort", run_label, site_df$label[i], ".png"), 
     width = 8, height = 6, units = "in", res = 400)
   print(gg_lin_log_lin_cohort_tmp)
   dev.off()
@@ -421,7 +445,7 @@ for (i in 1:11) {
                   mapping = aes(linetype = "Mean Decay Rate"),
                   color = "blue", size = 1, inherit.aes = FALSE)
   
-  png(filename = paste0(p_output, "plots/lin-log_cohort", site_df$label[i], ".png"), 
+  png(filename = paste0(p_plots, run_label, "/decay/", "lin-log_cohort", run_label, site_df$label[i], ".png"), 
     width = 8, height = 6, units = "in", res = 400)
   print(gg_lin_log_cohort_tmp)
   dev.off()
@@ -459,14 +483,15 @@ for (i in 1:11) {
                   mapping = aes(linetype = "Mean Decay Rate"),
                   color = "blue", size = 1, inherit.aes = FALSE)
   
-  png(filename = paste0(p_output, "plots/log2_cohort", site_df$label[i], ".png"), 
+  png(filename = paste0(p_plots, run_label, "/decay/", "log2_cohort", run_label, site_df$label[i], ".png"), 
     width = 8, height = 6, units = "in", res = 400)
   print(gg_log2_cohort_tmp)
   dev.off()
   
 }
 
-
+# start here:
+# p_plots, run_label, "/decay/"
 
 
 
@@ -540,7 +565,7 @@ for (i in 1:11) {
   y_ranges <- c(ggplot_build(gg_log2_cohort_tmp)$layout$panel_params[[1]]$y.range, 
                 ggplot_build(gg_lin_log_lin_cohort_tmp)$layout$panel_params[[1]]$y.range)
   
-  png(filename = paste0(p_output, "plots/l3_log2_combo", site_df$label[i], "_2.png"), 
+  png(filename = paste0(p_plots, run_label, "/decay/", "l3_log2_combo", run_label, site_df$label[i], "_2.png"), 
     width = 11, height = 6, units = "in", res = 400)
   
   print(
@@ -704,7 +729,7 @@ for (i in 1:11) {
   y_ranges <- c(ggplot_build(gg_log2_cohort_tmp)$layout$panel_params[[1]]$y.range, 
                 ggplot_build(gg_lin_log_lin_cohort_tmp)$layout$panel_params[[1]]$y.range)
   
-  png(filename = paste0(p_output, "plots/l3_log2_combo_extrapolation", site_df$label[i], ".png"), 
+  png(filename = paste0(p_plots, run_label, "/decay/", "l3_log2_combo_extrapolation", run_label, site_df$label[i], ".png"), 
     width = 13, height = 7.5, units = "in", res = 400)
   
   print(plot_grid(gg_log2_cohort_tmp + theme(legend.position = "none"), 
@@ -775,7 +800,7 @@ gg_AIC <- ggplot(data = mod_AIC,
 
 
 # Save png
-png(filename = paste0(p_output, "plots/mod_AIC_plot.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "mod_AIC_plot", run_label, ".png"), 
     width = 10, height = 5, units = "in", res = 400)
 print(gg_AIC)
 dev.off()
@@ -833,7 +858,7 @@ gg_nebraska_log_lin <- ggplot(mapping = aes(x = age, y = proportion, group = yea
 
 
 # save the plot
-png(filename = paste0(p_output, "plots/nebraska_log2_log_lin.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "nebraska_log2_log_lin", run_label, ".png"), 
     width = 10, height = 5, units = "in", res = 400)
 print(plot_grid(gg_nebraska_log2, gg_nebraska_log_lin + theme(legend.position = "none"),
                 rel_widths = c(1.4, 1)))
@@ -892,13 +917,13 @@ lm_log2_no_cohort_l$shaanxi
 # ------------------------------------------------ #
 # diagnostic plots
 # ------------------------------------------------ #
-png(filename = paste0(p_output, "plots/resid_fitted_mega_lm.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "resid_fitted_mega_lm", run_label, ".png"), 
     width = 5, height = 5, units = "in", res = 400)
 # without the outlier:
 plot(lm(log(proportion) ~ 0 + log(time + 1):cohort:site, data = dat_l[-2092, ]), 1, main = "Model with all sites, all cohorts")
 dev.off()
 
-png(filename = paste0(p_output, "plots/mega_lm_diag_plots.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "mega_lm_diag_plots", run_label, ".png"), 
     width = 7, height = 7, units = "in", res = 400)
 par(mfrow = c(2,2))
 plot(lm(log(proportion) ~ 0 + log(time + 1):cohort:site, data = dat_l[-2092, ]), main = "Model with all sites, all cohorts")
@@ -996,7 +1021,7 @@ df_av %>% filter(proportion <= 0.51)
 
 
 # save basic half-life plot with 
-png(filename = paste0(p_output, "plots/half_life", site_label, ".png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "half_life", run_label, site_label, ".png"), 
     width = 7, height = 5, units = "in", res = 400)
 print(gg_half_life_s)
 dev.off()
@@ -1016,7 +1041,7 @@ gg_persist_mod_base <- ggplot(data = dat, mapping = aes(x = age, y = proportion)
         legend.text = element_text(angle = 320, vjust = 1, hjust = 0)) + 
   geom_hline(yintercept = 0.5, linetype = "dashed", color = "red", size = 0.75)
 
-png(filename = paste0(p_output, "plots/raw_persist_data", site_label, ".png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "raw_persist_data", run_label, site_label, ".png"), 
     width = 5, height = 5, units = "in", res = 400)
 print(gg_persist_mod_base)
 dev.off()
@@ -1253,7 +1278,7 @@ gg_half_life_lm_s <- gg_persist_mod_base +
 
 
 # save
-png(filename = paste0(p_output, "plots/half_life_lm_s.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "half_life_lm", run_label, "_s.png"), 
     width = 5, height = 5, units = "in", res = 400)
 print(gg_half_life_lm_s)
 dev.off()
@@ -1774,7 +1799,7 @@ dat %>% group_by(cohort) %>% summarise(n = n()) %>% print(n = 30)
 
 
 # save plot with different approaches:
-png(filename = paste0(p_output, "plots/mean_coef_alt.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "mean_coef_alt", run_label, ".png"), 
     width = 7, height = 5, units = "in", res = 400)
 
 pl1 + 
@@ -2089,7 +2114,7 @@ gg_log2_cohort <- ggplot(mapping = aes(x = age, y = proportion, group = year_abn
 
 
 # save the plot
-png(filename = paste0(p_output, "plots/log2_cohort_s.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "log2_cohort", run_label, "_s.png"), 
     width = 8, height = 6, units = "in", res = 400)
 print(gg_log2_cohort)
 dev.off()
@@ -2097,7 +2122,7 @@ dev.off()
 
 
 # ----------------------- diagnostics plot ----------------------- #
-png(filename = paste0(p_output, "plots/log2_cohort_diag_s.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "log2_cohort_diag", run_label, "_s.png"), 
     width = 8, height = 8, units = "in", res = 400)
 par(mfrow = c(2,2))
 plot(lm_mod_log2_cohort)
@@ -2488,7 +2513,7 @@ gg_lmer_comparison + geom_function(fun = function(x) {exp( mean(coef(lm_mod_coho
                 color = "blue", size = 1, linetype = "solid", inherit.aes = FALSE)
 
 # save
-png(filename = paste0(p_output, "plots/lmer_comparison_s.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "lmer_comparison", run_label, "_s.png"), 
     width = 8, height = 6, units = "in", res = 400)
 print(gg_lmer_comparison)
 dev.off()
@@ -2534,7 +2559,7 @@ gg_lmer_slope0 <- ggplot(data = mutate(augment(lmer_mod_slope0),
 
 
 # save
-png(filename = paste0(p_output, "plots/lmer_slope0_s.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "lmer_slope0", run_label, "_s.png"), 
     width = 7, height = 6, units = "in", res = 400)
 print(gg_lmer_slope0)
 dev.off()
@@ -2782,7 +2807,7 @@ ggplot(data = dat, mapping = aes(x = age, y = proportion, group = year_abn, colo
 # -------------------------------------------------------------------------------------------------- #
 
 # ----------------------- diagnostics plot, shaanxi ----------------------- #
-png(filename = paste0(p_output, "plots/log2_cohort_diag_s.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "log2_cohort_diag", run_label, "_s.png"), 
     width = 8, height = 8, units = "in", res = 400)
 par(mfrow = c(2,2))
 plot(lm_mod_log2_cohort)
@@ -2795,7 +2820,7 @@ tidy(lm_log2_l[[9]])
 # ----------------------- diagnostics plot, all sites in sequence ----------------------- #
 lapply(1:11, FUN = function(i) {
   
-  png(filename = paste0(p_output, "plots/log2_cohort_diag", site_df$label[i],".png"), 
+  png(filename = paste0(p_plots, run_label, "/decay/", "log2_cohort_diag", run_label, site_df$label[i],".png"), 
     width = 8, height = 8, units = "in", res = 400)
   par(mfrow = c(2,2))
   plot(lm_log2_l[[i]], 1, main = site_df$site[i])
@@ -2808,7 +2833,7 @@ lapply(1:11, FUN = function(i) {
 })
 
 # ----------------------- fitted vs. residuals diagnostics plot ----------------------- #
-png(filename = paste0(p_output, "plots/log2_cohort_diag_resid_v_fitted.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "log2_cohort_diag_resid_v_fitted", run_label, ".png"), 
     width = 9, height = 8, units = "in", res = 400)
 par(mfrow = c(3, 4))
 for (i in 1:11) plot(lm_log2_l[[i]], 1, main = site_df$site[i])
@@ -2816,7 +2841,7 @@ dev.off()
 
 
 # ----------------------- QQ diagnostics plot ----------------------- #
-png(filename = paste0(p_output, "plots/log2_cohort_diag_qq.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "log2_cohort_diag_qq", run_label, ".png"), 
     width = 9, height = 8, units = "in", res = 400)
 par(mfrow = c(3, 4))
 for (i in 1:11) plot(lm_log2_l[[i]], 2, main = site_df$site[i])
@@ -2830,7 +2855,7 @@ dev.off()
 # -------------------------------------------------------------------------------------------------- #
 
 # ----------------------- fitted vs. residuals diagnostics plot ----------------------- #
-png(filename = paste0(p_output, "plots/lin-log_cohort_diag_resid_v_fitted.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "lin-log_cohort_diag_resid_v_fitted", run_label, ".png"), 
     width = 9, height = 8, units = "in", res = 400)
 par(mfrow = c(3, 4))
 for (i in 1:11) plot(lm_lin_log_l[[i]], 1, main = site_df$site[i])
@@ -2838,7 +2863,7 @@ dev.off()
 
 
 # ----------------------- QQ diagnostics plot ----------------------- #
-png(filename = paste0(p_output, "plots/lin-log_cohort_diag_qq.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "lin-log_cohort_diag_qq", run_label, ".png"), 
     width = 9, height = 8, units = "in", res = 400)
 par(mfrow = c(3, 4))
 for (i in 1:11) {qqnorm(residuals(lm_lin_log_l[[i]]), main = paste0("QQ: ", site_df$site[i]))}
@@ -2852,7 +2877,7 @@ dev.off()
 # -------------------------------------------------------------------------------------------------- #
 
 # ----------------------- fitted vs. residuals diagnostics plot ----------------------- #
-png(filename = paste0(p_output, "plots/l3_cohort_diag_resid_v_fitted.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "l3_cohort_diag_resid_v_fitted", run_label, ".png"), 
     width = 9, height = 8, units = "in", res = 400)
 par(mfrow = c(3, 4))
 for (i in 1:11) plot(lm_lin_log_lin_l[[i]], 1, main = site_df$site[i])
@@ -2860,7 +2885,7 @@ dev.off()
 
 
 # ----------------------- QQ diagnostics plot ----------------------- #
-png(filename = paste0(p_output, "plots/l3_cohort_diag_qq.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "l3_cohort_diag_qq", run_label, ".png"), 
     width = 9, height = 8, units = "in", res = 400)
 par(mfrow = c(3, 4))
 for (i in 1:11) {qqnorm(residuals(lm_lin_log_lin_l[[i]]), main = paste0("QQ: ", site_df$site[i]))}
@@ -2870,7 +2895,7 @@ dev.off()
 library(car)
 
 # ----------------------- QQ diagnostics plot ----------------------- #
-png(filename = paste0(p_output, "plots/l3_cohort_diag_qq_subset.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "l3_cohort_diag_qq_subset", run_label, ".png"), 
     width = 9, height = 8, units = "in", res = 400)
 par(mfrow = c(3, 4))
 for (i in 1:11) {
@@ -2985,7 +3010,7 @@ ggplot(data = resid_df_log2[-2092, ], aes(x = time, y = .std.resid, color = year
 ggplot(data = resid_df_l3[-2092, ], aes(x = time, y = .std.resid, color = year_abn)) + 
   geom_point() + scale_color_distiller(palette = "Greens") + labs(y = "Residuals", x = "Time Past Abandonment Threshold")
 
-png(filename = paste0(p_output, "plots/resid_time_multi.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "resid_time_multi", run_label, ".png"), 
     width = 10, height = 5, units = "in", res = 400)
 print(
   ggplot(data = mega_resid_df, aes(x = time, y = .std.resid, color = year_abn)) + 
@@ -3007,14 +3032,14 @@ gg_resid_2 <- ggplot(data = resid_df, aes(x = initial_area_abn, y = .std.resid, 
 
 
 # save, shaanxi
-png(filename = paste0(p_output, "plots/log2_cohort_resid_s.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "log2_cohort_resid", run_label, "_s.png"), 
     width = 10, height = 5, units = "in", res = 400)
 plot_grid(gg_resid_1, gg_resid_2, rel_widths = c(1.2, 1))
 dev.off()
 
 
 # save
-png(filename = paste0(p_output, "plots/log2_cohort_resid_all.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "log2_cohort_resid", run_label, "_all.png"), 
     width = 10, height = 5, units = "in", res = 400)
 plot_grid(gg_resid_1 %+% resid_df_all[-2092, ],
           gg_resid_2 %+% resid_df_all[-2092, ], 
@@ -3429,13 +3454,13 @@ gg_half_life_s <-
 
 
 # save
-png(filename = paste0(p_output, "plots/log2_cohort_coef_time_s.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "log2_cohort_coef_time", run_label, "_s.png"), 
     width = 6, height = 5, units = "in", res = 400)
 print(gg_coef_time_s)
 dev.off()
 
 # save
-png(filename = paste0(p_output, "plots/log2_cohort_prop_at_25_s.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "log2_cohort_prop_at_25", run_label, "_s.png"), 
     width = 6, height = 5, units = "in", res = 400)
 print(gg_prop_at_25_s)
 dev.off()
@@ -3534,7 +3559,7 @@ gg_log2_cohort_coef_all <-
 
 # ------------------------------------------------------------- #
 # save:
-png(filename = paste0(p_output, "plots/log2_cohort_coefs_all.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "log2_cohort_coefs", run_label, "_all.png"), 
     width = 9, height = 7, units = "in", res = 400)
 print(gg_log2_cohort_coef_all)
 dev.off()
@@ -3590,7 +3615,7 @@ gg_mean_coef_site <- ggplot(data = mean_coef_proj %>% filter(term == "coef"),
   theme(plot.caption = element_text(face = "italic"))
 
 # save
-png(filename = paste0(p_output, "plots/log2_cohort_coefs_by_site.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "log2_cohort_coefs_by_site", run_label, ".png"), 
     width = 5, height = 6, units = "in", res = 400)
 print(gg_mean_coef_site)
 dev.off()
@@ -3621,14 +3646,14 @@ gg_example_proportions_by_site <- ggplot(data = mean_coef_proj %>% filter(term !
   # guides(col = guide_legend(ncol = 2, byrow = TRUE))
 
 
-png(filename = paste0(p_output, "plots/log2_cohort_decay_proportions_by_site.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "log2_cohort_decay_proportions_by_site", run_label, ".png"), 
     width = 7.5, height = 4.5, units = "in", res = 400)
 print(gg_example_proportions_by_site)
 dev.off()
 
 # save old
 gg_coef_p25_by_site
-png(filename = paste0(p_output, "plots/log2_cohort_coef_p25_by_site.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "log2_cohort_coef_p25_by_site", run_label, ".png"), 
     width = 6, height = 7, units = "in", res = 400)
 print(gg_coef_p25_by_site)
 dev.off()
@@ -3657,7 +3682,7 @@ gg_model_curves_by_site <- ggplot(data = fitted_df,
   guides(col = guide_legend(reverse = TRUE))
 
 
-png(filename = paste0(p_output, "plots/model_decay_curves_by_site.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "model_decay_curves_by_site", run_label, ".png"), 
     width = 7, height = 6, units = "in", res = 400)
 print(gg_model_curves_by_site)
 dev.off()
@@ -3716,7 +3741,7 @@ gg_coef_rate_change_by_site <- ggplot(data = left_join(coef_df2, mean_coef_df, b
         plot.margin = unit(c(0.4, 0.6, 0.2, 0.2), "cm"))
 
 # save
-png(filename = paste0(p_output, "plots/log2_cohort_coefs_rate_of_change_by_site.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "log2_cohort_coefs_rate_of_change_by_site", run_label, ".png"), 
     width = 5, height = 5, units = "in", res = 400)
 print(gg_coef_rate_change_by_site)
 dev.off()
@@ -3740,7 +3765,7 @@ gg_coef_rate_change_by_site_flipped <- ggplot(data = left_join(coef_df2, mean_co
         plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm")) + 
   coord_flip()
 
-png(filename = paste0(p_output, "plots/log2_cohort_coefs_rate_of_change_by_site_flip.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "log2_cohort_coefs_rate_of_change_by_site_flip", run_label, ".png"), 
     width = 5, height = 6, units = "in", res = 400)
 print(gg_coef_rate_change_by_site_flipped)
 dev.off()
@@ -3914,7 +3939,7 @@ gg_time_to_0.5_l3 <- ggplot(data = mean_coef_df_wide_l3,
         plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm"))
 
 # save
-png(filename = paste0(p_output, "plots/time_to_0.5_l3.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "time_to_0.5_l3", run_label, ".png"), 
     width = 6, height = 5, units = "in", res = 400)
 print(gg_time_to_0.5_l3)
 dev.off()
@@ -3948,7 +3973,7 @@ gg_mean_coef_site_l3 <- ggplot(data = mutate(mean_coef_df_l3, term = fct_relevel
              scales = "free")
 
 # save
-png(filename = paste0(p_output, "plots/l3_cohort_coefs_by_site.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "l3_cohort_coefs_by_site", run_label, ".png"), 
     width = 7, height = 5, units = "in", res = 400)
 print(gg_mean_coef_site_l3)
 dev.off()
@@ -3987,7 +4012,7 @@ gg_example_proportions_by_site_l3 <-
 
 
 # save
-png(filename = paste0(p_output, "plots/l3_cohort_decay_proportions_by_site.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "l3_cohort_decay_proportions_by_site", run_label, ".png"), 
     width = 8, height = 4.5, units = "in", res = 400)
 print(gg_example_proportions_by_site_l3)
 dev.off()
@@ -4024,13 +4049,13 @@ gg_model_curves_by_site_l3 <-
   # coord_cartesian(xlim = c(hl[9] - .3, hl[9] + .3), ylim = c(0.49, 0.51))
 
 
-png(filename = paste0(p_output, "plots/model_decay_curves_by_site_l3.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "model_decay_curves_by_site_l3", run_label, ".png"), 
     width = 7, height = 6, units = "in", res = 400)
 print(gg_model_curves_by_site_l3)
 dev.off()
 
 # combo
-png(filename = paste0(p_output, "plots/model_decay_curves_by_site_l3_combo.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "model_decay_curves_by_site_l3_combo", run_label, ".png"), 
     width = 10.5, height = 6, units = "in", res = 400)
 print(plot_grid(gg_model_curves_by_site_l3 + theme(legend.position = "none") + labs(caption = ""),
                 gg_model_curves_by_site_l3 + coord_cartesian(ylim = c(0, 1)) + theme(legend.position = "none"),
@@ -4105,7 +4130,7 @@ gg_l3_cohort_coef_all <-
 
 # ------------------------------------------------------------- #
 # save:
-png(filename = paste0(p_output, "plots/l3_cohort_coefs_all.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "l3_cohort_coefs_all", run_label, ".png"), 
     width = 9, height = 7, units = "in", res = 400)
 print(gg_l3_cohort_coef_all)
 dev.off()
@@ -4166,7 +4191,7 @@ gg_coef_rate_change_by_site_l3 <- ggplot(data = left_join(coef_df2_l3, mean_coef
         plot.margin = unit(c(0.4, 0.6, 0.2, 0.2), "cm"))
 
 # save
-png(filename = paste0(p_output, "plots/l3_cohort_coefs_rate_of_change_by_site.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "l3_cohort_coefs_rate_of_change_by_site", run_label, ".png"), 
     width = 5, height = 5, units = "in", res = 400)
 print(gg_coef_rate_change_by_site_l3)
 dev.off()
@@ -4264,7 +4289,7 @@ gg_lin_log_cohort_coef_all <-
 
 # ------------------------------------------------------------- #
 # save:
-png(filename = paste0(p_output, "plots/lin_log_cohort_coefs_all.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "lin_log_cohort_coefs_all", run_label, ".png"), 
     width = 9, height = 7, units = "in", res = 400)
 print(gg_lin_log_cohort_coef_all)
 dev.off()
@@ -4290,7 +4315,7 @@ gg_mean_coef_site_lin_log <- ggplot(data = mean_coef_proj_lin_log %>% filter(ter
   theme(plot.caption = element_text(face = "italic"))
 
 # save
-png(filename = paste0(p_output, "plots/lin_log_cohort_coefs_by_site.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "lin_log_cohort_coefs_by_site", run_label, ".png"), 
     width = 5, height = 6, units = "in", res = 400)
 print(gg_mean_coef_site_lin_log)
 dev.off()
@@ -4321,7 +4346,7 @@ gg_example_proportions_by_site_lin_log <- ggplot(data = mean_coef_proj_lin_log %
   # guides(col = guide_legend(ncol = 2, byrow = TRUE))
 
 
-png(filename = paste0(p_output, "plots/lin_log_cohort_decay_proportions_by_site.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "lin_log_cohort_decay_proportions_by_site", run_label, ".png"), 
     width = 7.5, height = 4.5, units = "in", res = 400)
 print(gg_example_proportions_by_site_lin_log)
 dev.off()
@@ -4352,7 +4377,7 @@ gg_model_curves_by_site_lin_log <- ggplot(data = fitted_df_lin_log,
   guides(col = guide_legend(reverse = TRUE))
 
 
-png(filename = paste0(p_output, "plots/model_decay_curves_by_site_lin_log.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "model_decay_curves_by_site_lin_log", run_label, ".png"), 
     width = 7, height = 6, units = "in", res = 400)
 print(gg_model_curves_by_site_lin_log)
 dev.off()
@@ -4406,7 +4431,7 @@ gg_coef_rate_change_by_site_lin_log <- ggplot(data = left_join(coef_df2_lin_log,
         plot.margin = unit(c(0.4, 0.6, 0.2, 0.2), "cm"))
 
 # save
-png(filename = paste0(p_output, "plots/lin_log_cohort_coefs_rate_of_change_by_site.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "lin_log_cohort_coefs_rate_of_change_by_site", run_label, ".png"), 
     width = 5, height = 5, units = "in", res = 400)
 print(gg_coef_rate_change_by_site_lin_log)
 dev.off()
@@ -4430,7 +4455,7 @@ gg_coef_rate_change_by_site_flipped_lin_log <- ggplot(data = left_join(coef_df2_
         plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm")) + 
   coord_flip()
 
-png(filename = paste0(p_output, "plots/lin_log_cohort_coefs_rate_of_change_by_site_flip.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "lin_log_cohort_coefs_rate_of_change_by_site_flip", run_label, ".png"), 
     width = 5, height = 6, units = "in", res = 400)
 print(gg_coef_rate_change_by_site_flipped_lin_log)
 dev.off()
@@ -4573,11 +4598,25 @@ data.frame(site = x,
 # ..... ? need to figure out a good way to add the average initial_area_abn to the df, and then recalculate the exp_proportion directly from the coef, and then calculate the sum. 
 ```
 
+```{r persistence-exp}
+run_dfs %>% filter(area_ha > 0) %>%
+  select(year_abn) %>% 
+  unique()
+
+run_dfs %>% filter(area_ha > 0) %>%
+  select(year_abn) %>% 
+  factor()
+
+run_dfs %>% select(site) %>% unique()
+
+```
+
 
 
 
 
 # old half-life stuff
+
 ```{r half-life-over-time-by-site}
 # build data frames of half lives for each model
 
@@ -4646,7 +4685,7 @@ gg_mod_comp_s <-
 
 # save plots
 
-png(filename = paste0(p_output, "plots/half_life_cohorts_s.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "half_life_cohorts", run_label, "_s.png"), 
     width = 6, height = 5, units = "in", res = 400)
 print(gg_mod_comp_s)
 dev.off()
@@ -4754,7 +4793,7 @@ gg_half_life_lm_lmer_s <-
 gg_half_life_lm_lmer_s
 
 # save
-png(filename = paste0(p_output, "plots/half_life_lm_lmer_s.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "half_life_lm_lmer", run_label, "_s.png"), 
     width = 7, height = 6, units = "in", res = 400)
 print(gg_half_life_lm_lmer_s)
 dev.off()
@@ -4824,7 +4863,7 @@ gg_half_life_all_sites <- ggplot(data = decay_models_coeff) +
 # save plots
 # ----------------------------------- save ------------------------------------------------- #
 
-png(filename = paste0(p_output, "plots/half_life_all_sites.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "half_life_all_sites", run_label, ".png"), 
     width = 5, height = 5, units = "in", res = 400)
 print(gg_half_life_all_sites)
 dev.off()
@@ -4877,7 +4916,7 @@ gg_mean_persistence_all <- ggplot(data = mean_persistence_df) +
   theme_classic() + theme(legend.position = "right")
 
 # save
-png(filename = paste0(p_output, "plots/mean_persistence_all.png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "mean_persistence_all", run_label, ".png"), 
     width = 7, height = 5, units = "in", res = 400)
 print(gg_mean_persistence_all)
 dev.off()
