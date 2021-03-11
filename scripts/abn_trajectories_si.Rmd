@@ -1,0 +1,213 @@
+---
+title: "Supplementary Information: Timing and persistence of abandoned agricultural land (draft)"
+author: Christopher L. Crawford,$^a$$^*$ He Yin,$^b$ Volker Radeloff,$^c$ and David
+  S. Wilcove$^{a, d}$
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  bookdown::word_document2:
+    reference_docx: /Users/christophercrawford/Google Drive/_Projects/writing/scripts/word_style_ref.docx
+    number_sections: no
+  pdf_document:
+    toc: yes
+  bookdown::html_document2:
+    toc: yes
+  bookdown::pdf_document2:
+    keep_tex: yes
+abstract: |
+  | $^a$Princeton School of Public and International Affairs, Princeton University, Princeton, NJ
+  | $^b$Department of Geography, Kent State University, Kent, OH
+  | $^c$Department of Forest & Wildlife Ecology, University of Wisconsin - Madison, Madison, WI
+  | $^d$Department of Ecology & Evolutionary Biology, Princeton University, Princeton, NJ
+  |
+  | $^*$Corresponding Author, ccrawford@princeton.edu, Robertson Hall, Princeton University, Princeton, NJ
+editor_options:
+  chunk_output_type: inline
+bibliography:
+- /Users/christophercrawford/Google Drive/Library/library.bib
+- packages.bib
+nocite: |
+  @RStudioTeam2020, @R-rmarkdown, @R-bookdown, @R-knitr
+---
+```{r set-chunk-opts, include = FALSE}
+# /Users/christophercrawford/Google Drive/Library/library.bib
+# set default chunk options
+knitr::opts_chunk$set(out.width = "1\\textwidth",  # if compiling a pdf, include this option
+                      #comment=NA #fig.width=6, fig.height=6
+                      echo = FALSE
+                      )
+```
+```{r load-packages-functions, eval = TRUE, echo = FALSE, include = FALSE}
+source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
+# source("cc_functions.R")
+# source("cc_libraries.R")
+# source("cc_pathnames.R")
+
+# note that the working directory resets automatically after this chunk.
+
+# devtools::install_github("benmarwick/wordcountaddin", type = "source", dependencies = TRUE)
+
+# word count:
+4117 - 4544
+
+# session 2: progress:
+4561 - 5030
+```
+
+```{r produce-package-bib, include = FALSE, eval = FALSE}
+needed_packages
+github_packages
+knitr::write_bib(x = c(needed_packages, github_packages), file = 'packages.bib')
+citation(package = needed_packages[1])
+needed_packages[1]
+packageDescription(needed_packages[1])
+
+```
+```{r load-files, include = FALSE}
+# Additional paths --------------------------------------------------- #
+p_plots <- "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/output/plots/"
+
+run_label <- "_2021-03-05"
+
+# load general spatial data on site locations --------------------------------------------------- #
+
+# load data for shaanxi maps --------------------------------------------------- #
+
+# load data for decay models --------------------------------------------------- #
+
+# AIC, for SI
+# mod_AIC <- read.csv(file = paste0(p_dat_derived, "mod_AIC.csv"))
+
+# load data for spatial regression --------------------------------------------------- #
+
+```
+
+
+# Methods (excerpt)
+
+## Data processing and filtering
+
+These land cover maps contained four classes: 1) cropland, 2) herbaceous vegetation (e.g. grassland), 3) woody vegetation (e.g. forests), and 4) non-vegetation (e.g. water, urban, or barren land), mapped annually from 1987 through 2017.
+We identified periods of cropland abandonment by tracking each pixel's land cover classification through time and looking for land-cover changes that indicated transitions between agricultural activity and abandonment.
+Taking a conservative approach, we considered agricultural activity to include both stable cultivation (continuous classification as cropland) and cyclical fallowing (multiple years of cropland followed by multiple years of non-cropland that do not meet our abandonment threshold).
+We classified a pixel as "abandoned" when it transitioned from cropland to either herbaceous or woody vegetation (collectively referred to as "non-cropland"), and subsequently remained classified as non-cropland for five or more consecutive years (following our abandonment definition). 
+This transition from cropland to abandonment could take place at any point during the time-series, allowing for the abandonment of long-term agricultural lands as well as newly converted lands.
+We considered a pixel to be "recultivated" if it transitioned from abandoned back to cropland (i.e. when five or more years of continuous non-cropland were followed by cropland), therefore marking the end of that period of abandonment.
+
+Pixels that remained in cropland or non-cropland classes throughout the entire time series were excluded, as were periods of non-cropland that began at the very start of the time series, even if that pixel was later classified as cropland and subsequently abandoned (leaving only periods of abandonment that we could verify had followed agricultural activity during our time series).
+Pixels that transitioned from cropland to the non-vegetation class were not considered "abandoned," and therefore we excluded all non-vegetation pixels from our analysis. *^[These pixels represent a very small portion of our dataset, and at most sites non-vegetated land remained about constant or declined over time.]*
+
+In order to address potential classification errors, we implemented a series of temporal filters intended to smooth the trajectories in our time series by looking for short-term land-cover changes that are temporally unlikely.
+We applied five-year and eight-year moving window filters designed to search for short periods of land cover classifications that do not match those immediately before and after, and subsequently update them to match the surrounding classifications.
+Specifically, the five-year filter searched for one year periods that did not match the two years immediately before and after (i.e. patterns of 11011, where 1 represents non-cropland and 0 represents cropland), and our eight-year filter searched for two year periods that did not match the three years before and after (i.e. 11100111). 
+The central classifications were then updated to match the classes on either end.
+Together with our five year abandonment threshold, these temporal filters have the ultimate effect of minimizing the effect of very short-term misclassifications that would otherwise look like recultivation. 
+
+To be more conservative about the identification of abandonment, we also applied modified versions of these five- and eight-year moving window filters to the start of the times series. 
+By conservatively assuming the years immediately prior to our time series to be classified as non-cropland, we are able to use our moving window filters to exclude additional cases where a one or two year period of cropland may not represent stable cultivation (e.g. reading from left to right, starting in 1987: 011, 1011, 00111, 100111, and 1100111). 
+Non-cropland periods that follow potentially misclassified cropland would more accurately reflect a continuation of existing non-cropland, rather than cropland abandonment.
+
+This has the effect of applying a three-year threshold on the number of consecutive years of cropland required at the start of the time series in order to confidently signify agricultural activity that could be subsequently abandoned.^[Where 1 represents non-cropland and 0 represents cropland:  
+87__88__89__90__91__92__93__94  
+0___1___1___1___1___1___1___1 - caught by edge filter (011)  
+0___0___1___1___1___1___1___1 - caught by edge filter (00111)  
+0___0___0___1___1___1___1___1 - Age count starts in '90, classified as abandoned in '94
+]
+
+Collectively, these filters mean that the first year a piece of land could be abandoned is 1990, as long as it remains consecutively uncultivated at least through 1994.
+These edge patterns were uncommon, however, with the edge filtering at the beginning of the time series affecting fewer than 7% of pixels at each site. *^[Question: should this be relative to all pixels, or those that experience some abandonment?]* See Figure \@ref(fig:fig-temp-filter-counts).
+
+(ref:caption-temp-filter-counts) The number of pixels affected by temporal filters
+
+```{r fig-temp-filter-counts, fig.cap = '(ref:caption-temp-filter-counts)', echo=FALSE}
+knitr::include_graphics(path = paste0(p_plots, run_label, "/temp_filter_counts_plot_full.png"))
+```
+
+No special actions were taken on the end of the time series, with the possible effect of including erroneous recultivation at the end of the time series, making our estimates of the length of time abandoned conservative (i.e. shorter). 
+We decided to only address the edge cases at the start of the time series because we prefer to be conservative by excluding lands that may be consistently noncrop lands from our estimate of abandonment.
+In contrast, edge cases at the end of the time series only affect our estimate of the length of time abandoned, because one or two year periods of cropland, if misclassified, may erroneously mark recultivation in the final years of the time series.
+However, we decline to address any potential misclassifications at the end of the time series in order to take the more conservative approach with regards to recultivation.
+
+We calculate abandonment length as the time (in years) between the year a pixel first transitions from cropland to non-cropland vegetation and the year it transitions back and is classified as recultivated.
+Given our abandonment threshold, the minimum abandonment length is five years.
+Because a given pixel may go through multiple distinct periods of abandonment (being abandoned and recultivated multiple times) throughout the time series, we calculate the mean abandonment length in two ways: 1) incorporating all distinct periods of abandonment, and 2) considering only the longest period of abandonment for each pixel ("maximum abandonment length").
+We calculated area using the `raster::area()` function, applying a unique area to each pixel.
+
+
+# Results for all sites
+
+(ref:caption-mean-abn-length) Mean length of time abandoned (years) across our study sites. The mean abandonment length is calculated for only the maximum length for each pixel (blue) and across all periods of abandonment (a single pixel may go through multiple periods of abandonment).
+
+```{r mean-abn-length, fig.cap = '(ref:caption-mean-abn-length)', echo=FALSE}
+# (ref:caption-mean-abn-length) Sites included in this study, from @Yin2020.
+# (ref:caption-mean-abn-length)
+# cite inline using the following  \@ref(fig:mean-abn-length)
+knitr::include_graphics(path = paste0(p_plots, run_label, "/fig1_mean_lengths", run_label, ".png"))
+```
+
+
+(ref:caption-panel-b) Abandonment patterns for Eastern Belarus and Smolensk, Russia.
+(ref:caption-panel-bh) Abandonment patterns for Bosnia & Herzegovina.
+(ref:caption-panel-c) Abandonment patterns for Chongqing Province, China.
+(ref:caption-panel-g) Abandonment patterns for Goiás, Brazil.
+(ref:caption-panel-i) Abandonment patterns for Iraq.
+(ref:caption-panel-mg) Abandonment patterns for Mato Grosso, Brazil.
+(ref:caption-panel-n) Abandonment patterns for Nebraska, USA.
+(ref:caption-panel-o) Abandonment patterns for Orenburg, Russia.
+(ref:caption-panel-s) Abandonment patterns for Shaanxi/Shanxi Provinces, China.
+(ref:caption-panel-v) Abandonment patterns for Volgograd, Russia.
+(ref:caption-panel-w) Abandonment patterns for Wisconsin, USA.
+
+
+```{r panel-b, fig.cap = '(ref:caption-panel-b)', echo=FALSE}
+# (ref:caption-mean-abn-length) Sites included in this study, from @Yin2020.
+# (ref:caption-mean-abn-length)
+# cite inline using the following  \@ref(fig:mean-abn-length)
+# list.files(path = p_plots)
+
+si_panel_figs <- list.files(paste0(p_plots, run_label), pattern = "si_panel", full.names = TRUE)
+# grep("_b.png", si_panel_figs, value = TRUE)
+
+knitr::include_graphics(path = si_panel_figs[1])
+```
+
+```{r panel-bh, fig.cap = '(ref:caption-panel-bh)', echo=FALSE}
+knitr::include_graphics(path = si_panel_figs[2])
+```
+
+```{r panel-c, fig.cap = '(ref:caption-panel-c)', echo=FALSE}
+knitr::include_graphics(path = si_panel_figs[3])
+```
+
+```{r panel-g, fig.cap = '(ref:caption-panel-g)', echo=FALSE}
+knitr::include_graphics(path = si_panel_figs[4])
+```
+
+```{r panel-i, fig.cap = '(ref:caption-panel-i)', echo=FALSE}
+knitr::include_graphics(path = si_panel_figs[5])
+```
+
+```{r panel-mg, fig.cap = '(ref:caption-panel-mg)', echo=FALSE}
+knitr::include_graphics(path = si_panel_figs[6])
+```
+
+```{r panel-n, fig.cap = '(ref:caption-panel-n)', echo=FALSE}
+knitr::include_graphics(path = si_panel_figs[7])
+```
+
+```{r panel-o, fig.cap = '(ref:caption-panel-o)', echo=FALSE}
+knitr::include_graphics(path = si_panel_figs[8])
+```
+
+```{r panel-s, fig.cap = '(ref:caption-panel-s)', echo=FALSE}
+knitr::include_graphics(path = si_panel_figs[9])
+```
+
+```{r panel-v, fig.cap = '(ref:caption-panel-v)', echo=FALSE}
+knitr::include_graphics(path = si_panel_figs[10])
+```
+
+```{r panel-w, fig.cap = '(ref:caption-panel-w)', echo=FALSE}
+knitr::include_graphics(path = si_panel_figs[11])
+```
+
+# References
