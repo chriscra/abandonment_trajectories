@@ -108,7 +108,11 @@ s_max_length <- fread(input = paste0(p_dat_derived, "lengths/", "shaanxi_max_len
 s_dt <- fread(input = paste0(p_dat_derived, "shaanxi.csv"))
 names(s_dt) <- gsub(pattern = "andcover", replacement = "y", names(s_dt))
 
-b_dt <- fread(input = paste0(p_dat_derived, "belarus.csv")) # caution - huge file! 8.4 GB at least. 
+b_dt <- fread(input = paste0(p_dat_derived, "input_data.tables/belarus.csv")) # caution - huge file! 8.4 GB at least. 
+b_dt <- fread(input = paste0(p_dat_derived, "input_data.tables/belarus.csv"),
+              select = 3,
+              nrows = 200) # caution - huge file! 8.4 GB at least. 
+nrow(b_dt)
 
 env_size(ls())
 
@@ -144,6 +148,16 @@ plot(b$y2017, main = "Belarus 2017", breaks = c(0, plot_cols$breaks), col = plot
 legend("bottomleft", cex = 0.6, inset = 0,
        legend = plot_cols$name, 
        fill = plot_cols$color)
+
+
+plot(bs$y1987, main = "Belarus small 1987", breaks = c(0, 1:4), col = plot_cols)
+legend("bottomleft", cex = 0.6, inset = 0,
+       legend = names(plot_cols)[1:4], fill = plot_cols[1:4])
+
+plot(bs$y1987, main = "Belarus small 1987", breaks = c(0, plot_cols1$breaks), col = plot_cols1$color)
+legend("bottomleft", cex = 0.6, inset = 0,
+       legend = plot_cols1$name, 
+       fill = plot_cols1$color)
 
 # ---------------------- plot abandonment age ---------------------- #
 plot(b_age_r$y2017, main = "Belarus Age of Abandonment 2017")
@@ -309,8 +323,8 @@ s_length_distill
 
 
 mean_length_df <- lapply(site_df$site, FUN = function(x){
-  length <- fread(input = paste0(p_dat_derived, "lengths/", x, "_length_b1.csv"))
-  max_length <- fread(input = paste0(p_dat_derived, "lengths/", x, "_max_length_b1.csv"), 
+  length <- fread(input = paste0(p_dat_derived, "lengths/", x, "_length", run_label, ".csv"))
+  max_length <- fread(input = paste0(p_dat_derived, "lengths/", x, "_max_length", run_label, ".csv"), 
                       select = "max_length") # drop x and y, makes loading and calculating much faster
 
   df <- data.frame(site = x,
@@ -330,10 +344,11 @@ mean_length_df <- lapply(site_df$site, FUN = function(x){
 mean_length_df <- bind_rows(mean_length_df)
 
 # save site_df
-write_csv(mean_length_df, path = paste0(p_dat_derived, "mean_length_df.csv"))
+write_csv(mean_length_df, path = paste0(p_dat_derived, "mean_length_df", run_label, ".csv"))
 
 # re load
 mean_length_df <- read.csv(file = paste0(p_dat_derived, "mean_length_df.csv"))
+mean_length_df <- read.csv(file = paste0(p_dat_derived, "mean_length_df", run_label, ".csv"))
 
 
 
@@ -1808,6 +1823,85 @@ persistence_list_b1_s
 ```{r clean-up}
 
 env_size(ls())
+object_size(hl)
 
 ```
+
+
+# explore latest run 3-5-21
+```{r load-cluster-results-save-figs}
+run_label <- "_2021-03-05"
+run_file_paths <- list.files(path = paste0(p_dat_derived, run_label)) %>% 
+  grep("pers", ., value = TRUE)
+
+persistence_df <- read.csv(file = paste0(p_dat_derived, run_label, "/", run_file_paths[i]))
+
+run_dfs <- lapply(run_file_paths, function(i) {
+  read.csv(file = paste0(p_dat_derived, run_label, "/", i))
+})
+
+names(run_dfs) <- site_df$site
+run_dfs <- run_dfs %>% bind_rows(.id = "site") %>% as_tibble()
+
+
+# when is the first year abandonment can take place?
+run_dfs %>% filter(area_ha > 0) %>% group_by(site) %>% summarize(first_year = min(year_abn))
+
+
+# run plots loop:
+dir.create(paste0(p_output, "plots/", run_label))
+
+lapply(1:11, function(i) {
+  cc_save_area_persistence_plots(
+    input_path = paste0(p_dat_derived, run_label), 
+    output_path = paste0(p_output, "plots/", run_label, "/"),
+    site_label = site_df$label[i], 
+    run_label = run_label,
+    outfile_label = paste0(run_label, site_df$label[i]),
+    site = site_df$site[i],
+    subtitle = paste0(site_df$description[i]), # ", 5- and 8-year temp. filter"
+    subtitle_all = paste0(site_df$description[i], ", all abandonment (no threshold)"),
+    save_all = FALSE
+  )
+})
+```
+
+```{r persistence-exp}
+run_dfs %>% filter(area_ha > 0) %>%
+  select(year_abn) %>% 
+  unique()
+
+run_dfs %>% filter(area_ha > 0) %>%
+  select(year_abn) %>% 
+  factor()
+
+run_dfs %>% select(site) %>% unique()
+
+```
+
+
+# composite figures for SI
+```{r loop-save-comp-panels}
+lapply(1:11, function(i) {
+  # run_label <- "_2021-03-05"
+  
+  cc_4_panel_plots(
+    input_path = paste0(p_dat_derived, run_label), 
+    output_path = paste0(p_output, "plots/", run_label, "/"),
+    outfile_label = paste0(run_label, site_df$label[i]),
+    site = site_df$site[i]
+  )
+})
+
+i <- 11
+cc_4_panel_plots(
+    input_path = paste0(p_dat_derived, run_label), 
+    output_path = paste0(p_output, "plots/", run_label, "/"),
+    outfile_label = paste0(run_label, site_df$label[i]),
+    site = site_df$site[i]
+  )
+
+
+```
+
 
