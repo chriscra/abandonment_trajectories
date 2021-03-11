@@ -12,14 +12,28 @@
 # 2. Woody veg
 # 3. Crop
 # 4. Grassland
-plot_cols <- data.frame(
+plot_cols1 <- data.frame(
   color = c("gray80", # gray, 1. Non-veg
-            terrain.colors(9)[1], # dark green, 2. Woody veg
-            terrain.colors(9)[5], # gold, 3. Crop
-            terrain.colors(9)[3] # light green, 4. Grassland
+            terrain.colors(9)[1], # "#00A600" # dark green, 2. Woody veg
+            terrain.colors(9)[5], # "#E8C32E" # gold, 3. Crop
+            terrain.colors(9)[3]  # "#8BD000" # light green, 4. Grassland
   ),
   name = c("1. Non-veg", "2. Woody veg", "3. Crop", "4. Grassland"),
   breaks = c(1, 2, 3, 4))
+
+# show_col(brewer_pal(palette = "PiYG")(11))
+plot_cols <- c("gray80", 
+               brewer_pal(palette = "PiYG")(11)[11], # dark green,
+               terrain.colors(9)[5], # gold
+               brewer_pal(palette = "PiYG")(11)[9], # light green
+               brewer_pal(palette = "PiYG")(11)[2], # light green
+               brewer_pal(palette = "PiYG")(11)[4] # light green
+               )
+
+names(plot_cols) <- c("Non-veg.", "Woody veg.", "Cropland", "Grassland", 
+                      "Abandoned (>=5)", "Abandoned (>1)")
+as_factor(plot_cols)
+# fct_relevel(plot_cols, order(names(plot_cols), decreasing = TRUE))
 
 # visualize them
 # show_col(plot_cols$color) # (topleft = 1, topright = 2, bottomleft = 3, bottomright = 4)
@@ -29,10 +43,11 @@ plot_cols <- data.frame(
 # light green,  4. Grassland
 
 plot_cols_new <- c("gray80", # gray, 1. Non-veg
-                   terrain.colors(9)[5], # gold, 2 (formerly 3) Crop
-                   terrain.colors(9)[3], # light green, 3 (formerly 4) Grassland
-                   terrain.colors(9)[1]  # dark green, 4 (formerly 2) Woody veg
+                   terrain.colors(9)[5], # "#E8C32E" # gold, 2 (formerly 3) Crop
+                   terrain.colors(9)[3], # "#8BD000" # light green, 3 (formerly 4) Grassland
+                   terrain.colors(9)[1]  # "#00A600" # dark green, 4 (formerly 2) Woody veg
 )
+
 
 # no longer necessary
 # plot_breaks <- c(0, 1, 2, 3, 4)
@@ -40,11 +55,18 @@ plot_cols_new <- c("gray80", # gray, 1. Non-veg
 # show_col(terrain.colors(20))
 # show_col(topo.colors(20))
 # show_col(cm.colors(20))
+
+# show_col("dark green")
+# show_col(brewer_pal(palette = "Greens")(9))
+# show_col(brewer_pal(palette = "PiYG")(11))
+# display.brewer.all()
+# 
+# show_col(terrain.colors(9))
 # 
 # show_col(plot_cols)
 # show_col(plot_cols[c(1, 3, 2)])
 
-
+# display.brewer.all(colorblindFriendly = TRUE)
 
 
 
