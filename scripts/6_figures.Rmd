@@ -7,7 +7,12 @@ editor_options:
 
 ```{r initialize}
 source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
+```
 
+```{r set-run_label}
+run_label <- "_2021-03-05"
+
+# run_label <- "_b1"
 ```
 
 ```{r load-data}
@@ -1829,8 +1834,8 @@ object_size(hl)
 
 
 # explore latest run 3-5-21
-```{r load-cluster-results-save-figs}
-run_label <- "_2021-03-05"
+
+```{r load-cluster-results}
 run_file_paths <- list.files(path = paste0(p_dat_derived, run_label)) %>% 
   grep("pers", ., value = TRUE)
 
@@ -1847,9 +1852,15 @@ run_dfs <- run_dfs %>% bind_rows(.id = "site") %>% as_tibble()
 # when is the first year abandonment can take place?
 run_dfs %>% filter(area_ha > 0) %>% group_by(site) %>% summarize(first_year = min(year_abn))
 
+```
 
+
+```{r save-figs}
 # run plots loop:
-dir.create(paste0(p_output, "plots/", run_label))
+
+if(!dir.exists(paste0(p_output, "plots/", run_label))) {
+  dir.create(paste0(p_output, "plots/", run_label))
+}
 
 lapply(1:11, function(i) {
   cc_save_area_persistence_plots(
@@ -1866,25 +1877,8 @@ lapply(1:11, function(i) {
 })
 ```
 
-```{r persistence-exp}
-run_dfs %>% filter(area_ha > 0) %>%
-  select(year_abn) %>% 
-  unique()
-
-run_dfs %>% filter(area_ha > 0) %>%
-  select(year_abn) %>% 
-  factor()
-
-run_dfs %>% select(site) %>% unique()
-
-```
-
-
-# composite figures for SI
 ```{r loop-save-comp-panels}
 lapply(1:11, function(i) {
-  # run_label <- "_2021-03-05"
-  
   cc_4_panel_plots(
     input_path = paste0(p_dat_derived, run_label), 
     output_path = paste0(p_output, "plots/", run_label, "/"),
@@ -1893,12 +1887,15 @@ lapply(1:11, function(i) {
   )
 })
 
-i <- 11
+
+# Shaanxi main text panel
+
 cc_4_panel_plots(
     input_path = paste0(p_dat_derived, run_label), 
     output_path = paste0(p_output, "plots/", run_label, "/"),
-    outfile_label = paste0(run_label, site_df$label[i]),
-    site = site_df$site[i]
+    outfile_label = paste0(run_label, site_df$label[9]),
+    site = site_df$site[9],
+    main_text_panel = TRUE
   )
 
 

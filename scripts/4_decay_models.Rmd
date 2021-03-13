@@ -69,6 +69,12 @@ The plots of persistence of abandoned land over time show this
 
 To provide a simple answer to this, I will first calculate the half-life for each of my sites, then look at how the half-life evolves over time at each of the sites. Therefore, I’m trying to model an exponential decay curve, with the proportion of land remaining abandoned (“proportion") as a function of how long the land has been abandoned (“age”). is the 
 
+```{r set-run_label}
+run_label <- "_2021-03-05"
+
+# run_label <- "_b1"
+```
+
 
 ```{r load-data}
 # load data, produced from the following functions
@@ -224,9 +230,7 @@ library(tidyr, data.table)
 
 ```
 
-```{r dat-all-sites}
-run_label <- "_2021-03-05"
-
+```{r dat_l-all-sites}
 # find file path names to persistence data.frames:
 persistence_file_paths <- list.files(path = paste0(p_dat_derived, run_label)) %>% 
   grep("pers", ., value = TRUE)
@@ -237,7 +241,6 @@ dat_l <- lapply(persistence_file_paths, function(i) {
 })
 
 # old, for "_b1", loading .rds, assigning 
-# run_label <- "_b1"
 # dat_l <- lapply(1:11, FUN = function(x) {
 #   load(file = paste0(p_output, "abn_dat_products", run_label, site_df$label[x], ".rds"), verbose = TRUE)
 #   # extract just one data.frame
@@ -255,23 +258,20 @@ dat_l <- left_join(dat_l,
          time = age - 5,
          time_1 = time + 1,
          cohort = factor(year_abn)) %>% 
-  mutate(site = as_factor(site)) %>%
-  filter(!is.na(proportion)) # remove all na proportions
+  mutate(site = as_factor(site)) %>% filter(!is.na(proportion)) # remove all na proportions
 
 dat_l_0 <- select(dat_l, site, time_1, age, initial_area_abn, cohort, year_abn) # for predictions
+```
 
+
+```{r dat_l-save, eval = FALSE}
 write_csv(dat_l, path = paste0(p_dat_derived, "abn_decay_data", run_label, ".csv"))
-
-# when is the first year abandonment can take place?
-dat_l %>% filter(area_ha > 0) %>% group_by(site) %>% summarize(first_year = min(year_abn))
+```
 
 
-
+```{r dat_l-load, eval = FALSE}
 # ------------------------------------------ #
 # when reloading, must restructure factors:
-
-# run_label <- "_2021-03-05"
-# run_label <- "_b1"
 
 dat_l <- read_csv(file = paste0(p_dat_derived, "abn_decay_data", run_label, ".csv")) %>%
   mutate(site = as.factor(site),
@@ -279,6 +279,9 @@ dat_l <- read_csv(file = paste0(p_dat_derived, "abn_decay_data", run_label, ".cs
          year_abn_bins = as.factor(year_abn_bins),
          cohort = as.factor(cohort))
 
+
+# when is the first year abandonment can take place?
+dat_l %>% filter(area_ha > 0) %>% group_by(site) %>% summarize(first_year = min(year_abn))
 
 ```
 
@@ -359,14 +362,14 @@ names(lm_0_l) <- site_df$site
 # ------------------------------------------------ #
 # linear-log-linear model, with cohort fixed effects
 # ------------------------------------------------ #
-i <- 9
 
 # create directory, if it doesn't exist for this run yet:
-run_label <- "_b1"
+
 if(!dir.exists(paste0(p_plots, run_label, "/decay/"))) {
   dir.create(paste0(p_plots, run_label,  "/decay/"))
 }
 
+i <- 9
 # save plots:
 for (i in 1:11) {
   # calculate and extract mean coef estimates:
@@ -379,10 +382,12 @@ for (i in 1:11) {
     summarise(mean_est = mean(estimate, na.rm = TRUE)) %>% arrange(coef_term)
     
   # plot
-  gg_lin_log_lin_cohort_tmp <- ggplot(data = filter(dat_l, site == site_df$site[i]), 
+  gg_lin_log_lin_cohort_tmp <-
+    ggplot(data = filter(dat_l, site == site_df$site[i]), 
                                       mapping = aes(x = age, y = proportion, 
                                                     group = year_abn, color = year_abn)) + 
-    geom_point() + scale_color_distiller(palette = "Greens", direction = 0) + 
+    theme_classic() + 
+    geom_point() + scale_color_distiller(palette = "Greens") + 
     scale_x_continuous(n.breaks = 6) +
     geom_hline(yintercept = 0.5, linetype = "dashed") + 
     labs(title = "Decay of abandoned land over time", 
@@ -390,7 +395,7 @@ for (i in 1:11) {
          caption = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
          x = "Time since initial abandonment (years)", 
          y = "Proportion of abandoned land remaining",
-         color = "Cohort (Year \nFirst Abandoned)",
+         color = "Cohort \n(Year First \nAbandoned)",
          linetype = "") + 
   
     geom_line(data = mutate(augment(lm_lin_log_lin_l[[i]]),
@@ -402,17 +407,67 @@ for (i in 1:11) {
     # site mean coefficients: (note, needs to be transformed 4 to the right, so that plotting works)
     geom_function(fun = function(x) {
       mean_coef_tmp$mean_est[2]*log(x-4) + mean_coef_tmp$mean_est[1]*((x-4) - 1) + 1},
-      mapping = aes(linetype = "Mean Decay Rate"),
-      color = "blue", size = 1, inherit.aes = FALSE)
+      mapping = aes(linetype = "Mean \nDecay \nRate"),
+      color = "blue", size = 1, inherit.aes = FALSE) #+ theme(legend.position = c(0.9, 0.82))
   
   png(filename = paste0(p_plots, run_label, "/decay/", "l3_cohort", run_label, site_df$label[i], ".png"), 
-    width = 8, height = 6, units = "in", res = 400)
+    # width = 6.5, height = 6, 
+    width = 7, height = 6, 
+    units = "in", res = 400)
   print(gg_lin_log_lin_cohort_tmp)
   dev.off()
   
 }
 
-lm_lin_log_l
+# ------------------------------------------------ #
+# for the manuscript main text: shaanxi, lin-log-lin
+# ------------------------------------------------ #
+mean_coef_tmp_l3_s <- tidy(lm_lin_log_lin_l[[9]]) %>% 
+  mutate(site = site_df$site[i],
+         coef_term = sub(":*cohort....:*", "", term),
+         year_abn = ifelse(coef_term == "log(time + 1)", gsub(".*cohort", "", term), parse_number(term)),
+         cohort = as.factor(year_abn)) %>% 
+  group_by(coef_term) %>%
+  summarise(mean_est = mean(estimate, na.rm = TRUE)) %>% arrange(coef_term)
+  
+# plot
+gg_lin_log_lin_cohort_tmp_s <-
+  ggplot(data = filter(dat_l, site == site_df$site[9]),
+         mapping = aes(x = age, y = proportion, 
+                       group = year_abn, color = year_abn)) + 
+  theme_classic() + 
+  geom_point() + scale_color_distiller(palette = "Greens") + 
+  scale_x_continuous(n.breaks = 6) +
+  geom_hline(yintercept = 0.5, linetype = "dashed") + 
+  labs(title = "Decay of abandoned land over time", 
+       subtitle = site_df$description[9], 
+       caption = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
+       x = "Time since initial abandonment (years)", 
+       y = "Proportion of abandoned land remaining",
+       color = "Cohort \n(Year First \nAbandoned)",
+       linetype = "") + 
+
+  geom_line(data = mutate(augment(lm_lin_log_lin_l[[9]]),
+                          time = round(exp(`log(time + 1)`), digits = 0) - 1,
+                          age = time + 5,
+                          proportion = .fitted + 1,
+                          year_abn = as.numeric(levels(cohort))[cohort])) + 
+  
+  # site mean coefficients: (note, needs to be transformed 4 to the right, so that plotting works)
+  geom_function(fun = function(x) {
+    mean_coef_tmp_l3_s$mean_est[2]*log(x-4) + mean_coef_tmp_l3_s$mean_est[1]*((x-4) - 1) + 1},
+    mapping = aes(linetype = "Mean \nDecay \nRate"),
+    color = "blue", size = 1, inherit.aes = FALSE) + 
+  theme(legend.position = c(0.9, 0.82))
+
+# save ------------- #
+png(filename = paste0(p_plots, run_label, "/decay/", "ms_fig_l3_cohort", run_label, "_s.png"), 
+  width = 6.5, height = 6, 
+  units = "in", res = 400)
+print(gg_lin_log_lin_cohort_tmp_s)
+dev.off()
+
+
 
 # ------------------------------------------------ #
 # lin-log model, with cohort fixed effects
@@ -422,6 +477,7 @@ for (i in 1:11) {
   
   gg_lin_log_cohort_tmp <- 
     ggplot(mapping = aes(x = age, y = proportion, group = year_abn, color = year_abn)) + 
+        theme_classic() +
     geom_point(data = filter(dat_l, site == site_df$site[i])) + scale_color_distiller(palette = "Greens") +
     scale_x_continuous(n.breaks = 6) + 
     geom_hline(yintercept = 0.5, linetype = "dashed") + 
@@ -462,6 +518,7 @@ for (i in 1:11) {
 for (i in 1:11) {
   
   gg_log2_cohort_tmp <- ggplot(mapping = aes(x = age, y = proportion, group = year_abn, color = year_abn)) + 
+        theme_classic() + 
     geom_point(data = filter(dat_l, site == site_df$site[i])) + scale_color_distiller(palette = "Greens") +
     scale_x_continuous(n.breaks = 6) + 
     geom_hline(yintercept = 0.5, linetype = "dashed") + 
@@ -490,11 +547,6 @@ for (i in 1:11) {
   
 }
 
-# start here:
-# p_plots, run_label, "/decay/"
-
-
-
 
 # ------------------------------------------------ #
 # both log-log and linear-log-linear models, together
@@ -505,6 +557,7 @@ for (i in 1:11) {
   
   # log-log
   gg_log2_cohort_tmp <- ggplot(mapping = aes(x = age, y = proportion, group = year_abn, color = year_abn)) + 
+        theme_classic() + 
     geom_point(data = filter(dat_l, site == site_df$site[i])) + scale_color_distiller(palette = "Greens") +
     scale_x_continuous(n.breaks = 6) + 
     geom_hline(yintercept = 0.5, linetype = "dashed") + 
@@ -587,14 +640,22 @@ for (i in 1:11) {
 
 ```
 
+```{r cohort-range}
+cohort_range <- dat_l$year_abn %>% unique()
+new_dat <- tibble(time = rep(0:(length(cohort_range) - 1), time = length(cohort_range)),
+                  cohort = as_factor(rep(cohort_range, each = length(cohort_range))))
+# 
+# # replace 
+# tibble(time = rep(0:25, time = 26), cohort = as_factor(rep(1988:2013, each = 26))) # with
+# new_dat
+
+```
+
+
 ```{r full-extrapolation}
 # in order to plot each cohorts trajectory out to an age of 30:
-mutate(augment(lm_log2_l[[i]],
-        newdata = as_tibble(data.frame(time = 1:26,
-                                       cohort = as_factor(rep(1988:2013, each = 26))))),
-       year_abn = as.numeric(levels(cohort))[cohort])
 
-# test plots
+
 
 
 # plot log2
@@ -612,8 +673,7 @@ ggplot(mapping = aes(x = age, y = proportion, group = year_abn, color = year_abn
     
     # fitted values
     geom_line(data = mutate(augment(lm_log2_l[[i]],
-                                    newdata = tibble(time = rep(0:25, time = 26),
-                                                     cohort = as_factor(rep(1988:2013, each = 26)))),
+                                    newdata = new_dat),
                             age = time + 5,
                             proportion = exp(.fitted),
                             year_abn = as.numeric(levels(cohort))[cohort])) + 
@@ -648,8 +708,7 @@ ggplot(mapping = aes(x = age, y = proportion, group = year_abn, color = year_abn
     
     # fitted values
     geom_line(data = mutate(augment(lm_lin_log_lin_l[[i]],
-                                    newdata = tibble(time = rep(0:25, time = 26), 
-                                                     cohort = as_factor(rep(1988:2013, each = 26)))),
+                                    newdata = new_dat),
                             age = time + 5,
                             proportion = .fitted + 1,
                             year_abn = as.numeric(levels(cohort))[cohort])) + 
@@ -690,8 +749,7 @@ for (i in 1:11) {
          linetype = "") + 
   
     geom_line(data = mutate(augment(lm_lin_log_lin_l[[i]], 
-                                    newdata = tibble(time = rep(0:25, time = 26),
-                                                     cohort = as_factor(rep(1988:2013, each = 26)))),
+                                    newdata = new_dat),
                             age = time + 5,
                             proportion = .fitted + 1,
                             year_abn = as.numeric(levels(cohort))[cohort])) + 
@@ -716,8 +774,7 @@ for (i in 1:11) {
     
     # fitted values
     geom_line(data = mutate(augment(lm_log2_l[[i]], 
-                                    newdata = tibble(time = rep(0:25, time = 26),
-                                                     cohort = as_factor(rep(1988:2013, each = 26)))), 
+                                    newdata = new_dat), 
                             age = time + 5,
                             proportion = exp(.fitted),
                             year_abn = as.numeric(levels(cohort))[cohort])) + 
@@ -764,8 +821,8 @@ mod_ll <- list("lm_log2_l" = lm_log2_l,
                "lm_lin_log_l" = lm_lin_log_l,
                "lm_lin_log_lin_l" = lm_lin_log_lin_l,
                #"lm_lin_log_lin_l_not0" = lm_lin_log_lin_l_not0,
-               #"lm_log2_no_cohort_l" = lm_log2_no_cohort_l,
-               #"lm_log2_year_abn_l" = lm_log2_year_abn_l,
+               # "lm_log2_no_cohort_l" = lm_log2_no_cohort_l,
+               # "lm_log2_year_abn_l" = lm_log2_year_abn_l,
                #"lm_0_l" = lm_0_l,
                "lm_log_lin_l" = lm_log_lin_l
                )
@@ -781,7 +838,7 @@ mod_AIC <- lapply(mod_ll,
   arrange(site, AIC)
 
 # save mod_AIC
-write_csv(mod_AIC, path = paste0(p_dat_derived, "mod_AIC.csv"))
+write_csv(mod_AIC, path = paste0(p_dat_derived, "mod_AIC", run_label, ".csv"))
 # 
 # # re load
 # mod_AIC <- read.csv(file = paste0(p_dat_derived, "mod_AIC.csv"))
@@ -2949,15 +3006,12 @@ resid_df1 <-  bind_cols(augment(lm_mod_log2_cohort), # with the tester model fro
 
 # all sites individually, combined
 resid_df_log2 <- lapply(lm_log2_l, augment) %>% bind_rows(.id = "site") %>%
-  bind_cols(., dat_l)
+  bind_cols(., dat_l) %>% mutate(mod = "log_log")
 resid_df_l3 <- lapply(lm_lin_log_lin_l, augment) %>% bind_rows(.id = "site") %>%
-  bind_cols(., dat_l)
+  bind_cols(., dat_l) %>% mutate(mod = "lin_log_lin")
 resid_df_lin_log <- lapply(lm_lin_log_l, augment) %>% bind_rows(.id = "site") %>%
-  bind_cols(., dat_l)
+  bind_cols(., dat_l) %>% mutate(mod = "lin_log")
 
-resid_df_log2 <- resid_df_log2 %>% mutate(mod = "log_log")
-resid_df_l3 <- resid_df_l3 %>% mutate(mod = "lin_log_lin")
-resid_df_lin_log <- resid_df_lin_log %>% mutate(mod = "lin_log")
 
 mega_resid_df <- bind_rows(resid_df_log2, resid_df_l3, resid_df_lin_log)
 
@@ -3004,23 +3058,30 @@ gg_resid_1 %+% resid_df_l3[-2092, ]
 ggplot(data = resid_df_lin_log[-2092, ], aes(x = time, y = .std.resid, color = year_abn)) + 
   geom_point() + scale_color_distiller(palette = "Greens") + labs(y = "Residuals", x = "Time Past Abandonment Threshold")
 
-ggplot(data = resid_df_log2[-2092, ], aes(x = time, y = .std.resid, color = year_abn)) + 
+ggplot(data = resid_df_log2,#[-2092, ], 
+       aes(x = time, y = .std.resid, color = year_abn)) + 
   geom_point() + scale_color_distiller(palette = "Greens") + labs(y = "Residuals", x = "Time Past Abandonment Threshold")
 
-ggplot(data = resid_df_l3[-2092, ], aes(x = time, y = .std.resid, color = year_abn)) + 
+ggplot(data = resid_df_l3,#[-2092, ], 
+       aes(x = time, y = .std.resid, color = year_abn)) + 
   geom_point() + scale_color_distiller(palette = "Greens") + labs(y = "Residuals", x = "Time Past Abandonment Threshold")
+
+
+# save multiple model diagnostics plots ---------------- #
 
 png(filename = paste0(p_plots, run_label, "/decay/", "resid_time_multi", run_label, ".png"), 
     width = 10, height = 5, units = "in", res = 400)
 print(
-  ggplot(data = mega_resid_df, aes(x = time, y = .std.resid, color = year_abn)) + 
-  geom_point(alpha = 0.8, position = position_jitter()) + 
-  scale_color_distiller(palette = "Greens") + 
-  labs(y = "Residuals", x = "Time Past Abandonment Threshold") + 
-  facet_wrap(facets = vars(mod))
+  ggplot(data = mega_resid_df %>% filter(.std.resid > -10)
+         , aes(x = time, y = .std.resid, color = year_abn)) + 
+    geom_point(alpha = 0.8, position = position_jitter()) + 
+    scale_color_distiller(palette = "Greens") + 
+    labs(y = "Residuals", x = "Time Past Abandonment Threshold") + 
+    facet_wrap(facets = vars(mod))
 )
 dev.off()
 
+mega_resid_df %>% mutate(index = 1:nrow(.)) %>% select(index, everything()) %>% arrange(.std.resid) # mato_grosso
 
 
 gg_resid_1 + facet_wrap(facets = vars(site...10))
@@ -3795,7 +3856,7 @@ coef_df_l3 <- lapply(lm_lin_log_lin_l, FUN = function(x) {
          cohort = as.factor(year_abn))
 }) %>% bind_rows(.id = "site") %>%
     mutate(term_long = term,
-           term = ifelse(coef_term == "I(time)", "lin", "log")) %>%
+           term = as_factor(ifelse(coef_term == "I(time)", "lin", "log"))) %>%
   select(site, cohort, term, estimate, coef_term, everything())
 
 
@@ -3805,7 +3866,7 @@ mean_coef_df_l3 <- coef_df_l3 %>%
   group_by(site, coef_term, term) %>% # group by site, term and coef_term (though you only need one of these)
   summarise(mean = mean(estimate, na.rm = TRUE),
             mean_low = mean(conf.low, na.rm = TRUE),
-            mean_high = mean(conf.high, na.rm = TRUE))
+            mean_high = mean(conf.high, na.rm = TRUE)) %>% ungroup()
 
 
 # pivot wider, for use below in the calculation of projections
@@ -3870,31 +3931,27 @@ select(mean_coef_df_wide_l3, -contains("half_"))
 time_to_l3 <- bind_rows(#select(mean_coef_df_wide_l3, -contains("half_")), 
                           
                           # time = i + 4 (since time_1 is age - 4)
-                          lapply(seq(from = 0.5, to = 0.9, by = 0.1), FUN = function(x) {
+                          lapply(seq(from = 0.5, to = 1,# 0.9, 
+                                     by = 0.1), FUN = function(x) {
                             select(mean_coef_df_wide_l3, -contains("half_")) %>%
-                             # need to update this to reflect the new formula:
-                              #{mean_coef_tmp$mean_est[2]*log(x-4) + mean_coef_tmp$mean_est[1]*((x-4) - 1) + 1}
-                              # mean*log(x) + mean*(x - 1) + 1
+                              
+                              # (a * lambertW0((b * exp((b + p - 1)/a))/a))/b + 4
+                              # where p is the proportion, a is the log coef, and b is the linear coef.
                                mutate(
-                                 time_to_value = ((log_mean * 
-                                                     lambertW0((lin_mean * 
-                                                                  exp(lin_mean/log_mean + 
-                                                                        x/log_mean - 1/log_mean)) / 
-                                                                 log_mean)) / lin_mean) + 4,
+                                 time_to_value = ((log_mean * lambertW0((lin_mean * exp((lin_mean + x - 1)/log_mean)) / 
+                                                                        log_mean)) / lin_mean) + 4,
                                  time_to_value_low = ((log_mean_low * 
-                                                         lambertW0((lin_mean_low * 
-                                                                      exp(lin_mean_low/log_mean_low + 
-                                                                            x/log_mean_low - 1/log_mean_low)) / 
+                                                         lambertW0((lin_mean_low * exp((lin_mean_low + x - 1)/log_mean_low)) / 
                                                                      log_mean_low)) / lin_mean_low) + 4,
                                  time_to_value_high = ((log_mean_high * 
-                                                          lambertW0((lin_mean_high * 
-                                                                       exp(lin_mean_high/log_mean_high + 
-                                                                             x/log_mean_high - 1/log_mean_high)) /
+                                                          lambertW0((lin_mean_high * exp((lin_mean_high + x - 1)/log_mean_high)) /
                                                                       log_mean_high)) / lin_mean_high) + 4,
-                                     proportion = paste0("p_", x))
+                                     proportion = paste0("p_", x),
+                                 p = x)
                             }))
 
 
+time_to_l3 %>% select(time_to_0.5, time_to_value, proportion) %>% print(n=55)
 mean_coef_proj_l3 %>% select(term) %>% unique
 ```
 
@@ -3906,10 +3963,11 @@ install.packages("lamW")
 library(lamW)
 lambertW0()
 
+lm_lin_log_lin_l$shaanxi
 i <- 3
 for (i in 1:11) {
-  a <- filter(mean_coef_df_wide_l3, site == site_df$site[i])$log_mean_high # log coef
-  b <- filter(mean_coef_df_wide_l3, site == site_df$site[i])$lin_mean_high # lin coef
+  a <- filter(mean_coef_df_wide_l3, site == site_df$site[i])$log_mean # log coef
+  b <- filter(mean_coef_df_wide_l3, site == site_df$site[i])$lin_mean # lin coef
   p <- 0.5 # proportion of interest 
   # W(z) # is the product log function
   
@@ -3917,7 +3975,7 @@ for (i in 1:11) {
   # t = (a W((b e^(b/a + p/a - 1/a))/a))/b
   
   print(site_df$site[i])
-  print((a * lambertW0((b * exp(b/a + p/a - 1/a))/a))/b + 4)
+  print((a * lambertW0((b * exp((b + p - 1)/a))/a))/b + 4)
 }
 
 
@@ -3944,6 +4002,37 @@ png(filename = paste0(p_plots, run_label, "/decay/", "time_to_0.5_l3", run_label
 print(gg_time_to_0.5_l3)
 dev.off()
 
+coef_df_wide_l3 %>% select(site, mean_time_to_0.5) %>% unique() %>% arrange(mean_time_to_0.5)
+
+
+
+
+# time to various proportions...
+time_to_l3 %>% select(time_to_0.5, time_to_value, proportion) %>% print(n=55)
+
+time_to_l3 %>% select(-contains(c("low", "high")))
+
+# alternative visualization of how quickly things decay
+
+gg_time_to_range_l3 <-
+  ggplot(data = time_to_l3,
+       mapping = aes(y = fct_reorder(site, desc(time_to_0.5)), 
+                     x = time_to_value, group = site, fill = p)) + 
+  theme_classic() +
+  geom_point(size = 4, pch = 21) + 
+  labs(x = "Decay time to proportion (Years)", y = NULL, # "Site", 
+       caption = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
+       fill = "Proportion \nremaining:") +
+  scale_fill_distiller(palette = "Greens", direction = 1) + 
+  theme(legend.position = c(0.9, 0.70)) + 
+  guides(fill = "legend") + scale_x_continuous(breaks = seq(from = 5, to = 50, by = 5))
+
+# save
+png(filename = paste0(p_plots, run_label, "/decay/", "time_to_range_l3", run_label, ".png"), 
+    width = 5, height = 4, units = "in", res = 400)
+print(gg_time_to_range_l3)
+dev.off()
+
 ```
 
 
@@ -3954,8 +4043,10 @@ dev.off()
 # quasi half-lives
 # lapply(lm_log2_l, FUN = function(i) cc_half_life(i, confint = TRUE)) %>% bind_rows(.id = "site")
 
+mean_coef_df_l3
 
-gg_mean_coef_site_l3 <- ggplot(data = mutate(mean_coef_df_l3, term = fct_relevel(term, c("log", "lin"))),
+gg_mean_coef_site_l3 <- 
+  ggplot(data = mutate(mean_coef_df_l3, term = fct_relevel(term, c("log", "lin"))),
                             mapping = aes(x = mean, y = fct_reorder2(site, desc(term), desc(mean)))) + 
   theme_classic() +
   geom_point() + 
@@ -3978,10 +4069,11 @@ png(filename = paste0(p_plots, run_label, "/decay/", "l3_cohort_coefs_by_site", 
 print(gg_mean_coef_site_l3)
 dev.off()
 
+mean_coef_proj_l3$term %>% unique()
 
 gg_example_proportions_by_site_l3 <-
   ggplot(data = mean_coef_proj_l3 %>% filter(!is.na(term), #term != "p5"
-                                             term %in% c("p10", "p15", "p20", "p25", "p30")
+                                             term %in% c("yr_10", "yr_15", "yr_20", "yr_25", "yr_30")
                                              ),
                               mapping = aes(y = mean, x = fct_reorder2(site, desc(term),
                                                                        mean),
@@ -4004,10 +4096,10 @@ gg_example_proportions_by_site_l3 <-
         legend.position = "right"#, plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm")
         ) + 
   scale_color_discrete(name = "Proportion \nremaining \nafter: ", 
-                      labels = c(p5 = "5 years", p10 = "10 years", #old = "new",
-                                 p15 = "15 years", p20 = "20 years", 
-                                 p25 = "25 years", p30 = "30 years",
-                                 p40 = "40 years", p50 = "50 years")) #+ 
+                      labels = c(yr_5 = "5 years", yr_10 = "10 years", #old = "new",
+                                 yr_15 = "15 years", yr_20 = "20 years", 
+                                 yr_25 = "25 years", yr_30 = "30 years",
+                                 yr_40 = "40 years", yr_50 = "50 years")) #+ 
   # guides(col = guide_legend(ncol = 2, byrow = TRUE))
 
 
@@ -4023,35 +4115,40 @@ dev.off()
 ```{r mean-trend-by-site-l3}
 mean_coef_df_wide_l3
 mean_coef_df_l3
+lm_lin_log_lin_l$shaanxi
+
 # make a data.frame with fitted values for the mean coef
 fitted_df_l3 <- lapply(site_df$site, FUN = function(x) {
   data.frame(site = x,
              time = 1:50,
              lin_mean = filter(mean_coef_df_wide_l3, site == x)$lin_mean,
              log_mean = filter(mean_coef_df_wide_l3, site == x)$log_mean) %>%
-    mutate(fitted = log_mean*log(time) + lin_mean*(time - 1) + 1,
+    mutate(fitted = log_mean*log(time + 1) + lin_mean*(time) + 1,
+           time_to_0.5 = ((log_mean * lambertW0((lin_mean * exp(lin_mean/log_mean + 0.5/log_mean - 1/log_mean))/log_mean))/lin_mean) + 4,
            age = time + 4)
-}) %>% bind_rows()
+}) %>% bind_rows() %>% as_tibble()
 
 # plot it, reordering the factors by the coefficient (to make the legend easier to read)
-gg_model_curves_by_site_l3 <- 
-  ggplot(data = fitted_df_l3, 
-       mapping = aes(x = age, y = fitted, color = fct_reorder(site, lin_mean))) +
-  geom_line() +
-  geom_hline(yintercept = 0.5, linetype = "dashed") + 
-  labs(title = "Decay of abandoned land over time", 
+gg_model_curves_by_site_l3 <-
+  ggplot(data = fitted_df_l3,
+       mapping = aes(x = age, y = fitted, color = fct_reorder(site, time_to_0.5))) +
+  theme_classic() +
+  geom_line(size = 1.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray70") + 
+      geom_hline(yintercept = 0, linetype = "dashed") +
+
+  labs(#title = "Decay of abandoned land over time", 
        caption = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
        x = "Time since initial abandonment (years)", 
        y = "Proportion of abandoned land remaining",
        color = "Site") + 
-  guides(col = guide_legend(reverse = TRUE)) #+ 
-  # geom_vline(xintercept = hl[9]) +
-  # coord_cartesian(xlim = c(hl[9] - .3, hl[9] + .3), ylim = c(0.49, 0.51))
+  guides(col = guide_legend(reverse = TRUE))
+
 
 
 png(filename = paste0(p_plots, run_label, "/decay/", "model_decay_curves_by_site_l3", run_label, ".png"), 
     width = 7, height = 6, units = "in", res = 400)
-print(gg_model_curves_by_site_l3)
+print(gg_model_curves_by_site_l3 + coord_cartesian(ylim = c(0, 1)))
 dev.off()
 
 # combo
@@ -4099,11 +4196,14 @@ ggplot(data = coef_df_wide_l3 %>% filter(),
 
 
 # with quadrants:
-coef_df_l3
-gg_l3_cohort_coef_all <- 
+coef_df_l3 %>% group_by(site, term) %>% summarize(count = n())
+
+coef_df_wide_l3 %>% select(site, mean_time_to_0.5) %>% unique() %>% arrange(mean_time_to_0.5)
+
+gg_l3_cohort_coef_all <-
   ggplot(data = coef_df_wide_l3 %>% 
            arrange(mean_time_to_0.5) %>%
-           mutate(site_reorder = rep(1:11, each = 26),
+           mutate(site_reorder = rep(1:11, each = length(cohort_range)),
                   cluster = cut(site_reorder, breaks = c(1, 3, 6, 9, 11),
                                 labels = c("a", "b", "c", "d"), 
                                 include.lowest = TRUE),
@@ -4120,11 +4220,12 @@ gg_l3_cohort_coef_all <-
         plot.caption = element_text(face = "italic"),
         plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm")) + 
   geom_smooth(method = "lm", se = FALSE)  + 
-  facet_wrap(~ cluster, labeller = labeller(cluster = c(#old = "new",
-    a = "Q1, mean half time (shortest)",
-    b = "Q2, mean half time",
-    c = "Q3, mean half time",
-    d = "Q4, mean half time (longest)")))
+  facet_wrap(~ cluster, scales = "free_y",
+             labeller = labeller(cluster = c(#old = "new",
+               a = "Q1, mean half time (shortest)",
+               b = "Q2, mean half time",
+               c = "Q3, mean half time",
+               d = "Q4, mean half time (longest)")))
 
 
 
@@ -4156,8 +4257,8 @@ as.numeric(tidy(lm_coef, conf.int = TRUE)[1, "estimate"])
          site = gsub("site|year_abn:", "", term)) %>%
    print(n = 22)
 
-
-
+# create table of regression coefficients for the rate of change of the "time to half" 
+ 
 coef_df2_l3 <- tidy(lm_coef_l3, conf.int = TRUE) %>%
   mutate(termm = ifelse(grepl("year_abn", term), "slope", "int"),
          site = gsub("site|year_abn:", "", term)) %>% 

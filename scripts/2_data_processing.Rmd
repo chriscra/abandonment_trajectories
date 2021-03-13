@@ -37,6 +37,12 @@ plot_breaks <- c(0, 1, 2, 3, 4)
 # show_col(plot_cols[c(1, 3, 2)])
 ```
 
+```{r set-run_label}
+run_label <- "_2021-03-05"
+
+# run_label <- "_b1"
+```
+
 ```{r load-data}
 # Land use class codes:
 #       1. Non-vegetated area (e.g. water, urban, barren land)
@@ -2309,7 +2315,7 @@ percent_affected_df <-
                .$nrow %>% unique())
     
     percent_affected_df <- 
-      bind_rows(temporal_filter_counts_l$nrow_affected,
+      bind_rows(temporal_filter_counts_l$nrow_affected_df,
                 temporal_filter_counts_l$edge_nrow_affected %>% 
                   filter(edge == "start") %>% 
                   select(filter = edge, nrow_affected = value)
