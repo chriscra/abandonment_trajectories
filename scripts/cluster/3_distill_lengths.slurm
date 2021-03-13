@@ -3,7 +3,7 @@
 #SBATCH --nodes=1 					                              # node count
 #SBATCH --ntasks=1	 				                              # total number of tasks across all nodes
 #SBATCH --cpus-per-task=1                                 # cpu-cores per task (>1 if multi-threaded tasks)
-#SBATCH --time=3:59:00 			                              # total run time limit (HH:MM:SS)
+#SBATCH --time=1:59:00 			                              # total run time limit (HH:MM:SS)
 # SBATCH --array=1-11                                     # array ID variables (i.e. like "i")
 #SBATCH --mem-per-cpu=60G			                            # memory per cpu-core (4 GB is default).
 #SBATCH --mail-type=all				                            

@@ -674,15 +674,14 @@ cc_temporal_filter_count <- function(dt) {
     five_yr = c(rep.int(0, 2), affected_rows_5_count_by_year, rep.int(0, 2)),
     eight_yr = c(rep.int(0, 3), affected_rows_8_count_by_year, rep.int(0, 4)))
   
-  nrow_affected <- data.frame(
+  nrow_affected_df <- data.frame(
     filter = c("five_yr", "eight_yr", "either"),
     nrow_affected = c(length(affected_rows_5),
                       length(affected_rows_8),
                       length(unique(c(affected_rows_5, affected_rows_8)))
     ),
-    nrow = nrow(dt),
-    percent_affected = (nrow_affected/nrow(dt)) * 100
-  )
+    nrow = nrow(dt)) %>%
+    mutate(percent_affected = 100*nrow_affected/nrow)
   
   edge_cases_df <- data.frame(
     filter = rep(c(rep("five", 2), rep("eight", 4)), 2),
@@ -717,7 +716,7 @@ cc_temporal_filter_count <- function(dt) {
     # dfs
     cases_df = cases_df,
     edge_cases_df = edge_cases_df, 
-    nrow_affected = nrow_affected,
+    nrow_affected_df = nrow_affected_df,
     edge_nrow_affected = edge_nrow_affected)
 }
 
@@ -1229,7 +1228,7 @@ cc_filter_abn_dt_simple <- function(dt) {
 cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
                              path = p_dat_derived,
                              pass_temporal_filter = TRUE, filter_edge = TRUE,
-                             run_label = paste0("_", Sys.Date()), # format(Sys.time(), "_%Y-%m-%d_%H%M%S")
+                             run_label = format(Sys.time(), "_%Y_%m_%d"), # paste0("_", Sys.Date()), # format(Sys.time(), "_%Y-%m-%d_%H%M%S")
                              temporal_filter_replacement_value = 1) {
   
   # Steps:
@@ -1302,11 +1301,15 @@ cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
   cc_update_lc(dt, crop_code = 0, noncrop_code = 1)  # update land cover classes
   toc(log = TRUE)
   
+  cat(fill = TRUE, "Number of rows, before removing NAs:", nrow(dt))
+  
   # 4. Remove NAs
   cat(fill = TRUE, "iv. Remove NAs.")
   tic("removed NAs")
   dt <- na.omit(dt)   # remove NAs
   toc(log = TRUE)
+  
+  cat(fill = TRUE, "Number of rows, after removing NAs, before filtering:", nrow(dt))
   
   # 5. Filter out the non-abandonment pixels (i.e. those that are either all crop or all noncrop)
   cat(fill = TRUE, "v. Filter non abandonment pixels.")
@@ -2277,6 +2280,7 @@ cc_4_panel_plots <- function(input_path,
                              site,
                              width = 9, height = 11,
                              col_palette = plot_cols,
+                             main_text_panel = FALSE,
                              subtitle = NULL) {
   
   area_df <- read_csv(file = paste0(input_path, "/", site, "_result_area",  run_label, ".csv"))
@@ -2419,24 +2423,24 @@ cc_4_panel_plots <- function(input_path,
   ))
   dev.off()
   
-  cat(fill = TRUE, "Plots for", site, "saved to:", output_path)
-  
   
   # for main text
-  # png(filename = paste0(output_path, "ms_panel", outfile_label, ".png"),
-  #     width = 8, height = 7, units = "in", res = 400)
-  # 
-  # print(plot_grid(
-  #   plot_grid(gg_age_class_bins + theme(legend.position = c(0.2, 0.7)),
-  #             gg_persistence, labels = c("a", "b"), ncol = 2, rel_widths = c(1, 1), align = "h", axis = "b"),
-  #   plot_grid(gg_lc_abn_area, #+ theme(legend.position = "top"), 
-  #             gg_turnover, # + theme(legend.position = c(0.2, 0.8)), 
-  #             labels = c("c", "d"), ncol = 2, rel_widths = c(1,1), align = "h", axis = "b"),
-  #   # align = "hv", axis = "lb",
-  #   rel_heights = c(1, 1.2),
-  #   nrow = 2, ncol = 1
-  # ))
-  # dev.off()
+  if(main_text_panel) {
+    png(filename = paste0(output_path, "ms_panel", outfile_label, ".png"),
+        width = 8, height = 7, units = "in", res = 400)
+  
+    print(plot_grid(
+      plot_grid(gg_age_class_bins + theme(legend.position = c(0.2, 0.7)),
+                gg_persistence, labels = c("a", "b"), ncol = 2, rel_widths = c(1, 1), align = "h", axis = "b"),
+      plot_grid(gg_lc_abn_area, #+ theme(legend.position = "top"),
+                gg_turnover, # + theme(legend.position = c(0.2, 0.8)),
+                labels = c("c", "d"), ncol = 2, rel_widths = c(1,1), align = "h", axis = "b"),
+      # align = "hv", axis = "lb",
+      rel_heights = c(1, 1.2),
+      nrow = 2, ncol = 1
+    ))
+    dev.off()
+  }
 
   cat(fill = TRUE, "Plots for", site, "saved to:", output_path)
 }

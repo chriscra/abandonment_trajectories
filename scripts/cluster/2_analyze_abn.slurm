@@ -4,8 +4,8 @@
 #SBATCH --ntasks=1	 				                              # total number of tasks across all nodes
 #SBATCH --cpus-per-task=1                                 # cpu-cores per task (>1 if multi-threaded tasks)
 #SBATCH --time=4:59:00 			                              # total run time limit (HH:MM:SS)
-#SBATCH --array=1-11                                      # array ID variables (i.e. like "i")
-#SBATCH --mem-per-cpu=150G			                          # memory per cpu-core (4 GB is default).
+# SBATCH --array=1-11                                      # array ID variables (i.e. like "i")
+# SBATCH --mem-per-cpu=150G			                          # memory per cpu-core (4 GB is default).
 #SBATCH --mail-type=all				                            
 #SBATCH --mail-user=clc6@princeton.edu
 #SBATCH --output=slurm/slurm_out_%x_%A_%a.txt             # "%x" = job name, "%A" = job ID, "%a" = array index
@@ -47,9 +47,10 @@ Rscript ./2_analyze_abn.R $SLURM_ARRAY_TASK_ID
 # You can do a similar thing to set specific memory allocation.
 # Use the following in the future to manually set memory:
 
-# sbatch --array [1,8] --mem-per-cpu=130G 2_analyze_abn.slurm
-# sbatch --array [10,11] --mem-per-cpu=120G 2_analyze_abn.slurm
-# sbatch --array [2] --mem-per-cpu=110G 2_analyze_abn.slurm
-# sbatch --array [4,7] --mem-per-cpu=95G 2_analyze_abn.slurm
-# sbatch --array [5,6] --mem-per-cpu=70G 2_analyze_abn.slurm
-# sbatch --array [3,9] --mem-per-cpu=50G 2_analyze_abn.slurm
+sbatch --array [1,8] --mem-per-cpu=130G 2_analyze_abn.slurm
+sbatch --array [10,11] --mem-per-cpu=120G 2_analyze_abn.slurm
+sbatch --array [2] --mem-per-cpu=110G 2_analyze_abn.slurm
+sbatch --array [4,7] --mem-per-cpu=95G 2_analyze_abn.slurm
+sbatch --array [5,6] --mem-per-cpu=70G 2_analyze_abn.slurm
+
+sbatch --array [3,9] --mem-per-cpu=50G 2_analyze_abn.slurm

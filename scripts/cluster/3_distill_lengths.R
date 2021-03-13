@@ -1,5 +1,5 @@
 # -------------------------------------------------------- #
-# Christopher Crawford, Princeton University, March 9th, 2021
+# Christopher Crawford, Princeton University, March 9th, 2021 (updated March 13th, 2021)
 
 # Script to synthesize the abandonment length data resulting from
 # "2_analyze_abn.R" script, calculating abandonment trajectories for all sites
@@ -25,7 +25,7 @@ p_raw_rasters   <-    "/scratch/network/clc6/abandonment_trajectories/raw_raster
 site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
 
 # set run_label
-run_label <- "_2021-03-05"
+run_label <- "_2021_03_13 "# "_2021-03-05"
 
 cat(fill = TRUE, "Distilling length data.tables for run:", run_label)
 

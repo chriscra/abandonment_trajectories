@@ -28,6 +28,7 @@ source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectori
 site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
 
 run_label <- "_2021-03-05"
+# _2021_03_13
 
 
 cat(fill = TRUE, "Run label (time stamp):", run_label)

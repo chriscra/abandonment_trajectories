@@ -1,5 +1,5 @@
 # -------------------------------------------------------- #
-# Christopher Crawford, Princeton University, March 4th, 2021
+# Christopher Crawford, Princeton University, March 4th, 2021 (updated March 13th, 2021)
 
 # Script to analyze abandonment trajectories rasters for all sites
 # -------------------------------------------------------- #
@@ -22,6 +22,9 @@
 # SLURM Scripts that accompany this are:
 # 2_analyze_abn.slurm
 
+# 0th run (_b1) - only blip filter (just 101)
+# 1st run with new temporal filters, and also filtering the edge (_2021-03-05)
+# 2nd run, with temporal filters but NOT filtering the edge (_2021_03_13) (filter_edge = FALSE)
 
 # -------------------------------------------------------- #
 # load libraries
@@ -65,7 +68,7 @@ site <- site_df$site[indx] # set site:
 site_label <- site_df$label[indx] # set label
 
 # time stamp
-time_stamp <- paste0("_", Sys.Date()) # format(Sys.time(), "_%Y-%m-%d_%H%M%S")
+time_stamp <- format(Sys.time(), "_%Y_%m_%d") #paste0("_", Sys.Date()) # format(Sys.time(), "_%Y-%m-%d_%H%M%S")
 run_label <- paste0(#site_label, 
                     time_stamp)
 
@@ -91,7 +94,7 @@ cat("1. Filter data.tables for abandonment raw rasters to data.tables: ", site, 
 cc_filter_abn_dt(site = site,
                  path = p_input_rasters,
                  run_label = run_label,
-                 pass_temporal_filter = TRUE, filter_edge = TRUE,
+                 pass_temporal_filter = TRUE, filter_edge = FALSE,
                  temporal_filter_replacement_value = 1)
 
 
