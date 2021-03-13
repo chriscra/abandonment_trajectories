@@ -498,7 +498,7 @@ The mean length of time abandoned is shown in Figure \@ref(fig:mean-abn-length).
 # (ref:caption-mean-abn-length) Sites included in this study, from @Yin2020.
 # (ref:caption-mean-abn-length)
 # cite inline using the following  \@ref(fig:mean-abn-length)
-knitr::include_graphics(path = paste0(p_plots, run_label, "/fig1_mean_lengths", run_label, ".png"))
+knitr::include_graphics(path = paste0(p_plots, run_label, "/mean_lengths", run_label, ".png"))
 ```
 
 
@@ -525,7 +525,9 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/abn_area_by_class_bi
 # (ref:caption-mean-abn-length)
 # cite inline using the following  \@ref(fig:mean-abn-length)
 # list.files(path = p_plots)
-knitr::include_graphics(path = paste0(p_plots, "persistence_proportion_b1_s.png"))
+
+# knitr::include_graphics(path = paste0(p_plots, run_label, "persistence_proportion", run_label, "_s.png"))
+knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/ms_fig_l3_cohort", run_label, "_s.png"))
 ```
 
 

@@ -139,11 +139,26 @@ We calculated area using the `raster::area()` function, applying a unique area t
 
 ```{r mean-abn-length, fig.cap = '(ref:caption-mean-abn-length)', echo=FALSE}
 # (ref:caption-mean-abn-length) Sites included in this study, from @Yin2020.
-# (ref:caption-mean-abn-length)
 # cite inline using the following  \@ref(fig:mean-abn-length)
-knitr::include_graphics(path = paste0(p_plots, run_label, "/fig1_mean_lengths", run_label, ".png"))
+
+knitr::include_graphics(path = paste0(p_plots, run_label, "/mean_lengths", run_label, ".png"))
 ```
 
+
+
+```{r fig-decay-curves-by-site, fig.cap = '(ref:caption-decay-curves-by-site)', echo=FALSE}
+# (ref:caption-decay-time-to-range) Sites included in this study, from @Yin2020.
+# cite inline using the following  \@ref(fig:decay-time-to-range)
+
+knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/model_decay_curves_by_site_l3", run_label, ".png"))
+```
+
+```{r fig-decay-time-to-range, fig.cap = '(ref:caption-decay-time-to-range)', echo=FALSE}
+# (ref:caption-decay-time-to-range) Sites included in this study, from @Yin2020.
+# cite inline using the following  \@ref(fig:decay-time-to-range)
+
+knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/time_to_range_l3", run_label, ".png"))
+```
 
 (ref:caption-panel-b) Abandonment patterns for Eastern Belarus and Smolensk, Russia.
 (ref:caption-panel-bh) Abandonment patterns for Bosnia & Herzegovina.
