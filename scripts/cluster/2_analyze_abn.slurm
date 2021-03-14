@@ -47,10 +47,28 @@ Rscript ./2_analyze_abn.R $SLURM_ARRAY_TASK_ID
 # You can do a similar thing to set specific memory allocation.
 # Use the following in the future to manually set memory:
 
-sbatch --array [1,8] --mem-per-cpu=130G 2_analyze_abn.slurm
-sbatch --array [10,11] --mem-per-cpu=120G 2_analyze_abn.slurm
-sbatch --array [2] --mem-per-cpu=110G 2_analyze_abn.slurm
-sbatch --array [4,7] --mem-per-cpu=95G 2_analyze_abn.slurm
-sbatch --array [5,6] --mem-per-cpu=70G 2_analyze_abn.slurm
+# old:
+# sbatch --array [1,8] --mem-per-cpu=130G 2_analyze_abn.slurm
+# sbatch --array [10,11] --mem-per-cpu=120G 2_analyze_abn.slurm
+# sbatch --array [2] --mem-per-cpu=110G 2_analyze_abn.slurm
+# sbatch --array [4,7] --mem-per-cpu=95G 2_analyze_abn.slurm
+# sbatch --array [5,6] --mem-per-cpu=70G 2_analyze_abn.slurm
+# sbatch --array [3,9] --mem-per-cpu=50G 2_analyze_abn.slurm
 
-sbatch --array [3,9] --mem-per-cpu=50G 2_analyze_abn.slurm
+
+# the following jobs ran out of memory:
+# 1, 2, 5, 7, 
+
+# 8?
+
+# good: 3, 4, 6, 9, 10, 11
+
+
+
+# new
+# sbatch --array [1,2] --mem-per-cpu=150G 2_analyze_abn.slurm
+# sbatch --array [5,7] --mem-per-cpu=115G 2_analyze_abn.slurm
+
+# sbatch --array [1,2,8,10,11] --mem-per-cpu=150G 2_analyze_abn.slurm
+# sbatch --array [4,5,7] --mem-per-cpu=115G 2_analyze_abn.slurm
+# sbatch --array [3,6,9] --mem-per-cpu=80G 2_analyze_abn.slurm
