@@ -28,7 +28,24 @@ Rscript ./2_analyze_abn.R $SLURM_ARRAY_TASK_ID
 # 2. site_df is uploaded
 # 3. util_dt_filter_functions.R is up to date
 
-# usage notes:
+# usage notes: _2021_03_13
+# b (1)   nrow: 94,403,140.   ID: slurm_out_2_analyze_abn_33771701_1;   Time: 02:58:30; Memory Utilized: 112.38 GB (74.92% of 150.00 GB) 
+# ^^^ weird message in the slurm_out "Warning message: system call failed: Cannot allocate memory"
+
+# bh (2)  nrow: 74,231,964.   ID: slurm_out_2_analyze_abn_33771701_2;   Time: 01:30:19; Memory Utilized: 92.40 GB (61.60% of 150.00 GB)
+# c (3)   nrow: 32,234,381.   ID: slurm_out_2_analyze_abn_33771302_3;   Time: 01:37:29; Memory Utilized: 42.19 GB (84.38% of 50.00 GB)
+# g (4)   nrow: 59,898,990.   ID: slurm_out_2_analyze_abn_33771313_4;   Time: 02:18:05; Memory Utilized: 77.53 GB (81.61% of 95.00 GB)
+# i (5)   nrow: 46,461,240.   ID: slurm_out_2_analyze_abn_33771702_5;   Time: 01:33:24; Memory Utilized: 69.44 GB; (60.38% of 115.00 GB)
+# mg (6)  nrow: 38,256,075.   ID: slurm_out_2_analyze_abn_33771314_6;   Time: 00:44:23; Memory Utilized: 48.40 GB; (69.15% of 70.00 GB)
+# n (7)   nrow: 66,156,714.   ID: slurm_out_2_analyze_abn_33771702_7;   Time: 01:16:23; Memory Utilized: 105.74 GB; (91.95% of 115.00 GB)
+# o (8)   nrow: 101,661,520.  ID: slurm_out_2_analyze_abn_33771310_8;   Time: 03:47:28; Memory Utilized: 120.23 GB; (92.48% of 130.00 GB)
+# s (9)   nrow: 22,573,740.   ID: slurm_out_2_analyze_abn_33771302_9;   Time: 00:57:38; Memory Utilized: 25.50 GB; (51.00% of 50.00 GB)
+# v (10)  nrow: 93,444,494.   ID: slurm_out_2_analyze_abn_33771311_10;  Time: 03:03:29; Memory Utilized: 115.32 GB; (96.10% of 120.00 GB)
+# w (11)  nrow: 70,874,020.   ID: slurm_out_2_analyze_abn_33771311_11;  Time: 01:23:04; Memory Utilized: 82.68 GB; (68.90% of 120.00 GB)
+
+
+
+# usage notes: _2021-03-05
 # $ seff <JobID>
 
 # b (1)   nrow: 94,403,140.   ID: 33706895_1;   Time: 02:45:57; Memory Utilized: 118.08 GB (78.72% of 150.00 GB)
@@ -56,19 +73,15 @@ Rscript ./2_analyze_abn.R $SLURM_ARRAY_TASK_ID
 # sbatch --array [3,9] --mem-per-cpu=50G 2_analyze_abn.slurm
 
 
-# the following jobs ran out of memory:
-# 1, 2, 5, 7, 
-
-# 8?
-
+# the following jobs ran out of memory: 1, 2, 5, 7 . Re-run
 # good: 3, 4, 6, 9, 10, 11
 
-
-
-# new
-# sbatch --array [1,2] --mem-per-cpu=150G 2_analyze_abn.slurm
-# sbatch --array [5,7] --mem-per-cpu=115G 2_analyze_abn.slurm
-
-# sbatch --array [1,2,8,10,11] --mem-per-cpu=150G 2_analyze_abn.slurm
-# sbatch --array [4,5,7] --mem-per-cpu=115G 2_analyze_abn.slurm
+# final memory allocation:
+# sbatch --array [1,8,10] --mem-per-cpu=150G 2_analyze_abn.slurm
+# sbatch --array [2,4,5,7,11] --mem-per-cpu=125G 2_analyze_abn.slurm
 # sbatch --array [3,6,9] --mem-per-cpu=80G 2_analyze_abn.slurm
+
+
+# download from della with:
+# scp clc6@della:/scratch/network/clc6/abandonment_trajectories/data_derived/input_rasters/*result*2021_03_13* /Users/christophercrawford/Google\ Drive/_Projects/abandonment_trajectories/data_derived/_2021_03_13
+# scp clc6@della:/scratch/network/clc6/abandonment_trajectories/data_derived/input_rasters/length_distill_df_2021_03_13.csv /Users/christophercrawford/Google\ Drive/_Projects/abandonment_trajectories/data_derived/_2021_03_13
