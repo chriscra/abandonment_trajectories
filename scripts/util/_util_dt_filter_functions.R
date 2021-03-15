@@ -1917,7 +1917,6 @@ cc_summarize_abn_dts <- function(input_path,
   assign(paste0("persistence", run_label), persistence)
   assign(paste0("turnover", run_label), turnover)
   
-  cat("saving files:", paste0(output_path, site, "_result_dfs", run_label, ".rds"), fill = TRUE)
   # save files
   save(list = c(paste0("area", run_label), 
                 paste0("persistence", run_label),
@@ -1925,6 +1924,9 @@ cc_summarize_abn_dts <- function(input_path,
                 ), 
        file = paste0(output_path, site, "_result_dfs", run_label, ".rds")
        )
+  
+  cat("saved files:", paste0(output_path, site, "_result_dfs", run_label, ".rds"), fill = TRUE)
+  
 }
 
 
