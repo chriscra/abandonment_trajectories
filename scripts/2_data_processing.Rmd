@@ -2302,6 +2302,9 @@ s_dt[]
 ```{r check-temporal-filter-counts}
 # note that in the run: _2021-03-05, the temporal filter counter calculated the percent_affected without multiplying by 100, so percent_affected = value/nrow(dt), and therefore, nrow(dt) = value/percent_affected
 
+# for run: _2021_03_13, the percent was fixed, so nrow(dt) = 100 * value / (percent_affected)
+x <- "shaanxi"
+
 percent_affected_df <- 
   lapply(site_df$site, function(x) {
     # load the counts list
@@ -2309,9 +2312,9 @@ percent_affected_df <-
                        "_temporal_filter_counts_l", run_label, ".rds"), verbose = TRUE)
     
     cat(fill = TRUE, 
-        "digits:", 
+        "number of rows:", 
         temporal_filter_counts_l$edge_nrow_affected %>%
-               mutate(nrow = value/percent_affected) %>% 
+               mutate(nrow = 100 * value/percent_affected) %>% 
                .$nrow %>% unique())
     
     percent_affected_df <- 
@@ -2322,13 +2325,14 @@ percent_affected_df <-
                 ) %>%
       mutate(site = x,
              nrow_abn = temporal_filter_counts_l$edge_nrow_affected %>%
-               mutate(nrow = value/percent_affected) %>% 
+               mutate(nrow = 100 * value/percent_affected) %>% 
                .$nrow %>% round(digits = 0) %>% unique(),
              # percent_affected = 100 * nrow_affected/nrow
              ) %>% 
-      as_tibble() %>% mutate(filter = recode(filter, 
-                                             "start" = "starting_edge"))
+      as_tibble() 
     
+    # percent_affected_df %>% mutate(filter = recode(filter, start = "starting_edge" ))
+
     percent_affected_df
     
 }) %>% bind_rows()
@@ -2337,6 +2341,7 @@ site_df_w_size <- read_csv(file = "/Users/christophercrawford/Google Drive/_Proj
 
 percent_affected_df <- percent_affected_df %>% 
   left_join(. , select(site_df_w_size, site, nrow_total = ncell)) %>%
+  select(-nrow) %>% 
   pivot_longer(cols = c("nrow_abn", "nrow_total"), 
                names_to = "relative_to", names_prefix = "nrow_", 
                values_to = "nrow") %>%
