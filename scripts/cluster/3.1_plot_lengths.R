@@ -27,7 +27,7 @@ source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectori
 # data.frame of all sites contains information about sites
 site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
 
-run_label <- "_2021-03-05"
+run_label <- "_2021_03_13" #"_2021-03-05"
 # _2021_03_13
 
 
@@ -37,8 +37,6 @@ cat(fill = TRUE, "Run label (time stamp):", run_label)
 length_distill_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", 
                                             "length_distill_df", run_label, ".csv"))
 
-# -------------------------------------------------------- #
-# 1. Plot mean length of time abandoned (>= 5) ----
 
 mean_length_df <- lapply(c(1, 3, 5), function(x) {
   length_distill_df %>% as_tibble() %>% 
@@ -59,6 +57,14 @@ mean_mean_df <- mean_length_df %>%
   group_by(abn_threshold, length_type) %>%
   summarise(mean_mean = mean(mean_length, na.rm = TRUE))
 
+
+# create directory for plot outputs
+if(!dir.exists(paste0(p_output, "plots/", run_label))) {
+  dir.create(paste0(p_output, "plots/", run_label))
+}
+
+# -------------------------------------------------------- #
+# 1. Plot mean length of time abandoned (>= 5) ----
 
 gg_mean_length <-
   ggplot(data = mean_length_df %>% 
