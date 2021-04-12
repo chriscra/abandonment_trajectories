@@ -25,16 +25,6 @@ library(VIF) # for selecting models for a linear model. Recommended by Liang.
 
 ```
 
-```{r install-packages, eval = FALSE}
-install.packages("FSA")
-install.packages("agricolae")
-```
-
-```{r load-packages}
-library(FSA)
-library(agricolae)
-```
-
 
 # Exponential Decay:
 
@@ -281,7 +271,8 @@ dat_l <- read_csv(file = paste0(p_dat_derived, "abn_decay_data", run_label, ".cs
          year_abn_bins = as.factor(year_abn_bins),
          cohort = as.factor(cohort))
 
-
+dat_l0 #<- dat_l
+identical(dat_l0, dat_l)
 # when is the first year abandonment can take place?
 dat_l %>% filter(area_ha > 0) %>% group_by(site) %>% summarize(first_year = min(year_abn))
 
@@ -316,6 +307,7 @@ lm_lin_log_lin_l <- lapply(1:11, FUN = function(i) {
                data = filter(dat_l, #year_abn < 2011, 
                              site == site_df$site[i]))
 })
+
 
 # linear - log - linear, without cohort fixed effects:
 lm_l3_no_cohort_l <- lapply(1:11, FUN = function(i) {
@@ -368,6 +360,13 @@ names(lm_0_l) <- site_df$site
 ```
 
 
+```{r mod-equation, results = "asis"}
+# install.packages("equatiomatic")
+library(equatiomatic)
+equatiomatic::extract_eq(lm_lin_log_lin_l$shaanxi, use_coefs = FALSE, wrap = TRUE)
+
+```
+
 ```{r save-basic-model-plot-all-sites}
 # ------------------------------------------------ #
 # linear-log-linear model, with cohort fixed effects
@@ -382,84 +381,7 @@ if(!dir.exists(paste0(p_plots, run_label, "/decay/"))) {
 i <- 9
 
 # function
-cc_save_decay_model_plots <- function(site_index, add_no_cohort = TRUE) {
-  i <- site_index
-  # calculate and extract mean coef estimates:
-  coef_tmp_l3 <- tidy(lm_lin_log_lin_l[[i]]) %>% 
-    mutate(site = site_df$site[i],
-           mod = "l3",
-           coef_term = sub(":*cohort....:*", "", term),
-           year_abn = ifelse(coef_term == "log(time + 1)", gsub(".*cohort", "", term), parse_number(term)),
-           cohort = as.factor(year_abn),
-           term_long = term,
-           term = as_factor(ifelse(coef_term == "I(time)", "lin", "log"))) %>% 
-    group_by(site, term, coef_term, mod) %>%
-    summarise(estimate = mean(estimate, na.rm = TRUE)) %>% arrange(coef_term)
-  
-  coef_tmp_l3_no_cohort <- tidy(lm_l3_no_cohort_l[[i]]) %>%
-    mutate(site = site_df$site[i],
-           mod = "l3_no_cohort",
-           coef_term = term,
-           term = as_factor(ifelse(coef_term == "I(time)", "lin", "log"))) %>%
-    select(site, term, coef_term, mod, estimate)
-  
-  coefs <- bind_rows(coef_tmp_l3, coef_tmp_l3_no_cohort) %>%
-    mutate(mod = as_factor(mod))
-  
-  fitted <- bind_rows(
-    tibble(age = 5:30,
-           mod = "l3",
-           a = filter(coefs, mod == "l3", term == "log")$estimate,
-           b = filter(coefs, mod == "l3", term == "lin")$estimate),
-    tibble(age = 5:30,
-           mod = "l3_no_cohort",
-           a = filter(coefs, mod == "l3_no_cohort", term == "log")$estimate,
-           b = filter(coefs, mod == "l3_no_cohort", term == "lin")$estimate)) %>%
-      mutate(proportion = a * log(age-4) + b * ((age-4) - 1) + 1)
-  
-  if(!add_no_cohort) {fitted <- fitted %>% filter(mod == "l3")}
-
-
-  # plot
-  gg_tmp <-
-    ggplot(data = filter(dat_l, site == site_df$site[i]), 
-                                      mapping = aes(x = age, y = proportion, 
-                                                    group = year_abn, color = year_abn)) + 
-    theme_classic() + 
-    geom_point() + scale_color_distiller(palette = "Greens") + 
-    scale_x_continuous(n.breaks = 6) +
-    geom_hline(yintercept = 0.5, linetype = "dashed") + 
-    labs(title = "Decay of abandoned land over time", 
-         subtitle = site_df$description[i], 
-         caption = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
-         x = "Time since initial abandonment (years)", 
-         y = "Proportion of abandoned land remaining",
-         color = "Cohort \n(Year First \nAbandoned)",
-         linetype = "") + 
-  
-    geom_line(data = mutate(augment(lm_lin_log_lin_l[[i]]),
-                            time = round(exp(`log(time + 1)`), digits = 0) - 1,
-                            age = time + 5,
-                            proportion = .fitted + 1,
-                            year_abn = as.numeric(levels(cohort))[cohort])) + 
-    
-    # site mean coefficients:
-    geom_line(data = fitted, mapping = aes(x = age, y = proportion, linetype = mod),
-              color = "blue", size = 1, inherit.aes = FALSE) +
-    
-    scale_linetype_discrete(label = c("l3" = ifelse(add_no_cohort, "\nMean Decay Rate\n", "Mean \nDecay \nRate"),
-                                      "l3_no_cohort" = "Decay Rate \n(No fixed effects)"))
-
-  
-  # save 
-  png(filename = paste0(p_plots, run_label, "/decay/", "l3_cohort", ifelse(add_no_cohort, "_plus", ""), run_label, site_df$label[i], ".png"), 
-    # width = 6.5, height = 6, 
-    width = 7, height = 6, 
-    units = "in", res = 400)
-  print(gg_tmp)
-  dev.off()
-}
-
+cc_save_decay_model_plots()
 
 # save plots
 lapply(1:11, function(i) cc_save_decay_model_plots(site_index = i, add_no_cohort = FALSE))
@@ -691,6 +613,69 @@ for (i in 1:11) {
 }
 
 ```
+
+
+```{r testing-CI}
+
+ggplot(data = filter(dat_l, site == site_df$site[i]), 
+                                      mapping = aes(x = age, y = proportion, 
+                                                    group = year_abn, color = year_abn)) + 
+    theme_classic() + 
+  scale_color_distiller(palette = "Greens") + 
+  scale_fill_distiller(palette = "Greens") +
+    scale_x_continuous(n.breaks = 6) +
+    geom_hline(yintercept = 0.5, linetype = "dashed") + 
+    labs(title = "Decay of abandoned land over time", 
+         subtitle = site_df$description[i], 
+         caption = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
+         x = "Time since initial abandonment (years)", 
+         y = "Proportion of abandoned land remaining",
+         color = "Cohort \n(Year First \nAbandoned)",
+         linetype = "") + 
+  
+    geom_ribbon(data = mutate(augment(lm_lin_log_lin_l[[i]], se_fit = TRUE,
+                                      interval = "confidence"),
+                            time = round(exp(`log(time + 1)`), digits = 0) - 1,
+                            age = time + 5,
+                            proportion = .fitted + 1,
+                            year_abn = as.numeric(levels(cohort))[cohort]),
+                mapping = aes(x = age, y = proportion, 
+                              ymin = .lower + 1, #proportion - .se.fit, 
+                              ymax = .upper + 1, #proportion + .se.fit, 
+                              group = year_abn, color = year_abn, fill = year_abn),
+                alpha = 0.4,
+                inherit.aes = FALSE) + 
+  
+      geom_point() + 
+
+    
+    # site mean coefficients:
+    geom_line(data = fitted, mapping = aes(x = age, y = proportion, linetype = mod),
+              # color = brewer_pal(palette = "PiYG")(11)[2], # dark pink
+              color = "blue",
+              size = 1, inherit.aes = FALSE) +
+  
+  geom_ribbon(data =   augment(lm_l3_no_cohort_l[[i]],
+                               newdata = tibble(time = 5:30 - 5),
+                               interval = "confidence") %>%
+                mutate(age = time + 5,
+                       proportion = .fitted + 1,
+                       CI_upper = .upper + 1,        
+                       CI_lower = .lower + 1),
+              mapping = aes(x = age, ymax = CI_upper, ymin = CI_lower), 
+              inherit.aes = FALSE,
+              alpha = 0.3) + 
+    
+    scale_linetype_discrete(label = c("l3" = ifelse(add_no_cohort, "\nMean Decay Rate\n",
+                                                    "Mean \nDecay \nRate"),
+                                      "l3_no_cohort" = "Decay Rate \n(No fixed effects)"))
+
+
+-0.0934 + 1.96*0.00219
+-0.0977
+
+```
+
 
 ```{r no-cohort-fixed-effects}
 lm_l3_no_cohort_l
@@ -945,6 +930,20 @@ mod_ll <- list("lm_log2_l" = lm_log2_l,
                "lm_log_lin_l" = lm_log_lin_l
                )
 
+mod_ll_mega <- list(
+  "log(p) ~ 0 + log(time + 1):cohort:site" = lm_mega_log2_l,
+  "log(p) ~ 0 + log(time + 1):cohort:site + \ntime:cohort:site" = lm_mega_log2_lin_l,
+  "p - 1 ~ 0 + log(time + 1):cohort:site" = lm_mega_lin_log_l,
+  "p - 1 ~ 0 + log(time + 1):cohort:site + \ntime:cohort:site" = lm_mega_lin_log_lin_l,
+  "p - 1 ~ 0 + log(time + 1):site + \ntime:site" = lm_mega_l3_no_cohort_l,
+  "log(p) ~ 0 + log(time + 1):site" = lm_mega_log2_no_cohort_l,
+  "log(p) ~ 0 + log(time + 1):site + \nlog(time + 1):year_abn:site" = lm_mega_log2_year_abn_l,
+  "log(p) ~ 0 + time:cohort:site" = lm_mega_log_lin_l,
+  "log(p) ~ 0 + time:site" = lm_mega_log_lin_no_cohort_l,
+  "log(p) ~ 0 + time:cohort:site" = lm_mega_lin_cohort_l,
+  "log(p) ~ 0 + time" = lm_mega_0_l,
+  "p - 1 ~ 0 + log(time + 1):year_abn:site + \ntime:year_abn:site" = lm_mega_l3_cont)
+
 # Calculate AIC
 mod_AIC <- lapply(mod_ll, 
   FUN = function(x) {
@@ -954,6 +953,12 @@ mod_AIC <- lapply(mod_ll,
   bind_rows(.id = "mod") %>% 
   select(site, AIC, mod, everything()) %>% 
   arrange(site, AIC)
+
+mod_AIC_mega <- lapply(mod_ll_mega, function(x) glance(x)) %>% 
+  bind_rows(.id = "mod") %>%
+  select(mod, AIC, everything()) %>% 
+  arrange(AIC)
+
 
 # save mod_AIC
 write_csv(mod_AIC, path = paste0(p_dat_derived, "mod_AIC", run_label, ".csv"))
@@ -979,6 +984,29 @@ png(filename = paste0(p_plots, run_label, "/decay/", "mod_AIC_plot", run_label, 
     width = 10, height = 5, units = "in", res = 400)
 print(gg_AIC)
 dev.off()
+
+
+# mega AIC figure
+gg_AIC_mega <-
+  ggplot(data = mod_AIC_mega,
+       mapping = aes(y = fct_reorder(mod, AIC), x = -AIC, 
+                     group = fct_reorder(mod, AIC), fill = fct_reorder(mod, AIC))) + 
+  theme_classic() +
+  geom_col(position = position_dodge(0.9)) +
+  # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  labs(y = "Model", x = "Absolute Value AIC (larger is better)", fill = "Model") +
+  theme(legend.position = "none",
+        plot.margin = margin(4, 20, 4, 4, "pt"))
+
+gg_AIC_mega
+
+ggsave(plot = gg_AIC_mega, 
+       filename = paste0(p_plots, run_label, "/decay/", "mod_AIC_mega_plot", run_label, ".png"), 
+    width = 5, height = 4, units = "in")
+
+glimpse
+
+
 
 # at all sites, the lin-log-lin cohort model has the lowest AIC (i.e. best performance).
 ```
@@ -1042,11 +1070,152 @@ dev.off()
 
 ```
 
+```{r run-mega-lm}
+
+# log-log model, with cohort fixed effects
+lm_mega_log2_l <- lm(log(proportion) ~ 0 + log(time + 1):cohort:site, data = dat_l)
+
+
+# log-log-lin model, with cohort fixed effects
+# note, time needs to be adjusted to time + 1 in order for the log term to work
+lm_mega_log2_lin_l <- lm(log(proportion) ~ 0 + log(time + 1):cohort:site + I(time):cohort:site,  
+               data = dat_l)
+
+  
+# linear - log
+lm_mega_lin_log_l <- lm(I(proportion - 1)  ~ 0 + log(time + 1):cohort:site,  
+               data = dat_l)
+
+# linear - log - linear
+lm_mega_lin_log_lin_l <- lm(I(proportion - 1)  ~ 0 + log(time + 1):cohort:site + I(time):cohort:site,  
+               data = dat_l)
+
+# linear-log-linear model, with year_abn (continuous) rather than the categorical cohort fixed effects
+lm_mega_l3_cont <- lm(I(proportion - 1)  ~ 0 + log(time + 1):year_abn:site + I(time):year_abn:site,  
+               data = dat_l)
+
+
+# linear - log - linear, without cohort fixed effects:
+lm_mega_l3_no_cohort_l <- lm(I(proportion - 1)  ~ 0 + log(time + 1):site + I(time):site,  
+               data = dat_l)
+
+# log-log model, without cohort fixed effects
+lm_mega_log2_no_cohort_l <- lm(log(proportion) ~ 0 + log(time + 1):site,  
+               data = dat_l)
+
+# log-log model, with year_abn (continuous) rather than the categorical cohort
+lm_mega_log2_year_abn_l <- lm(log(proportion) ~ 0  + log(time + 1):site + log(time + 1):year_abn:site,  
+               data = dat_l)
+
+
+# lon-linear (exp. decay)
+lm_mega_log_lin_l <- lm(log(proportion) ~ 0 + time:cohort:site,  
+               data = dat_l)
+
+
+lm_mega_log_lin_no_cohort_l <- lm(log(proportion) ~ 0 + time:site,  
+               data = dat_l)
+
+# linear:cohort
+lm_mega_lin_cohort_l <- 
+  lm(log(proportion) ~ 0 + time:cohort:site,  
+               data = dat_l)
+
+
+# linear
+lm_mega_0_l <- lm(log(proportion) ~ 0 + time,  
+               data = dat_l)
+
+```
+
+
 ```{r mega-lm}
 # note: it shouldn't make a difference whether you run the model for each site individually or as one mega model. For simplicity, I'm going to continue with the site specific models, since that is how I've largely coded things so far. 
 
 # constructing a model of all sites, with cohort and site fixed effects
 str(dat_l)
+
+# ------------------------------------------------ #
+# linear - log - linear, with cohort and site fixed effects
+# ------------------------------------------------ #
+lm_mega_l3_cohort_site_l <- lm(
+  I(proportion - 1)  ~ 0 + log(time + 1):cohort:site + I(time):cohort:site 
+  # + log(time + 1):site + I(time):site
+  ,  
+  data = dat_l #filter(dat_l, year_abn < 2011)#, #year_abn < 2011))
+  )
+
+lm_mega_l3_site_l <- lm(
+  I(proportion - 1)  ~ 0 + log(time + 1):site + I(time):site,  
+  data = filter(dat_l)#, #year_abn < 2011))
+  )
+
+
+coef_l3_mega <- tidy(lm_mega_l3_cohort_site_l) %>%
+  mutate(site = gsub("site", "", str_extract(term, "site[a-z,_]*")),
+         year_abn = as.integer(str_extract(term, "[1-2][0-9][0-9][0-9]")),
+         coef_term = ifelse(grepl("log", term), "log", "lin"))
+
+coef_l3_mega %>% filter(is.na(year_abn)) %>% print(n = 22)
+coef_l3_mega %>% filter(site == "belarus", coef_term == "log")
+
+augment(lm_mega_l3_cohort_site_l)
+
+mean_coef_l3_mega <- coef_l3_mega %>%
+  group_by(site, coef_term) %>% # group by site, term and coef_term (though you only need one of these)
+  summarise(estimate = mean(estimate, na.rm = TRUE)) %>%
+  mutate(mod = "l3") %>% ungroup()
+
+coef_l3_no_cohort_mega <- tidy(lm_mega_l3_site_l) %>%
+  mutate(site = gsub("site", "", str_extract(term, "site[a-z,_]*")),
+         coef_term = ifelse(grepl("log", term), "log", "lin"),
+         mod = "l3_no_cohort") %>%
+  select(site, coef_term, mod, estimate)
+
+coefs_l3_mega <- bind_rows(mean_coef_l3_mega, coef_l3_no_cohort_mega) %>%
+  mutate(mod = as_factor(mod))
+
+fitted <- bind_rows(
+  tibble(age = 5:30,
+         mod = "l3",
+         a = filter(coefs_l3_mega, mod == "l3", coef_term == "log")$estimate,
+         b = filter(coefs_l3_mega, mod == "l3", coef_term == "lin")$estimate),
+  tibble(age = 5:30,
+         mod = "l3_no_cohort",
+         a = filter(coefs_l3_mega, mod == "l3_no_cohort", coef_term == "log")$estimate,
+         b = filter(coefs_l3_mega, mod == "l3_no_cohort", coef_term == "lin")$estimate)) %>%
+    mutate(proportion = a * log(age-4) + b * ((age-4) - 1) + 1)
+
+
+
+fitted_l3_mega <- lapply(1:11, function(i) {
+    bind_rows(
+      tibble(age = 5:30,
+           site = site_df$site[i],
+           mod = "l3",
+           a = filter(coefs_l3_mega, mod == "l3", site == site_df$site[i], coef_term == "log")$estimate,
+           b = filter(coefs_l3_mega, mod == "l3", site == site_df$site[i], coef_term == "lin")$estimate),
+      tibble(age = 5:30,
+           site = site_df$site[i],
+           mod = "l3_no_cohort",
+           a = filter(coefs_l3_mega, mod == "l3_no_cohort", site == site_df$site[i], coef_term == "log")$estimate,
+           b = filter(coefs_l3_mega, mod == "l3_no_cohort", site == site_df$site[i], coef_term == "lin")$estimate) 
+      ) %>%
+      mutate(proportion = a * log(age-4) + b * ((age-4) - 1) + 1)
+}) %>% bind_rows()
+
+View(fitted_l3_mega)
+View(coef_l3_mega)
+
+head(fitted_l3_mega)
+tidy(lm_lin_log_lin_l$belarus) %>% 
+  mutate(coef_term = sub(":*cohort....:*", "", term)) %>% 
+  group_by(coef_term) %>%
+  summarise(mean_coef = mean(estimate, na.rm = TRUE))
+
+
+
+
 
 # ------------------------------------------------ #
 # log-log model, with cohort and site fixed effects
@@ -1108,6 +1277,181 @@ dev.off()
 car::qqPlot(lm(log(proportion) ~ 0 + log(time + 1):cohort:site, 
                data = filter(dat_l[-2092, ], year_abn < 2013)))
 
+```
+
+```{r decay-facet-grid}
+
+
+# plots ------------------------------------------------ #
+
+
+gg_decay_mega_plus <-
+  ggplot(data = dat_l, 
+       mapping = aes(x = age, y = proportion, 
+                     group = year_abn, color = year_abn)) + 
+    theme_classic() + 
+    geom_point() + scale_color_distiller(palette = "Greens") + 
+    scale_x_continuous(n.breaks = 6) +
+    geom_hline(yintercept = 0.5, linetype = "dashed") + 
+    labs(caption = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
+         x = "Time since initial abandonment (years)", 
+         y = "Proportion of abandoned land remaining",
+         color = "Cohort \n(Year Abandoned)",
+         linetype = "") + 
+  
+    geom_line(data = mutate(augment(lm_mega_l3_cohort_site_l, se_fit = TRUE),
+                            time = round(exp(`log(time + 1)`), digits = 0) - 1,
+                            age = time + 5,
+                            proportion = .fitted + 1,
+                            year_abn = as.numeric(levels(cohort))[cohort])) +
+
+  geom_line(data = fitted_l3_mega, 
+            mapping = aes(x = age, y = proportion, linetype = mod),
+              # color = brewer_pal(palette = "PiYG")(11)[2], # dark pink
+              color = "blue",
+              size = 1, inherit.aes = FALSE) +
+  scale_linetype_discrete(label = c("l3" = "Mean Decay Rate\n(Across F.E.)",
+                                      "l3_no_cohort" = "Decay Rate (No F.E.)")) + 
+  theme(legend.position = c(0.9, 0.12), 
+        legend.spacing = unit(2, units = "mm"), 
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) + 
+  coord_cartesian(ylim = c(0.3, 1)) +
+  facet_wrap(vars(site))
+
+
+gg_decay_mega <-
+  ggplot(data = dat_l, 
+       mapping = aes(x = age, y = proportion, 
+                     group = year_abn, color = year_abn)) + 
+    theme_classic() + 
+    geom_point(size = 0.8) + scale_color_distiller(palette = "Greens") + 
+    scale_x_continuous(n.breaks = 6) +
+    geom_hline(yintercept = 0.5, linetype = "dashed") + 
+    labs(caption = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
+         x = "Time since initial abandonment (years)", 
+         y = "Proportion of abandoned land remaining",
+         color = "Cohort \n(Year Abandoned)",
+         linetype = "") + 
+  
+    geom_line(data = mutate(augment(lm_mega_l3_cohort_site_l, se_fit = TRUE),
+                            time = round(exp(`log(time + 1)`), digits = 0) - 1,
+                            age = time + 5,
+                            proportion = .fitted + 1,
+                            year_abn = as.numeric(levels(cohort))[cohort])) +
+
+  geom_line(data = fitted_l3_mega %>% filter(mod == "l3"), 
+            mapping = aes(x = age, y = proportion, linetype = mod),
+              # color = brewer_pal(palette = "PiYG")(11)[2], # dark pink
+              color = "blue",
+              size = 1, inherit.aes = FALSE) +
+  scale_linetype_discrete(label = c("l3" = "Mean Decay Rate\n(Across Cohorts)",
+                                      "l3_no_cohort" = "Decay Rate (No F.E.)")) + 
+  theme(legend.position = c(0.93, 0.2),
+        legend.spacing = unit(2, units = "mm"),
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
+  coord_cartesian(ylim = c(0.3, 1)) +
+  facet_wrap(vars(site), nrow = 2)
+
+  
+# --------------------------------------------------------------- #
+
+ggsave(plot = gg_decay_mega_plus, 
+       filename = paste0(p_plots, run_label, "/decay/", "decay_mod_grid_plus", run_label, ".pdf"), 
+    width = 8, height = 8, units = "in")
+
+
+ggsave(plot = gg_decay_mega, 
+       filename = paste0(p_plots, run_label, "/decay/", "decay_mod_grid_wider", run_label, ".pdf"), 
+    width = 9, height = 5, units = "in")
+
+
+# ---------------------------------------------------- #
+# just Shaanxi
+
+gg_shaanxi_decay_base <- 
+  ggplot(data = dat_l %>% filter(site == "shaanxi"), 
+       mapping = aes(x = age, y = proportion, 
+                     group = year_abn, color = year_abn)) + 
+    theme_classic() + 
+    geom_point() + scale_color_distiller(palette = "Greens") + 
+    # scale_x_continuous(n.breaks = 6) +
+    geom_hline(yintercept = 0.5, linetype = "dashed") + 
+    labs(x = "Time since initial abandonment (years)", 
+         y = "Proportion of abandoned land remaining",
+         color = "Cohort\n(Year Abandoned)",
+         linetype = "") + 
+  scale_x_continuous(breaks = seq(5, 30, by = 5)) +
+  theme(legend.position = c(0.87, 0.75),
+        legend.spacing = unit(2, units = "mm"),
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0))
+
+gg_shaanxi_decay_trends <-
+  gg_shaanxi_decay_base + 
+    geom_line(data = mutate(augment(lm_mega_l3_cohort_site_l, se_fit = TRUE),
+                            time = round(exp(`log(time + 1)`), digits = 0) - 1,
+                            age = time + 5,
+                            proportion = .fitted + 1,
+                            year_abn = as.numeric(levels(cohort))[cohort]) %>% 
+               filter(site == "shaanxi"))
+
+gg_shaanxi_decay_trends_w_mean <-
+  gg_shaanxi_decay_trends +
+  geom_line(data = fitted_l3_mega %>% filter(mod == "l3") %>% filter(site == "shaanxi"), 
+            mapping = aes(x = age, y = proportion, linetype = mod),
+              # color = brewer_pal(palette = "PiYG")(11)[2], # dark pink
+              color = "blue",
+              size = 1, inherit.aes = FALSE) +
+  scale_linetype_discrete(label = c("l3" = "Mean Decay Rate\n(Across Cohorts)",
+                                      "l3_no_cohort" = "Decay Rate (No F.E.)")) # + 
+  # theme(legend.position = c(0.85, 0.75),
+  #       legend.spacing = unit(2, units = "mm"),
+  #       legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
+  # coord_cartesian(ylim = c(0.5, 1)) #+
+  #facet_wrap(vars(site), nrow = 2)
+
+
+# ---------------------------------------------------------- #
+# just shaanxi, for presentation:
+# ---------------------------------------------------------- #
+
+# just the data points:
+ggsave(plot = gg_shaanxi_decay_base, 
+       filename = paste0(p_plots, run_label, "/presentation/", "decay_mod_example_shaanxi_points", run_label, ".pdf"), 
+    width = 6.25, height = 5, units = "in")
+
+# with trends:
+ggsave(plot = gg_shaanxi_decay_trends, 
+       filename = paste0(p_plots, run_label, "/presentation/", "decay_mod_example_shaanxi_trends", run_label, ".pdf"), 
+    width = 6.25, height = 5, units = "in")
+
+# with trends, and mean:
+ggsave(plot = gg_shaanxi_decay_trends_w_mean, 
+       filename = paste0(p_plots, run_label, "/presentation/", "decay_mod_example_shaanxi_trends_w_mean", run_label, ".pdf"), 
+    width = 6.25, height = 5, units = "in")
+
+
+
+
+# super simplified version of the plot:
+
+
+gg_decay_simple <-
+  ggplot() + 
+    theme_classic() + 
+    geom_hline(yintercept = 0.5, linetype = "dashed") +
+    labs(x = "t", 
+         y = expression(P[y])) + 
+  scale_x_continuous(breaks = seq(5, 30, by = 5)) +
+  geom_line(data = fitted_l3_mega %>% filter(mod == "l3") %>% filter(site == "mato_grosso"), 
+            mapping = aes(x = age, y = proportion, linetype = mod),
+              color = brewer_pal(palette = "Greens")(9)[7], 
+              size = 1, inherit.aes = FALSE) + 
+    theme(legend.position = "none")
+
+ggsave(plot = gg_decay_simple, 
+       filename = paste0(p_plots, run_label, "/presentation/", "decay_simple_example", run_label, ".pdf"), 
+    width = 2, height = 2, units = "in")
+  
 ```
 
 
@@ -2024,6 +2368,46 @@ tidy(lm(I(proportion - 1)  ~ 0 + log(time + 1):cohort + I(time):cohort,
 
 
 names(lm_lin_log_lin_l) <- site_df$site
+```
+
+```{r continuous-year-abn}
+
+
+lm_mega_l3_cont <- lm(I(proportion - 1)  ~ 0 + log(time + 1):site + log(time + 1):year_abn:site + 
+                                         I(time):site + I(time):year_abn:site,  
+               data = dat_l)
+
+lm(I(proportion - 1)  ~ 0 + log(time + 1) + log(time + 1):year_abn + I(time) + I(time):year_abn,  
+               data = dat_l%>% filter(site == "shaanxi")) %>%
+  equatiomatic::extract_eq(wrap = TRUE, terms_per_line = 1)
+
+lm_mega_l3_cont
+
+  # plot
+  # gg_tmp <-
+    ggplot(data = filter(dat_l#, site == site_df$site[9]
+                         ), 
+                                      mapping = aes(x = age, y = proportion, 
+                                                    group = year_abn, color = year_abn)) + 
+    theme_classic() + 
+    geom_point() + scale_color_distiller(palette = "Greens") + 
+    scale_x_continuous(n.breaks = 6) +
+    geom_hline(yintercept = 0.5, linetype = "dashed") + 
+    labs(
+         x = "Time since initial abandonment (years)", 
+         y = "Proportion of abandoned land remaining",
+         color = "Cohort \n(Year First \nAbandoned)",
+         linetype = "") + 
+  
+    geom_line(data = mutate(augment(lm_mega_l3_cont, se_fit = TRUE),
+                            time = round(exp(`log(time + 1)`), digits = 0) - 1,
+                            age = time + 5,
+                            proportion = .fitted + 1
+              )) + 
+      facet_wrap(vars(site))
+
+
+
 ```
 
 
@@ -3128,6 +3512,7 @@ resid_df_lin_log <- lapply(lm_lin_log_l, augment) %>% bind_rows(.id = "site") %>
 
 mega_resid_df <- bind_rows(resid_df_log2, resid_df_l3, resid_df_lin_log)
 
+
 # save multiple model diagnostics plots ---------------- #
 
 png(filename = paste0(p_plots, run_label, "/decay/", "resid_time_multi", run_label, ".png"), 
@@ -3146,6 +3531,41 @@ dev.off()
 
 
 # -------------------------------------------------------------- #
+
+mega_lm_mod_l3 <- augment(lm_mega_l3_cohort_site_l) %>% 
+  mutate(time = round(exp(`log(time + 1)`), digits = 0) - 1,
+         age = time + 5,
+         # proportion = .fitted + 1,
+         year_abn = as.numeric(levels(cohort))[cohort]) %>%
+  left_join(., dat_l, by = c("site", "year_abn", "cohort", "time", "age"))
+
+names(mega_lm_mod_l3)
+
+names(dat_l)
+
+plot(lm_mega_l3_cohort_site_l)
+hist(mega_lm_mod_l3$.std.resid)
+arrange(mega_lm_mod_l3, .std.resid)
+
+ggplot(data = mega_lm_mod_l3 %>% filter(.std.resid > -10, site != "mato_grosso")
+         , aes(x = time, y = .std.resid, color = year_abn)) + 
+    geom_point(alpha = 0.8, position = position_jitter()) + 
+    scale_color_distiller(palette = "Greens") + 
+    labs(y = "Residuals", x = "Time Past Abandonment Threshold (Years)",
+         caption = "Excluding Mato Grosso")
+
+# q-q
+ggplot(data = mega_lm_mod_l3 %>% filter(.std.resid > -10, site != "mato_grosso"), 
+       aes(sample = .std.resid)) +
+  stat_qq() +
+  stat_qq_line()
+
+qqPlot(mega_lm_mod_l3$.std.resid)
+qqPlot(lm_mega_l3_cohort_site_l)
+
+par(mfrow = c(2,2))
+plot(lm_mega_l3_cohort_site_l)
+dev.off()
 
 
 
@@ -4000,7 +4420,6 @@ coef_df_l3 <- lapply(lm_lin_log_lin_l, FUN = function(x) {
   select(site, cohort, term, estimate, coef_term, everything())
 
 
-
 # calculate mean coefficients per site, for both lin and log terms
 mean_coef_df_l3 <- coef_df_l3 %>% 
   group_by(site, coef_term, term) %>% # group by site, term and coef_term (though you only need one of these)
@@ -4299,7 +4718,6 @@ mean_coef_df_l3
 lm_lin_log_lin_l$shaanxi
 dat_l
 
-
 # make a data.frame with fitted values for the mean coef
 fitted_df_l3 <- lapply(site_df$site, FUN = function(x) {
   data.frame(site = x,
@@ -4313,7 +4731,7 @@ fitted_df_l3 <- lapply(site_df$site, FUN = function(x) {
 }) %>% bind_rows() %>% as_tibble()
 
 
-
+f0 <- fitted_df_l3
 ```
 
 
@@ -4387,21 +4805,24 @@ mean_coef_df %>% mutate(site = fct_relevel(site, coef_level_order)) %>% .$site
 
 # plot all coefficients
 ggplot(data = coef_df_wide_l3 %>% filter(),
-       mapping = aes(x = year_abn, y = time_to_0.5, group = site, color = site)) + 
+       mapping = aes(x = year_abn, y = time_to_0.5#, group = site, color = site
+                     )
+       ) + 
   theme_classic() +
   geom_point(position = position_jitter()) + 
   #geom_errorbar(mapping = aes(ymin = conf.low, ymax = conf.high), width = 0.3) +
-  labs(y = "Time until Half Remains (Years)",
+  labs(y = "Time For Half of Land to be Recultivated (Years)",
        x = "Cohort (Year of Initial Abandonment)", 
-       title = "Half Times",
-       subtitle = "lin-log-lin model",
-       caption = "Error bars represent 95% confidence interval",
+       # title = "Half Times",
+       # subtitle = "lin-log-lin model",
+       # caption = "Error bars represent 95% confidence interval",
        color = "Site") + 
   theme(#axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0), 
         legend.position = "bottom",
         plot.caption = element_text(face = "italic"),
         plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm")) + 
-  geom_smooth(method = "lm", se = FALSE) # + 
+  geom_smooth(method = "lm", se = TRUE) +
+  facet_wrap(vars(site), scales = "free_y")# + 
 
 
 # with quadrants:
@@ -4420,10 +4841,10 @@ gg_l3_cohort_coef_all <-
          mapping = aes(x = year_abn, y = time_to_0.5, color = fct_reorder(site, mean_time_to_0.5))) +
   theme_classic() +
   geom_point(size = 2) + 
-  labs(y = "Model Coefficient (Power Term)",
+  labs(y = "Time for half of cohort to be recultivated (years)",
        x = "Cohort (Year of Initial Abandonment)", 
-       title = "Model Coefficients", 
-       caption = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
+       # title = "Model Coefficients", 
+       # caption = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
        color = "Site") + 
   theme(legend.position = "right", 
         plot.caption = element_text(face = "italic"),
@@ -4431,10 +4852,10 @@ gg_l3_cohort_coef_all <-
   geom_smooth(method = "lm", se = FALSE)  + 
   facet_wrap(~ cluster, scales = "free_y",
              labeller = labeller(cluster = c(#old = "new",
-               a = "Q1, mean half time (shortest)",
+               a = "Q1, mean half time \n(fastest recultivation)",
                b = "Q2, mean half time",
                c = "Q3, mean half time",
-               d = "Q4, mean half time (longest)")))
+               d = "Q4, mean half time \n(slowest recultivation)")))
 
 
 
@@ -4445,6 +4866,8 @@ png(filename = paste0(p_plots, run_label, "/decay/", "l3_cohort_coefs_all", run_
 print(gg_l3_cohort_coef_all)
 dev.off()
 # ------------------------------------------------------------- #
+
+
 
 
 
@@ -4485,7 +4908,7 @@ coef_df2_l3 <- tidy(lm_coef_l3, conf.int = TRUE) %>%
 
 # plot right on:
 # ------------------------ use this one ---------------------------- #
-gg_coef_rate_change_by_site_l3_horiz <- 
+gg_coef_rate_change_by_site_l3_horiz <-
   ggplot(data = left_join(coef_df2_l3, mean_coef_df_wide_l3, by = "site"),
          aes(x = fct_reorder(site, estimate_slope), 
              y = estimate_slope, 
@@ -4512,7 +4935,7 @@ gg_coef_rate_change_by_site_l3_vert <-
   geom_errorbar(mapping = aes(xmin = conf.low_slope, xmax = conf.high_slope), width = 0.2) +
   geom_vline(xintercept = 0, linetype = "dashed") + 
   labs(y = "Site", 
-       x = "Rate of change of time to decay by half (years per year)") + 
+       x = "Rate of change of recultivation speed \n(time to recultivate half of area, \nyears per year)") + 
   theme(legend.position = "none",
         plot.margin = unit(c(0.4, 0.6, 0.2, 0.2), "cm"))
 
@@ -4534,6 +4957,16 @@ png(filename = paste0(p_plots, run_label, "/decay/",
 print(gg_coef_rate_change_by_site_l3_vert)
 dev.off()
 
+
+
+# -------------- for presentation ------------------- #
+# combo quadrant with coefs:
+
+ggsave(plot = plot_grid(gg_l3_cohort_coef_all + theme(legend.position = "bottom"),
+                        gg_coef_rate_change_by_site_l3_vert,
+                        ncol = 2, rel_widths = c(1, 0.6), align = "h", axis = "b"),
+       filename = paste0(p_plots, run_label, "/presentation/", "rate_of_change_recultivation_speed", run_label, ".pdf"), 
+       width = 11, height = 6, units = "in")
 
 ```
 
@@ -4999,14 +5432,17 @@ ggplot(data = mean_initial_area_abn,
 # Plot the initial area abandoned in each year:
 # note, this matches the gains in the panel figure showing the turnover. 
 # ----------------------------------------------------------------------- #
-ggplot(data = filter(dat_l, site == "shaanxi") %>% 
-         select(year_abn, initial_area_abn) %>% unique(),
+test1 <- dat_l %>% group_by(site, year_abn) %>% summarize(initial_area_abn = unique(initial_area_abn))
+test1 <- ungroup(test1)
+
+
+ggplot(data = test1, #%>% filter(site== "belarus"),
        mapping = aes(x = year_abn, y = initial_area_abn)) +
   theme_classic() + 
-  geom_col() + 
-  labs(title = "Initial Area Abandoned in each year, Shaanxi",
-       x = "Additional area abandoned", y = "Year"
-       )
+  geom_col() + labs(y = "Initial Area Abandoned", x = "Year Abandoned") + 
+  facet_wrap(~ site, nrow = 3, ncol = 4, scales = "free")
+
+
 
 ```
 
@@ -5016,7 +5452,7 @@ ggplot(data = filter(dat_l, site == "shaanxi") %>%
 # Function extrapolate mean age based on mean area abandoned in each year
 # ----------------------------------------------------------------------- #
 
-cc_extrapolate_mean_age <- function(extrapolate_to_year = 2100, 
+cc_extrapolate_abn <- function(extrapolate_to_year = 2100, 
                                     summarize_area = TRUE, 
                                     fitted_values_df,
                                     site_ = "shaanxi") {
@@ -5056,7 +5492,7 @@ cc_extrapolate_mean_age <- function(extrapolate_to_year = 2100,
 future_df_l3 <- 
   lapply(site_df$site, function(y) {
     lapply(1987:2150, function(x) {
-      cc_extrapolate_mean_age(extrapolate_to_year = x,
+      cc_extrapolate_abn(extrapolate_to_year = x,
                               summarize_area = FALSE,
                               fitted_values_df = fitted_df_l3,
                               site_ = y)
@@ -5077,7 +5513,7 @@ write_csv(future_df_l3, path = paste0(p_dat_derived, run_label, "/future_df_l3",
 
 extrapolate_df_l3 <- future_df_l3 %>% 
   group_by(site, year) %>%
-  summarize(exp_total_area_abn = sum(exp_area_ha, na.rm = TRUE),
+  summarise(exp_total_area_abn = sum(exp_area_ha, na.rm = TRUE),
             mean_age = 
               sum(age*exp_area_ha, na.rm = TRUE) /
               sum(exp_area_ha, na.rm = TRUE)
@@ -5138,6 +5574,7 @@ png(filename = paste0(p_plots, run_label, "/decay/", "extrapolate_area_abn", run
     width = 6, height = 4.5, units = "in", res = 400)
 print(gg_extrapolate_area_abn)
 dev.off()
+
 ```
 
 
@@ -5152,7 +5589,7 @@ extrapolated_df_s <- filter(dat_l, site == "shaanxi") %>% group_by(year) %>%
       cc_estimate_area_abn(year = i, summarize_area = TRUE)
       }),
     expected_mean = sapply(year, FUN = function(i) {
-      cc_extrapolate_mean_age(extrapolate_to_year = i, summarize_area = TRUE,
+      cc_extrapolate_abn(extrapolate_to_year = i, summarize_area = TRUE,
                               fitted_values_df = fitted_df_l3) %>% 
         select(exp_total_area_abn) %>% as.numeric()
       })
@@ -5213,11 +5650,16 @@ ggplot(data = filter(dat_l, site == "shaanxi"),
 future_df_l3 %>% filter(exp_area_ha > 0) %>% arrange(desc(age))
 future_df_l3 %>% select(age) %>% max() %>% signif(2) / 9
 
+future_df_l3 %>% mutate(
+  age_bin = cut(age, breaks = seq(from = 0, to = 140, by = 15), right = TRUE))
+
 gg_extrapolated_area_by_age_bin <-
-  ggplot(data = future_df_l3 %>% filter(year <= 2120#, site == "shaanxi"
-                                        ),
+  ggplot(data = future_df_l3 %>% 
+           filter(year <= 2120#, site == "shaanxi"
+                                        ) %>%
+         mutate(age_bin = cut(age, breaks = seq(from = 0, to = 140, by = 15), right = TRUE)),
        mapping = aes(x = year, y = exp_area_ha / 10^3, 
-                     fill = cut(age, breaks = seq(from = 0, to = 140, by = 15), right = TRUE))) + 
+                     fill = age_bin)) + 
     theme_classic() +
     labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
          x = "Year", fill = "Age", linetype = NULL) +
@@ -5228,21 +5670,30 @@ gg_extrapolated_area_by_age_bin <-
                                                 ),
             mapping = aes(x = year, y = exp_total_area_abn / 10^3,
                           linetype = "Total Area Abandoned"),
-            color = "gray50") +
-    
-  facet_wrap(vars(site), scales = "free_y", nrow = 4, ncol = 3) +
+            color = "gray50", inherit.aes = FALSE) +
   theme(legend.position = c(0.85, 0.10), 
         legend.spacing = unit(2, units = "mm"), 
         legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) + 
-  guides(fill = guide_legend(ncol = 2))
+  guides(fill = guide_legend(ncol = 2)) + 
+  facet_wrap(vars(site), scales = "free_y", nrow = 4, ncol = 3)
 
+  
 
 ggsave(plot = gg_extrapolated_area_by_age_bin, 
-       filename = paste0(p_plots, run_label, "/decay/", "extrapolate_age_by_age_bin", run_label, ".pdf"), 
-    width = 7, height = 8, units = "in")
+       filename = paste0(p_plots, run_label, "/decay/", "extrapolate_age_by_age_bin_tall", run_label, ".pdf"), 
+       width = 7, height = 8, units = "in")
 
 
-
+ 
+# wide
+ggsave(plot = gg_extrapolated_area_by_age_bin +
+         facet_wrap(vars(site), scales = "free_y", nrow = 3, ncol = 4) + 
+         theme(legend.position = c(0.88, 0.12),
+               legend.spacing = unit(0.5, units = "mm"),
+               legend.background = element_rect(fill = "transparent")),
+       filename = paste0(p_plots, run_label, "/presentation/", "extrapolate_age_by_age_bin_wider", run_label, ".pdf"),
+       width = 8, height = 5, units = "in", dpi = 400
+)
 
 
 # ---------------------------------------------------------- #
@@ -5312,6 +5763,111 @@ ggplot(data = future_df_l3 %>% filter(site == "shaanxi", year == 2121),
 
 ```
 
+```{r extrapolation-panel}
+
+max_age_extrapolation <- future_df_l3 %>% 
+  filter(exp_area_ha > 0) %>% 
+  group_by(site) %>%
+  summarise(max_age = max(age, na.rm = TRUE)) %>%
+  arrange(max_age)
+
+extrapolate_df_l3 %>% left_join(max_age_extrapolation, by = "site")
+fitted_df_l3 %>% left_join(max_age_extrapolation, by = "site")
+
+# ----------------------------------------------------------------------- #
+# site decay trend
+# ----------------------------------------------------------------------- #
+gg_extrapolation_panel_trend_a <-
+  ggplot(data = fitted_df_l3 %>% 
+           left_join(max_age_extrapolation, by = "site") %>% 
+           filter(age < 140),
+       mapping = aes(x = age, y = fitted, color = fct_reorder(site, max_age))) +
+  theme_classic() +
+  geom_line(size = 1.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray70") + 
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(#title = "Decay of abandoned land over time", 
+       #caption = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
+       x = "Time since initial abandonment (years)", 
+       y = "Proportion of abandoned land remaining",
+       color = "Site") + 
+  guides(col = guide_legend(reverse = TRUE)) + 
+  scale_x_continuous(breaks = seq(from = 0, to = 140, by = 20))
+
+
+exp_area_in_2150 <- extrapolate_df_l3 %>% 
+           left_join(., filter(extrapolate_df_l3, year == 2150) %>%
+                       select(site, exp_area_in_2150 = exp_total_area_abn), 
+                   by = c("site")) %>%
+  select(site, exp_area_in_2150) %>% unique() %>% arrange(exp_area_in_2150)
+
+# ----------------------------------------------------------------------- #
+# plot the expected area through time:
+# ----------------------------------------------------------------------- #
+gg_extrapolation_panel_area_c <-
+  ggplot(data = extrapolate_df_l3 %>% 
+           left_join(max_age_extrapolation, by = "site") %>% 
+           filter(year < 2122), 
+       mapping = aes(x = year, y = exp_total_area_abn/10^3, 
+                     color = fct_reorder(site, max_age))) + 
+  geom_line(size = 1) + 
+  theme_classic() + 
+  labs(x = "Year", y = expression("Area abandoned (10"^{3}*" ha)"),
+       # title = "Extrapolated accumulation of abandoned land over time",
+       color = "Site") + 
+  scale_x_continuous(breaks = seq(from = 2000, to = 2120, by = 20)) +
+  scale_color_discrete(breaks = exp_area_in_2150$site) + # to reorder the legend
+  guides(color = guide_legend(reverse = TRUE))
+
+# ----------------------------------------------------------------------- #
+# mean age through time
+# ----------------------------------------------------------------------- #
+gg_extrapolation_panel_age_b <-
+  ggplot(data = extrapolate_df_l3 %>% 
+           left_join(max_age_extrapolation, by = "site") %>% 
+           filter(year < 2122), 
+       mapping = aes(x = year, y = mean_age, color = fct_reorder(site, max_age))) + 
+  geom_line(size = 1) + 
+  theme_classic() + 
+  labs(x = "Year", y = "Mean age of abanandoned lands (years)",
+       #title = "Mean age of abandoned land through time",
+       color = "Site"
+       ) + 
+  scale_x_continuous(breaks = seq(from = 2000, to = 2120, by = 20)) + 
+  guides(color = guide_legend(reverse = TRUE)) #+ geom_vline(xintercept = 2125)
+
+
+
+# save
+
+ggsave(plot = plot_grid(
+  plot_grid(gg_extrapolation_panel_trend_a + theme(legend.position = "none"),
+            gg_extrapolation_panel_age_b, ncol = 2, rel_widths = c(1, 1.2),
+            labels = c("a", "b")),
+  gg_extrapolation_panel_area_c, labels = c("", "c"),
+  nrow = 1, ncol = 2, rel_widths = c(1.75, 1)
+  ), 
+  filename = paste0(p_plots, run_label, "/decay/", "extrapolation_combo", run_label, ".pdf"), 
+    width = 13, height = 4, units = "in"
+)
+
+
+
+# the tall combo, the one I end up using
+ggsave(plot = 
+         plot_grid(
+           gg_extrapolation_panel_trend_a, 
+           plot_grid(gg_extrapolation_panel_age_b, 
+                     gg_extrapolation_panel_area_c,
+                     ncol = 2, #rel_widths = c(1, 1.2),
+                     labels = c("b", "c")),
+           labels = c("a", ""),
+           nrow = 2, ncol = 1, rel_widths = c(1.75, 1)
+           ), 
+       filename = paste0(p_plots, run_label, "/decay/", "extrapolation_combo_tall", run_label, ".pdf"),
+       width = 10, height = 8, units = "in"
+)
+```
 
 ## l3 no cohort
 
@@ -5347,7 +5903,7 @@ fitted_df_l3_no_cohort <- lapply(site_df$site, FUN = function(x) {
 future_df_l3_no_cohort <- 
   lapply(site_df$site, function(y) {
     lapply(1987:2150, function(x) {
-      cc_extrapolate_mean_age(extrapolate_to_year = x, 
+      cc_extrapolate_abn(extrapolate_to_year = x, 
                               summarize_area = FALSE, 
                               fitted_values_df = fitted_df_l3_no_cohort,
                               site_ = y)
@@ -5364,9 +5920,13 @@ extrapolate_df_l3_no_cohort <-
               sum(exp_area_ha, na.rm = TRUE)
             )
 
+extrapolate_df_l3_no_cohort <- bind_rows(extrapolate_df_l3_no_cohort, tibble(site = site_df$site,
+       year = 1991, 
+       exp_total_area_abn = 0,
+       mean_age = NA))
 
-write_csv(future_df_l3_no_cohort, path = paste0(p_dat_derived, run_label, "/future_df_l3_no_cohort", run_label, ".csv"))
-write_csv(extrapolate_df_l3_no_cohort, path = paste0(p_dat_derived, run_label, "/extrapolate_df_l3_no_cohort", run_label, ".csv"))
+write_csv(future_df_l3_no_cohort, path = paste0(p_dat_derived, run_label, "/future_df_l3_no_fe", run_label, ".csv"))
+write_csv(extrapolate_df_l3_no_cohort, path = paste0(p_dat_derived, run_label, "/extrapolate_df_l3_no_fe", run_label, ".csv"))
 
 
 # ----------------------------------------------------------------------- #
@@ -5381,7 +5941,7 @@ gg_extrapolate_mean_age_no_cohort <- gg_extrapolate_mean_age %+%
 
 gg_extrapolate_mean_age_no_cohort
 
-png(filename = paste0(p_plots, run_label, "/decay/", "extrapolate_mean_age_no_cohort", run_label, ".png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "extrapolate_mean_age_no_fe", run_label, ".png"), 
     width = 6, height = 4.5, units = "in", res = 400)
 print(gg_extrapolate_mean_age_no_cohort)
 dev.off()
@@ -5408,11 +5968,157 @@ gg_extrapolate_area_abn_no_cohort <-
   guides(color = guide_legend(reverse = TRUE)) #+ geom_vline(xintercept = 2125)
 
 
-png(filename = paste0(p_plots, run_label, "/decay/", "extrapolate_area_abn_no_cohort", run_label, ".png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "extrapolate_area_abn_no_fe", run_label, ".png"), 
     width = 6, height = 4.5, units = "in", res = 400)
 print(gg_extrapolate_area_abn_no_cohort)
 dev.off()
 
+
+
+
+
+# ----------------------------------------------------------------------- #
+# plot the expected area through time, with age bins:
+# ----------------------------------------------------------------------- #
+
+gg_extrapolated_area_by_age_bin_no_cohort <-
+  ggplot(data = future_df_l3_no_cohort %>% filter(year <= 2120#, site == "shaanxi"
+                                        ),
+       mapping = aes(x = year, y = exp_area_ha / 10^3, 
+                     fill = cut(age, breaks = seq(from = 0, to = 140, by = 15), right = TRUE))) + 
+    theme_classic() +
+    labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
+         x = "Year", fill = "Age", linetype = NULL) +
+    geom_col(position = position_stack(reverse = FALSE)) + 
+    scale_fill_brewer(palette = "Greens", direction = 1) +
+    
+  geom_line(data = extrapolate_df_l3_no_cohort %>% filter(year <= 2120#, site == "shaanxi"
+                                                ),
+            mapping = aes(x = year, y = exp_total_area_abn / 10^3,
+                          linetype = "Total Area Abandoned"),
+            color = "gray50") +
+    
+  facet_wrap(vars(site), scales = "free_y", nrow = 4, ncol = 3) +
+  theme(legend.position = c(0.85, 0.10), 
+        legend.spacing = unit(2, units = "mm"), 
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) + 
+  guides(fill = guide_legend(ncol = 2))
+
+
+ggsave(plot = gg_extrapolated_area_by_age_bin_no_cohort, 
+       filename = paste0(p_plots, run_label, "/decay/", "extrapolate_age_by_age_bin_no_fe", run_label, ".pdf"), 
+    width = 7, height = 8, units = "in")
+
+
+
+```
+
+```{r extrapolation-panel}
+
+max_age_extrapolation_no_cohort <- future_df_l3_no_cohort %>% 
+  filter(exp_area_ha > 0) %>% 
+  group_by(site) %>%
+  summarize(max_age = max(age, na.rm = TRUE)) %>%
+  arrange(max_age)
+
+# ----------------------------------------------------------------------- #
+# site decay trend
+# ----------------------------------------------------------------------- #
+gg_extrapolation_panel_no_fe_trend_a <-
+  ggplot(data = fitted_df_l3_no_cohort %>% 
+           left_join(max_age_extrapolation_no_cohort, by = "site") %>% 
+           filter(age < 140),
+       mapping = aes(x = age, y = fitted, color = fct_reorder(site, max_age))) +
+  theme_classic() +
+  geom_line(size = 1.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray70") + 
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(#title = "Decay of abandoned land over time", 
+       #caption = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
+       x = "Time since initial abandonment (years)", 
+       y = "Proportion of abandoned land remaining",
+       color = "Site") + 
+  guides(col = guide_legend(reverse = TRUE)) + 
+  scale_x_continuous(breaks = seq(from = 0, to = 140, by = 20))
+
+
+exp_area_in_2150_no_fe <- extrapolate_df_l3_no_cohort %>% 
+           left_join(., filter(extrapolate_df_l3_no_cohort, year == 2150) %>%
+                       select(site, exp_area_in_2150 = exp_total_area_abn), 
+                   by = c("site")) %>%
+  select(site, exp_area_in_2150) %>% unique() %>% arrange(exp_area_in_2150)
+
+# ----------------------------------------------------------------------- #
+# plot the expected area through time:
+# ----------------------------------------------------------------------- #
+gg_extrapolation_panel_no_fe_area_c <-
+  ggplot(data = extrapolate_df_l3_no_cohort %>% 
+           left_join(max_age_extrapolation_no_cohort, by = "site") %>% 
+           filter(year < 2122), 
+       mapping = aes(x = year, y = exp_total_area_abn/10^3, 
+                     color = fct_reorder(site, max_age))) + 
+  geom_line(size = 1) + 
+  theme_classic() + 
+  labs(x = "Year", y = expression("Area abandoned (10"^{3}*" ha)"),
+       # title = "Extrapolated accumulation of abandoned land over time",
+       color = "Site") + 
+  scale_x_continuous(breaks = seq(from = 2000, to = 2120, by = 20)) +
+  scale_color_discrete(breaks = exp_area_in_2150_no_fe$site) + # to reorder the legend
+  guides(color = guide_legend(reverse = TRUE))
+
+# ----------------------------------------------------------------------- #
+# mean age through time
+# ----------------------------------------------------------------------- #
+gg_extrapolation_panel_no_fe_age_b <-
+  ggplot(data = extrapolate_df_l3_no_cohort %>% 
+           left_join(max_age_extrapolation_no_cohort, by = "site") %>% 
+           filter(year < 2122), 
+       mapping = aes(x = year, y = mean_age, color = fct_reorder(site, max_age))) + 
+  geom_line(size = 1) + 
+  theme_classic() + 
+  labs(x = "Year", y = "Mean age of abanandoned lands (years)",
+       #title = "Mean age of abandoned land through time",
+       color = "Site"
+       ) + 
+  scale_x_continuous(breaks = seq(from = 2000, to = 2120, by = 20)) + 
+  guides(color = guide_legend(reverse = TRUE)) #+ geom_vline(xintercept = 2125)
+
+
+
+# with fixed effects
+
+ggsave(plot = 
+         plot_grid(
+           plot_grid(gg_extrapolation_panel_no_fe_trend_a + theme(legend.position = "none"),
+                     gg_extrapolation_panel_no_fe_age_b, ncol = 2, rel_widths = c(1, 1.2),
+                     labels = c("a", "b")),
+           gg_extrapolation_panel_no_fe_area_c, labels = c("", "c"),
+           nrow = 1, ncol = 2, rel_widths = c(1.75, 1)
+           ), 
+       filename = paste0(p_plots, run_label, "/decay/", "extrapolation_combo_no_fe", run_label, ".pdf"),
+       width = 13, height = 4, units = "in"
+)
+
+
+ggsave(plot = 
+         plot_grid(
+           gg_extrapolation_panel_no_fe_trend_a, 
+           plot_grid(gg_extrapolation_panel_no_fe_age_b, 
+                     gg_extrapolation_panel_no_fe_area_c,
+                     ncol = 2, #rel_widths = c(1, 1.2),
+                     labels = c("b", "c")),
+           labels = c("a", ""),
+           nrow = 2, ncol = 1, rel_widths = c(1.75, 1)
+           ), 
+       filename = paste0(p_plots, run_label, "/decay/", "extrapolation_combo_no_fe_tall", run_label, ".pdf"),
+       width = 10, height = 8, units = "in"
+)
+
+```
+
+## Gradual decline of area abandoned each year
+
+```{r}
 
 ```
 
