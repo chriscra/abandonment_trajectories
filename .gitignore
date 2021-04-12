@@ -6,6 +6,7 @@ output/
 writing/
 scripts/cluster/old/
 scripts/cluster/slurm/
+wc0.5/
 
 
 # other random files
