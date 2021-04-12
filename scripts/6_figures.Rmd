@@ -70,24 +70,25 @@ names(b_age_r) <- paste0("y", 1987:2017)
 site_input_raster_files <- list.files(paste0(p_dat_derived, "input_rasters"), full.names = TRUE) %>%
   grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = TRUE)
 
-r <- lapply(seq_along(site_input_raster_files), function(i) {brick(site_input_raster_files[i])})
-names(r) <- site_df$site
+lc <- lapply(seq_along(site_input_raster_files), function(i) {brick(site_input_raster_files[i])})
+names(lc) <- site_df$site
 
 # rename raster layers:
 for (i in 1:11) {
-  if (names(r[i]) == "nebraska") {
-    names(r[[i]]) <- paste0("y", 1986:2018)
+  if (names(lc[i]) == "nebraska") {
+    names(lc[[i]]) <- paste0("y", 1986:2018)
   } else {
-    if (names(r[i]) == "wisconsin") {
-      names(r[[i]]) <- paste0("y", 1987:2018)
+    if (names(lc[i]) == "wisconsin") {
+      names(lc[[i]]) <- paste0("y", 1987:2018)
     } else {
       # everything else, just 1987:2017
-      names(r[[i]]) <- paste0("y", 1987:2017)
+      names(lc[[i]]) <- paste0("y", 1987:2017)
     }}}
 
 
 # abandonment age maps (produced by Chris)
-age_files <- list.files(paste0(p_dat_derived, "age_rasters"), full.names = TRUE) %>%
+age_files <- list.files(paste0(p_dat_derived, "age_rasters/", run_label), 
+                        full.names = TRUE) %>%
   grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
 
 age_r <- lapply(seq_along(age_files), function(i) {brick(age_files[i])})
@@ -211,7 +212,7 @@ st_crs(site_sf) <- st_crs(world$geometry)
 
 # -------------------------------------------------------------------- #
 # save site_sf
-st_write(site_sf, dsn = paste0(p_dat_derived, "site_sf.shp"))
+st_write(site_sf, dsn = paste0(p_dat_derived, "site_sf.shp"), append = FALSE)
 
 # load back in:
 site_sf <- st_read(paste0(p_dat_derived, "site_sf.shp"))
@@ -272,25 +273,28 @@ dev.off()
 
 
 # long labels:
-png(filename = paste0(p_output, "plots/site_locations_w_labels_long.png"), 
-    width = 9, height = 6, units = "in", res = 400)
-
-ggplot() + 
+gg_site_locations_long <-
+  ggplot() + 
   theme_classic() +
   geom_sf(data = world %>% filter(continent != "Antarctica"), fill = NA, color = "gray") +
   geom_sf(data = site_sf, mapping = aes(fill = lab_desc)) + 
-  labs(x = NULL, y = NULL) +
+  labs(x = NULL, y = NULL, fill = "") +
   theme(legend.position = "bottom") + 
   geom_label_repel(data = site_sf,
-                   aes(label = desc, geometry = geometry),
+                   aes(label = label, geometry = geometry),
                    stat = "sf_coordinates",
                    min.segment.length = 0.0, segment.alpha = 1,
                    point.padding = 0.2, box.padding = 0.2,
-                   label.size = 0.3, color = "black") +
+                   label.padding = 0.2,
+                   label.size = 0.2, color = "black", direction = "both") +
   # labs(subtitle = paste0("Map projection: ", "natearth2")) + 
-  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "natearth2")))
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "natearth2"))) + 
+  guides(fill = guide_legend(nrow = 4, ncol = 3))
 
-dev.off()
+
+ggsave(plot = gg_site_locations_long, 
+       filename = paste0(p_output, "plots/site_locations_w_labels_long.png"),
+       width = 9, height = 5, units = "in", dpi = 400)
 
 # just chinese sites
 ggplot() + 
@@ -1125,6 +1129,46 @@ cc_save_map_lc_age_rasters(maxpixels = 3000000)
 ```
 
 
+```{r animations}
+site_index <- 1
+
+tic()
+cc_save_gif(raster = age_r[[site_index]], 
+            npixels = 500000, 
+            titles = paste0("Abandonment Age, ", 
+                            capwords(site_df$site[site_index]), " ", 1987:2017),
+            frames_per_second = 5,
+            file_out = paste0(p_plots, "/", run_label, "/", "animation_abn_age",
+                              site_df$label[site_index], ".gif"))
+toc()
+
+
+
+
+# ----------------------------------------------- #
+# use animation::saveGIF() to save raster::animate()
+
+file_out <- paste0(p_plots, "/", run_label, "/", "animation_land_cover",
+                              site_df$label[site_index], ".gif")
+
+saveGIF(animate(site_r[[site_index]], main = paste0("Land Cover, ", 
+                            capwords(site_df$site[site_index]), " ", 1987:2017), 
+                maxpixels = 500000, n = 1,
+                breaks = c(0, plot_cols1$breaks), col = plot_cols1$color), 
+          movie.name = file_out)
+
+gif <- image_animate(image_read(file_out), fps = 5)
+image_write(gif, file_out)
+
+
+dev.off()
+plot(site_r$shaanxi$y1987, main = "Shaanxi 1987", breaks = c(0, plot_cols1$breaks), col = plot_cols1$color, maxpixels = 10000)
+legend("bottomleft", cex = 2, inset = 0,
+       legend = plot_cols1$name, 
+       fill = plot_cols1$color)  
+
+```
+
 
 
 
@@ -1900,5 +1944,291 @@ cc_4_panel_plots(
 
 
 ```
+
+
+# Presentation Figures:
+
+```{r lc-abn-by-age}
+input_path <- paste0(p_dat_derived, run_label)
+output_path <- paste0(p_output, "plots/", run_label, "/presentation/")
+outfile_label <- paste0(run_label, site_df$label[9])
+site <- site_df$site[9]
+col_palette <- plot_cols
+
+
+cc_presentation_summary_plots <- function(input_path, 
+                             output_path,
+                             outfile_label = paste0(run_label, site_label),
+                             site,
+                             width = 9, height = 11,
+                             col_palette = plot_cols,
+                             subtitle = NULL,
+                             site_desc) {
+  
+  area_df <- read_csv(file = paste0(input_path, "/", site, "_result_area",  run_label, ".csv"))
+  persistence_df <- read.csv(file = paste0(input_path, "/", site, "_result_persistence",  run_label, ".csv"))
+  turnover_df <- read.csv(file = paste0(input_path, "/", site, "_result_turnover",  run_label, ".csv"))
+  length_distill_df <- read.csv(file = paste0(input_path, "/", "length_distill_df", run_label, ".csv"))
+  mean_length_df <- read.csv(file = paste0(input_path, "/", "mean_length_df", run_label, ".csv"))
+  # site <- "shaanxi"
+  input_site <- site
+  
+  # ------------- calculate total area per lc, with abandonment ---------------- #
+  gg_lc_abn_area <-
+    ggplot(data  = area_df #%>% filter(lc != "Abandoned (>1)")
+    ) +
+    theme_classic() +
+    # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+    labs(y = expression("Area  (10"^{6}*" ha)") , 
+         x = "Year", 
+         #title = "Area by Land Cover, with Abandonment",
+         #subtitle = subtitle,
+         color = NULL #"Land Cover"
+         ) + 
+    geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
+                            group = lc, color = fct_reorder(lc, lc, .desc = TRUE)),
+              size = 1.5) + 
+    theme(legend.position = "bottom",
+          legend.title = element_text(size = 10)) +
+    guides(color = guide_legend(nrow = 2, ncol = 3)) +
+    
+    scale_color_manual(values = col_palette)
+  # scale_color_brewer(palette = "Greens")
+  # scale_color_viridis(discrete = TRUE)
+  
+  
+  # ------------------------ abandonment persistence --------------------------- #
+  gg_persistence <-
+    ggplot(data = persistence_df) + 
+    theme_classic() + 
+    labs(#title = "Persistence of Abandoned Land",
+      #subtitle = subtitle,
+      color = "Year \nAbandoned \n(Cohort)") + 
+    scale_color_distiller(palette = "Greens") +
+    theme(legend.position = c(0.9, 0.7),
+      #legend.direction = "horizontal"
+      #legend.position = "bottom", legend.text = element_text(angle = 330, vjust = 1, hjust = 0)
+      legend.title = element_text(size = 10)
+    ) +
+    geom_line(mapping = aes(x = age, y = proportion,
+                            group = year_abn, color = year_abn), 
+              size = 1.25) + 
+    labs(y = "Proportion remaining abandoned", 
+         x = "Years since initial abandonment")
+  
+  
+  # -------------------- calculate the abandonment area turnover ------------------- #
+  gg_turnover <-
+    ggplot() +
+    theme_classic() + 
+    labs(y = expression("Annual area turnover (10"^{3}*" ha)"), 
+         x = "Year", 
+         #title = "Change in Area of Abandoned Land",
+         #subtitle = subtitle,
+         fill = NULL, #"Annual Change",
+         color = NULL) + 
+    scale_color_manual(values = c("black"),
+                       labels = "Net Change") + 
+    scale_fill_manual(values = brewer_pal(palette = "Greens")(5)[3:2],
+                      labels = c("Area Gained", "Area Lost")) + 
+    theme(legend.position = "bottom",
+      #legend.position = c(0.2, 0.7),
+      # legend.direction = "horizontal",
+      legend.title = element_text(size = 10)
+    ) +
+    geom_col(data = filter(turnover_df, change != "net"),
+             mapping = aes(x = year, y = area_ha / (10^3), 
+                           group = change, fill = change)) + 
+    geom_line(data = filter(turnover_df, change == "net"),
+              mapping = aes(x = year, y = area_ha / (10^3), color = "Net Change in Area"),
+              size = 1.5)
+  
+  
+  # -------------------- plot abandonment area by age class ------------------- #
+  gg_age_class_bins <-
+    ggplot(data = persistence_df) + 
+    theme_classic() +
+    labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
+         x = "Year", 
+         #title = "Area of Abandoned Land, by Age Class",
+         #subtitle = subtitle,
+         fill = "Age \n(years)") +
+    geom_col(mapping = aes(x = year, y = area_ha / 10^3, 
+                           fill = fct_reorder(bins, age)),
+             position = position_stack(reverse = FALSE)) +
+    theme(
+      #legend.position = c(0.1, 0.8),
+      #legend.position = "bottom",
+      legend.title = element_text(size = 10)
+      ) +
+    scale_fill_brewer(palette = "Greens", direction = 1)
+  
+  
+  # histogram:
+  gg_hist <-
+    ggplot(data = filter(length_distill_df, site == input_site,# site_df$site[i], 
+                         length > 0)) + 
+    theme_classic() +
+    labs(color = "Mean") +
+    xlab("Time abandoned (years)") + ylab(expression("Count  (10"^{6}*" pixels)")) +
+    geom_col(mapping = aes(x = length, y = freq/(10^6)), fill = "gray70") +
+    facet_grid(rows = vars(length_type), scales = "free",
+               labeller = labeller(length_type = c(all = "all abn. periods", #old = "new",
+                                                   max = "max. length \nper pixel"))) +
+    # means
+    geom_vline(data = filter(mean_length_df, site == input_site, #site_df$site[i], 
+                             abn_threshold != 3), 
+               mapping = aes(xintercept = mean_length, color = as_factor(abn_threshold)#, linetype = "mean (>1)"
+                             ),
+               show.legend = TRUE, size = 1, linetype = "dashed"
+               ) + 
+    
+    scale_color_manual(values = c("5" = "#C51B7D", "1" = "#F1B6DA"), 
+                       labels = c("5" = "Mean (>=5)", "1" = "Mean (>1)")) +
+    
+    theme(#legend.position = c(0.85, 0.95)
+          )
+  
+  title <- ggdraw() + 
+              draw_label(
+                site_desc,
+                fontfamily = "Tahoma",
+                x = 0, hjust = 0) +
+              theme(# add margin on the left of the drawing canvas,
+                # so title is aligned with left edge of first plot
+                plot.margin = margin(0, 0, 0, 5))
+  
+  plot_combo1 <- plot_grid(gg_lc_abn_area + theme(legend.position = "top"), 
+                     gg_age_class_bins + theme(legend.position = c(0.2, 0.7)),
+                     ncol = 2, rel_widths = c(1, 1), align = "h", axis = "b")
+  
+  plot_combo2 <- plot_grid(gg_persistence, 
+                     gg_turnover + theme(legend.position = "top"),
+                     ncol = 2, rel_widths = c(1, 1), align = "h", axis = "b")
+  
+  # save fig 1:
+  ggsave(filename = paste0(output_path, "summary_panel_1", outfile_label, ".png"),
+         plot = plot_grid(title, plot_combo1,
+                          ncol = 1, nrow = 2, rel_heights = c(0.2, 4)),
+       width = 9, height = 4.5, units = "in", dpi = 400)
+  
+  # save fig 2:
+  ggsave(filename = paste0(output_path, "summary_panel_2", outfile_label, ".png"),
+         plot = plot_grid(title, plot_combo2,
+                          ncol = 1, nrow = 2, rel_heights = c(0.2, 4)),
+       width = 9, height = 4.5, units = "in", dpi = 400)
+  
+  
+  # for main preso: shaanxi
+  # ggsave(filename = paste0(output_path, "summary_panel_1", outfile_label, "_main_preso.png"),
+  #        plot = plot_combo1,
+  #      width = 9, height = 4.5, units = "in", dpi = 400)
+  # 
+  # ggsave(filename = paste0(output_path, "summary_panel_2", outfile_label, "_main_preso.png"),
+  #        plot = plot_combo2,
+  #      width = 9, height = 4.5, units = "in", dpi = 400)
+  
+}
+
+lapply(1:11, function(i) {
+  cc_presentation_summary_plots(
+    input_path = paste0(p_dat_derived, run_label), 
+    output_path = paste0(p_output, "plots/", run_label, "/presentation/"),
+    outfile_label = paste0(run_label, site_df$label[i]),
+    site = site_df$site[i],
+    site_desc = site_df$description[i]
+  )
+})
+
+```
+
+```{r extrapolation-combo}
+# see chunk 'extrapolation-panel' in 4_decay_models.Rmd
+# just b and c, for presentation
+ggsave(plot = 
+         plot_grid(gg_extrapolation_panel_age_b + 
+                     scale_x_continuous(breaks = seq(from = 2000, to = 2120, by = 40)) #+
+                     # theme(legend.position = "bottom") + 
+                     # guides(col = guide_legend(nrow = 4, ncol = 3))
+                   , 
+                     gg_extrapolation_panel_area_c + scale_x_continuous(breaks = seq(from = 2000, to = 2120, by = 40)) #+ theme(legend.position = "bottom")
+                   ,
+                     #rel_widths = c(1, 1.2),
+                     # labels = c("b", "c"),
+                   ncol = 2
+                     ),
+       filename = paste0(p_plots, run_label, "/presentation/", "extrapolation_combo", run_label, ".png"),
+       width = 9, height = 3.5, units = "in", dpi = 400
+)
+```
+
+```{r mean-trend}
+
+png(filename = paste0(p_plots, run_label, "/presentation/", "model_decay_curves_by_site_l3_wide", run_label, ".png"), 
+    width = 7, height = 4, units = "in", res = 400)
+print(gg_model_curves_by_site_l3 + 
+        scale_x_continuous(n.breaks = 15) + 
+        theme(legend.position = c(0.9, 0.65)))
+dev.off()
+
+
+# gg_extrapolation_panel_trend_a <-
+  ggplot(data = fitted_df_l3 %>% 
+           left_join(max_age_extrapolation, by = "site") %>% 
+           filter(age < 140),
+       mapping = aes(x = age, y = fitted, color = fct_reorder(site, max_age))) +
+  theme_classic() +
+  geom_line(size = 1.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray70") + 
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(#title = "Decay of abandoned land over time", 
+       #caption = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
+       x = "Time since initial abandonment (years)", 
+       y = "Proportion of abandoned land remaining",
+       color = "Site") + 
+  guides(col = guide_legend(reverse = TRUE)) + 
+  scale_x_continuous(breaks = seq(from = 0, to = 140, by = 20))
+
+  
+  
+```
+
+```{r abn-area-by-age-bin-grid}
+
+dat_l
+
+# plot
+gg_age_class_bins_grid <-
+    ggplot(data = dat_l) + 
+    theme_classic() +
+    labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
+         x = "Year", 
+         #title = "Area of Abandoned Land, by Age Class",
+         #subtitle = subtitle,
+         fill = "Age \n(years)") +
+    geom_col(mapping = aes(x = year, y = area_ha / 10^3, 
+                           fill = fct_reorder(bins, age)),
+             position = position_stack(reverse = FALSE)) +
+    theme(
+      #legend.position = c(0.1, 0.8),
+      #legend.position = "bottom",
+      legend.title = element_text(size = 10)
+      ) +
+    scale_fill_brewer(palette = "Greens", direction = 1) +
+      facet_wrap(vars(site), scales = "free_y") + 
+    theme(legend.position = c(0.9, 0.12), 
+        legend.spacing = unit(2, units = "mm"), 
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0))
+
+
+
+# save
+ggsave(plot = gg_age_class_bins_grid,
+       filename = paste0(p_plots, run_label, "/presentation/", "abn_area_by_age_grid", run_label, ".pdf"),
+       width = 8, height = 5, units = "in", dpi = 400
+)
+
+```
+
 
 
