@@ -51,6 +51,8 @@ mean_length_df <- lapply(c(1, 3, 5), function(x) {
 write_csv(mean_length_df, file = paste0(p_dat_derived, run_label, "/", "mean_length_df", run_label, ".csv"))
 cat(fill = TRUE, "Saved mean_length_df to:", paste0(p_dat_derived, run_label, "/", "mean_length_df", run_label, ".csv"))
 
+# mean_length_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", "mean_length_df", run_label, ".csv"))
+
 
 # mean mean length
 mean_mean_df <- mean_length_df %>% 
@@ -98,7 +100,9 @@ gg_mean_length <-
 
 # ----------------- save ---------------- #
 png(filename = paste0(p_output, "plots/", run_label, "/mean_lengths", run_label, ".png"), 
-    width = 6, height = 5, units = "in", res = 400)
+    # width = 6, height = 5, 
+    width = 5, height = 4, 
+    units = "in", res = 400)
 print(gg_mean_length)
 dev.off()
 
