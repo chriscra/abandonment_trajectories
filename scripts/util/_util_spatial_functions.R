@@ -26,8 +26,8 @@ plot_cols <- c("gray80",
                brewer_pal(palette = "PiYG")(11)[11], # dark green,
                terrain.colors(9)[5], # gold
                brewer_pal(palette = "PiYG")(11)[9], # light green
-               brewer_pal(palette = "PiYG")(11)[2], # light green
-               brewer_pal(palette = "PiYG")(11)[4] # light green
+               brewer_pal(palette = "PiYG")(11)[2], # dark pink
+               brewer_pal(palette = "PiYG")(11)[4] # light pink
                )
 
 names(plot_cols) <- c("Non-veg.", "Woody veg.", "Cropland", "Grassland", 

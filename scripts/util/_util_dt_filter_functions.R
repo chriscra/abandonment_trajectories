@@ -2275,7 +2275,11 @@ cc_save_area_persistence_plots <- function(input_path,
 }
 
 
+
+# ------------------------------------------------------------------------------------ #
 # save just the general intro plots
+# ------------------------------------------------------------------------------------ #
+
 cc_4_panel_plots <- function(input_path, 
                              output_path,
                              outfile_label = paste0(run_label, site_label),
@@ -2446,6 +2450,118 @@ cc_4_panel_plots <- function(input_path,
 
   cat(fill = TRUE, "Plots for", site, "saved to:", output_path)
 }
+
+
+# ------------------------------------------------------------------------------------ #
+# Save decay model plots
+# ------------------------------------------------------------------------------------ #
+
+cc_save_decay_model_plots <- function(site_index, add_no_cohort = TRUE) {
+  i <- site_index
+  # calculate and extract mean coef estimates:
+  coef_tmp_l3 <- tidy(lm_lin_log_lin_l[[i]]) %>% 
+    mutate(site = site_df$site[i],
+           mod = "l3",
+           coef_term = sub(":*cohort....:*", "", term),
+           year_abn = ifelse(coef_term == "log(time + 1)", gsub(".*cohort", "", term), parse_number(term)),
+           cohort = as.factor(year_abn),
+           term_long = term,
+           term = as_factor(ifelse(coef_term == "I(time)", "lin", "log"))) %>% 
+    group_by(site, term, coef_term, mod) %>%
+    summarise(estimate = mean(estimate, na.rm = TRUE)) %>% arrange(coef_term)
+  
+  coef_tmp_l3_no_cohort <- tidy(lm_l3_no_cohort_l[[i]]) %>%
+    mutate(site = site_df$site[i],
+           mod = "l3_no_cohort",
+           coef_term = term,
+           term = as_factor(ifelse(coef_term == "I(time)", "lin", "log"))) %>%
+    select(site, term, coef_term, mod, estimate)
+  
+  coefs <- bind_rows(coef_tmp_l3, coef_tmp_l3_no_cohort) %>%
+    mutate(mod = as_factor(mod))
+  
+  fitted <- bind_rows(
+    tibble(age = 5:30,
+           mod = "l3",
+           a = filter(coefs, mod == "l3", term == "log")$estimate,
+           b = filter(coefs, mod == "l3", term == "lin")$estimate),
+    tibble(age = 5:30,
+           mod = "l3_no_cohort",
+           a = filter(coefs, mod == "l3_no_cohort", term == "log")$estimate,
+           b = filter(coefs, mod == "l3_no_cohort", term == "lin")$estimate)) %>%
+    mutate(proportion = a * log(age-4) + b * ((age-4) - 1) + 1)
+  
+  
+  # augment(lm_l3_no_cohort_l[[i]], 
+  #         newdata = tibble(time = 5:30 - 5), 
+  #         interval = "confidence") %>% 
+  #   mutate(age = time + 5,
+  #          proportion = .fitted + 1,
+  #          CI_upper = .upper + 1,
+  #          CI_lower = .lower + 1)
+  
+  fitted %>% filter(mod == "l3_no_cohort")
+  
+  if(!add_no_cohort) {fitted <- fitted %>% filter(mod == "l3")}
+  
+  
+  # plot
+  # gg_tmp <-
+  ggplot(data = filter(dat_l, site == site_df$site[i]), 
+         mapping = aes(x = age, y = proportion, 
+                       group = year_abn, color = year_abn)) + 
+    theme_classic() + 
+    geom_point() + scale_color_distiller(palette = "Greens") + 
+    scale_x_continuous(n.breaks = 6) +
+    geom_hline(yintercept = 0.5, linetype = "dashed") + 
+    labs(title = "Decay of abandoned land over time", 
+         subtitle = site_df$description[i], 
+         caption = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
+         x = "Time since initial abandonment (years)", 
+         y = "Proportion of abandoned land remaining",
+         color = "Cohort \n(Year First \nAbandoned)",
+         linetype = "") + 
+    
+    geom_line(data = mutate(augment(lm_lin_log_lin_l[[i]], se_fit = TRUE),
+                            time = round(exp(`log(time + 1)`), digits = 0) - 1,
+                            age = time + 5,
+                            proportion = .fitted + 1,
+                            year_abn = as.numeric(levels(cohort))[cohort])) + 
+    
+    # site mean coefficients:
+    geom_line(data = fitted, mapping = aes(x = age, y = proportion, linetype = mod),
+              # color = brewer_pal(palette = "PiYG")(11)[2], # dark pink
+              color = "blue",
+              size = 1, inherit.aes = FALSE) +
+    
+    scale_linetype_discrete(label = c("l3" = ifelse(add_no_cohort, "\nMean Decay Rate\n",
+                                                    "Mean \nDecay \nRate"),
+                                      "l3_no_cohort" = "Decay Rate \n(No fixed effects)"))
+  
+  
+  # save 
+  png(filename = paste0(p_plots, run_label, "/decay/", "l3_cohort", ifelse(add_no_cohort, "_plus", ""), run_label, site_df$label[i], ".png"), 
+      # width = 6.5, height = 6, 
+      width = 7, height = 6, 
+      units = "in", res = 400)
+  print(gg_tmp)
+  dev.off()
+}
+
+# spatial predictor functions ----
+
+# ------------------------------------------------------------------------------------ #
+# crop, resample predictor datasets
+# ------------------------------------------------------------------------------------ #
+cc_crop_resample_r <- function(input_r, site = "shaanxi", resample_method = "ngb") {
+  site_r <- max_age_r[[site]]
+  cropped <- crop(input_r, site_r)
+  resampled <- raster::resample(x = cropped, y = site_r, method = "ngb")
+  final <- crop(resampled, site_r)
+  final
+}
+
+
 
 
 # fragmentation functions ----
@@ -2994,6 +3110,78 @@ cc_save_map_lc_age_rasters <- function(maxpixels, width = 9, height = 5.5) {
 }
 
 
+
+# ------------------------------------------------------------------------------------ #
+# take an animation made with raster::animate(), and save it as a GIF with animation::saveGIF()
+# ------------------------------------------------------------------------------------ #
+
+cc_save_gif <- function(raster, 
+                        titles = names(raster), 
+                        file_out, 
+                        npixels = 5000,
+                        frames_per_second = 5) {
+  
+  # use animation::saveGIF() to save raster::animate()
+  saveGIF(animate(raster, main = titles, maxpixels = npixels, n = 1), 
+          movie.name = file_out)
+  
+  gif <- image_animate(image_read(file_out), fps = frames_per_second)
+  image_write(gif, file_out)
+}
+
+# ------------------------------------------------------------------------------------ #
+# print levelplot of abandonment duration, along with histogram
+# ------------------------------------------------------------------------------------ #
+
+cc_age_levelplot_hist <- function(site_index, year_or_max = "max") {
+  # load in raster
+  if(year_or_max == "max") {
+    tmp_raster <- max_age_r[[site_df$site[site_index]]]
+    map_title <- "Maximum abandonment duration"
+  }
+  
+  if(year_or_max %in% 1987:2017) {
+    tmp_raster <- age_r[[site_df$site[site_index]]][[paste0("y", year_or_max)]]
+    map_title <- paste0("Abandonment duration as of ", year_or_max)
+  }
+  
+  # crop out fallow periods
+  tmp_raster[tmp_raster < 5] <- NA # exclude short-term fallowing:
+  
+  # set levelplot margin options:
+  lattice.options(
+    layout.heights=list(bottom.padding=list(x=0), top.padding=list(x = 0)),  
+    layout.widths=list(left.padding=list(x=0), right.padding=list(x=0))
+  )
+  
+  # make level plot
+  p_levelplot <- 
+    levelplot(tmp_raster, margin = list(FUN = 'mean'), #contour=TRUE, 
+              par.settings = YlOrRdTheme,
+              main = map_title)
+  
+  # make histogram
+  tmp_raster_values <- values(tmp_raster) %>% as_tibble()
+  names(tmp_raster_values) <- "duration"
+  
+  tmp_raster_values <- tmp_raster_values %>% 
+    filter(!is.na(duration)) %>% 
+    group_by(duration) %>% summarise(freq = n())
+  
+  p_hist <- ggplot(data = tmp_raster_values, aes(duration)) + 
+    geom_col(mapping = aes(x = duration, y = freq), fill = "gray70") + 
+    theme_classic() + 
+    labs(x = paste0(map_title, " (years)"), y = "Frequency")
+  
+  # save plot_grid
+  ggsave(plot = plot_grid(p_levelplot, p_hist, ncol = 1, nrow = 2, rel_heights = c(1, 0.4),
+                          labels = "auto"),
+         filename = paste0(p_plots, run_label, "/spatial_reg/", 
+                           "age_duration_", year_or_max, "_w_dist", run_label, site_df$label[site_index], ".pdf"), 
+         width = 6, height = 8.5, units = "in")
+  
+  cat(fill = TRUE, "Saved", year_or_max, "abandonment duration for", site_df$site[site_index])
+}
 
 
 

@@ -67,3 +67,9 @@ capwords <- function(s, strict = FALSE) {
          USE.NAMES = !is.null(names(s))
   )
 }
+
+
+# scale a vector by mean and sd
+scale_this <- function(x){
+  (x - mean(x, na.rm=TRUE)) / sd(x, na.rm=TRUE)
+}
