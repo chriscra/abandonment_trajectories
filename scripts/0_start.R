@@ -20,15 +20,20 @@ source(paste0(p_proj, "scripts/util/_util_dt_filter_functions.R"))
 needed_packages <- c(
   "data.table", "raster", "rgdal", "sp", "sf", "mapview", 
   "gdalUtils", "gdata", "GISTools", "rgeos", "lwgeom", "fasterize",
+  "ncdf4", # for opening NetCDF spatial files
   
   "tidyverse", "lobstr", "pryr", "reshape2", "rlang",
   # tidyverse includes ggplot2, dplyr, tidyr, readr, purrr, tibble, stringr, and forcats
+  
+  "XML",
   
   # modeling:
   "tidymodels", # metapackage including: rsample, parsnip, recipes, workflows, tune, yardstick, broom, & dials
   "lme4", "brms", 
   "broom.mixed", # nb: broom comes preloaded in the tidymodels; this package is specifically intended for mixed effects models
   "lamW", # to calculate the Lambert's W function, for calculating time to various proportions in abn decay models
+  "equatiomatic",
+  "olsrr", # for model diagnostics
   
   # visualization:
   "rasterVis", "RColorBrewer", "viridis", "scales", "colorspace",
