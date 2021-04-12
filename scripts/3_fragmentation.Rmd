@@ -39,6 +39,7 @@ b_max_length_r <- brick(paste0(p_dat_derived, "belarus_max_length.tif"))
 names(s) <- paste0("y", 1987:2017)
 names(b) <- paste0("y", 1987:2017)
 names(br) <- paste0("y", 1987:2017)
+names(bt) <- paste0("y", 1987:2017)
 names(s_age_r) <- paste0("y", 1987:2017)
 names(b_age_r) <- paste0("y", 1987:2017)
 
@@ -98,6 +99,86 @@ citation("landscapemetrics")
 `landscapemetrics` works only with rasters with cell resolutions in terms of meters.
 
 "The resolution of a raster cell has to be in meters, as the package converts units internally and returns results in either meters, square meters or hectares. Before using landscapemetrics, be sure to check your raster (see check_raster())."
+
+```{r reproject-rasters}
+
+# what projections should I use to reproject the various rasters?
+bt
+plot(bt$y1987)
+bt_reproj <- projectRaster(bt, crs = crs("+proj=bonne +lat_1=10 +lon_0=30"), method = "ngb")
+
+plot(bt_reproj$y1987)
+
+
+# load in 11 sites, try reprojecting with the same CRS, and test the results
+
+
+# reproject full brick:
+br <- projectRaster(b, crs = crs("+proj=bonne +lat_1=10 +lon_0=30"), method = "ngb")
+
+# save reprojected raster to file:
+tic()
+writeRaster(br, filename = paste0(p_dat_derived, "belarus_reproj.tif"))
+toc()
+
+# testing on just one layer
+tic()
+br1 <- projectRaster(b$y2017, crs = crs("+proj=bonne +lat_1=10"), method = "ngb")
+toc() # 2158 sec
+
+2200/60 * 31 / 60
+
+
+# make a list with 11 reprojections
+brtest <- brick(paste0(p_dat_derived, "belarus_reproj.tif"))
+srtest <- brick(paste0(p_dat_derived, "shaanxi_reproj.tif"))
+crs(brtest)
+crs(srtest)
+
+# belarus & shaanxi
+CRS("+proj=bonne +lat_1=10 +lon_0=30 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs")
+
+
+
+# write a function to load, reproject, and write out new raster
+
+
+
+```
+
+```{r remove-0s}
+
+```
+
+```{r run-lsm}
+metrics_list
+
+test 
+bt_reproj
+
+tic()
+
+lsm_test <- bt_reproj %>%
+  calculate_lsm(
+    #type = "aggregation metric",
+    #level = "landscape",
+    what = metrics_list[c(1, 2, 6, 9)],
+    classes_max = 4,
+    verbose = TRUE,
+    progress = TRUE
+    ) %>%
+  dplyr::left_join(x = .,
+                   y = lsm_abbreviations_names, 
+                   by = c("metric", "level"))
+toc() # 3954 sec
+
+# write out the tibble
+write_csv(lsm_test, path = paste0(p_dat_derived, frag, "/", run_label, ".csv"))
+
+```
+
+
+
 ```{r reproject-check-landscape}
 plot(bt$y2017)
 
@@ -299,6 +380,14 @@ Three levels of landscape metrics:
 6. Complexity metrics, which describe landscape complexity in new ways outside of FRAGSTATS, including: Marginal entropy [H(x)], Conditional entropy [H(y|x)], Joint entropy [H(x, y)], and Mutual information [I(y,x)]. (Not likely to use these.)
 
 ## Metrics of interest
+
+```{r note!}
+# *check notes on David's thoughts on metrics, in Evernote, "David \\ 2020.10.24"
+
+```
+
+
+
 
 Area and edge: what is the average patch area for each class (ag, grassland, woody vegetation, and how does this change over time? Does abandonment make the average patch area for a particular class grow over time, or not?)
 
