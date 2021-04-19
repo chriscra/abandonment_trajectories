@@ -10,9 +10,9 @@ bibliography: [/Users/christophercrawford/Google Drive/Library/library.bib]
 ```{r load-packages-functions, eval = TRUE, echo = FALSE, include = FALSE}
 
 source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
-# source("cc_functions.R")
-# source("cc_libraries.R")
-# source("cc_pathnames.R")
+
+source(paste0(p_proj, "scripts/util/_util_master.R"))
+
 
 ```
 
@@ -24,7 +24,7 @@ run_label <- "_2021_03_13"
 p_plots <- "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/output/plots/"
 
 # load general spatial data on site locations --------------------------------------------------- #
-site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
+site_df <- read_csv(file = paste0(p_dat_derived, "site_df.csv"))
 site_sf <- st_read(paste0(p_dat_derived, "site_sf.shp"))
 
 
@@ -174,7 +174,7 @@ plot(abn_bin_r)
 ```
 
 
-```{r levelplots}
+```{r age-levelplots}
 max_age_rs <- max_age_r$shaanxi
 max_age_rs[max_age_rs < 5] <- NA # exclude short-term fallowing:
 
@@ -270,7 +270,7 @@ cc_age_levelplot_hist()
 for(i in 1:11) {cc_age_levelplot_hist(site_index = i, year_or_max = "max")}
 for(i in 1:11) {cc_age_levelplot_hist(site_index = i, year_or_max = "2017")}
 
-
+env_size(ls())
 ```
 
 
@@ -600,28 +600,6 @@ predictor_files_s <- predictor_files_all %>%
 ```
 
 
-```{r merge-split files}
-# Merge raster layers ----
-
-cc_merge_rasters(site = site, 
-                 site_df = site_df, 
-                 input_path = p_raw_rasters
-                 # ^^ this folder must contain folders with site names, 
-                 # with either bricks or multiple raster layer files inside
-                 )
-
-```
-
-```{r crop-to-sites}
-site_r # rasters
-
-pop_density_1970 <- brick(paste0(p_predictors, "pop/pop_density_backcasts/popdynamics-global-pop-density-time-series-estimates_1970.tif"))
-
-
-```
-
-
-
 
 
 ## Environmental
@@ -708,6 +686,9 @@ plot(gdd_s)
 ```{r precip}
 
 extent(cropland_mask_r)
+
+# extract lat and long for the site:
+max_
 
 precip <- raster::getData(name = "worldclim", var = "bio", res = 0.5, 
                           lon = 110, lat = 38)
@@ -1446,6 +1427,13 @@ plot(lu_decision)
 
 
 # Prep data for regression
+
+```{r load-prepped-predictors}
+
+
+
+```
+
 
 ```{r make-predictor-brick}
 
@@ -2246,166 +2234,6 @@ Fig. 9. Maps of a) abandonment *age in 2017* and b) *max age* for example site.
 
 
 
-```{r start}
-source("scripts/0_start.R")
-env_size(ls())
-
-```
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-```{r load-site-data}
-# copied from 6_figures on Feb 1 2021
-
-# for use on cluster:
-# p_dat <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
-# p_dat_derived <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
-# p_output <- paste0("/scratch/network/clc6/abandonment_trajectories/output/")
-list.files(p_dat_derived)
-
-site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
-
-
-# Land use class codes:
-#       1. Non-vegetated area (e.g. water, urban, barren land)
-#       2. Woody vegetation
-#       3. Cropland 
-#       4. Herbaceous land (e.g. grassland)
-
-# testers:
-bs <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
-bt <- brick(paste0(p_dat_derived, "belarus_subset.tif"))
-names(bs) <- paste0("y", 1987:2017)
-names(bt) <- paste0("y", 1987:2017)
-
-
-# -------------------------- rasters --------------------------- #
-# raw rasters
-s <- brick(paste0(p_dat_derived, "input_rasters/shaanxi.tif"))
-b <- brick(paste0(p_dat_derived, "input_rasters/belarus.tif")) # merged version
-
-# age
-s_age_r <- brick(paste0(p_dat_derived, "shaanxi_age.tif"))
-b_age_r <- brick(paste0(p_dat_derived, "belarus_age.tif"))
-
-# max_length
-s_max_length_r <- brick(paste0(p_dat_derived, "shaanxi_max_length.tif"))
-b_max_length_r <- brick(paste0(p_dat_derived, "belarus_max_length.tif"))
-
-# update year names 1987 - 2017
-names(s) <- paste0("y", 1987:2017)
-names(b) <- paste0("y", 1987:2017)
-names(s_age_r) <- paste0("y", 1987:2017)
-names(b_age_r) <- paste0("y", 1987:2017)
-
-
-# prepared input rasters (derived by Chris)
-site_input_raster_files <- list.files(paste0(p_dat_derived, "input_rasters"), full.names = TRUE) %>%
-  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = TRUE)
-
-r <- lapply(seq_along(site_input_raster_files), function(i) {brick(site_input_raster_files[i])})
-names(r) <- site_df$site
-
-# rename raster layers:
-for (i in 1:11) {
-  if (names(r[i]) == "nebraska") {
-    names(r[[i]]) <- paste0("y", 1986:2018)
-  } else {
-    if (names(r[i]) == "wisconsin") {
-      names(r[[i]]) <- paste0("y", 1987:2018)
-    } else {
-      # everything else, just 1987:2017
-      names(r[[i]]) <- paste0("y", 1987:2017)
-    }}}
-
-
-# abandonment age maps (produced by Chris)
-age_files <- list.files(paste0(p_dat_derived, "age_rasters"), full.names = TRUE) %>%
-  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
-
-age_r <- lapply(seq_along(age_files), function(i) {brick(age_files[i])})
-names(age_r) <- site_df$site
-for (i in seq_along(age_r)) {names(age_r[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
-
-# year of first abandonment maps (from He)
-yoa_files <- list.files(paste0(p_dat, "Abandonment/year_of_abandonment/"))
-
-# -------------------------- data.tables --------------------------- #
-b_age <- fread(input = paste0(p_dat_derived, "belarus_age.csv"))
-names(b_age)
-s_age <- fread(input = paste0(p_dat_derived, "shaanxi_age.csv"))
-
-
-b_length <- fread(input = paste0(p_dat_derived, "lengths/", "belarus_length_b1.csv"))
-s_length <- fread(input = paste0(p_dat_derived, "lengths/", "shaanxi_length_b1.csv"))
-
-b_max_length <- fread(input = paste0(p_dat_derived, "lengths/", "belarus_max_length_b1.csv"))
-s_max_length <- fread(input = paste0(p_dat_derived, "lengths/", "shaanxi_max_length_b1.csv"))
-
-# original data
-s_dt <- fread(input = paste0(p_dat_derived, "shaanxi.csv"))
-names(s_dt) <- gsub(pattern = "andcover", replacement = "y", names(s_dt))
-
-b_dt <- fread(input = paste0(p_dat_derived, "belarus.csv")) # caution - huge file! 8.4 GB at least. 
-
-
-
-# -------------------------- summarized data.frames --------------------------- #
-indx <- 9
-site <- site_df$site[indx] # set site:
-site_label <- site_df$label[indx] # set label
-blip_label <- "_b1"
-load(file = paste0(p_output, "abn_dat_products", blip_label, site_label, ".rds"), verbose = TRUE)
-
-# loads:
-area_b1_s
-persistence_list_b1_s
-abn_area_change_b1_s
-
-
-
-```
-
-```{r load-predictor-data}
-# elevation
-# de Ferranti's data:
-# 110 - 112 E
-# 38 - 40 N
-
-
-# slope
-# soils
-
-```
-
-```{r simple-plots}
-# copied from 6_figures on Feb 1 2021
-
-# -------------------------- plot raw data --------------------------- #
-plot(s$y1987, main = "Sha(a)nxi 1987", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
-legend("bottomleft", cex = 0.6, inset = 0,
-       legend = plot_cols$name, 
-       fill = plot_cols$color)
-
-plot(s$y2017, main = "Sha(a)nxi 2017", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
-legend("bottomleft", cex = 0.6, inset = 0,
-       legend = plot_cols$name, 
-       fill = plot_cols$color)
-
-# ---------------------- plot abandonment age ---------------------- #
-plot(s_age_r$y2017, main = "Sha(a)nxi Age of Abandonment 2017")
-plot(s_age_r[[28:31]])
-
-# -------------------------- animate --------------------------- #
-# --------------
-# https://www.rdocumentation.org/packages/raster/versions/3.1-5/topics/animate
-
-animate(bt, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
-        breaks = c(0, plot_cols$breaks), col = plot_cols$color)
-
-```
 
 ## Methods
 

@@ -32,11 +32,9 @@ knitr::opts_chunk$set(#out.width = "1\\textwidth",  # if compiling a pdf, includ
                       )
 ```
 ```{r load-packages-functions, eval = TRUE, echo = FALSE, include = FALSE}
-
 source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
-# source("cc_functions.R")
-# source("cc_libraries.R")
-# source("cc_pathnames.R")
+
+source(paste0(p_proj, "scripts/util/_util_master.R"))
 
 # note that the working directory resets automatically after this chunk.
 

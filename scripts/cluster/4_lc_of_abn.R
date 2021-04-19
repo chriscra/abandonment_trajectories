@@ -14,3 +14,13 @@
 # Part II: what land cover class is most likely to be found in newly abandoned land?
 
 # what land cover classes are more likely to get recultivated? What is the LC the year prior to recultivation? 
+
+
+# Update, 4.12.2021
+# Two parts to this idea:
+# 1. transitions between categorical land cover classes, and 
+# 1a. Which pieces of land transition from crop -> grassland -|, crop -> grassland -> forest, crop -> forest?
+# 1b. How long does it take for abandoned land to transition from grassland to forest in different sites?
+
+# 2. continuous evolution of some metrics through time post abandonment
+# 2. NDVI, biomass accumulation post abandonment. 
