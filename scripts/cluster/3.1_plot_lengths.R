@@ -36,14 +36,16 @@ cat(fill = TRUE, "Run label (time stamp):", run_label)
 # 0. Load distilled length data
 length_distill_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", 
                                             "length_distill_df", run_label, ".csv"))
-
+# length_distill_df %>% filter(site == "shaanxi") %>% select(length_type) %>% unique()
 
 mean_length_df <- lapply(c(1, 3, 5), function(x) {
   length_distill_df %>% as_tibble() %>% 
     mutate(product = length*freq) %>% 
     filter(length >= x) %>% # to filter by length # this is important for max, since some pixels have max length of 0
     group_by(site, length_type) %>% 
-    summarize(mean_length = sum(product)/sum(freq)) %>% 
+    summarise(mean_length = sum(product)/sum(freq),
+              median_duration = median(rep(length, freq))
+              ) %>% 
     mutate(abn_threshold = x) 
 }) %>% bind_rows()
 
@@ -57,7 +59,9 @@ cat(fill = TRUE, "Saved mean_length_df to:", paste0(p_dat_derived, run_label, "/
 # mean mean length
 mean_mean_df <- mean_length_df %>% 
   group_by(abn_threshold, length_type) %>%
-  summarise(mean_mean = mean(mean_length, na.rm = TRUE))
+  summarise(mean_mean = mean(mean_length, na.rm = TRUE),
+            mean_median = mean(median_duration, na.rm = TRUE))
+
 
 
 # create directory for plot outputs
