@@ -1,0 +1,149 @@
+---
+title: "The impermanence of agricultural abandonment limits potential for environmental benefits (draft)"
+author: Christopher L. Crawford,$^a$$^*$ He Yin,$^b$ Volker Radeloff,$^c$ and David S. Wilcove$^{a, d}$
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+abstract: |
+  | $^a$Princeton School of Public and International Affairs, Princeton University, Princeton, NJ
+  | $^b$Department of Geography, Kent State University, Kent, OH
+  | $^c$Department of Forest & Wildlife Ecology, University of Wisconsin - Madison, Madison, WI
+  | $^d$Department of Ecology & Evolutionary Biology, Princeton University, Princeton, NJ
+  |
+  | $^*$Corresponding Author, ccrawford@princeton.edu, Robertson Hall, Princeton University, Princeton, NJ
+output:
+  bookdown::word_document2:
+    reference_docx: /Users/christophercrawford/Google Drive/_Projects/writing/scripts/word_style_ref.docx
+    number_sections: false
+  bookdown::pdf_document2: 
+    keep_tex: true
+  bookdown::html_document2:
+    toc: true
+editor_options:
+  chunk_output_type: console
+bibliography: [/Users/christophercrawford/Google Drive/Library/library.bib, packages.bib]
+nocite: |
+  @RStudioTeam2020, @R-rmarkdown, @R-bookdown, @R-knitr
+---
+
+```{r set-chunk-opts, include = FALSE}
+knitr::opts_chunk$set(
+  #out.width = "1\\textwidth",  # if compiling a pdf, include this option
+  #comment=NA #fig.width=6, fig.height=6
+  echo = FALSE
+  )
+```
+```{r load-packages-functions, eval = TRUE, echo = FALSE, include = FALSE}
+source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
+source(paste0(p_proj, "scripts/util/_util_master.R"))
+```
+
+
+```{r load-files, include = FALSE, eval = TRUE}
+# set run:
+run_label <- "_2021_03_13"
+
+# Additional paths --------------------------------------------------- #
+p_plots <- "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/output/plots/"
+
+# load general spatial data on site locations --------------------------------------------------- #
+site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
+site_sf <- st_read(paste0(p_dat_derived, "site_sf.shp"))
+
+
+
+
+# load mean length data:
+mean_length_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", "mean_length_df", run_label, ".csv"))
+
+mean_mean_df <- mean_length_df %>% 
+  group_by(abn_threshold, length_type) %>%
+  summarise(mean_mean = mean(mean_length, na.rm = TRUE),
+            mean_median = mean(median_duration, na.rm = TRUE))
+
+
+# load decay rate data
+load(file = paste0(p_dat_derived, run_label, "/decay_mod_coef_dfs.rds"), 
+     verbose = TRUE)
+
+# load extrapolation data
+extrapolate_df_l3 <- read_csv(file = paste0(p_dat_derived, run_label, "/extrapolate_df_l3", run_label, ".csv"))
+
+
+```
+
+
+# Abstract
+
+Agriculture remains a dominant driver of land-use change at a global level, yet many areas are experiencing a decline and abandonment of agriculture as a result of demographic, economic, and environmental change.
+Abandoned agricultural lands represent a potential source of cheap land, and as a result, are highly sought-after for diverse land uses such as increased cultivation, biofuel production, carbon sequestration, and habitat regeneration. 
+However, the availability of this land for these uses, and particularly the potential for ecological succession to produce environmental benefits, depends first and foremost on the duration and durability of abandonment. 
+To date, our understanding of abandonment has been limited by data availability.
+Maps of abandonment have been coarse in both spatial and temporal resolution, resulting in potentially misleading estimates of availability.
+
+Here, we leverage recent advances in remote sensing and new high spatial- and temporal resolution maps of agricultural abandonment to develop a much more detailed picture of where and how abandonment is occurring. 
+We assess the timing and duration of abandonment at eleven sites that have experienced abandonment since the 1980s, finding that abandonment is often a fleeting phenomenon, lasting on average between `r filter(mean_length_df, abn_threshold == 5, length_type == "all") %>% .$mean_length %>% min() %>% round(digits = 1)` and `r filter(mean_length_df, abn_threshold == 5, length_type == "all") %>% .$mean_length %>% max() %>% round(digits = 1)` years over the course of our 30 year time series (1987-2017), with a mean duration of `r mean_mean_df %>% filter(abn_threshold == 5, length_type == "all") %>% .$mean_mean %>% round(digits = 1)` years per episode of abandonment across all sites.
+
+By modeling the recultivation of abandoned croplands through time, we are able to estimate the likely duration of abandonment regardless of when it takes place in the time series, uncovering temporal patterns of recultivation. 
+At most sites, 50% of abandoned croplands are recultivated within 30 years. 
+Some sites, particular those Eastern Europe, Russia, and the US, showed recultivation occurring more rapidly over the course of the time series. 
+Other sites showed an increase in abandonment towards the end of the time series.
+
+If abandonment and recultivation continue to occur at about the same rate as we observe, the mean duration of abandonment is likely to plateau by about 2040 at almost all sites, with a mean duration ranging between `r extrapolate_df_l3 %>% select(site, max_mean_age) %>% unique() %>% arrange(max_mean_age) %>% .$max_mean_age %>% .[1] %>% round(digits = 1)` and `r extrapolate_df_l3 %>% select(site, max_mean_age) %>% unique() %>% arrange(max_mean_age) %>% .$max_mean_age %>% .[9] %>% round(digits = 1)` years.
+Only one site, `r site_df$description[9]`, showed more durable abandonment, and is projected to require `r mean_coef_df_wide_l3 %>% filter(site == "shaanxi") %>% .$time_to_0.5 %>% round(digits = 1)` years for 50% of the land to be recultivated.
+Our results show that, under the current circumstances, most abandonment is unlikely to be permanent, and potential gains in wildlife habitat and carbon sequestration will require concerted policy effort to reduce turnover.
+While some land will remain abandoned long enough for ecological succession to result in appreciable environmental benefits, most land will remain an untapped opportunity which much be actively pursued by policymakers, not a guarantee. 
+
+
+
+
+## other language
+
+Recent calls for large-scale land restoration to address climate change and biodiversity loss have highlighted this reservoir of land for its potential to provide environmental benefits in the form of regenerating wildlife habitats and carbon sequestration. 
+However, the availability of this land for alternative uses, and any potential environmental benefits, depend first and foremost on the duration and durability of abandonment, and therefore how long habitats are allowed to regenerate.
+
+Yet permanent abandonment is far from guaranteed: abandoned lands are increasingly sought after for increased cultivation, renewable energy, and biofuel production, calling the potential for long-term regeneration into question. 
+Using a time-series of high-resolution maps of abandonment, I ask the following: how long does abandoned agricultural land typically remain abandoned for, and how does this vary geographically across sites? Then, by modeling the recultivation of abandoned lands through time, I provide insights about the potential benefits that may accrue into the future if current recultivation trends continue. Finally, I investigate which spatial factors best explain which lands are abandoned for longer periods of time. Together, these results provide a clearer picture of the potential for habitat regeneration to take place in abandoned croplands, and in turn, to provide benefits in terms of species habitat gains and carbon sequestration. As abandonment trends continue around the world, these results will help improve policy responses to abandonment, either to reduce frequent turnover and gain more benefits from abandoned lands, or to target conservation investment and protection to those areas that are more likely to provide environmental benefits.
+
+
+
+
+
+Testing how the tibble looks `r filter(mean_length_df, abn_threshold == 5, length_type == "all") %>% ungroup() %>% slice_min(order_by = mean_length) %>% select(site) %>% unlist() %>% capwords()`
+
+```{r, include = FALSE}
+
+
+filter(mean_length_df, abn_threshold == 5, length_type == "all") %>% ungroup() %>% summarise(min = min(mean_length))
+
+filter(mean_length_df, abn_threshold == 5, length_type == "all") %>% arrange(mean_length) %>% .[1, ] %>% .$site
+
+filter(mean_length_df, abn_threshold == 5, length_type == "all") %>%
+  ungroup() %>% slice_min(order_by = mean_length) %>% select(site) %>% unlist() %>% capwords()
+
+
+
+mean_length_df %>% 
+  filter(abn_threshold == 5, length_type == "all") %>% #select(mean_length) %>% 
+  arrange(mean_length) #%>% summary()
+
+filter(mean_length_df, abn_threshold == 5, length_type == "all") %>% .$mean_length %>% min()
+
+filter(mean_length_df, abn_threshold == 5, length_type == "all") %>% .$mean_length %>% max()
+
+mean_mean_df %>% filter(abn_threshold == 5, length_type == "all") %>% .$mean_mean
+
+
+
+# decay mod numbers:
+
+mean_coef_df_wide_l3 %>% filter(site == "shaanxi") %>% .$time_to_0.5 %>% round(digits = 1)
+
+
+
+# extrapolation
+extrapolate_df_l3 %>% select(site, max_mean_age) %>% unique() %>% arrange(max_mean_age) %>% .$max_mean_age %>% .[9] %>% round(digits = 2)
+
+```
+
+
+# Figures
+
