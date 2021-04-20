@@ -20,8 +20,7 @@ output:
 editor_options:
   chunk_output_type: console
 bibliography: [/Users/christophercrawford/Google Drive/Library/library.bib, packages.bib]
-nocite: |
-  @RStudioTeam2020, @R-rmarkdown, @R-bookdown, @R-knitr
+
 ---
 
 ```{r set-chunk-opts, include = FALSE}
@@ -30,6 +29,11 @@ knitr::opts_chunk$set(
   #comment=NA #fig.width=6, fig.height=6
   echo = FALSE
   )
+
+
+
+# nocite: |
+#   @RStudioTeam2020, @R-rmarkdown, @R-bookdown, @R-knitr
 ```
 ```{r load-packages-functions, eval = TRUE, echo = FALSE, include = FALSE}
 source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
@@ -71,65 +75,73 @@ extrapolate_df_l3 <- read_csv(file = paste0(p_dat_derived, run_label, "/extrapol
 ```
 
 
-# Abstract (<250 words)
+# Abstract
+*Must be <250 words (currently 255)*
 
 Agriculture remains a dominant driver of land-use change at a global level, yet many areas are experiencing agricultural abandonment as a result of demographic, economic, and environmental changes.
 Abandoned croplands may represent a significant source of cheap land and are highly sought after for increased cultivation, biofuel production, carbon sequestration, and habitat restoration.
-Crucially, however, availability for these uses depends on the duration and persistence of abandonment, yet we lack a strong empirical understanding of land-use outcomes following abandonment.
-Here, we leverage new high resolution annual maps of agricultural abandonment to examine abandonment at eleven sites that have experienced abandonment since the 1980s.
+Crucially, however, such opportunities depend on the duration and persistence of abandonment, yet we lack a detailed empirical understanding of land-use outcomes following abandonment.
+Here, we leverage new high resolution annual maps of agricultural abandonment to examine the timing of abandonment at eleven sites that have experienced abandonment since the 1980s.
 We find that abandonment is frequently fleeting, lasting an average of `r filter(mean_length_df, abn_threshold == 5, length_type == "all") %>% .$mean_length %>% min() %>% round(digits = 1)` to `r filter(mean_length_df, abn_threshold == 5, length_type == "all") %>% .$mean_length %>% max() %>% round(digits = 1)` years between 1987 and 2017 (excluding short-term fallowing).
-By modeling the trajectories of individual abandoned croplands and their subsequent recultivation, we are able to estimate the length of abandonment, regardless of when it took place in 30 year time series.
-At most sites, 50% of abandoned croplands were recultivated within 30 years, and some sites, particularly those Eastern Europe, Russia, and the US, showed accelerating recultivation.
-Moreover, if abandonment and recultivation continue at about the same rates we observe, the mean duration of abandonment is likely to plateau by about 2040 at most sites, ranging between `r extrapolate_df_l3 %>% select(site, max_mean_age) %>% unique() %>% arrange(max_mean_age) %>% .$max_mean_age %>% .[1] %>% round(digits = 1)` and `r extrapolate_df_l3 %>% select(site, max_mean_age) %>% unique() %>% arrange(max_mean_age) %>% .$max_mean_age %>% .[9] %>% round(digits = 1)` years.
-Only one site showed more durable abandonment: `r site_df$description[9]`, where projections require `r mean_coef_df_wide_l3 %>% filter(site == "shaanxi") %>% .$time_to_0.5 %>% round(digits = 1)` years for 50% abandoned cropland to be recultivated, likely a result of Chinese reforestation and afforestation programs.
+By modeling the trajectories of individual abandoned croplands and their subsequent recultivation, we are able to estimate the length of abandonment, regardless of when it took place in the 30-year time series.
+At most sites, more than 50% of abandoned croplands were recultivated within 30 years, and some sites, particularly those Eastern Europe, Russia, and the US, showed accelerating recultivation.
+Moreover, if abandonment and recultivation continue at similar rates, the mean duration of abandonment at most sites will likely plateau between `r extrapolate_df_l3 %>% select(site, max_mean_age) %>% unique() %>% arrange(max_mean_age) %>% .$max_mean_age %>% .[1] %>% round(digits = 1)` and `r extrapolate_df_l3 %>% select(site, max_mean_age) %>% unique() %>% arrange(max_mean_age) %>% .$max_mean_age %>% .[9] %>% round(digits = 1)` years by about 2040.
 Our results show that counter to recent assumptions, most abandonment is unlikely to be permanent.
-While some croplands remain abandoned long enough for ecological succession to produce appreciable gains in biodiversity and carbon, the short-lived abandonment we observe indicate the need for active efforts to reduce turnover.
-Until then, abandoned croplands will remain untapped opportunities for policymakers to pursue.
+Without active efforts to reduce turnover, ecological succession is unlikely to last long enough to produce appreciable gains in biodiversity and carbon.
+Until then, abandoned croplands will remain untapped opportunities.
+
+```{r cuts}
+# 
+# Only one site showed more durable abandonment: `r site_df$description[9]`, where projections require `r mean_coef_df_wide_l3 %>% filter(site == "shaanxi") %>% .$time_to_0.5 %>% round(digits = 1)` years for 50% abandoned cropland to be recultivated, likely a result of Chinese reforestation and afforestation programs.
+```
 
 
-# Significance Statement (<120 words)
+# Significance Statement
+*Must be <120 words (currently 132)*
 
-Broad demographic, political, and environmental changes are reorganizing the distribution of people and agriculture, in some cases resulting in cropland abandonment. 
+Broad demographic, economic, and environmental changes are reorganizing both people and agriculture, sometimes resulting in cropland abandonment. 
 While sometimes seen as a threat to food security, cultural history, and farmland biodiversity, abandonment is increasing billed as an opportunity for habitat restoration, carbon sequestration, or renewable energy.
-Yet until now, scientists have mostly relied on two snapshots in time to estimate abandonment, with misleading results.
-Using annual map data, we track abandonment and recultivation at eleven sites that have recently experienced abandonment, showing that counter to assumptions, abandonment is short-lived and frequently recultivated within 30 years.
-Potential environmental benefits depend on how long ecosystems have to regenerate in abandoned croplands and accumulate carbon and biodiversity, a long process in both forest and grassland ecosystems.
-Until policymakers take steps to reduce turnover, these lands risk remaining a missed opportunity.
+Yet until now, scientists have mostly relied on single snapshots in time to estimate abandonment, with misleading results.
+Using annual land-cover maps, we track abandonment and recultivation at eleven sites that have recently experienced abandonment.
+Contrary to assumptions, abandonment is short-lived and frequently recultivated within 30 years.
+Potential environmental benefits largely depend on how long ecosystems have to regenerate in abandoned croplands and accumulate carbon and biodiversity, a long process in many ecosystems.
+Until policymakers take steps to reduce turnover, abandonment risks remaining a missed opportunity.
 
 
 
-
-## old
-
-Environmental benefits of regenerating old farmland 
-Unless 
-For environmental benefits in particular, timing is everything.  a result,  policymakers 
-
-benefits of  for carbon sequestration and biodiversity 
-Given that biodiversity may recover slowly in both forest and grassland ecosystems, and carbon sequestration benefits only last as long as  carbon sequestration may 
-For environmental benefits in particular, timing is everything. 
-
-abandonment has lacked strong empirical data on long-term outcomes.
-Many recent studies rely on two snapshots in time to produce estimates of abandonment. 
-Our research shows that these estimates may overestimate the durability of abandonment.
-Lacking a more detailed understanding of the impermanent nature of abandonment, . 
-Biodiversity may 
-
-Some biomes may undergo succession more quickly than others, yet
-
-which are required to inform both policies and research into potential opportunities for this land
-
-To date, however, the understanding of abandonment has been limited by data availability.
-Maps of abandonment have been coarse in both spatial and temporal resolution, resulting in potentially misleading estimates of availability.
-
-
-## alternative language
-
-Recent calls for large-scale land restoration to address climate change and biodiversity loss have highlighted this reservoir of land for its potential to provide environmental benefits in the form of regenerating wildlife habitats and carbon sequestration. 
-However, the availability of this land for alternative uses, and any potential environmental benefits, depend first and foremost on the duration and durability of abandonment, and therefore how long habitats are allowed to regenerate.
-
-Yet permanent abandonment is far from guaranteed: abandoned lands are increasingly sought after for increased cultivation, renewable energy, and biofuel production, calling the potential for long-term regeneration into question. 
-Using a time-series of high-resolution maps of abandonment, I ask the following: how long does abandoned agricultural land typically remain abandoned for, and how does this vary geographically across sites? Then, by modeling the recultivation of abandoned lands through time, I provide insights about the potential benefits that may accrue into the future if current recultivation trends continue. Finally, I investigate which spatial factors best explain which lands are abandoned for longer periods of time. Together, these results provide a clearer picture of the potential for habitat regeneration to take place in abandoned croplands, and in turn, to provide benefits in terms of species habitat gains and carbon sequestration. As abandonment trends continue around the world, these results will help improve policy responses to abandonment, either to reduce frequent turnover and gain more benefits from abandoned lands, or to target conservation investment and protection to those areas that are more likely to provide environmental benefits.
+```{r old-language, include = FALSE}
+# ## old
+# 
+# Environmental benefits of regenerating old farmland 
+# Unless 
+# For environmental benefits in particular, timing is everything.  a result,  policymakers 
+# 
+# benefits of  for carbon sequestration and biodiversity 
+# Given that biodiversity may recover slowly in both forest and grassland ecosystems, and carbon sequestration benefits only last as long as  carbon sequestration may 
+# For environmental benefits in particular, timing is everything. 
+# 
+# abandonment has lacked strong empirical data on long-term outcomes.
+# Many recent studies rely on two snapshots in time to produce estimates of abandonment. 
+# Our research shows that these estimates may overestimate the durability of abandonment.
+# Lacking a more detailed understanding of the impermanent nature of abandonment, . 
+# Biodiversity may 
+# 
+# Some biomes may undergo succession more quickly than others, yet
+# 
+# which are required to inform both policies and research into potential opportunities for this land
+# 
+# To date, however, the understanding of abandonment has been limited by data availability.
+# Maps of abandonment have been coarse in both spatial and temporal resolution, resulting in potentially misleading estimates of availability.
+# 
+# 
+# ## alternative language
+# 
+# Recent calls for large-scale land restoration to address climate change and biodiversity loss have highlighted this reservoir of land for its potential to provide environmental benefits in the form of regenerating wildlife habitats and carbon sequestration. 
+# However, the availability of this land for alternative uses, and any potential environmental benefits, depend first and foremost on the duration and durability of abandonment, and therefore how long habitats are allowed to regenerate.
+# 
+# Yet permanent abandonment is far from guaranteed: abandoned lands are increasingly sought after for increased cultivation, renewable energy, and biofuel production, calling the potential for long-term regeneration into question. 
+# Using a time-series of high-resolution maps of abandonment, I ask the following: how long does abandoned agricultural land typically remain abandoned for, and how does this vary geographically across sites? Then, by modeling the recultivation of abandoned lands through time, I provide insights about the potential benefits that may accrue into the future if current recultivation trends continue. Finally, I investigate which spatial factors best explain which lands are abandoned for longer periods of time. Together, these results provide a clearer picture of the potential for habitat regeneration to take place in abandoned croplands, and in turn, to provide benefits in terms of species habitat gains and carbon sequestration. As abandonment trends continue around the world, these results will help improve policy responses to abandonment, either to reduce frequent turnover and gain more benefits from abandoned lands, or to target conservation investment and protection to those areas that are more likely to provide environmental benefits.
+```
 
 
 
@@ -169,7 +181,3 @@ mean_coef_df_wide_l3 %>% filter(site == "shaanxi") %>% .$time_to_0.5 %>% round(d
 extrapolate_df_l3 %>% select(site, max_mean_age) %>% unique() %>% arrange(max_mean_age) %>% .$max_mean_age %>% .[9] %>% round(digits = 2)
 
 ```
-
-
-# Figures
-
