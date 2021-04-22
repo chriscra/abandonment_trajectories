@@ -1,5 +1,5 @@
 ---
-title: "The impermanence of agricultural abandonment limits potential for environmental benefits (draft)"
+title: "The impermanence of cropland abandonment limits potential for environmental benefits (draft)"
 author: Christopher L. Crawford,$^a$$^*$ He Yin,$^b$ Volker Radeloff,$^c$ and David S. Wilcove$^{a, d}$
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 abstract: |
