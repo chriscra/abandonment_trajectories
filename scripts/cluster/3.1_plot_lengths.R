@@ -43,8 +43,9 @@ mean_length_df <- lapply(c(1, 3, 5), function(x) {
     mutate(product = length*freq) %>% 
     filter(length >= x) %>% # to filter by length # this is important for max, since some pixels have max length of 0
     group_by(site, length_type) %>% 
-    summarise(mean_length = sum(product)/sum(freq),
-              median_duration = median(rep(length, freq))
+    summarise(mean_duration = sum(product)/sum(freq),
+              median_duration = median(rep(length, freq)),
+              sd_duration = sd(rep(length, freq))
               ) %>% 
     mutate(abn_threshold = x) 
 }) %>% bind_rows()
@@ -59,7 +60,7 @@ cat(fill = TRUE, "Saved mean_length_df to:", paste0(p_dat_derived, run_label, "/
 # mean mean length
 mean_mean_df <- mean_length_df %>% 
   group_by(abn_threshold, length_type) %>%
-  summarise(mean_mean = mean(mean_length, na.rm = TRUE),
+  summarise(mean_mean = mean(mean_duration, na.rm = TRUE),
             mean_median = mean(median_duration, na.rm = TRUE))
 
 
@@ -75,8 +76,8 @@ if(!dir.exists(paste0(p_output, "plots/", run_label))) {
 gg_mean_length <-
   ggplot(data = mean_length_df %>% 
            filter(abn_threshold == "5"),
-         mapping = aes(x = fct_reorder2(site, abn_threshold, desc(mean_length)),
-                       y = mean_length, 
+         mapping = aes(x = fct_reorder2(site, abn_threshold, desc(mean_duration)),
+                       y = mean_duration, 
                        color = length_type)) + 
   theme_classic() +
   theme(axis.text.x = element_text(angle = 330, vjust = 1, hjust = 0),
@@ -85,12 +86,12 @@ gg_mean_length <-
        #caption = "Counting only recultivation of 2 or more continuous years",
        linetype = NULL,
        color = "Mean of:", 
-       y = "Mean length of time abandoned (years)", 
+       y = "Mean abandonment duration (years)", 
        x = "Site") +
   geom_point(size = 2) + 
   geom_hline(data = mean_length_df %>% 
                group_by(abn_threshold, length_type) %>%
-               summarise(overall_mean = mean(mean_length, na.rm = TRUE)) %>% 
+               summarise(overall_mean = mean(mean_duration, na.rm = TRUE)) %>% 
                filter(abn_threshold == "5"), 
              mapping = aes(yintercept = overall_mean, 
                            col = length_type, 
@@ -116,7 +117,7 @@ dev.off()
 
 gg_mean_length_by_threshold <- 
   ggplot(data = mean_length_df,
-         mapping = aes(x = fct_reorder(site, mean_length), y = mean_length, fill = fct_reorder(site, mean_length))) + 
+         mapping = aes(x = fct_reorder(site, mean_duration), y = mean_duration, fill = fct_reorder(site, mean_duration))) + 
   theme_classic() +
   theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0),
         plot.caption = element_text(face = "italic")) +
@@ -135,7 +136,7 @@ gg_mean_length_by_threshold <-
                                                    "5" = "abn threshold = 5"))) +
   geom_hline(data = mean_length_df %>% 
                group_by(abn_threshold, length_type) %>%
-               summarise(overall_mean = mean(mean_length, na.rm = TRUE)), 
+               summarise(overall_mean = mean(mean_duration, na.rm = TRUE)), 
              mapping = aes(yintercept = overall_mean, linetype = "mean"),
              show.legend = TRUE,
              color = "black", size = 0.75) + 
@@ -173,7 +174,7 @@ for (i in 1:11) {
     geom_vline(data = filter(mean_length_df_pivot,
                              site == site_df$site[i],
                              abn_threshold == 1), 
-               aes(xintercept = mean_length, linetype = "mean"),
+               aes(xintercept = mean_duration, linetype = "mean"),
                show.legend = TRUE, size = 1) + 
     scale_linetype_manual(values = c("mean" = "dashed")) +
     theme(legend.position = c(0.85, 0.95), plot.caption = element_text(face = "italic"))

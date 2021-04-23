@@ -71,7 +71,7 @@ extrapolate_df_l3 <- read_csv(file = paste0(p_dat_derived, run_label, "/extrapol
 ```
 
 
-```{r all-sites-summary-stats}
+```{r all-sites-summary-stats, include = FALSE}
 # Question 1: There are two ways to calculate the mean duration across all sites. Which is better:
 # 1. Mean of means: take the mean of all of the site mean lengths
 # 2. Pool all raw abandonment periods together, and take mean of that. (Alternatively, the weighted mean of means by sample size.)
@@ -176,7 +176,7 @@ mean_length_df %>%
 filter(mean_length_df, abn_threshold == 5, length_type == "all") %>% .$mean_duration %>% min()
 filter(mean_length_df, abn_threshold == 5, length_type == "all") %>% .$mean_duration %>% max()
 
-mean_mean_df %>% filter(abn_threshold == 5, length_type == "all") %>% .$mean_mean
+summary_stats_all_sites %>% filter(abn_threshold == 5, length_type == "all") %>% .$mean_of_means
 
 
 
@@ -191,13 +191,13 @@ extrapolate_df_l3 %>% select(site, max_mean_age) %>% unique() %>% arrange(max_me
 ```
 
 # Abstract
-*Must be <250 words (currently 255)*
+*Must be <250 words (currently 229)*
 
 Agricultural expansion is a major cause of land-use change globally, but millions of hectares of cropland are being abandoned as a result of demographic, economic, and environmental changes.
 These abandoned croplands could be immensely valuable for carbon sequestration and biodiversity restoration.
 However, their environmental value depends on the duration and persistence of abandonment, which is poorly known.
 Here, we use new high-resolution satellite imagery to examine the timing and duration of abandonment at eleven sites across four continents (various environments) that have experienced cropland abandonment from 1987 and 2017.
-We find that abandonment is by and large fleeting, lasting on average only `r summary_stats_all_sites$mean_of_means %>% round(digits = 2)` years (SD = `r summary_stats_all_sites$mean_of_sds %>% round(digits = 2)`)^[*NB: both values are relevant means of site summary statistics, i.e. means and standard deviations*]
+We find that abandonment is by and large fleeting, lasting on average only `r summary_stats_all_sites$mean_of_means %>% round(digits = 2)` years (SD = `r summary_stats_all_sites$mean_of_sds %>% round(digits = 2)`).^[*Note: both values reported are the means of each site's corresponding summary statistics, i.e. the mean of means and mean of standard deviations*]
 At most sites, more than 50% of abandoned croplands were recultivated within 30 years, and some sites, particularly in Eastern Europe, Russia, and the US, showed accelerating rates of recultivation.
 If current rates of abandonment continue, the mean duration of abandonment at most sites will likely plateau between `r extrapolate_df_l3 %>% select(site, max_mean_age) %>% unique() %>% arrange(max_mean_age) %>% .$max_mean_age %>% .[1] %>% round(digits = 1)` and `r extrapolate_df_l3 %>% select(site, max_mean_age) %>% unique() %>% arrange(max_mean_age) %>% .$max_mean_age %>% .[9] %>% round(digits = 1)` years by about 2040.
 Counter to optimistic assumptions, most abandonment is unlikely to be permanent and will produce little in the way of carbon or biodiversity benefits.
@@ -206,7 +206,7 @@ Until then, abandoned croplands will remain untapped opportunities.
 
 
 # Significance Statement
-*Must be <120 words (currently 132)*
+*Must be <120 words (currently 121)*
 
 Demographic, economic, and environmental changes often result in cropland abandonment. 
 While sometimes seen as a threat to food security and cultural landscapes, abandonment is increasing billed as an opportunity for habitat restoration and carbon sequestration.
