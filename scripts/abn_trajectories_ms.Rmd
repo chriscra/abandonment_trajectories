@@ -70,6 +70,42 @@ site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
 site_sf <- st_read(paste0(p_dat_derived, "site_sf.shp"))
 
 
+# load all length data (distilled)
+length_distill_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", 
+                                            "length_distill_df", run_label, ".csv"))
+
+# load mean length data
+mean_length_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", "mean_length_df", run_label, ".csv"))
+
+# load summary statistic derived from lengths
+summary_stats_all_sites <- read_csv(file = paste0(p_dat_derived, run_label, "/", "summary_stats_all_siteS", run_label, ".csv"))
+summary_stats_all_sites_pooled <- read_csv(file = paste0(p_dat_derived, run_label, "/", "summary_stats_all_sites_pooled", run_label, ".csv"))
+
+# load area summary stats:
+area_summary_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", "area_summary_df", run_label, ".csv"))
+
+
+# load combined persistence, area, and turnover datasets:
+
+persistence_dat <- read_csv(file = paste0(p_dat_derived, "abn_decay_data", run_label, ".csv")) %>%
+  mutate(site = as.factor(site),
+         bins = as.factor(bins),
+         year_abn_bins = as.factor(year_abn_bins),
+         cohort = as.factor(cohort))
+
+area_dat <- read_csv(file = paste0(p_dat_derived, "area_dat", run_label, ".csv"))
+turnover_dat <- read_csv(file = paste0(p_dat_derived, "turnover_dat", run_label, ".csv"))
+
+
+
+# load decay rate data
+load(file = paste0(p_dat_derived, run_label, "/decay_mod_coef_dfs.rds"), 
+     verbose = TRUE)
+
+# load extrapolation data
+extrapolate_df_l3 <- read_csv(file = paste0(p_dat_derived, run_label, "/extrapolate_df_l3", run_label, ".csv"))
+
+
 # load data for shaanxi maps --------------------------------------------------- #
 
 # load data for decay models --------------------------------------------------- #
@@ -139,8 +175,29 @@ site_sf <- st_read(paste0(p_dat_derived, "site_sf.shp"))
 
 
 # Abstract
+*Must be <250 words (currently 229)*
 
-Agricultural expansion is the primary driver of habitat loss and species endangerment at a global level, yet many areas are experiencing the decline and abandonment of agriculture as a result of demographic, economic, and environmental trends. Abandoned agricultural land has the potential to provide environmental benefits in the form of regenerating wildlife habitats and carbon sequestration, but these benefits depend first and foremost on how long land remains abandoned and allowed to regenerate. Yet permanent abandonment is far from guaranteed: abandoned lands are increasingly sought after for increased cultivation, renewable energy, and biofuel production, calling the potential for long-term regeneration into question. Using a time-series of high-resolution maps of abandonment, I ask the following: how long does abandoned agricultural land typically remain abandoned for, and how does this vary geographically across sites? Then, by modeling the recultivation of abandoned lands through time, I provide insights about the potential benefits that may accrue into the future if current recultivation trends continue. Finally, I investigate which spatial factors best explain which lands are abandoned for longer periods of time. Together, these results provide a clearer picture of the potential for habitat regeneration to take place in abandoned croplands, and in turn, to provide benefits in terms of species habitat gains and carbon sequestration. As abandonment trends continue around the world, these results will help improve policy responses to abandonment, either to reduce frequent turnover and gain more benefits from abandoned lands, or to target conservation investment and protection to those areas that are more likely to provide environmental benefits.
+Agricultural expansion is a major cause of land-use change globally, but millions of hectares of cropland are being abandoned as a result of demographic, economic, and environmental changes.
+These abandoned croplands could be immensely valuable for carbon sequestration and biodiversity restoration.
+However, their environmental value depends on the duration and persistence of abandonment, which is poorly known.
+Here, we use new high-resolution satellite imagery to examine the timing and duration of abandonment at eleven sites across four continents (and various environments) that have experienced cropland abandonment from 1987 and 2017.
+We find that abandonment is by and large fleeting, lasting on average only `r summary_stats_all_sites$mean_of_means %>% round(digits = 2)` years (SD = `r summary_stats_all_sites$mean_of_sds %>% round(digits = 2)`).^[*Note: both values reported are the means of each site's corresponding summary statistics, i.e. the mean of means and mean of standard deviations*]
+At most sites, more than 50% of abandoned croplands were recultivated within 30 years, and some sites, particularly in Eastern Europe, Russia, and the US, showed accelerating rates of recultivation.
+If current rates of abandonment continue, the mean duration of abandonment at most sites will likely plateau between `r extrapolate_df_l3 %>% select(site, max_mean_age) %>% unique() %>% arrange(max_mean_age) %>% .$max_mean_age %>% .[1] %>% round(digits = 1)` and `r extrapolate_df_l3 %>% select(site, max_mean_age) %>% unique() %>% arrange(max_mean_age) %>% .$max_mean_age %>% .[9] %>% round(digits = 1)` years by about 2040.
+Counter to optimistic assumptions, most abandonment is unlikely to be permanent and will produce little in the way of carbon or biodiversity benefits.
+New policies and incentives will be needed to lengthen the period of abandonment so as to generate these and other benefits.
+Until then, abandoned croplands will remain untapped opportunities.
+
+# Significance Statement
+*Must be <120 words (currently 121)*
+
+Demographic, economic, and environmental changes often result in cropland abandonment. 
+While sometimes seen as a threat to food security and cultural landscapes, abandonment is increasing billed as an opportunity for habitat restoration and carbon sequestration.
+However, those environmental benefits largely depend on how long ecosystems can regenerate in abandoned croplands and accumulate carbon and biodiversity, which takes decades in many ecosystems.
+Existing studies often rely on single snapshots in time to estimate abandonment, and ignored recultivation.
+Using annual land-cover maps, we track abandonment and recultivation at eleven sites across four continents that have recently experienced abandonment.
+Contrary to previous assumptions, abandonment is short-lived and lands are frequently recultivated.
+Until policymakers take steps to reduce recultivation, abandonment will remain a missed opportunity.
 
 ## Keywords
 
@@ -706,6 +763,12 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/",
 
 # Discussion
 
+
+The definition of abandonment makes a big difference on both the mean abandonment duration (Figure \@ref(fig:abn-thresholds-mean-duration)), and the recultivation rate (\@ref(fig:abn-thresholds-recultivation)). 
+It is possible that in many sites, a longer definition of "abandonment" would be more appropriate.
+Belarus & Herzegoniva displays a strong bifurcated pattern, where some abandonment remains relatively durable and long-lasting, while other abandonment is recultivated relatively quickly. 
+
+
 # Acknowledgements
 
 Our analyses were supported by Princeton University's Research Computing cluster resources. (*Insert text here from PRC website*)
@@ -720,11 +783,18 @@ Our analyses were supported by Princeton University's Research Computing cluster
 - Area of each site
 - Abandonment threshold, including a higher threshold (something like 6 or 10 years), along with how thresholds change total pixels/area.
 
-(ref:caption-abn-thresholds) Mean abandonment lengths shown for various abandonment thresholds.
+(ref:caption-abn-thresholds-mean-duration) Mean abandonment lengths shown for various abandonment thresholds.
 
-```{r abn-thresholds, fig.cap = '(ref:caption-abn-thresholds)'}
-
+```{r abn-thresholds-mean-duration, fig.cap = '(ref:caption-abn-thresholds-mean-duration)'}
+knitr::include_graphics(path = paste0(p_output, "plots/", run_label, "/mean_lengths_by_threshold", run_label, ".png"))
 ```
+
+(ref:caption-abn-thresholds-recultivation) Recultivation rates shown for various abandonment thresholds.
+
+```{r abn-thresholds-mean-lengths, fig.cap = '(ref:caption-abn-thresholds-recultivation)'}
+knitr::include_graphics(path = paste0(p_output, "plots/", run_label, "/recultivation_rates_by_threshold", run_label, ".png"))
+```
+
 
 - Histogram for each site, showing the skew in abandonment length.
 - Turnover: showing the annual gross area gained and loss, with the net change in black.
@@ -786,20 +856,23 @@ Results:
 - Maps of a) abandonment *age in 2017* and b) *max age* for all sites.
 - model coefficients
 
+# References
 
-# Extended Results
+# Supplementary Information
+
+## Extended Results
 
 (ref:caption-panel-b) Abandonment patterns for `r site_df$description[1]`.
-(ref:caption-panel-bh) Abandonment patterns for Bosnia & Herzegovina.
-(ref:caption-panel-c) Abandonment patterns for Chongqing Province, China.
-(ref:caption-panel-g) Abandonment patterns for Goiás, Brazil.
-(ref:caption-panel-i) Abandonment patterns for Iraq.
-(ref:caption-panel-mg) Abandonment patterns for Mato Grosso, Brazil.
-(ref:caption-panel-n) Abandonment patterns for Nebraska, USA.
-(ref:caption-panel-o) Abandonment patterns for Orenburg, Russia.
-(ref:caption-panel-s) Abandonment patterns for Shaanxi/Shanxi Provinces, China.
-(ref:caption-panel-v) Abandonment patterns for Volgograd, Russia.
-(ref:caption-panel-w) Abandonment patterns for Wisconsin, USA.
+(ref:caption-panel-bh) Abandonment patterns for `r site_df$description[2]`.
+(ref:caption-panel-c) Abandonment patterns for `r site_df$description[3]`.
+(ref:caption-panel-g) Abandonment patterns for `r site_df$description[4]`.
+(ref:caption-panel-i) Abandonment patterns for `r site_df$description[5]`.
+(ref:caption-panel-mg) Abandonment patterns for `r site_df$description[6]`.
+(ref:caption-panel-n) Abandonment patterns for `r site_df$description[7]`.
+(ref:caption-panel-o) Abandonment patterns for `r site_df$description[8]`.
+(ref:caption-panel-s) Abandonment patterns for `r site_df$description[9]`.
+(ref:caption-panel-v) Abandonment patterns for `r site_df$description[10]`.
+(ref:caption-panel-w) Abandonment patterns for `r site_df$description[11]`.
 
 
 ```{r panel-b, fig.cap = '(ref:caption-panel-b)', echo=FALSE}

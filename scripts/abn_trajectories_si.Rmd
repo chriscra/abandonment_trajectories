@@ -1,5 +1,5 @@
 ---
-title: "Supplementary Information: Timing and persistence of abandoned agricultural land (draft)"
+title: "Supplementary Information: The impermanence of cropland abandonment limits potential for environmental benefits (draft)"
 author: Christopher L. Crawford,$^a$$^*$ He Yin,$^b$ Volker Radeloff,$^c$ and David
   S. Wilcove$^{a, d}$
 date: "`r format(Sys.time(), '%B %d, %Y')`"
@@ -71,6 +71,44 @@ run_label <- "_2021_03_13"  #"_2021-03-05"
 # load general spatial data on site locations --------------------------------------------------- #
 site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
 site_sf <- st_read(paste0(p_dat_derived, "site_sf.shp"))
+
+
+
+# load all length data (distilled)
+length_distill_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", 
+                                            "length_distill_df", run_label, ".csv"))
+
+# load mean length data
+mean_length_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", "mean_length_df", run_label, ".csv"))
+
+# load summary statistic derived from lengths
+summary_stats_all_sites <- read_csv(file = paste0(p_dat_derived, run_label, "/", "summary_stats_all_siteS", run_label, ".csv"))
+summary_stats_all_sites_pooled <- read_csv(file = paste0(p_dat_derived, run_label, "/", "summary_stats_all_sites_pooled", run_label, ".csv"))
+
+# load area summary stats:
+area_summary_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", "area_summary_df", run_label, ".csv"))
+
+
+# load combined persistence, area, and turnover datasets:
+persistence_dat <- read_csv(file = paste0(p_dat_derived, "abn_decay_data", run_label, ".csv")) %>%
+  mutate(site = as.factor(site),
+         bins = as.factor(bins),
+         year_abn_bins = as.factor(year_abn_bins),
+         cohort = as.factor(cohort))
+
+area_dat <- read_csv(file = paste0(p_dat_derived, "area_dat", run_label, ".csv"))
+turnover_dat <- read_csv(file = paste0(p_dat_derived, "turnover_dat", run_label, ".csv"))
+
+
+
+# load decay rate data
+load(file = paste0(p_dat_derived, run_label, "/decay_mod_coef_dfs.rds"), 
+     verbose = TRUE)
+
+# load extrapolation data
+extrapolate_df_l3 <- read_csv(file = paste0(p_dat_derived, run_label, "/extrapolate_df_l3", run_label, ".csv"))
+
+
 
 # load data for shaanxi maps --------------------------------------------------- #
 
@@ -176,6 +214,19 @@ We calculated area using the `raster::area()` function, applying a unique area t
 
 
 # Results for all sites
+
+## Basic summary stats
+
+The area abandoned at each site is shown in Figure \@ref(fig:area-abn).
+
+(ref:caption-area-abn) The area abandoned at each site, a) as of 2017, b) as a proportion of the total site area, and c) as a proportion of the total cropland area at the start of the time series (1987). 
+
+```{r area-abn, fig.cap = '(ref:caption-area-abn)', echo=FALSE}
+
+knitr::include_graphics(path = paste0(p_plots, run_label, "/area_abn_panel", run_label, ".pdf"))
+```
+
+
 
 The mean length of time abandoned across the time series is shown in Figure \@ref(fig:mean-abn-length).
 
