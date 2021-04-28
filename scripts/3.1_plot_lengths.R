@@ -159,9 +159,8 @@ dev.off()
 # -------------------------------------------------------------------- #
 # ----------------- plot histograms ---------------- #
 # -------------------------------------------------------------------- #
-
 for (i in 1:11) {
-  # gg_hist <-
+  gg_hist <-
     ggplot(data = filter(length_distill_df, site == site_df$site[i], length > 0)) + 
     theme_classic() +
     labs(linetype = "", x = "Time abandoned (years)", 
@@ -171,13 +170,13 @@ for (i in 1:11) {
     facet_grid(rows = vars(length_type), scales = "free",
                labeller = labeller(length_type = c(all = "all abn. periods", #old = "new",
                                                    max = "max. length per pixel"))) +
-    geom_vline(data = filter(mean_length_df_pivot,
+    geom_vline(data = filter(mean_length_df,
                              site == site_df$site[i],
                              abn_threshold == 1), 
                aes(xintercept = mean_duration, linetype = "mean"),
                show.legend = TRUE, size = 1) + 
     scale_linetype_manual(values = c("mean" = "dashed")) +
-    theme(legend.position = c(0.85, 0.95), plot.caption = element_text(face = "italic"))
+    theme(legend.position = c(0.85, 0.95), plot.caption = element_text(face = "italic")) #+ scale_x_log10()
   
 
   # save
