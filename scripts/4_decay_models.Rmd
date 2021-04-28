@@ -5,14 +5,8 @@ editor_options:
   chunk_output_type: console
 ---
 ```{r initialize}
-
-source("scripts/0_start.R")
+source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
 source(paste0(p_proj, "scripts/util/_util_master.R"))
-
-# this already includes lme4, broom.mixed, etc.
-
-# install.packages('TMB', type = 'source')
-
 ```
 
 
@@ -260,7 +254,7 @@ dat_l_0 <- select(dat_l, site, time_1, age, initial_area_abn, cohort, year_abn) 
 
 
 ```{r dat_l-save, eval = FALSE}
-write_csv(dat_l, path = paste0(p_dat_derived, "abn_decay_data", run_label, ".csv"))
+write_csv(dat_l, file = paste0(p_dat_derived, "abn_decay_data", run_label, ".csv"))
 ```
 
 
@@ -292,6 +286,9 @@ area_dat <- lapply(area_file_paths, function(i) {
 
 names(area_dat) <- site_df$site
 area_dat <- area_dat %>% bind_rows(.id = "site") %>% as_tibble()
+
+write_csv(area_dat, file = paste0(p_dat_derived, "area_dat", run_label, ".csv"))
+# area_dat <- read_csv(file = paste0(p_dat_derived, "area_dat", run_label, ".csv"))
 
 # ---------------------------------------------------------------------- #
 # plot facet grid
@@ -330,6 +327,9 @@ turnover_dat <- lapply(turnover_file_paths, function(i) {
 names(turnover_dat) <- site_df$site
 turnover_dat <- turnover_dat %>% bind_rows(.id = "site") %>% as_tibble()
 
+write_csv(turnover_dat, file = paste0(p_dat_derived, "turnover_dat", run_label, ".csv"))
+# turnover_dat <- read_csv(file = paste0(p_dat_derived, "turnover_dat", run_label, ".csv"))
+
 ggplot() +
     theme_classic() + 
     labs(y = expression("Annual area turnover (10"^{3}*" ha)"), 
@@ -354,6 +354,7 @@ ggplot() +
               mapping = aes(x = year, y = area_ha / (10^3), color = "Net Change in Area"),
               size = 1.5) + 
   facet_wrap(vars(site))
+
 
 ```
 
@@ -1041,7 +1042,7 @@ mod_AIC_mega <- lapply(mod_ll_mega, function(x) glance(x)) %>%
 
 
 # save mod_AIC
-write_csv(mod_AIC, path = paste0(p_dat_derived, "mod_AIC", run_label, ".csv"))
+write_csv(mod_AIC, file = paste0(p_dat_derived, "mod_AIC", run_label, ".csv"))
 # 
 # # re load
 # mod_AIC <- read.csv(file = paste0(p_dat_derived, "mod_AIC.csv"))
@@ -3132,7 +3133,7 @@ future_df_l3 %>% filter(site == "shaanxi") %>% arrange(desc(year), desc(year_abn
 
 
 # save future_df_l3
-write_csv(future_df_l3, path = paste0(p_dat_derived, run_label, "/future_df_l3", run_label, ".csv"))
+write_csv(future_df_l3, file = paste0(p_dat_derived, run_label, "/future_df_l3", run_label, ".csv"))
 # future_df_l3 <- read_csv(file = paste0(p_dat_derived, run_label, "/future_df_l3", run_label, ".csv"))
 
 # ----------------------- #
@@ -3564,8 +3565,8 @@ extrapolate_df_l3_no_cohort <- bind_rows(extrapolate_df_l3_no_cohort, tibble(sit
        exp_total_area_abn = 0,
        mean_age = NA))
 
-write_csv(future_df_l3_no_cohort, path = paste0(p_dat_derived, run_label, "/future_df_l3_no_fe", run_label, ".csv"))
-write_csv(extrapolate_df_l3_no_cohort, path = paste0(p_dat_derived, run_label, "/extrapolate_df_l3_no_fe", run_label, ".csv"))
+write_csv(future_df_l3_no_cohort, file = paste0(p_dat_derived, run_label, "/future_df_l3_no_fe", run_label, ".csv"))
+write_csv(extrapolate_df_l3_no_cohort, file = paste0(p_dat_derived, run_label, "/extrapolate_df_l3_no_fe", run_label, ".csv"))
 
 
 # ----------------------------------------------------------------------- #
@@ -6592,7 +6593,7 @@ mean_persistence_df <- lapply(1:11, FUN = function(i) {
 mean_persistence_df <- bind_rows(mean_persistence_df)
 
 # save
-write_csv(mean_persistence_df, path = paste0(p_dat_derived, "mean_persistence_df.csv"))
+write_csv(mean_persistence_df, file = paste0(p_dat_derived, "mean_persistence_df.csv"))
 
 # re load
 mean_persistence_df <- read.csv(file = paste0(p_dat_derived, "mean_persistence_df.csv"))
