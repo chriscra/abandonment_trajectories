@@ -56,8 +56,29 @@ site_sf <- st_read(paste0(p_dat_derived, "site_sf.shp"))
 length_distill_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", 
                                             "length_distill_df", run_label, ".csv"))
 
-# load mean length data:
+# load mean length data
 mean_length_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", "mean_length_df", run_label, ".csv"))
+
+# load summary statistic derived from lengths
+summary_stats_all_sites <- read_csv(file = paste0(p_dat_derived, run_label, "/", "summary_stats_all_siteS", run_label, ".csv"))
+summary_stats_all_sites_pooled <- read_csv(file = paste0(p_dat_derived, run_label, "/", "summary_stats_all_sites_pooled", run_label, ".csv"))
+
+
+# load area summary stats:
+area_summary_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", "area_summary_df", run_label, ".csv"))
+
+
+
+# load combined persistence, area, and turnover datasets:
+persistence_dat <- read_csv(file = paste0(p_dat_derived, "abn_decay_data", run_label, ".csv")) %>%
+  mutate(site = as.factor(site),
+         bins = as.factor(bins),
+         year_abn_bins = as.factor(year_abn_bins),
+         cohort = as.factor(cohort))
+
+area_dat <- read_csv(file = paste0(p_dat_derived, "area_dat", run_label, ".csv"))
+turnover_dat <- read_csv(file = paste0(p_dat_derived, "turnover_dat", run_label, ".csv"))
+
 
 
 # load decay rate data
@@ -69,93 +90,6 @@ extrapolate_df_l3 <- read_csv(file = paste0(p_dat_derived, run_label, "/extrapol
 
 
 ```
-
-
-```{r all-sites-summary-stats, include = FALSE}
-# Question 1: There are two ways to calculate the mean duration across all sites. Which is better:
-# 1. Mean of means: take the mean of all of the site mean lengths
-# 2. Pool all raw abandonment periods together, and take mean of that. (Alternatively, the weighted mean of means by sample size.)
-
-
-# Question 2: If we calculate the mean of means, to deal with different sample sizes, how should we calculate the standard deviation?
-# 1. Standard deviation of the mean values, or
-# 2. Mean of standard deviations at each site.  
-
-# The first has an advantage of giving each site the same weight. Because the sample sizes at each site are not the same, the interpretation gets a bit tricky if one simply pools all the periods. In this case, sites with a larger area, which have more pixels and therefore more periods of abandonment, have a larger effect on the overall mean.
-
-# the two are quite similar, so just use the mean of means
-
-# ---------------------------------------------------------------- #
-# 1. Take mean of the site mean lengths:
-# note, this is the value given for the horizontal dashed lines on the main mean abn duration figure
-knitr::include_graphics(path = paste0(p_plots, run_label, "/mean_lengths", run_label, ".png"))
-
-
-summary_stats_all_sites <- mean_length_df %>%
-  filter(abn_threshold == 5,
-         length_type == "all") %>% 
-  group_by(abn_threshold, length_type) %>%
-  summarise(mean_of_means = mean(mean_duration),
-            sd_of_means = sd(mean_duration),
-            mean_of_sds = mean(sd_duration)
-            )
-
-summary_stats_all_sites$mean_of_means
-summary_stats_all_sites$sd_of_means
-summary_stats_all_sites$mean_of_sds
-
-
-
-# ---------------------------------------------------------------- #
-# 2. Pool all raw abandonment periods together
-summary_stats_all_sites_pooled <- length_distill_df %>%
-  as_tibble() %>%
-  filter(length >= 5, length_type == "all") %>%
-  mutate(product = length*freq) %>%
-  group_by() %>%
-  summarise(mean_duration = sum(product)/sum(freq),
-            median_duration = median(rep(length, freq)),
-            # mean_test = mean(rep(length, freq)), # same as above
-            sd_duration = sd(rep(length, freq))
-            )
-
-summary_stats_all_sites_pooled$mean_duration
-
-# alternatively, calculate the weighted mean:
-# number of abandonment periods at each site:
-n_abn_periods <- length_distill_df %>%
-  as_tibble() %>%
-  filter(length >= 5, length_type == "all") %>%
-  group_by(site) %>%
-  summarise(n_abn_periods = sum(freq))
-
-n_abn_periods %>%
-  left_join(filter(mean_length_df, length_type == "all", abn_threshold == 5), # filtered site means
-            by = "site") %>% 
-  mutate(prod = mean_duration * n_abn_periods) %>%
-  group_by() %>%
-  summarise(sum_prod = sum(prod),
-            sum_n = sum(n_abn_periods),
-            w_mean = sum_prod/sum_n)
-```
-
-
-```{r alt-means, eval = FALSE}
-# alternative alternative, make a vector of all periods, and compute stats directly
-length_filtered <- length_distill_df %>%
-  as_tibble() %>%
-  filter(length >= 5, length_type == "all")
-
-length_filtered_distilled <- length_filtered %>% 
-  group_by(length) %>% 
-  summarise(total_freq = sum(freq)) 
-
-repeats <- rep(length_filtered_distilled$length, length_filtered_distilled$total_freq)
-sd(repeats)
-mean(repeats)
-median(repeats)
-```
-
 
 ```{r collect-stats, include = FALSE}
 # Testing how the tibble looks `r filter(mean_length_df, abn_threshold == 5, length_type == "all") %>% ungroup() %>% slice_min(order_by = mean_duration) %>% select(site) %>% unlist() %>% capwords()`
@@ -179,7 +113,6 @@ filter(mean_length_df, abn_threshold == 5, length_type == "all") %>% .$mean_dura
 summary_stats_all_sites %>% filter(abn_threshold == 5, length_type == "all") %>% .$mean_of_means
 
 
-
 # decay mod numbers:
 
 mean_coef_df_wide_l3 %>% filter(site == "shaanxi") %>% .$time_to_0.5 %>% round(digits = 1)
@@ -190,20 +123,21 @@ extrapolate_df_l3 %>% select(site, max_mean_age) %>% unique() %>% arrange(max_me
 
 ```
 
+Last edited on April 22nd, 2021, copied to ms document.
+
 # Abstract
 *Must be <250 words (currently 229)*
 
 Agricultural expansion is a major cause of land-use change globally, but millions of hectares of cropland are being abandoned as a result of demographic, economic, and environmental changes.
 These abandoned croplands could be immensely valuable for carbon sequestration and biodiversity restoration.
 However, their environmental value depends on the duration and persistence of abandonment, which is poorly known.
-Here, we use new high-resolution satellite imagery to examine the timing and duration of abandonment at eleven sites across four continents (various environments) that have experienced cropland abandonment from 1987 and 2017.
+Here, we use new high-resolution satellite imagery to examine the timing and duration of abandonment at eleven sites across four continents (and various environments) that have experienced cropland abandonment from 1987 and 2017.
 We find that abandonment is by and large fleeting, lasting on average only `r summary_stats_all_sites$mean_of_means %>% round(digits = 2)` years (SD = `r summary_stats_all_sites$mean_of_sds %>% round(digits = 2)`).^[*Note: both values reported are the means of each site's corresponding summary statistics, i.e. the mean of means and mean of standard deviations*]
 At most sites, more than 50% of abandoned croplands were recultivated within 30 years, and some sites, particularly in Eastern Europe, Russia, and the US, showed accelerating rates of recultivation.
 If current rates of abandonment continue, the mean duration of abandonment at most sites will likely plateau between `r extrapolate_df_l3 %>% select(site, max_mean_age) %>% unique() %>% arrange(max_mean_age) %>% .$max_mean_age %>% .[1] %>% round(digits = 1)` and `r extrapolate_df_l3 %>% select(site, max_mean_age) %>% unique() %>% arrange(max_mean_age) %>% .$max_mean_age %>% .[9] %>% round(digits = 1)` years by about 2040.
 Counter to optimistic assumptions, most abandonment is unlikely to be permanent and will produce little in the way of carbon or biodiversity benefits.
 New policies and incentives will be needed to lengthen the period of abandonment so as to generate these and other benefits.
 Until then, abandoned croplands will remain untapped opportunities.
-
 
 # Significance Statement
 *Must be <120 words (currently 121)*
@@ -215,6 +149,22 @@ Existing studies often rely on single snapshots in time to estimate abandonment,
 Using annual land-cover maps, we track abandonment and recultivation at eleven sites across four continents that have recently experienced abandonment.
 Contrary to previous assumptions, abandonment is short-lived and lands are frequently recultivated.
 Until policymakers take steps to reduce recultivation, abandonment will remain a missed opportunity.
+
+
+```{r Hélène's-suggestions}
+# A few more specific comments, which you are very welcome to entirely ignore:
+# On the abstract:
+# - when you make the point that such opportunities depend on the duration and persistence of abandonment, does this hold for all alternatives describes just above, or especially for habitat restoration?
+# - when you first mention the 11 sites, it would be helpful to say that they are all around the world, it's a big value added to your study I think. Although I noticed you're supposed to cut words __
+# - you might want to make the "counter to recent assumptions" more prominent, it's a big part of your selling point I think __
+# - the last sentence of both the abstract and the significance statement are really cool!!
+# On the significance statement:
+# - small detail: maybe remove one of the two "sometimes" in the second line 
+# - same remark about the 11 sites, I think it would be helpful to add that they are all around the world
+# - can you say that abandonment can be recultivated? If so, no need to change; it just sounded a bit strange
+# - again, the closing sentence is great!
+```
+
 
 ```{r cuts}
 # 
