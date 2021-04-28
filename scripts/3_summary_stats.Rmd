@@ -1,0 +1,617 @@
+---
+title: "Summary statistics"
+author: "Christopher L. Crawford"
+date: "4/23/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r initialize}
+source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
+source(paste0(p_proj, "scripts/util/_util_master.R"))
+```
+
+```{r load-data}
+# load combined persistence, area, and turnover datasets:
+
+persistence_dat <- read_csv(file = paste0(p_dat_derived, "abn_decay_data", run_label, ".csv")) %>%
+  mutate(site = as.factor(site),
+         bins = as.factor(bins),
+         year_abn_bins = as.factor(year_abn_bins),
+         cohort = as.factor(cohort))
+
+area_dat <- read_csv(file = paste0(p_dat_derived, "area_dat", run_label, ".csv"))
+turnover_dat <- read_csv(file = paste0(p_dat_derived, "turnover_dat", run_label, ".csv"))
+
+```
+
+
+# Summary statistics for manuscript
+
+```{r calc-mean-lengths}
+# -------------------------------------------------------- #
+# Christopher Crawford, Princeton University, March 9th, 2021
+
+# Script to produce length plots based on distilled length data.tables from "3_distill_lengths.R"
+# -------------------------------------------------------- #
+
+
+# download from the cluster with the following bash command:
+# scp clc6@della:/scratch/network/clc6/abandonment_trajectories/data_derived/input_rasters/length_distill_df_2021-03-05.csv /Users/christophercrawford/Google\ Drive/_Projects/abandonment_trajectories/data_derived/_2021-03-05/
+
+
+# set up parameters:
+# data.frame of all sites contains information about sites
+site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
+
+run_label <- "_2021_03_13" #"_2021-03-05"
+# _2021_03_13
+
+
+
+# 0. Load distilled length data
+length_distill_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", 
+                                            "length_distill_df", run_label, ".csv"))
+# length_distill_df %>% filter(site == "shaanxi") %>% select(length_type) %>% unique()
+
+
+mean_length_df <- lapply(c(1, 3, 5, 10), function(x) {
+  length_distill_df %>% as_tibble() %>% 
+    mutate(product = length*freq) %>% 
+    filter(length >= x) %>% # to filter by length # this is important for max, since some pixels have max length of 0
+    group_by(site, length_type) %>% 
+    summarise(
+      n_abn_periods = sum(freq), # number of abandonment periods at each site:
+      mean_duration = sum(product)/sum(freq),
+      median_duration = median(rep(length, freq)),
+      sd_duration = sd(rep(length, freq))
+      ) %>% 
+    mutate(abn_threshold = x) 
+}) %>% bind_rows()
+
+
+# save mean_length_df
+write_csv(mean_length_df, file = paste0(p_dat_derived, run_label, "/", "mean_length_df", run_label, ".csv"))
+cat(fill = TRUE, "Saved mean_length_df to:", paste0(p_dat_derived, run_label, "/", "mean_length_df", run_label, ".csv"))
+
+# mean_length_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", "mean_length_df", run_label, ".csv"))
+```
+
+## Mean abandonment duration
+
+Question 1: There are two ways to calculate the mean duration across all sites. Which is better:
+1. Mean of means: take the mean of all of the site mean lengths
+2. Pool all raw abandonment periods together, and take mean of that. (Alternatively, the weighted mean of means by sample size.)
+
+Question 2: If we calculate the mean of means, to deal with different sample sizes, how should we calculate the standard deviation?
+1. Standard deviation of the mean values, or
+2. Mean of standard deviations at each site.
+
+The first has an advantage of giving each site the same weight. Because the sample sizes at each site are not the same, the interpretation gets a bit tricky if one simply pools all the periods. In this case, sites with a larger area, which have more pixels and therefore more periods of abandonment, have a larger effect on the overall mean.
+the two are quite similar, so just use the mean of means
+
+```{r all-sites-summary-stats, include = FALSE}
+# ---------------------------------------------------------------- #
+# 1. Take mean of the site mean lengths:
+# note, this is the value given for the horizontal dashed lines on the main mean abn duration figure
+knitr::include_graphics(path = paste0(p_plots, run_label, "/mean_lengths", run_label, ".png"))
+
+
+# load files ------------- #
+# load all length data (distilled)
+length_distill_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", 
+                                            "length_distill_df", run_label, ".csv"))
+
+# load mean length data:
+mean_length_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", "mean_length_df", run_label, ".csv"))
+
+summary_stats_all <- mean_length_df %>% 
+  group_by(abn_threshold, length_type) %>%
+  summarise(mean_of_means = mean(mean_duration, na.rm = TRUE),
+            mean_of_medians = mean(median_duration, na.rm = TRUE),
+            mean_of_sds = mean(sd_duration, na.rm = TRUE)
+            )
+
+# just # our standard 5 year abandonment threshold: 
+summary_stats_all_sites <- mean_length_df %>%
+  filter(abn_threshold == 5,
+         length_type == "all") %>% 
+  group_by(abn_threshold, length_type) %>%
+  summarise(mean_of_means = mean(mean_duration),
+            mean_of_medians = mean(median_duration),
+            sd_of_means = sd(mean_duration),
+            mean_of_sds = mean(sd_duration),
+            mean_n_abn_periods = mean(n_abn_periods)
+            )
+
+summary_stats_all_sites$mean_of_means
+summary_stats_all_sites$sd_of_means
+summary_stats_all_sites$mean_of_sds
+
+
+
+# ---------------------------------------------------------------- #
+# 2. Pool all raw abandonment periods together
+summary_stats_all_sites_pooled <- length_distill_df %>%
+  as_tibble() %>%
+  filter(length >= 5, length_type == "all") %>%
+  mutate(product = length*freq) %>%
+  group_by() %>%
+  summarise(
+    total_n_abn_periods = sum(freq),
+    mean_duration = sum(product)/sum(freq),
+    median_duration = median(rep(length, freq)),
+    # mean_test = mean(rep(length, freq)), # same as above
+    sd_duration = sd(rep(length, freq))
+    )
+
+summary_stats_all_sites_pooled$mean_duration
+
+# alternatively, calculate the weighted mean, using the number of abandonment periods at each site:
+
+mean_length_df %>% 
+  filter(length_type == "all", abn_threshold == 5) %>% 
+  mutate(prod = mean_duration * n_abn_periods) %>%
+  group_by() %>%
+  summarise(sum_prod = sum(prod),
+            sum_n = sum(n_abn_periods),
+            w_mean = sum_prod/sum_n)
+
+# alternative method #2: make a vector of all periods, and compute stats directly
+# length_filtered <- length_distill_df %>%
+#   as_tibble() %>%
+#   filter(length >= 5, length_type == "all")
+# 
+# length_filtered_distilled <- length_filtered %>% 
+#   group_by(length) %>% 
+#   summarise(total_freq = sum(freq)) 
+# 
+# repeats <- rep(length_filtered_distilled$length, length_filtered_distilled$total_freq)
+# sd(repeats)
+# mean(repeats)
+# median(repeats)
+
+# save files:
+
+write_csv(summary_stats_all_sites, file = paste0(p_dat_derived, run_label, "/", "summary_stats_all_sites", run_label, ".csv"))
+
+write_csv(summary_stats_all_sites_pooled, file = paste0(p_dat_derived, run_label, "/", "summary_stats_all_sites_pooled", run_label, ".csv"))
+
+
+# summary_stats_all_sites <- read_csv(file = paste0(p_dat_derived, run_label, "/", "summary_stats_all_siteS", run_label, ".csv"))
+# summary_stats_all_sites_pooled <- read_csv(file = paste0(p_dat_derived, run_label, "/", "summary_stats_all_sites_pooled", run_label, ".csv"))
+```
+
+### Save mean abandonment duration plots
+
+Three plots:
+1. Summary figure: mean length (all periods and max lengths) for each site
+2. Summary lengths by abandonment threshold (like 1, but with different thresholds)
+3. Histograms (all periods and max lengths)
+
+
+```{r plot-mean-abn-duration}
+
+# create directory for plot outputs
+if(!dir.exists(paste0(p_output, "plots/", run_label))) {
+  dir.create(paste0(p_output, "plots/", run_label))
+}
+
+# -------------------------------------------------------- #
+# 1. Plot mean length of time abandoned (>= 5) ----
+
+gg_mean_length <-
+  ggplot(data = mean_length_df %>% 
+           filter(abn_threshold == "5"),
+         mapping = aes(x = fct_reorder2(site, abn_threshold, desc(mean_duration)),
+                       y = mean_duration, 
+                       color = length_type)) + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 330, vjust = 1, hjust = 0),
+        plot.caption = element_text(face = "italic")) +
+  labs(#title = "Mean length of abandonment",
+       #caption = "Counting only recultivation of 2 or more continuous years",
+       linetype = NULL,
+       color = "Mean of:", 
+       y = "Mean abandonment duration (years)", 
+       x = "Site") +
+  geom_point(size = 2) + 
+  geom_hline(data = mean_length_df %>% 
+               group_by(abn_threshold, length_type) %>%
+               summarise(overall_mean = mean(mean_duration, na.rm = TRUE)) %>% 
+               filter(abn_threshold == "5"), 
+             mapping = aes(yintercept = overall_mean, 
+                           col = length_type, 
+                           linetype = "Overall \nMean")) + 
+  scale_linetype_manual(values = c("Overall \nMean" = "dashed")) + 
+  scale_colour_discrete(labels = c(all = "All periods", 
+                                   max = "Max. length \nper pixel")) +
+  guides(color = guide_legend(order = 1))
+    
+
+
+# ----------------- save ---------------- #
+png(filename = paste0(p_output, "plots/", run_label, "/mean_lengths", run_label, ".png"), 
+    # width = 6, height = 5, 
+    width = 5, height = 4, 
+    units = "in", res = 400)
+print(gg_mean_length)
+dev.off()
+
+
+
+
+# 2. Plot mean length across multiple abandonment thresholds ------
+
+gg_mean_length_by_threshold <- 
+  ggplot(data = mean_length_df,
+         mapping = aes(x = fct_reorder(site, mean_duration), y = mean_duration, fill = fct_reorder(site, mean_duration))) + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0),
+        plot.caption = element_text(face = "italic")) +
+  labs(title = "Mean length of abandonment",
+       #caption = "Counting only recultivation of 2 or more continuous years",
+       linetype = NULL,
+       fill = "Site", 
+       y = "Mean length of time abandoned (years)", 
+       x = "Site") +
+  geom_col(width = 0.75) + 
+  facet_grid(length_type ~ abn_threshold,
+             labeller = labeller(length_type = c(all = "all lengths", #old = "new",
+                                                 max = "max length per pixel"),
+                                 abn_threshold = c("1" = "abn threshold = 1",
+                                                   "3" = "abn threshold = 3",
+                                                   "5" = "abn threshold = 5",
+                                                   "10" = "abn threshold = 10"))) +
+  geom_hline(data = mean_length_df %>% 
+               group_by(abn_threshold, length_type) %>%
+               summarise(overall_mean = mean(mean_duration, na.rm = TRUE)), 
+             mapping = aes(yintercept = overall_mean, linetype = "mean"),
+             show.legend = TRUE,
+             color = "black", size = 0.75) + 
+  scale_linetype_manual(values = c("mean" = "dotted")) + 
+  guides(fill = guide_legend(override.aes = list(linetype = 0)))
+
+
+
+# ----------------- save ---------------- #
+png(filename = paste0(p_output, "plots/", run_label, "/mean_lengths_by_threshold", run_label, ".png"), 
+    width = 8.5, height = 5, units = "in", res = 400)
+print(gg_mean_length_by_threshold)
+dev.off()
+
+
+
+
+# 3. Save Histograms ----
+
+# -------------------------------------------------------------------- #
+# ----------------- plot histograms ---------------- #
+# -------------------------------------------------------------------- #
+
+for (i in 1:11) {
+  gg_hist <-
+    ggplot(data = filter(length_distill_df, site == site_df$site[i], length > 0)) + 
+    theme_classic() +
+    labs(linetype = "", x = "Time abandoned (years)", 
+         y = expression("Count  (10"^{6}*" pixels)")
+    ) +
+    geom_col(mapping = aes(x = length, y = freq/(10^6)), fill = "gray70") +
+    facet_grid(rows = vars(length_type), scales = "free",
+               labeller = labeller(length_type = c(all = "all abn. periods", #old = "new",
+                                                   max = "max. length per pixel"))) +
+    geom_vline(data = filter(mean_length_df,
+                             site == site_df$site[i],
+                             abn_threshold == 1), 
+               aes(xintercept = mean_duration, linetype = "mean"),
+               show.legend = TRUE, size = 1) + 
+    scale_linetype_manual(values = c("mean" = "dashed")) +
+    theme(legend.position = c(0.85, 0.95), plot.caption = element_text(face = "italic"))
+  
+
+  # save
+  png(filename = paste0(p_output, "plots/", run_label, "/length_hist", run_label, site_df$label[i], ".png"), 
+      width = 7, height = 5, units = "in", res = 400)
+  print(gg_hist)
+  dev.off()
+}
+
+```
+
+# Area abandoned
+
+## Area abandoned at some point during the time series
+
+```{r area-abn-summary}
+
+# calculate area abandoned summary stats:
+# ----------------------------------------------------------- #
+area_summary_df <- 
+  area_dat %>% 
+  filter(lc %in% c("Non-veg.", "Woody veg.", "Cropland", "Grassland"),
+         year == 2017) %>%
+  group_by(site) %>%
+  summarise(total_site_area_ha_2017 = sum(area_ha)) %>% 
+  left_join(., 
+            left_join(filter(area_dat, lc == "Cropland", year == 1987) %>% 
+                        select(site, cropland_area_1987 = area_ha), 
+                      filter(area_dat, lc == "Abandoned (>=5)", year == 2017) %>% 
+                        select(site, area_abn_ha_2017 = area_ha),
+                      by = c("site")), 
+            by = c("site"))
+
+
+# ----------------------------------------------------------- #
+# 2. 
+# calculate the are at each site that is abandoned at any point during the time series (>= 5 years)
+# ----------------------------------------------------------- #
+area_ever_abn <- lapply(1:11, function(i) {
+  bin <- max_age_r[[i]]
+  names(bin) <- paste0(site_df$site[i], "_", names(bin))
+  #plot(bin)
+  bin[bin < 5] <- 0 # exclude short-term fallowing:
+  # bin[bin < 5] <- NA
+  bin[bin >= 5] <- 1
+  # plot(bin)
+  # calculate area raster
+  area_r <- raster::area(bin)
+  # plot(area_r)
+  
+  bin_area <- bin * area_r
+  # plot(bin_area)
+  
+
+  tibble(site = site_df$site[i],
+         area_ever_abn_ha = cellStats(bin_area, "sum") * 100 # to convert to ha
+  )
+  }
+) %>% bind_rows()
+
+
+# ----------------------------------------------------------- #
+# 
+# ----------------------------------------------------------- #
+
+# ---------------------------------------------------------------------- #
+# What percentage of the abandonment periods are recultivated?
+# ---------------------------------------------------------------------- #
+
+persistence_dat %>% filter(site == "shaanxi", year == 2017)
+# sum up the initial_area_abn to find the total area ever abandoned, then
+# sum up the area_ha in 2017 (the last year of the time series). 
+# Divide the two and subtract from 1, we have the proportion of initial area abandoned that 
+# was recultivated during the time series. 
+
+area_recultivated_df <- 
+  persistence_dat %>% 
+  filter(year == 2017) %>%
+  group_by(site) %>%
+  summarise(total_area_abn_remaining_2017 = sum(area_ha),
+            total_initial_area_abn = sum(initial_area_abn),
+            total_area_abn_recultivated_2017 = 
+              total_initial_area_abn - 
+              total_area_abn_remaining_2017) %>%
+  mutate(proportion_recultivated = total_area_abn_recultivated_2017/total_initial_area_abn)
+
+
+# ----------------------------------------------------------- #
+# merge all together
+# ----------------------------------------------------------- #
+
+area_summary_df <- area_summary_df %>% 
+  left_join(., area_ever_abn, by = c("site")) %>%
+  left_join(., area_recultivated_df, by = c("site"))
+
+
+# ----------------------------------------------------------- #
+# save the summary file
+# ----------------------------------------------------------- #
+write_csv(area_summary_df, file = paste0(p_dat_derived, run_label, "/", "area_summary_df", run_label, ".csv"))
+
+
+# area_summary_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", "area_summary_df", run_label, ".csv"))
+```
+
+## How much area is abandoned, total?
+
+```{r total-area-panel}
+# load combined persistence, area, and turnover datasets:
+persistence_dat
+area_dat
+turnover_dat
+
+area_dat$lc %>% unique()
+# ---------------------------------------------------------------------- #
+# plot facet grid
+# ---------------------------------------------------------------------- #
+ggplot(data = area_dat %>% filter(lc != "Abandoned (>1)")
+    ) +
+    theme_classic() +
+    # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+    labs(y = expression("Area  (10"^{6}*" ha)") , 
+         x = "Year", 
+         title = "Area by Land Cover, with Abandonment",
+         #subtitle = subtitle,
+         color = NULL #"Land Cover"
+         ) + 
+    geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
+                            group = lc, color = fct_reorder(lc, lc, .desc = TRUE)),
+              size = 1.5) + 
+    theme(legend.position = "bottom",
+          legend.title = element_text(size = 10)) +
+    guides(color = guide_legend(nrow = 2, ncol = 3)) +
+    
+    scale_color_manual(values = plot_cols) + 
+  facet_wrap(vars(site))
+
+
+
+# how much land is abandoned by the end of the time series?
+area_dat %>% 
+  filter(lc == "Abandoned (>=5)",
+         year == 2017) %>%
+  ggplot(mapping = aes(y = site, x = area_ha/(10^6))) + 
+  geom_col()
+
+
+# plot the area abandoned in 2017:
+ggplot(data = area_summary_df,
+       mapping = aes(y = fct_reorder(site, desc(area_abn_ha_2017)), 
+                     x = area_abn_ha_2017/(10^6))) + 
+  geom_col() +
+  theme_classic() + 
+  labs(x = "Area Abandoned (millions ha)", y = "Site")
+
+
+# plot area abandoned as a proportion of the total site area:
+ggplot(data = area_summary_df,
+       mapping = aes(y = fct_reorder(site, desc(area_abn_ha_2017/total_site_area_ha_2017)),
+                     x = area_abn_ha_2017/total_site_area_ha_2017)) + 
+  geom_col() +
+  theme_classic() + 
+  labs(x = "Proportion of total site area abandoned", y = "Site")
+
+
+# plot area abandoned as a proportion of the amount of cropland at the start of the time series:
+ggplot(data = area_summary_df,
+       mapping = aes(y = fct_reorder(site, desc(area_abn_ha_2017/cropland_area_1987)), 
+                     x = area_abn_ha_2017/cropland_area_1987)) + 
+  geom_col() +
+  theme_classic() + 
+  labs(x = "Proportion of cropland in 1987 that is abandoned", y = "Site")
+
+
+
+# panel plot
+
+area_a <- 
+  ggplot(data = area_summary_df,
+       mapping = aes(y = fct_reorder(site, desc(area_abn_ha_2017/total_site_area_ha_2017)), 
+                     x = area_abn_ha_2017/(10^3))) + 
+  geom_col() +
+  theme_classic() + 
+  labs(#x = expression("Area abandoned ">="5 years \nas of 2017 (10"^{3}*" ha)"),
+    x = "Area abandoned as of 2017\n(10\u00b3 ha)",
+       y = "Site")
+
+# plot area abandoned at any point between 1987-2017 (thousands ha):
+area_b <-
+  ggplot(data = area_summary_df,
+       mapping = aes(y = fct_reorder(site, desc(area_abn_ha_2017/total_site_area_ha_2017)), 
+                     x = area_ever_abn_ha/(10^3))) + 
+  geom_col() +
+  theme_classic() + 
+  labs(x = "Area abandoned at any point \nbetween 1987-2017 (10\u00b3 ha)", y = "Site") + 
+  theme(axis.text.y = element_blank(), axis.title.y = element_blank(),
+        plot.margin = margin(3, 8, 3, 15))
+
+# plot area abandoned as a proportion of the total site area:
+area_c <- ggplot(data = area_summary_df,
+       mapping = aes(y = fct_reorder(site, desc(area_abn_ha_2017/total_site_area_ha_2017)),
+                     x = area_abn_ha_2017/total_site_area_ha_2017)) + 
+  geom_col() +
+  theme_classic() + 
+  labs(x = "Area abandoned as of 2017 \n as a proportion of \ntotal site area", y = "Site") + 
+  theme(axis.text.y = element_blank(), axis.title.y = element_blank(),
+        plot.margin = margin(3, 6, 3, 15))
+
+
+# plot area abandoned as a proportion of the amount of cropland at the start of the time series:
+area_d <- ggplot(data = area_summary_df,
+       mapping = aes(y = fct_reorder(site, desc(area_abn_ha_2017/total_site_area_ha_2017)), 
+                     x = area_abn_ha_2017/cropland_area_1987)) + 
+  geom_col() +
+  theme_classic() + 
+  labs(x = "Area abandoned as of 2017 \n as a proportion of \ncropland area in 1987", y = "Site") + 
+  theme(axis.text.y = element_blank(), axis.title.y = element_blank(),
+        plot.margin = margin(3, 6, 3, 15))
+
+
+
+
+# save panel plot
+
+ggsave(plot = plot_grid(area_a, area_b, area_c, area_d,
+                        nrow = 1, ncol = 4, 
+                        align = "h", axis = "l",
+                        # hjust = 0,
+                        rel_widths = c(1.5, 1, 1, 1),
+                        labels = "auto"
+                        ),
+       filename = paste0(p_plots, run_label, "/area_abn_panel", run_label, ".pdf"), 
+    width = 12, height = 3, units = "in"
+)
+
+```
+
+
+
+# Mean proportion of abandoned land that is recultivated
+
+```{r prop-recultivated}
+area_summary_df %>% names
+
+ggplot(data = area_summary_df,
+       mapping = aes(y = fct_reorder(site, desc(proportion_recultivated)), 
+                     x = proportion_recultivated)) + 
+  geom_col() +
+  theme_classic() + 
+  labs(x = "Proportion of abandoned lands \nrecultivated by 2017", y = "Site") + 
+  theme(#axis.text.y = element_blank(), axis.title.y = element_blank(),
+        plot.margin = margin(3, 6, 3, 15))
+
+
+# averaging across site to be consistent with summary_stats_all_sites
+
+area_summary_df %>% 
+  summarise(mean_proportion = mean(proportion_recultivated))
+
+```
+
+
+## how does this change by threshold?
+
+```{r recultivation-by-threshold}
+# 
+# area_recultivated_df <- 
+  persistence_dat %>% 
+  filter(year == 2017) %>%
+  group_by(site) %>%
+  summarise(total_area_abn_remaining_2017 = sum(area_ha),
+            total_initial_area_abn = sum(initial_area_abn),
+            total_area_abn_recultivated_2017 = 
+              total_initial_area_abn - 
+              total_area_abn_remaining_2017) %>%
+  mutate(prop_recult_5 = total_area_abn_recultivated_2017/total_initial_area_abn)
+
+persistence_dat %>% 
+  filter(age >= 10, year == 2017, site == "shaanxi") %>% print(n = 30)
+
+
+
+
+
+# add the initial_area_abn based on the threshold = 10
+persistence_dat %>% 
+  left_join(.,
+            persistence_dat %>% filter(age == 10) %>% 
+              select(site, year_abn, initial_area_abn_10 = area_ha), 
+            by = c("site", "year_abn")) %>%
+   # filter(age >= 10, year == 2017, site == "shaanxi") %>% print(n = 30)
+  filter(year == 2017, age >= 10) %>%
+  group_by(site) %>%
+  summarise(total_area_abn_10_remaining_2017 = sum(area_ha),
+            total_initial_area_abn_10 = sum(initial_area_abn_10),
+            total_area_abn_10_recultivated_2017 = 
+              total_initial_area_abn_10 - 
+              total_area_abn_10_remaining_2017) %>%
+  mutate(prop_recult_10 = total_area_abn_10_recultivated_2017/total_initial_area_abn_10)
+
+persistence_dat %>% filter(age %in% c(5, 10), year_abn %in% 1988:1992, site == "shaanxi")
+```
+
