@@ -28,6 +28,8 @@ bibliography:
 nocite: |
   @RStudioTeam2020, @R-rmarkdown, @R-bookdown, @R-knitr
 ---
+Reconciled with "abn_trajectories_ms.Rmd" as of April 30th, 2021.
+
 ```{r set-chunk-opts, include = FALSE}
 # /Users/christophercrawford/Google Drive/Library/library.bib
 # set default chunk options
@@ -140,7 +142,7 @@ We focus exclusively on cropland abandonment, excluding the abandonment of pastu
 
 Our analysis builds on maps developed in @Yin2020. @Yin2020 used the following approach: [*insert short summary of @Yin2020*].
 We selected 11 sites from @Yin2020 that were mapped with high accuracy [*insert stat here?*] and which provided broad geographic coverage (see Figure \@ref(fig:site-locations)).
-These sites were initially chosen by @Yin2020 as places that were highly likely to have experienced agricultural abandonment since the mid-1980s, for a variety of socioeconomic, political, and environmental reasons.
+These sites were chosen by @Yin2020 as places that were highly likely to have experienced agricultural abandonment since the mid-1980s, for a variety of socioeconomic, political, and environmental reasons.
 Due to this selection, our results are likely optimistic about the overall prevalence of abandoned agricultural lands in all agricultural regions, but instead more accurately represent areas that have recently experienced abandonment.
 
 (ref:caption-site-locations) Sites included in this study, from @Yin2020.
