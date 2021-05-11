@@ -69,6 +69,14 @@ capwords <- function(s, strict = FALSE) {
 }
 
 
+# ------------------------ #
+# capitalize site labels
+# ------------------------ #
+cap_labels <- function(string) capwords(gsub("_", " ", string))
+# for use in facet_wrap(labeller = as_labeller(cap_labels))
+
+
+# ------------------------ #
 # scale a vector by mean and sd
 scale_this <- function(x){
   (x - mean(x, na.rm=TRUE)) / sd(x, na.rm=TRUE)
