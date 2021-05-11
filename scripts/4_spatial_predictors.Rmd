@@ -89,14 +89,10 @@ names(b_age_r) <- paste0("y", 1987:2017)
 
 # ------------------------------------------------------------ #
 # --------------- list of all sites -------------------------- #
-
-
 # prepared input rasters (derived by Chris)
 site_input_raster_files <- list.files(paste0(p_dat_derived, "input_rasters"), full.names = TRUE) %>%
   grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = TRUE)
 
-site_r
-site_df
 site_r <- lapply(seq_along(site_input_raster_files), function(i) {brick(site_input_raster_files[i])})
 names(site_r) <- site_df$site
 

@@ -2585,7 +2585,7 @@ f0 <- fitted_df_l3
 ```
 
 
-```{r mean-trend-by-site-l3}
+```{r *mean-trend-by-site-l3}
 # plot it, reordering the factors by the coefficient (to make the legend easier to read)
 # gg_model_curves_by_site_l3 <-
   ggplot(data = fitted_df_l3 %>% filter(age < 140),
@@ -2606,6 +2606,16 @@ f0 <- fitted_df_l3
 gg_model_curves_by_site_l3 %+% filter(fitted_df_l3, time < 50)
 
 
+# for MS
+ggsave(plot = gg_model_curves_by_site_l3 + 
+         labs(caption = NULL) +
+         scale_x_continuous(n.breaks = 15) + 
+         theme(legend.position = c(0.9, 0.65)),
+       filename = paste0(p_plots, run_label, "/decay/", "mean_decay_curves", run_label, ".pdf"), 
+       width = 7, height = 4, units = "in", dpi = 400)
+
+
+# cropped:
 png(filename = paste0(p_plots, run_label, "/decay/", "model_decay_curves_by_site_l3", run_label, ".png"), 
     width = 7, height = 6, units = "in", res = 400)
 print(gg_model_curves_by_site_l3 %+% 
