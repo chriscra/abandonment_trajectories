@@ -281,7 +281,9 @@ gg_site_locations_long <-
   labs(x = NULL, y = NULL, fill = "") +
   theme(legend.position = "bottom") + 
   geom_label_repel(data = site_sf,
-                   aes(label = label, geometry = geometry),
+                   aes(label = desc,  
+                       # label = label, # use this for single letter code
+                       geometry = geometry),
                    stat = "sf_coordinates",
                    min.segment.length = 0.0, segment.alpha = 1,
                    point.padding = 0.2, box.padding = 0.2,
@@ -2163,10 +2165,11 @@ ggsave(plot =
 ```
 
 ```{r mean-trend}
-
+# see "4_decay_models.Rmd"
 png(filename = paste0(p_plots, run_label, "/presentation/", "model_decay_curves_by_site_l3_wide", run_label, ".png"), 
     width = 7, height = 4, units = "in", res = 400)
 print(gg_model_curves_by_site_l3 + 
+        # labs(caption = NULL) +
         scale_x_continuous(n.breaks = 15) + 
         theme(legend.position = c(0.9, 0.65)))
 dev.off()
@@ -2205,7 +2208,7 @@ gg_age_class_bins_grid <-
          x = "Year", 
          #title = "Area of Abandoned Land, by Age Class",
          #subtitle = subtitle,
-         fill = "Age \n(years)") +
+         fill = "Age (years)") +
     geom_col(mapping = aes(x = year, y = area_ha / 10^3, 
                            fill = fct_reorder(bins, age)),
              position = position_stack(reverse = FALSE)) +
@@ -2215,20 +2218,449 @@ gg_age_class_bins_grid <-
       legend.title = element_text(size = 10)
       ) +
     scale_fill_brewer(palette = "Greens", direction = 1) +
-      facet_wrap(vars(site), scales = "free_y") + 
-    theme(legend.position = c(0.9, 0.12), 
+      facet_wrap(vars(site), scales = "free_y", labeller = as_labeller(cap_labels)) +  # see _util_misc_functions.R
+    theme(legend.position = c(0.885, 0.12), 
         legend.spacing = unit(2, units = "mm"), 
-        legend.margin = margin(t = 0, r = 0, b = 0, l = 0))
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) + 
+      guides(fill = guide_legend(nrow = 3, ncol = 2))
+
 
 
 
 # save
 ggsave(plot = gg_age_class_bins_grid,
-       filename = paste0(p_plots, run_label, "/presentation/", "abn_area_by_age_grid", run_label, ".pdf"),
-       width = 8, height = 5, units = "in", dpi = 400
+       filename = paste0(p_plots, run_label, #"/presentation", 
+       "/abn_area_by_age_grid", run_label, ".pdf"),
+
+       width = 7, height = 5, units = "in", dpi = 400
 )
 
 ```
 
+
+```{r abn-age-maps-2017}
+# load in the data.tables
+library(data.table)
+list.files()
+age_dt_files <- s
+lapply(age_dt_files, function(i) {fread(i, select = c("Year","Jan","Feb","Mar","Apr","May","Jun"))})
+
+age_r[[1]][["y2017"]]
+
+plot(age_r[[1]][["y2017"]], maxpixels = 50000)
+
+
+
+age_2017_grid <- 
+  plot_grid(plot(age_r[[1]][["y2017"]], main = site_df$site[1]),
+          plot(age_r[[2]][["y2017"]], main = site_df$site[2]),
+          plot(age_r[[3]][["y2017"]], main = site_df$site[3]),
+          plot(age_r[[4]][["y2017"]], main = site_df$site[4]),
+          nrow = 2, ncol = 2, labels = "auto")
+
+ggsave(plot = age_2017_grid,
+       file = paste0(p_plots, run_label, "/abn_age_2017_maps.pdf"),
+       width = 9, height = 5, units = "in", dpi = 400)
+
+test_dt
+ggplot() +
+ geom_raster(data = test_dt, 
+             mapping = aes(x = x, y = y, fill = y2017)) + 
+  theme_classic() +
+  coord_quickmap()
+
+par(mfrow = c(3, 4))
+for (i in 1:11) {
+  levelplot(age_r[[i]][["y2017"]], main = site_df$site[i])
+}
+  
+
+
+# directly with raster:
+
+age_r[[1]][["y2017"]]
+age_2017_l <- lapply(1:11, function(i) {
+  temp <- age_r[[i]][["y2017"]]
+  temp <- raster::aggregate(temp, fact = 100)
+  temp
+})
+
+names(age_2017_l) <- site_df$site
+for (i in 1:11) {
+  names(age_2017_l[[i]]) <- site_df$site[i]
+  }
+
+# set map color scheme
+map_colors <- c("#F2F2F2", viridis(30, direction = 1))  # colorblindness-safe
+
+
+# -------------------------------------------------------- #
+# try one, with ggplot
+# -------------------------------------------------------- #
+
+# mp1 <- 
+  gplot(age_2017_l[[1]]) + 
+        geom_raster(aes(fill = value)) +
+        # facet_wrap(~ variable, nrow = 1,
+        #            #labeller = labeller(variable = new_labels_lookup)
+        #            ) +
+        scale_fill_gradientn(colors = map_colors, na.value = "white",
+                             limits = c(0, 30)
+                             ) + 
+        labs(y = NULL, x = names(age_2017_l[[1]])) + 
+        theme(rect = element_blank(), line = element_blank(), 
+              axis.line = element_blank(), 
+              axis.ticks = element_blank(), 
+              axis.ticks.length = unit(0, "pt"), axis.text = element_blank(),
+              legend.position = "right") + 
+        coord_equal()
+  
+for (i in 1:11) {
+  assign(x = paste0("mp_", i), 
+         value = gplot(age_2017_l[[i]]) + 
+           geom_raster(aes(fill = value)) +
+           scale_fill_gradientn(colors = map_colors, 
+                                na.value = "white", limits = c(0, 30)) +
+           labs(y = NULL, x = names(age_2017_l[[i]])) + 
+           theme(rect = element_blank(), line = element_blank(), 
+                 axis.line = element_blank(), axis.ticks = element_blank(), 
+                 axis.ticks.length = unit(0, "pt"), axis.text = element_blank(),
+                 legend.position = "none") + 
+           coord_fixed()
+         )
+  }
+
+
+plot_grid(mp_1, mp_2, mp_3, mp_4, get_legend(mp_2 + theme(legend.position = "right")), nrow = 1, rel_widths = c(1.3, 1.2, 1, 1, 0.5))
+
+# -------------------------------------------------------- #
+# plot with base raster plots
+# -------------------------------------------------------- #
+
+plot(age_2017_l[[2]], 
+     col = map_colors, 
+     main = site_df$description[2],
+     axes = F, legend = T, box = F)
+
+ggsave()
+pdf()
+png(paste0(p_plots, run_label, "/abn_age_2017_maps_testrr.png"), 
+    width = 7, height = 6, units = "in", res = 400
+    )
+par(mfrow=c(3, 4), mar=c(1,1,2,1), oma = c(1, 1, 1, 1))
+
+for (i in 1:11) {
+  # assign(
+    # x = paste0("mp", i), 
+    # value = 
+      plot(age_2017_l[[i]], 
+                 main = site_df$description[i],
+                 col = map_colors,
+                 axes = FALSE, legend = FALSE, box = FALSE)
+  # )
+}
+
+
+# add standalone legend at the end
+plot.new() # must add a new plot window
+plot(age_2017_l[[1]], col = map_colors,
+   legend.only = TRUE,
+   legend.width = 2,
+   legend.shrink = 1.4, cex = 5,
+   smallplot=c(0.2, 0.35, 0.15, 0.85))#; par(mar = par("mar")) 
+# small plot works as follows:
+# smallplot=c(min % from left, max % from left, min % from bottom, max % from bottom).
+dev.off()
+
+
+library(gridExtra)
+grid.arrange(mp1, mp2)
+```
+
+
+```{r aggregate-abn-age}
+# aggregate using max function
+age_2017_aggregated_10_max_l <- lapply(1:11, function(i) {
+  temp <- age_r[[i]][["y2017"]]
+  temp <- raster::aggregate(temp, fact = 10, fun = max)
+  temp
+})
+# update names of the list items, and rename the raster layers after each site
+names(age_2017_aggregated_10_max_l) <- site_df$site
+for (i in 1:11) {
+  names(age_2017_aggregated_10_max_l[[i]]) <- site_df$site[i]
+}
+
+
+# aggregate with mean, after removing short-term fallowing 
+age_2017_aggregated_10_mean_l <- lapply(1:11, function(i) {
+  temp <- age_r[[i]][["y2017"]]
+  temp[temp < 5] <- NA # exclude short-term fallowing:
+  temp <- raster::aggregate(temp, fact = 10, fun = mean, na.rm = TRUE)
+  temp
+})
+# update names of the list items, and rename the raster layers after each site
+names(age_2017_aggregated_10_mean_l) <- site_df$site
+for (i in 1:11) {
+  names(age_2017_aggregated_10_mean_l[[i]]) <- site_df$site[i]
+}
+
+
+# plot(age_2017_aggregated_10_max_l$mato_grosso)
+# plot(age_r$mato_grosso$y2017)
+plot(age_2017_aggregated_10_mean_l$mato_grosso)
+plot(age_r$mato_grosso$y2017)
+
+# set lattice levelplot settings
+lattice.options(
+  layout.heights=list(bottom.padding=list(x=0), top.padding=list(x = 0)),
+  layout.widths=list(left.padding=list(x=0), right.padding=list(x=0))
+  )
+
+# create a color palette with the NA color (the plot panel background) set to gray
+myTheme <- viridisTheme()
+myTheme$panel.background$col <- 'gray95' 
+
+# save level plots to objects
+for (i in 1:11) {
+  assign(
+  x = paste0("lp_ag_mean", site_df$label[i]),
+  value =
+      levelplot(
+        # age_2017_aggregated_10_max_l[[i]],
+        age_2017_aggregated_10_mean_l[[i]],
+        main = site_sf$lab_desc[i],
+        colorkey = TRUE,
+        scales=list(draw=TRUE),
+        par.settings = myTheme,
+        at = seq(5, 31, by = 1), 
+        xlab = NULL, ylab = NULL,
+        margin = FALSE
+        )
+  )
+}
+
+
+# map of site locations:
+gg_site_locations <- gg_globe +
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
+  theme(legend.position = "none",
+        plot.margin = margin(0, 0, 0, 0, "cm"))
+
+# create plot_grid elements
+pan_top <- plot_grid(lp_ag_w, lp_ag_b, lp_ag_v, lp_ag_o, nrow = 1)
+pan_l <- plot_grid(lp_ag_n, lp_ag_mg, ncol = 1)
+pan_r <- plot_grid(lp_ag_s, lp_ag_c, ncol = 1)
+pan_bottom <- plot_grid(lp_ag_g, lp_ag_bh, lp_ag_i, nrow = 1, ncol = 3)
+
+# create plot_grid elements
+pan_top <- plot_grid(lp_ag_mean_w, lp_ag_mean_b, lp_ag_mean_v, lp_ag_mean_o, nrow = 1)
+pan_l <- plot_grid(lp_ag_mean_n, lp_ag_mean_mg, ncol = 1)
+pan_r <- plot_grid(lp_ag_mean_s, lp_ag_mean_c, ncol = 1)
+pan_bottom <- plot_grid(lp_ag_mean_g, lp_ag_mean_bh, lp_ag_mean_i, nrow = 1, ncol = 3)
+
+pan_middle <- plot_grid(pan_l, gg_site_locations, pan_r, NULL,
+          rel_widths = c(1, 2, 1, 0.05),
+          nrow = 1, ncol = 4)
+
+ggsave(plot = plot_grid(NULL, pan_top, pan_middle, pan_bottom, 
+                        ncol = 1, nrow = 4,
+                        rel_heights = c(0.05, 1, 1.8, 1)),
+       filename = paste0(p_plots, run_label, #"/presentation", 
+       "/site_locations_w_abn_age_ag_mean_10_gray", run_label, ".pdf"),
+
+       width = 14, height = 10, units = "in", dpi = 400
+       )
+
+
+```
+
+
+```{r comp-fig-site-abn-age-w-location}
+
+myTheme <- viridisTheme()
+myTheme$regions$col <- viridis(n = 100, direction = -1)
+myTheme$panel.background$col = 'gray95' 
+
+lattice.options(
+  layout.heights=list(bottom.padding=list(x=0), top.padding=list(x = 0)),
+  layout.widths=list(left.padding=list(x=0), right.padding=list(x=0))
+  )
+
+# for testing
+for (i in 1:11) {
+  assign(
+  x = paste0("tp", i),
+  value =
+      levelplot(
+        age_2017_l[[i]],
+        # age_r[[i]][["y2017"]],
+        main = site_sf$lab_desc[i],
+        colorkey = TRUE, scales=list(draw=TRUE),
+        par.settings = myTheme,
+        # col.regions = map_colors,
+        # col.regions = viridis(n = 31),
+        at = seq(5, 31, by = 1), 
+        xlab = NULL, ylab = NULL, margin = FALSE
+        )
+  )
+}
+
+
+# make levelplots for full rasters
+for (i in 1:11) {
+  assign(
+  x = paste0("lp", site_df$label[i]),
+  value =
+      levelplot(
+        age_r[[i]][["y2017"]],
+        main = site_sf$lab_desc[i],
+        colorkey = TRUE,
+        scales=list(draw=TRUE),
+        par.settings = myTheme, # use myTheme for gray background
+        at = seq(5, 31, by = 1), 
+        xlab = NULL, ylab = NULL,
+        margin = FALSE
+        )
+  )
+}
+
+gg_site_locations <- gg_globe +
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
+  theme(legend.position = "none",
+        plot.margin = margin(0, 0, 2, 0, "mm"))
+
+# for testing:
+# pan_top <- plot_grid(tp11, tp1, tp10, tp8, nrow = 1)
+# pan_l <- plot_grid(tp7, tp6, ncol = 1)
+# pan_r <- plot_grid(tp9, tp3, ncol = 1)
+# pan_bottom <- plot_grid(tp4, tp2, tp5, nrow = 1, ncol = 3)
+
+# with full rasters, gray background
+pan_top <- plot_grid(lp_w, lp_b, lp_v, lp_o, nrow = 1)
+pan_l <- plot_grid(lp_n, lp_mg, ncol = 1)
+pan_r <- plot_grid(lp_s, lp_c, ncol = 1)
+pan_bottom <- plot_grid(lp_g, lp_bh, lp_i, nrow = 1, ncol = 3)
+
+pan_middle <- plot_grid(pan_l, gg_site_locations, pan_r, NULL,
+          rel_widths = c(1, 2, 1, 0.05),
+          nrow = 1, ncol = 4)
+
+# save composite figure with map
+ggsave(plot = plot_grid(NULL, pan_top, pan_middle, pan_bottom, 
+                        ncol = 1, nrow = 4,
+                        rel_heights = c(0.05, 1, 1.8, 1)),
+       filename = paste0(p_plots, run_label, #"/presentation", 
+       "/site_locations_w_abn_age_gray", run_label, ".pdf"),
+       width = 14, height = 10, units = "in", dpi = 400
+       )
+
+
+
+# lp1:lp11 are with regular viridis theme, with white as the background
+# lp_b : lp_w are with a gray background
+
+# -------------------------------------------------------- #
+# save plain composite figure ---------------------------- #
+# 
+
+ggsave(plot = 
+         # plot_grid(lp1, lp2, lp3, lp4, lp5, lp6, lp7, lp8, lp9, lp10, lp11, NULL, nrow = 3, ncol = 4),
+         plot_grid(lp_b, lp_bh, lp_c, lp_g, lp_i, lp_mg, lp_n, lp_o, lp_s, lp_v, lp_w, NULL, nrow = 3, ncol = 4),
+       filename = paste0(p_plots, run_label, #"/presentation", 
+       # "/abn_age_maps", 
+       "/abn_age_maps_2017_rev", 
+       run_label, ".pdf"),
+       width = 14, height = 10, units = "in", dpi = 400
+       )
+
+ggsave(plot = 
+         plot_grid(gg_site_locations #+ labs(title = "Site locations")
+                   ,
+                   plot_grid(lp_b, lp_bh, lp_c, 
+                             lp_g, lp_i, lp_mg, 
+                             lp_n, lp_o, lp_s, 
+                             lp_v, lp_w, NULL, 
+                             nrow = 4, ncol = 3),
+                   rel_heights = c(1.5, 4),
+                   nrow = 2, ncol = 1
+                   ),
+       filename = paste0(p_plots, run_label, #"/presentation", 
+       "/abn_age_maps_test2", 
+       run_label, ".pdf"),
+       width = 11, height = 13, units = "in", dpi = 400
+       )
+```
+
+```{r map-max-age-composite}
+
+myTheme <- viridisTheme()
+myTheme$regions$col <- viridis(n = 100, direction = -1)
+myTheme$panel.background$col = 'gray95' 
+
+lattice.options(
+  layout.heights=list(bottom.padding=list(x=0), top.padding=list(x = 0)),
+  layout.widths=list(left.padding=list(x=0), right.padding=list(x=0))
+  )
+
+
+# make levelplots for full rasters
+for (i in 1:11) {
+  assign(
+  x = paste0("lp_max", site_df$label[i]),
+  value =
+      levelplot(
+        max_age_r[[i]],
+        main = site_df$description[i],
+        colorkey = TRUE,
+        scales=list(draw=TRUE),
+        par.settings = myTheme, # use myTheme for gray background
+        at = seq(5, 31, by = 1), 
+        xlab = NULL, ylab = NULL,
+        margin = FALSE
+        )
+  )
+}
+
+gg_site_locations <- gg_globe +
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
+  theme(legend.position = "none",
+        plot.margin = margin(0, 0, 0, 0, "cm"))
+
+# for testing:
+# pan_top <- plot_grid(tp11, tp1, tp10, tp8, nrow = 1)
+# pan_l <- plot_grid(tp7, tp6, ncol = 1)
+# pan_r <- plot_grid(tp9, tp3, ncol = 1)
+# pan_bottom <- plot_grid(tp4, tp2, tp5, nrow = 1, ncol = 3)
+
+# with full rasters, gray background
+pan_max_top <- plot_grid(lp_max_w, lp_max_b, lp_max_v, lp_max_o, nrow = 1)
+pan_max_l <- plot_grid(lp_max_n, lp_max_mg, ncol = 1)
+pan_max_r <- plot_grid(lp_max_s, lp_max_c, ncol = 1)
+pan_max_bottom <- plot_grid(lp_max_g, lp_max_bh, lp_max_i, nrow = 1, ncol = 3)
+
+pan_max_middle <- plot_grid(pan_max_l, gg_site_locations, pan_max_r, NULL,
+          rel_widths = c(1, 2, 1, 0.05),
+          nrow = 1, ncol = 4)
+
+# save plain composite figure ---------------------------- #
+# 
+
+ggsave(plot = 
+         plot_grid(lp_max_b, lp_max_bh, lp_max_c, lp_max_g, 
+                   lp_max_i, lp_max_mg, lp_max_n, lp_max_o, 
+                   lp_max_s, lp_max_v, lp_max_w, NULL, nrow = 3, ncol = 4),
+       filename = paste0(p_plots, run_label,
+       "/abn_age_maps_max_rev", 
+       run_label, ".pdf"),
+       width = 14, height = 10, units = "in", dpi = 400
+       )
+```
+
+
+```{r end}
+env_size(ls())
+
+```
 
 
