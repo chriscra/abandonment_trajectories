@@ -25,6 +25,21 @@ nocite: |
 header-includes:
   \newcommand{\beginsupplement}{\setcounter{figure}{0} \setcounter{section}{0} \setcounter{table}{0} \setcounter{equation}{0} \renewcommand{\thefigure}{S\arabic{figure}} \renewcommand{\thesection}{S\arabic{section}} \renewcommand{\thetable}{S\arabic{table}} \renewcommand\theequation{S\arabic{equation}}}
 ---
+```{r preview-chapter, eval=FALSE, include = FALSE}
+rmarkdown::render("scripts/abn_trajectories_ms.Rmd",
+                  output_file = paste0(p_proj, "writing/previews/", "abn_duration_draft", format(Sys.Date(), ("_%Y_%m_%d")), ".docx"))
+
+
+# bookdown::preview_chapter(
+#   input = "abn_trajectories_ms.Rmd",
+#   output_format = "bookdown::word_document2",
+#   output_file = paste0("abn_duration_draft", format(Sys.Date(), ("_%Y_%m_%d")), ".docx"),
+#   output_dir = paste0(p_proj, "writing/previews"),
+#   output_options = 
+#     list(reference_docx = "/Users/christophercrawford/Google_Drive/_Projects/writing/scripts/word_style_ref.docx"),
+#   preview = TRUE)
+```
+
 ```{r set-chunk-opts, include = FALSE}
 # set default chunk options
 knitr::opts_chunk$set(
