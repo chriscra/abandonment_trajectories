@@ -11,7 +11,7 @@ This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute
 source("scripts/0_start.R")
 p_dat_derived
 
-p_plots <- "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/output/plots_loop/"
+p_plots <- "/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots_loop/"
 ```
 
 

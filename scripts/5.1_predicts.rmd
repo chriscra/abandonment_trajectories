@@ -643,7 +643,7 @@ levels(drop.levels(he_sites_ecoreg_in_g200$ECO_NAME))
 levels(drop.levels(he_sites_ecoreg_sf$ECO_NAME))
 
 # ------------------------------------------------------------------------------
-write.csv(st_drop_geometry(he_sites_ecoreg_in_g200), file = "/Users/christophercrawford/Google Drive/_Projects/Ab_trajectories/test.csv")
+write.csv(st_drop_geometry(he_sites_ecoreg_in_g200), file = "/Users/christophercrawford/Google_Drive/_Projects/Ab_trajectories/test.csv")
 ```
 
 
@@ -998,13 +998,13 @@ library(predictsFunctions)
 
 # Set the path to your local copy of the database
 # predicts.path <- "C:/Users/tim_n/Dropbox/PREDICTSDemonstration/database.rds"
-predicts.path <- "/Users/christophercrawford/Google Drive/_Projects/data/Bd/PREDICTS/database.rds"
+predicts.path <- "/Users/christophercrawford/Google_Drive/_Projects/data/Bd/PREDICTS/database.rds"
 
 
 # --------------------------------------------------------------- #
 # Read in the PREDICTS data
 # --------------------------------------------------------------- #
-predicts <- ReadPREDICTS(path = "/Users/christophercrawford/Google Drive/_Projects/data/Bd/PREDICTS/database.rds")
+predicts <- ReadPREDICTS(path = "/Users/christophercrawford/Google_Drive/_Projects/data/Bd/PREDICTS/database.rds")
 
 # predicts <- readRDS(paste0(p_dat, "Bd/PREDICTS/database.rds")) # PREDICTS itself
 

@@ -6,7 +6,7 @@ editor_options:
 ---
 
 ```{r initialize}
-source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
+source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
 ```
 
 ```{r set-run_label}
@@ -2235,6 +2235,47 @@ ggsave(plot = gg_age_class_bins_grid,
        width = 7, height = 5, units = "in", dpi = 400
 )
 
+```
+
+```{r turnover-grid}
+turnover_dat <- read_csv(file = paste0(p_dat_derived, "turnover_dat", run_label, ".csv"))
+
+# ---------------------------------------------------------------------- #
+# plot facet grid
+# ---------------------------------------------------------------------- #
+
+gg_turnover_facet_grid <-
+  ggplot() +
+    theme_classic() + 
+    labs(y = expression("Annual area turnover (10"^{3}*" ha)"), 
+         x = "Year", 
+         #title = "Change in Area of Abandoned Land",
+         #subtitle = subtitle,
+         fill = NULL, #"Annual Change",
+         color = NULL) + 
+    scale_color_manual(values = c("black"),
+                       labels = "Net Change") + 
+    scale_fill_manual(values = brewer_pal(palette = "Greens")(5)[3:2],
+                      labels = c("Area Gained", "Area Lost")) + 
+    geom_col(data = filter(turnover_dat, change != "net"),
+             mapping = aes(x = year, y = area_ha / (10^3), 
+                           group = change, fill = change)) + 
+    geom_line(data = filter(turnover_dat, change == "net"),
+              mapping = aes(x = year, y = area_ha / (10^3), color = "Net Change in Area"),
+              size = 1) + 
+  facet_wrap(vars(site),
+             labeller = as_labeller(cap_labels),
+             scales = "free") +
+    theme(legend.position = c(0.9, 0.12),
+          legend.title = element_text(size = 10))
+  
+gg_turnover_facet_grid
+
+
+ggsave(plot = gg_turnover_facet_grid,
+       filename = paste0(p_plots, run_label, "/turnover_grid", run_label, ".pdf"), 
+    width = 7, height = 5, units = "in"
+)
 ```
 
 

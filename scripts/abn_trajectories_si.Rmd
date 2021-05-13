@@ -5,7 +5,7 @@ author: Christopher L. Crawford,$^a$$^*$ He Yin,$^b$ Volker Radeloff,$^c$ and Da
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 output:
   bookdown::word_document2:
-    reference_docx: /Users/christophercrawford/Google Drive/_Projects/writing/scripts/word_style_ref.docx
+    reference_docx: /Users/christophercrawford/Google_Drive/_Projects/writing/scripts/word_style_ref.docx
     number_sections: no
   pdf_document:
     toc: yes
@@ -23,7 +23,7 @@ abstract: |
 editor_options:
   chunk_output_type: inline
 bibliography:
-- /Users/christophercrawford/Google Drive/Library/library.bib
+- /Users/christophercrawford/Google_Drive/Library/library.bib
 - packages.bib
 nocite: |
   @RStudioTeam2020, @R-rmarkdown, @R-bookdown, @R-knitr
@@ -31,7 +31,7 @@ nocite: |
 Reconciled with "abn_trajectories_ms.Rmd" as of April 30th, 2021.
 
 ```{r set-chunk-opts, include = FALSE}
-# /Users/christophercrawford/Google Drive/Library/library.bib
+# /Users/christophercrawford/Google_Drive/Library/library.bib
 # set default chunk options
 knitr::opts_chunk$set(out.width = "1\\textwidth",  # if compiling a pdf, include this option
                       #comment=NA #fig.width=6, fig.height=6
@@ -39,7 +39,7 @@ knitr::opts_chunk$set(out.width = "1\\textwidth",  # if compiling a pdf, include
                       )
 ```
 ```{r load-packages-functions, eval = TRUE, echo = FALSE, include = FALSE}
-source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
+source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
 # source("cc_functions.R")
 # source("cc_libraries.R")
 # source("cc_pathnames.R")
@@ -66,7 +66,7 @@ packageDescription(needed_packages[1])
 ```
 ```{r load-files, include = FALSE}
 # Additional paths --------------------------------------------------- #
-p_plots <- "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/output/plots/"
+p_plots <- "/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/"
 
 run_label <- "_2021_03_13"  #"_2021-03-05"
 

@@ -85,9 +85,9 @@ redlist %>% filter(category %in% c("CR", "EN", "VU")) %>% nrow()
 32418 * 5 / 60 / 60 # 45 hours to download the data. 
 # alternatively, you can do this on the cluster, in parallel.
 
-fwrite(redlist, file = "/Users/christophercrawford/Google Drive/_Projects/data/Bd/IUCN_RedList/redlist_2020_06_24.csv")
+fwrite(redlist, file = "/Users/christophercrawford/Google_Drive/_Projects/data/Bd/IUCN_RedList/redlist_2020_06_24.csv")
 
-redlist <- fread(file = "/Users/christophercrawford/Google Drive/_Projects/data/Bd/IUCN_RedList/redlist_2020_06_24.csv")
+redlist <- fread(file = "/Users/christophercrawford/Google_Drive/_Projects/data/Bd/IUCN_RedList/redlist_2020_06_24.csv")
 
 redlist
 ```

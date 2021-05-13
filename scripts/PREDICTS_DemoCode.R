@@ -13,7 +13,7 @@ library(predictsFunctions)
 
 # Set the path to your local copy of the database
 # predicts.path <- "C:/Users/tim_n/Dropbox/PREDICTSDemonstration/database.rds"
-predicts.path <- "/Users/christophercrawford/Google Drive/_Projects/data/Bd/PREDICTS/database.rds"
+predicts.path <- "/Users/christophercrawford/Google_Drive/_Projects/data/Bd/PREDICTS/database.rds"
 predicts.path <- paste0(p_dat, "Bd/PREDICTS/database.rds")
 
 

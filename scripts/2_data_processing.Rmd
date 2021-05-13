@@ -3,13 +3,13 @@ title: "R Notebook"
 output: html_notebook
 editor_options:
   chunk_output_type: console
-bibliography: /Users/christophercrawford/Google Drive/Library/library.bib
+bibliography: /Users/christophercrawford/Google_Drive/Library/library.bib
 ---
 R notebook for loading and processing the land cover time-series raster data from @Yin2020.
 
 
 ```{r initialize}
-source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
+source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
 
 # define color palette for plotting:
 # 1. Non-veg
@@ -558,7 +558,7 @@ plot(test_save)
 
 # input_raster <- test_save
 writeRaster(input_raster, 
-            filename = paste0("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/input_rasters/func_test/", site, "_raw.tif"),
+            filename = paste0("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/data_derived/input_rasters/func_test/", site, "_raw.tif"),
             overwrite = TRUE)
 
 
@@ -567,8 +567,8 @@ writeRaster(input_raster,
 # write out the testing small subset of wisconsin:
 cc_recode_rasters(site = site,  # wisconsin
                   site_df = site_df, 
-                  input_path = "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/input_rasters/func_test/", 
-                  output_path = "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/input_rasters/func_test/")
+                  input_path = "/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/data_derived/input_rasters/func_test/", 
+                  output_path = "/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/data_derived/input_rasters/func_test/")
 
 
 w_t <- brick(paste0(p_dat_derived, "input_rasters/func_test/", site, ".tif"))
@@ -587,8 +587,8 @@ test_r <- brick(paste0(p_dat_derived, "input_rasters/func_test/", site, "_raw.ti
 # write out the testing small subset of wisconsin:
 cc_recode_rasters(site = site,  # wisconsin
                   site_df = site_df, 
-                  input_path = "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/input_rasters/func_test/", 
-                  output_path = "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/input_rasters/func_test/")
+                  input_path = "/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/data_derived/input_rasters/func_test/", 
+                  output_path = "/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/data_derived/input_rasters/func_test/")
 
 # testing the cc_recode_lc_dt() function
 test_r <- brick(paste0(p_dat_derived, "input_rasters/func_test/", site, "_raw.tif"))
@@ -631,7 +631,7 @@ plot(test_age[[1]])
 
 
 ```{r test-full-analysis-w-wisc}
-source('~/Google Drive/_Projects/abandonment_trajectories/scripts/util/_util_dt_filter_functions.R')
+source('~/Google_Drive/_Projects/abandonment_trajectories/scripts/util/_util_dt_filter_functions.R')
 site <- "wisconsin"
 p_dat_derived
 
@@ -846,7 +846,7 @@ ws_age
 ```{r explore-prepped-rasters}
 site_df
 
-w <- brick("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/raw_rasters/wisconsin/centralWI_landCover_87_17.tif")
+w <- brick("/Users/christophercrawford/Google_Drive/_Projects/data/Abandonment/raw_rasters/wisconsin/centralWI_landCover_87_17.tif")
 w
 names(w) # wisconsin actually has 32 layers, including 2018.
 
@@ -966,7 +966,7 @@ library(dtraster)
 
 tic("Full script")
 
-file <- "/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_small.tif"
+file <- "/Users/christophercrawford/Google_Drive/_Projects/data/Abandonment/belarus_small.tif"
 name <- "shaanxi"
 path <- p_dat_derived
 
@@ -1067,7 +1067,7 @@ library(tictoc)
 
 # devtools::install_github("ldemaz/dtraster")
 library(dtraster)
-path_in <- "/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/eefull/"
+path_in <- "/Users/christophercrawford/Google_Drive/_Projects/data/Abandonment/eefull/"
 path_out <- p_dat_derived
 
 # shaanxi run
@@ -1154,7 +1154,7 @@ age_r <- cc_save_dt_as_raster(name = "shaanxi")
 names(age_r) <- paste0("y", 1987:2017)
 plot(age_r$y2017, main = "Age of abandonment in 2017")
 
-age_r <- brick("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/shaanxi_age_1.tif")
+age_r <- brick("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/data_derived/shaanxi_age_1.tif")
 identical(age_r, age_r1)
 
 cellStats(age_r[[31]] - age_r1[[31]], "sum")
@@ -1355,7 +1355,7 @@ env_size(ls())
 
 # ------------------------------- #
 # ultimately I processed the merged Belarus raster file in one go on adroit, using the script: 
-# /Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/cluster/process_calc_age_belarus.R
+# /Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/cluster/process_calc_age_belarus.R
 # ------------------------------- #
 
 
@@ -2337,7 +2337,7 @@ percent_affected_df <-
     
 }) %>% bind_rows()
 
-site_df_w_size <- read_csv(file = "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/site_df_w_size.csv") 
+site_df_w_size <- read_csv(file = "/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/data_derived/site_df_w_size.csv") 
 
 percent_affected_df <- percent_affected_df %>% 
   left_join(. , select(site_df_w_size, site, nrow_total = ncell)) %>%
@@ -2973,7 +2973,7 @@ names(s) <- paste0("y", 1987:2017)
 
 # try 1
 # directly loading in the age raster
-# s_dt_age_b1_r <- brick("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/age_rasters/shaanxi_age_b1.tif")
+# s_dt_age_b1_r <- brick("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/data_derived/age_rasters/shaanxi_age_b1.tif")
 # names(s_dt_age_b1_r) <- paste0("y", 1987:2017)
 # s_dt_age_b1 <- as.data.table.raster(s_dt_age_b1_r)
 # s_dt_age_b1 <- na.omit(s_dt_age_b1)   # remove NAs
@@ -2987,7 +2987,7 @@ s_dt_age_b1 <- fread(file = paste0(p_dat_derived, "shaanxi_age_b1_2021-03-03.csv
 # ---------
 # s_dt_age_b1 <- fread(input = paste0(p_dat_derived, "shaanxi.csv"))
 names(s_dt) <- gsub(pattern = "andcover", replacement = "y", names(s_dt))
-# /Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/age_rasters/shaanxi_age_b1.tif
+# /Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/data_derived/age_rasters/shaanxi_age_b1.tif
 
 
 

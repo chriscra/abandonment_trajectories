@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r initialize}
-source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
+source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
 source(paste0(p_proj, "scripts/util/_util_master.R"))
 ```
 
@@ -569,7 +569,7 @@ ggsave(plot = plot_grid(area_a, area_b, area_c, area_d,
                         labels = "auto"
                         ),
        filename = paste0(p_plots, run_label, "/area_abn_panel", run_label, ".pdf"), 
-    width = 12, height = 3, units = "in"
+    width = 10, height = 3, units = "in"
 )
 
 ```

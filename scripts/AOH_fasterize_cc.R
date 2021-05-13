@@ -3,7 +3,7 @@
 library(sf)
 library(raster)
 
-AOH <- st_read("/Users/christophercrawford/Google Drive/_Projects/data/Bd/AOH/reptilia_AOH/reptilia.shp")
+AOH <- st_read("/Users/christophercrawford/Google_Drive/_Projects/data/Bd/AOH/reptilia_AOH/reptilia.shp")
 
 # check it out
 AOH %>% 

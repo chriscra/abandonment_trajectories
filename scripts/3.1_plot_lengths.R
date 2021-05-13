@@ -17,7 +17,7 @@ cluster_packages <- c("data.table", "tictoc", "raster",
 install_pkg <- lapply(cluster_packages, library, character.only = TRUE)
 
 # set paths and source functions:
-source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/util/_util_master.R")
+source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/util/_util_master.R")
 
 # download from the cluster with the following bash command:
 # scp clc6@della:/scratch/network/clc6/abandonment_trajectories/data_derived/input_rasters/length_distill_df_2021-03-05.csv /Users/christophercrawford/Google\ Drive/_Projects/abandonment_trajectories/data_derived/_2021-03-05/

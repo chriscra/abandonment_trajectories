@@ -218,19 +218,19 @@ b_area
 
 ```{r habitat classifications}
 # level 1
-habitat <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Habitats/Jung_GlobalHabitatTypes/iucn_habitatclassification_composite_lvl1_ver003.tif")
+habitat <- raster("/Users/christophercrawford/Google_Drive/_Projects/data/Habitats/Jung_GlobalHabitatTypes/iucn_habitatclassification_composite_lvl1_ver003.tif")
 
 # level 2
-habitat <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Habitats/Jung_GlobalHabitatTypes/iucn_habitatclassification_composite_lvl2_ver003.tif")
+habitat <- raster("/Users/christophercrawford/Google_Drive/_Projects/data/Habitats/Jung_GlobalHabitatTypes/iucn_habitatclassification_composite_lvl2_ver003.tif")
 
 stack()
 
 # color palette information #
 # level 1
-habitat_table <- read_delim(file = "/Users/christophercrawford/Google Drive/_Projects/data/Habitats/Jung_GlobalHabitatTypes/iucn_habitatclassification_code_ver003/styles/level1.clr", delim = " ", col_names = c("Number", "R", "G", "B", "Opacity", "Name"))
+habitat_table <- read_delim(file = "/Users/christophercrawford/Google_Drive/_Projects/data/Habitats/Jung_GlobalHabitatTypes/iucn_habitatclassification_code_ver003/styles/level1.clr", delim = " ", col_names = c("Number", "R", "G", "B", "Opacity", "Name"))
 
 # level 2
-habitat_table <- read_delim(file = "/Users/christophercrawford/Google Drive/_Projects/data/Habitats/Jung_GlobalHabitatTypes/iucn_habitatclassification_code_ver003/styles/level2.clr", delim = " ", col_names = c("Number", "R", "G", "B", "Opacity", "Name"))
+habitat_table <- read_delim(file = "/Users/christophercrawford/Google_Drive/_Projects/data/Habitats/Jung_GlobalHabitatTypes/iucn_habitatclassification_code_ver003/styles/level2.clr", delim = " ", col_names = c("Number", "R", "G", "B", "Opacity", "Name"))
 habitat_table <- habitat_table %>%
   mutate(Color = rgb(R, G, B, maxColorValue = 255))
 
@@ -374,7 +374,7 @@ plot(extent(s_age_r), add = T, col = "red")
 
 ```{r RS-AOH-tester}
 library(sf)
-AOH <- st_read("/Users/christophercrawford/Google Drive/_Projects/data/Bd/AOH/reptilia_AOH/reptilia.shp")
+AOH <- st_read("/Users/christophercrawford/Google_Drive/_Projects/data/Bd/AOH/reptilia_AOH/reptilia.shp")
 
 AOH %>% st_drop_geometry() %>% as_tibble()
 object_size(AOH)
@@ -431,7 +431,7 @@ template_raster <- extend(small_mask, extent(as.Spatial(sf_file)), value = 0)
 library(sf)
 library(raster)
 
-AOH <- st_read("/Users/christophercrawford/Google Drive/_Projects/data/Bd/AOH/reptilia_AOH/reptilia.shp")
+AOH <- st_read("/Users/christophercrawford/Google_Drive/_Projects/data/Bd/AOH/reptilia_AOH/reptilia.shp")
 
 # check it out
 AOH %>% 

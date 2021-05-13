@@ -11,7 +11,7 @@ abstract: |
   | $^*$Corresponding Author, ccrawford@princeton.edu, Robertson Hall, Princeton University, Princeton, NJ
 output:
   bookdown::word_document2:
-    reference_docx: /Users/christophercrawford/Google Drive/_Projects/writing/scripts/word_style_ref.docx
+    reference_docx: /Users/christophercrawford/Google_Drive/_Projects/writing/scripts/word_style_ref.docx
     number_sections: false
   bookdown::pdf_document2: 
     keep_tex: true
@@ -19,8 +19,7 @@ output:
     toc: true
 editor_options:
   chunk_output_type: console
-bibliography: [/Users/christophercrawford/Google Drive/Library/library.bib, packages.bib]
-
+bibliography: [/Users/christophercrawford/Google_Drive/Library/library.bib, packages.bib]
 ---
 
 ```{r set-chunk-opts, include = FALSE}
@@ -34,7 +33,7 @@ knitr::opts_chunk$set(
 #   @RStudioTeam2020, @R-rmarkdown, @R-bookdown, @R-knitr
 ```
 ```{r load-packages-functions, eval = TRUE, echo = FALSE, include = FALSE}
-source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
+source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
 source(paste0(p_proj, "scripts/util/_util_master.R"))
 ```
 
@@ -44,7 +43,7 @@ source(paste0(p_proj, "scripts/util/_util_master.R"))
 run_label <- "_2021_03_13"
 
 # Additional paths --------------------------------------------------- #
-p_plots <- "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/output/plots/"
+p_plots <- "/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/"
 
 # load general spatial data on site locations --------------------------------------------------- #
 site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))

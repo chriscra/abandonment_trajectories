@@ -3,7 +3,7 @@ title: "Trajectories of Abandonment and Biodiversity, start document"
 output: html_notebook
 editor_options: 
   chunk_output_type: console
-bibliography: /Users/christophercrawford/Google Drive/Library/library.bib
+bibliography: /Users/christophercrawford/Google_Drive/Library/library.bib
 ---
 Notebook for initial development work related to the Abandonment Trajectories project, Summery 2020. 
 
@@ -11,7 +11,7 @@ Abandonment Trajectories investigates the trajectories of abandoned agricultural
 
 
 ```{r initialize}
-source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
+source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
 ```
 
 ```{r colors}
@@ -64,8 +64,8 @@ object_size(bs_dt)
 
 
 # full landsat scene, but just for individual years
-b87_r <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_1987.tif")
-b88_r <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_1988.tif")
+b87_r <- raster("/Users/christophercrawford/Google_Drive/_Projects/data/Abandonment/belarus_1987.tif")
+b88_r <- raster("/Users/christophercrawford/Google_Drive/_Projects/data/Abandonment/belarus_1988.tif")
 
 plot(b87_r)
 plot(b88_r)
@@ -204,7 +204,7 @@ names(r) <- map_files #site_list
 
 plot(c(ncell(b), ncell(s), sapply(seq_along(r), FUN = function(i) ncell(r[[i]]))))
 
-test <- brick(paste0("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/Final_maps/", map_files[2]))
+test <- brick(paste0("/Users/christophercrawford/Google_Drive/_Projects/data/Abandonment/Final_maps/", map_files[2]))
 test
 cellStats(test, "mean")
 cellStats(test, )
@@ -235,7 +235,7 @@ names(b_tiles) <- b_files
 
 
 ```{r load-GEE}
-p_eefull <- "/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/eefull/"
+p_eefull <- "/Users/christophercrawford/Google_Drive/_Projects/data/Abandonment/eefull/"
 b_files <- list.files(p_eefull) %>%
   grep("belarus", ., value = TRUE)
 
@@ -276,8 +276,8 @@ res(b)
 
 
 # full landsat scene, but just for individual years
-b87_r <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_1987.tif")
-b88_r <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_1988.tif")
+b87_r <- raster("/Users/christophercrawford/Google_Drive/_Projects/data/Abandonment/belarus_1987.tif")
+b88_r <- raster("/Users/christophercrawford/Google_Drive/_Projects/data/Abandonment/belarus_1988.tif")
 
 # simple plots
 plot(b87_r, main = "Belarus 1987", breaks = c(0, plot_cols$breaks), col = plot_cols$color)
@@ -306,8 +306,8 @@ dt <- fread(input = paste0(p_dat_derived, "shaanxi.csv"))
 # my sense is that the size difference just comes down to differences in the Landsat images that are used. Ask He about this. 
 
 # full landsat scene, but just for individual years
-b87_r <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_1987.tif")
-b88_r <- raster("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_1988.tif")
+b87_r <- raster("/Users/christophercrawford/Google_Drive/_Projects/data/Abandonment/belarus_1987.tif")
+b88_r <- raster("/Users/christophercrawford/Google_Drive/_Projects/data/Abandonment/belarus_1988.tif")
 
 # simple plots, to check the coverage of the raster bricks
 dev.off()
@@ -1246,7 +1246,7 @@ source("scripts/util/_util_dt_filter_functions.R")
 
 
 tic("load raster")
-r <- brick("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/belarus_small.tif")
+r <- brick("/Users/christophercrawford/Google_Drive/_Projects/data/Abandonment/belarus_small.tif")
 
 nlayers(r) # 31 years in the time series
 names(r) <- paste0("y", 1:nlayers(r))
@@ -1284,7 +1284,7 @@ toc()
 
 
 tic("write out cleaned abandonment age data.table")
-fwrite(dt, file = "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/shaanxi_age.csv")
+fwrite(dt, file = "/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/data_derived/shaanxi_age.csv")
 toc()
 
 
@@ -1300,7 +1300,7 @@ toc()
 
 # write out length
 length <- data.table(length = length)
-fwrite(length, file = "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/shaanxi_length.csv")
+fwrite(length, file = "/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/data_derived/shaanxi_length.csv")
 
 # explore some stats:
 length[, .N, by = length]
@@ -1645,7 +1645,7 @@ plot(noncrop_duration_avg)
 ```{r install-OpenMP}
 
 # As of 2021.1.19, the most up to date version of this is at:
-# /Users/christophercrawford/Google Drive/Stats_Code_Methods/R/data.table_openmp_threads.R
+# /Users/christophercrawford/Google_Drive/Stats_Code_Methods/R/data.table_openmp_threads.R
 
 remove.packages("data.table")
 install.packages("data.table", type = "source",

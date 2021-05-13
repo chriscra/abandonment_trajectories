@@ -27,7 +27,7 @@ library(tidymodels)
 
 ```{r load-data, include = FALSE}
 # update this path to wherever you want to keep the data, output plots, etc.
-your_path <- "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/data_derived/" # 
+your_path <- "/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/data_derived/" # 
 
 
 site_names <- c("belarus", "bosnia_herzegovina", "chongqing", "goias", "iraq", "mato_grosso", "nebraska", "orenburg", "shaanxi", "volgograd", "wisconsin")

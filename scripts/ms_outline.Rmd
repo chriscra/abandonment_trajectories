@@ -3,9 +3,9 @@ title: "Timing and persistence of abandoned agricultural land (outline)"
 author: "Christopher Crawford, 1/31/2021, Princeton University"
 output: 
   bookdown::word_document2:
-      reference_docx: /Users/christophercrawford/Google Drive/_Projects/writing/scripts/word_style_ref.docx
+      reference_docx: /Users/christophercrawford/Google_Drive/_Projects/writing/scripts/word_style_ref.docx
       number_sections: false
-bibliography: /Users/christophercrawford/Google Drive/Library/library.bib
+bibliography: /Users/christophercrawford/Google_Drive/Library/library.bib
 ---
 
 ```{r setup, include=FALSE}

@@ -5,11 +5,11 @@ date: "2/1/2021"
 output: html_document
 editor_options: 
   chunk_output_type: console
-bibliography: [/Users/christophercrawford/Google Drive/Library/library.bib]
+bibliography: [/Users/christophercrawford/Google_Drive/Library/library.bib]
 ---
 ```{r load-packages-functions, eval = TRUE, echo = FALSE, include = FALSE}
 
-source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
+source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
 
 source(paste0(p_proj, "scripts/util/_util_master.R"))
 
@@ -21,7 +21,7 @@ source(paste0(p_proj, "scripts/util/_util_master.R"))
 run_label <- "_2021_03_13"
 
 # Additional paths --------------------------------------------------- #
-p_plots <- "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/output/plots/"
+p_plots <- "/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/"
 
 # load general spatial data on site locations --------------------------------------------------- #
 site_df <- read_csv(file = paste0(p_dat_derived, "site_df.csv"))
@@ -585,7 +585,7 @@ b. Change in total GDP (PPP) between 1990 - 2015 (resolution of ~ 1 km or 30 arc
 # Prep predictor data
 
 ```{r predictor-files}
-p_predictors <- "/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/predictors/"
+p_predictors <- "/Users/christophercrawford/Google_Drive/_Projects/data/Abandonment/predictors/"
 
 predictor_files_all <- list.files(p_predictors, full.names = TRUE) 
 
@@ -601,7 +601,7 @@ predictor_files_s <- predictor_files_all %>%
 ## Environmental
 
 ```{r gdd}
-gdd_eurasia <- brick("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/predictors/gdd/Eurasia_current_30arcsec_geotiff_set2/current_30arcsec_growingDegDays0.tif")
+gdd_eurasia <- brick("/Users/christophercrawford/Google_Drive/_Projects/data/Abandonment/predictors/gdd/Eurasia_current_30arcsec_geotiff_set2/current_30arcsec_growingDegDays0.tif")
 
 gdd_eurasia
 
@@ -1034,7 +1034,7 @@ hid_info <- nc_open(hid_file)
 names(hid_info$var)
 
 
-hid <- brick("/Users/christophercrawford/Google Drive/_Projects/data/Abandonment/predictors/irrigation/HID_v10/HID_aei_ha.nc")
+hid <- brick("/Users/christophercrawford/Google_Drive/_Projects/data/Abandonment/predictors/irrigation/HID_v10/HID_aei_ha.nc")
 
 hid
 names(hid)
@@ -2236,7 +2236,7 @@ Fig. 9. Maps of a) abandonment *age in 2017* and b) *max age* for example site.
 - start with a regular OLS regression (lm)
 - check out the residuals (the model errors) - if they are clumped, or there is a clear trend in them, then, they might be spatially auto-correlated.
 - Calculating Moran's I helps identify spatial autocorrelation. 
-- see code Liang shared by Raymond Huey 2020 ("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/Spatial analysis w Depth 2020-03-20.R")
+- see code Liang shared by Raymond Huey 2020 ("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/Spatial analysis w Depth 2020-03-20.R")
 - see code from Umesh's stats course. 
 
 @Levers2018a use the R package `mboost` from [Hothorn et al. 201o](http://mboost.r-forge.r-project.org/) to implement "boosted regression trees" or BRT. This method has an advantage because, as quoted from @Pazur2020, "The advantages of BRT modelling compared to conventional statistical methods, such as ordinary least squares and logistic regressions, is that it allows capturing the non-linear relationship between the dependent and independent variables, does not require a normal distribution assumption and is robust against the multicollinearity of variables (Elith et al. 2008)." 

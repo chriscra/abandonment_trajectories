@@ -4,7 +4,7 @@
 # 
 # ---------------------------------------------------------------
 
-p_proj <- "/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/"
+p_proj <- "/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/"
 
 # load other util scripts ----
 source(paste0(p_proj, "scripts/util/_util_misc_functions.R"))

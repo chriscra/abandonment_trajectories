@@ -5,7 +5,7 @@ editor_options:
   chunk_output_type: console
 ---
 ```{r initialize}
-source("/Users/christophercrawford/Google Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
+source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
 source(paste0(p_proj, "scripts/util/_util_master.R"))
 ```
 
@@ -22,7 +22,7 @@ library(VIF) # for selecting models for a linear model. Recommended by Liang.
 ```
 
 
-# Exponential Decay:
+# Decay Models
 
 
 Reminder of the framework for the first paper: characterizing abandonment trajectories & recultivation
@@ -1070,12 +1070,12 @@ dev.off()
 # mega AIC figure
 gg_AIC_mega <-
   ggplot(data = mod_AIC_mega,
-       mapping = aes(y = fct_reorder(mod, AIC), x = -AIC, 
+       mapping = aes(y = fct_reorder(mod, AIC), x = AIC, 
                      group = fct_reorder(mod, AIC), fill = fct_reorder(mod, AIC))) + 
   theme_classic() +
   geom_col(position = position_dodge(0.9)) +
   # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
-  labs(y = "Model", x = "Absolute Value AIC (larger is better)", fill = "Model") +
+  labs(y = "Model Specification", x = "AIC Value", fill = "Model") +
   theme(legend.position = "none",
         plot.margin = margin(4, 20, 4, 4, "pt"))
 
@@ -1085,7 +1085,6 @@ ggsave(plot = gg_AIC_mega,
        filename = paste0(p_plots, run_label, "/decay/", "mod_AIC_mega_plot", run_label, ".png"), 
     width = 5, height = 4, units = "in")
 
-glimpse
 
 
 
@@ -1700,6 +1699,18 @@ for (i in 1:11) {plot(lm_lin_log_lin_l[[i]], 2, main = site_df$site[i])}
 # -------------------------------------------------------------------------------------------------- #
 # --------------------------------- lin-log-lin diagnostics plots ---------------------------------- #
 # -------------------------------------------------------------------------------------------------- #
+
+# mega lm
+dev.off()
+
+png(filename = paste0(p_plots, run_label, "/decay/", "l3_cohort_diag_combo", run_label, ".png"), 
+    width = 8, height = 5, units = "in", res = 400)
+par(mfrow = c(1, 2))
+plot(lm_mega_lin_log_lin_l)
+dev.off()
+
+dat_l[c(324, 349), ]
+
 
 # ----------------------- fitted vs. residuals diagnostics plot ----------------------- #
 png(filename = paste0(p_plots, run_label, "/decay/", "l3_cohort_diag_resid_v_fitted", run_label, ".png"), 
@@ -2581,13 +2592,17 @@ fitted_df_l3 <- lapply(site_df$site, FUN = function(x) {
 }) %>% bind_rows() %>% as_tibble()
 
 
-f0 <- fitted_df_l3
+
+# save fitted_df_l3
+
+write_csv(fitted_df_l3, file = paste0(p_dat_derived, run_label, "/decay_mod_fitted_df_l3", run_label, ".csv"))
+# fitted_df_l3 <- read_csv(file = paste0(p_dat_derived, run_label, "/decay_mod_fitted_df_l3", run_label, ".csv"))
 ```
 
 
 ```{r *mean-trend-by-site-l3}
 # plot it, reordering the factors by the coefficient (to make the legend easier to read)
-# gg_model_curves_by_site_l3 <-
+gg_model_curves_by_site_l3 <-
   ggplot(data = fitted_df_l3 %>% filter(age < 140),
        mapping = aes(x = age, y = fitted, color = fct_reorder(site, time_to_0.5))) +
   theme_classic() +
@@ -2604,7 +2619,11 @@ f0 <- fitted_df_l3
 
 
 gg_model_curves_by_site_l3 %+% filter(fitted_df_l3, time < 50)
-
+# gg_model_curves_by_site_l3 + geom_vline(xintercept = 25.4)
+gg_model_curves_by_site_l3 + 
+  geom_vline(xintercept = 20) + 
+  geom_hline(yintercept = 0.0746) +
+  coord_cartesian(xlim = c(15, 25))
 
 # for MS
 ggsave(plot = gg_model_curves_by_site_l3 + 
@@ -2739,11 +2758,12 @@ par(mfrow = c(2, 2))
 plot(lm_coef_l3)
 
 
+
 coef(lm_coef)[1]
 as.numeric(tidy(lm_coef, conf.int = TRUE)[1, "estimate"])
 
 
- tidy(lm_coef_l3, conf.int = TRUE) %>%
+tidy(lm_coef_l3, conf.int = TRUE) %>%
   mutate(termm = ifelse(grepl("year_abn", term), "slope", "int"),
          site = gsub("site|year_abn:", "", term)) %>%
    print(n = 22)
@@ -2785,7 +2805,7 @@ gg_coef_rate_change_by_site_l3_horiz <-
 
 
 # vertical
-gg_coef_rate_change_by_site_l3_vert <-
+# gg_coef_rate_change_by_site_l3_vert <-
   ggplot(data = left_join(coef_df2_l3, mean_coef_df_wide_l3, by = "site"),
          aes(y = fct_reorder(site, estimate_slope), 
              x = estimate_slope)) + 
@@ -3177,7 +3197,6 @@ write_csv(extrapolate_df_l3, file = paste0(p_dat_derived, run_label, "/extrapola
 
 
 ```{r plot-extrapolations}
-# save extrapolate_df_l3
 extrapolate_df_l3 <- read_csv(file = paste0(p_dat_derived, run_label, "/extrapolate_df_l3", run_label, ".csv"))
 # ----------------------------------------------------------------------- #
 # plot the mean age through time:
@@ -3479,7 +3498,7 @@ gg_extrapolation_panel_age_b <-
        mapping = aes(x = year, y = mean_age, color = fct_reorder(site, max_age))) + 
   geom_line(size = 1) + 
   theme_classic() + 
-  labs(x = "Year", y = "Mean age of abanandoned lands (years)",
+  labs(x = "Year", y = "Mean duration of abanandonment (years)",
        #title = "Mean age of abandoned land through time",
        color = "Site"
        ) + 
@@ -3503,7 +3522,7 @@ ggsave(plot = plot_grid(
 
 
 
-# the tall combo, the one I end up using
+# the tall combo
 ggsave(plot = 
          plot_grid(
            gg_extrapolation_panel_trend_a, 
@@ -3517,6 +3536,21 @@ ggsave(plot =
        filename = paste0(p_plots, run_label, "/decay/", "extrapolation_combo_tall", run_label, ".pdf"),
        width = 10, height = 8, units = "in"
 )
+
+
+# ------------------------------------------------------------------ #
+# just b and c, for SI
+ggsave(plot = 
+         plot_grid(
+           gg_extrapolation_panel_age_b + 
+             scale_x_continuous(breaks = seq(from = 2000, to = 2120, by = 40)), 
+           gg_extrapolation_panel_area_c + 
+             scale_x_continuous(breaks = seq(from = 2000, to = 2120, by = 40)),
+           labels = "auto", ncol = 2),
+       filename = paste0(p_plots, run_label, "/decay/", "extrapolation_combo_SI", run_label, ".pdf"),
+       width = 9, height = 3.75, units = "in", dpi = 400
+)
+
 ```
 
 ## Extrapolating site mean decay without cohort f.e. (l3)
