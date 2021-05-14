@@ -29,6 +29,17 @@ header-includes:
 rmarkdown::render("scripts/abn_trajectories_ms.Rmd",
                   output_file = paste0(p_proj, "writing/previews/", "abn_duration_draft", format(Sys.Date(), ("_%Y_%m_%d")), ".docx"))
 
+rmarkdown::render("scripts/abn_trajectories_ms.Rmd",
+                  output_file = paste0(p_proj, "writing/previews/", "abn_duration_draft", format(Sys.Date(), ("_%Y_%m_%d")), ".pdf"),
+                  output_format = "bookdown::pdf_document2")
+
+
+# Save PDF with SI for linking below:
+rmarkdown::render("scripts/abn_trajectories_ms.Rmd",
+                  output_file = paste0(p_proj, "writing/previews/", "abn_duration_draft_w_SI.pdf"),
+                  output_format = "bookdown::pdf_document2")
+
+
 
 # bookdown::preview_chapter(
 #   input = "abn_trajectories_ms.Rmd",
@@ -43,7 +54,7 @@ rmarkdown::render("scripts/abn_trajectories_ms.Rmd",
 ```{r set-chunk-opts, include = FALSE}
 # set default chunk options
 knitr::opts_chunk$set(
-  # out.width = "1\\textwidth",  # if compiling a pdf, include this option
+  out.width = "1\\textwidth",  # if compiling a pdf, include this option
   # comment = NA,
   # fig.width=6, fig.height=6, 
   echo = FALSE # the code itself will NOT be printed with results
@@ -886,6 +897,8 @@ This work was supported by Princeton University's Research Computing high perfor
 
 # Supporting Information
 
+A version of this manuscript that includes the Supporting Information can be found [at this link](https://drive.google.com/file/d/1Y_tnucb_Zia-4qE4-vc02s5hFuMHnIZ9/view?usp=sharing).
+
 ```{r figures-outline}
 # Main Text Figures:
 # 1.	Site locations with maps showing duration of abandonment as of 2017 at each site (*)
@@ -1124,12 +1137,13 @@ p_{y} = 1 + \beta_{1,y} log(t + 1) + \beta_{2,y} t (\#eq:mod-spec)
 \end{equation}
 
 Where $\beta_{1,y}$ represents the regression coefficient on the log term of time $t$ for cohort $y$, and $\beta_{2,y}$ represents the regression coefficient on the linear term of time $t$ for cohort $y$.
+We allow for site and cohort level fixed effects, fitting unique coefficients for each cohort at each site.
 
-This corresponds to a `lm()` call of `lm(formula = I(proportion - 1)  ~ 0 + log(time + 1):cohort + I(time):cohort)`
+This corresponds to a `lm()` call of `lm(formula = I(proportion - 1)  ~ 0 + log(time + 1):cohort:site + I(time):cohort:site)`
 
 (ref:caption-AIC) Akaike Information Criterion (AIC) values for various model specifications. More negative AIC values indicate a better model fit.
 
-```{r AIC, fig.cap = '(ref:caption-AIC)'}
+```{r AIC, fig.cap = '(ref:caption-AIC)', fig.width = 7.5}
 knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "mod_AIC_mega_plot", run_label, ".png"))
 ```
 
@@ -1145,7 +1159,7 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "l3_cohort_
 knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "l3_cohort_diag_resid_v_fitted", run_label, ".png"))
 ```
 
-(ref:caption-diag-qq) QQ plots for each site.
+(ref:caption-diag-qq) QQ plots for each site, calculated using the `car` package (@R-car).
 
 ```{r diag-qq, fig.cap = '(ref:caption-diag-qq)'}
 knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "l3_cohort_diag_qq_subset", run_label, ".png"))
