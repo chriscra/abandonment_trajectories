@@ -2681,26 +2681,31 @@ mean_coef_df %>% mutate(site = fct_relevel(site, coef_level_order)) %>% .$site
 
 ```{r plot-coef-all-sites-l3}
 
-# plot all coefficients
-ggplot(data = coef_df_wide_l3 %>% filter(),
+# plot all cohort coefficients with linear trend, on a facet_grid by site
+gg_cohort_coefs_grid <- 
+  ggplot(data = coef_df_wide_l3 %>% filter(),
        mapping = aes(x = year_abn, y = time_to_0.5#, group = site, color = site
                      )
        ) + 
   theme_classic() +
   geom_point(position = position_jitter()) + 
   #geom_errorbar(mapping = aes(ymin = conf.low, ymax = conf.high), width = 0.3) +
-  labs(y = "Time For Half of Land to be Recultivated (Years)",
-       x = "Cohort (Year of Initial Abandonment)", 
+  labs(y = "Time for 50% recultivation (in years)",
+       x = "Year of initial abandonment", 
        # title = "Half Times",
        # subtitle = "lin-log-lin model",
        # caption = "Error bars represent 95% confidence interval",
        color = "Site") + 
-  theme(#axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0), 
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0), 
         legend.position = "bottom",
         plot.caption = element_text(face = "italic"),
         plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm")) + 
   geom_smooth(method = "lm", se = TRUE) +
-  facet_wrap(vars(site), scales = "free_y")# + 
+  # facet_wrap(vars(site), scales = "free_y") #+
+  facet_wrap(vars(fct_reorder(site, mean_time_to_0.5)), 
+             scales = "free_y",
+             labeller = as_labeller(cap_labels))  # see _util_misc_functions.R
+
 
 
 # with quadrants:
@@ -2745,28 +2750,231 @@ print(gg_l3_cohort_coef_all)
 dev.off()
 # ------------------------------------------------------------- #
 
+ggplot(data = coef_df_wide_l3 %>% filter(site == "belarus"),
+       mapping = aes(x = year_abn, y = time_to_0.5)) + 
+  theme_classic() +
+  geom_point(position = position_jitter()) + 
+  # geom_errorbar(mapping = aes(ymin = conf.low, ymax = conf.high), width = 0.3) +
+  labs(y = "Time for 50% recultivation (in years)",
+       x = "Year of initial abandonment", 
+       # title = "Half Times",
+       # subtitle = "lin-log-lin model",
+       # caption = "Error bars represent 95% confidence interval",
+       color = "Site") + 
+  theme(#axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0), 
+        legend.position = "bottom",
+        plot.caption = element_text(face = "italic"),
+        plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm")) + 
+  geom_smooth(method = "lm", se = TRUE) #+
+  
+  geom_function(fun = function(x) {exp(coef(lm_mod)[2]*x + coef(lm_mod)[1])},
+                color = "blue", size = 1)
+coef_df2_l3
+```
+
+```{r l3-rate-of-change-testing}
+coef_df_wide_l3 %>% 
+  mutate(time = year_abn - 1987) %>%
+  filter(
+    site == "chongqing",
+    !is.na(time_to_0.5)
+    ) %>% 
+  lm(time_to_0.5 ~ year_abn, data = .) %>%
+  # lm(time_to_0.5 ~ time, data = .) %>%
+  tidy(., conf.int = TRUE) %>% mutate(site = "chongqing")
+
+lm_rate_of_change_ind <- lapply(1:11, function(i) {
+  lm(time_to_0.5 ~ year_abn, data = filter(coef_df_wide_l3, site == site_df$site[i], !is.na(time_to_0.5)))
+})
+
+names(lm_rate_of_change_ind) <- site_df$site
+
+dt_recult_rate <- lapply(lm_rate_of_change_ind, function(i) {
+  tidy(i, conf.int = TRUE) 
+}) %>% bind_rows(.id = "site") 
+
+
+
+t1 <- dt_recult_rate %>%
+  filter(term == "year_abn") %>%
+  arrange(desc(term), estimate) #%>% print(n = 22)
+
+t1 %>% mutate(diff = conf.low - conf.high) 
+t2 %>% mutate(diff = conf.low - conf.high,
+              plus = diff - 0.892 * 2)
+
+# plot the new coefficient range:
+gg_rate_of_changes_2 <- 
+  dt_recult_rate %>% filter(term == "year_abn") %>%
+  left_join(., mean_coef_df_wide_l3, by = "site") %>%
+  ggplot(data = .,
+         aes(y = fct_reorder(site, estimate), 
+             x = estimate)) + 
+  theme_classic() +
+  geom_point() + 
+  geom_errorbar(mapping = aes(xmin = conf.low, xmax = conf.high), width = 0.2) +
+  geom_vline(xintercept = 0, linetype = "dashed") + 
+  labs(y = NULL, #"Site", 
+       x = "Rate of change of recultivation speed \n(slope of time to 50% recultivation, \nin terms of years per year)") + 
+  theme(legend.position = "none",
+        plot.margin = unit(c(0.4, 0.6, 0.2, 0.2), "cm"))
+
+
+gg_rate_of_changes_2
+gg_coef_rate_change_by_site_l3_vert # old, to compare
+
+
+# save combo with facet grid
+
+# for SI ------------------------- #
+ggsave(plot = plot_grid(gg_cohort_coefs_grid,
+                        gg_rate_of_changes_2,
+                        ncol = 2, rel_widths = c(1, 0.6), align = "h", axis = "b"),
+       filename = paste0(p_plots, run_label, "/decay/", "rate_of_change_recultivation_speed_combo", run_label, ".pdf"), 
+       width = 11, height = 6, units = "in")
+
+
+# combo quadrant with coefs:
+
+ggsave(plot = plot_grid(gg_l3_cohort_coef_all + theme(legend.position = "bottom"),
+                        gg_rate_of_changes_2,
+                        ncol = 2, rel_widths = c(1, 0.6), align = "h", axis = "b"),
+       filename = paste0(p_plots, run_label, "/presentation/", "rate_of_change_recultivation_speed", run_label, ".pdf"), 
+       width = 11, height = 6, units = "in")
+
+
+
+
+
+
+
+coef_df2_l3 %>% arrange(estimate_slope)
+
+# full set of sites
+coef_df_wide_l3 %>% 
+  mutate(time = year_abn - 1987) %>%
+  filter(!is.na(time_to_0.5)) %>% 
+  lm(time_to_0.5 ~ year_abn + site + year_abn:site, data = .) %>%
+  # lm(time_to_0.5 ~ time, data = .) %>%
+  tidy(., conf.int = TRUE) %>% print(n = 26)
+
+
+# the confidence interval on the slope is different from the one determined via:
+coef_df2_l3 %>% filter(site == "belarus")
+-0.892 -5.91
+-0.892 +0.803 # cq
+( 0.089 + 0.292) 
+
+-0.892 -5.91
+-0.892 -5.91
+
+
+0.32 # estimate
+-1.72 # lower CI from individual calculation
+2.36
+
+0.32 + 1.72
+2.36-0.32
+0.32 + 1.96 * 0.974
+
+
+-2.07 # lower CI from group lm calculation
+2.71
+
+-0.8919682 + 1.21 # estimate
+-0.8919682 - 0.188 # low
+-0.8919682 + 2.61 # high
+
+
+lm(time_to_0.5 ~ time * site - 1, 
+   data = filter(mutate(coef_df_wide_l3, time = year_abn - 1987), !is.na(time_to_0.5))) %>%
+  tidy(., conf.int = TRUE) %>%
+  mutate(termm = ifelse(grepl("time", term), "slope", "int"),
+         site = gsub("site|time:", "", term)) %>%
+   # print(n = 22) %>%
+  filter(site %in% c("time", "shaanxi"))
+
+par(mfrow = c(2, 2))
+plot(lm_coef_l3)
+
+
+# check the ranges:
+lm_coef_l3
+coef_df2_l3
+
+
+t1 %>% mutate(diff = conf.low - conf.high) 
+t2
+
+offset <- t2 %>% filter(site == "belarus") %>% .$estimate
+t1 %>% arrange(site)
+
+plot_coefs_grouped_lm <- t2 %>% arrange(site) %>%
+  mutate(adj_est = ifelse(site == "belarus", estimate, estimate + offset),
+         adj_CI_low = ifelse(site == "belarus", conf.low, conf.low + offset),
+         adj_CI_high = ifelse(site == "belarus", conf.high, conf.high + offset)) %>%
+  ggplot(data = ., mapping = aes(x = adj_est, y = fct_reorder(site, adj_est))) + 
+  theme_classic() +
+  geom_point() + 
+  geom_errorbar(mapping = aes(xmin = adj_CI_low, xmax = adj_CI_high), width = 0.2) +
+  geom_vline(xintercept = 0, linetype = "dashed")
+
+# coefficients as calculated separately:
+gg_rate_of_changes_2
+
+# original confidence intervals:
+gg_coef_rate_change_by_site_l3_vert # much wider, calculated by adding the high and low ends of the CI on the first site's slope (Belarus, i.e. the offset)
+
+
+
+confint(lm_coef_l3)
+summary(lm_coef_l3)
+
+
+# -------------------------------------------------------------------------- #
+# diagnostic plots for individual site models:
+# -------------------------------------------------------------------------- #
+plot(lm_rate_of_change_ind[[1]], 1)
+
+# ----------------------- fitted vs. residuals diagnostics plot ----------------------- #
+png(filename = paste0(p_plots, run_label, "/decay/", "rate_of_change_l3_diag_ind_resid_v_fitted", run_label, ".png"), 
+    width = 9, height = 8, units = "in", res = 400)
+par(mfrow = c(3, 4))
+for (i in 1:11) plot(lm_rate_of_change_ind[[i]], 1, main = site_df$site %>% gsub("_", " ", .) %>% capwords() %>% .[i])
+dev.off()
+
+# ----------------------- QQ diagnostics plot ----------------------- #
+png(filename = paste0(p_plots, run_label, "/decay/", "rate_of_change_l3_diag_ind_qq2", run_label, ".png"), 
+    width = 9, height = 8, units = "in", res = 400)
+par(mfrow = c(3, 4))
+for (i in 1:11) {
+  # plot(lm_rate_of_change_ind[[i]], 2, main = site_df$site %>% gsub("_", " ", .) %>% capwords() %>% .[i])
+  qqPlot(lm_rate_of_change_ind[[9]], main = site_df$site %>% gsub("_", " ", .) %>% capwords() %>% .[9], 
+       ylab = "Standardized Residuals", xlab = "Theoretical Quantiles")
+}
+
+dev.off()
 
 
 
 
 ```
 
+
 ```{r l3-rate-of-change}
+# --------------------------------------------------------------------------- #
+# OLD - these coefficient estimates have a confidence window that is too broad
+# --------------------------------------------------------------------------- #
+# calculate linear model for time to half for each cohort
+
 lm_coef_l3 <- lm(time_to_0.5 ~ year_abn * site - 1, data = filter(coef_df_wide_l3, !is.na(time_to_0.5)))
 
-par(mfrow = c(2, 2))
-plot(lm_coef_l3)
-
-
-
-coef(lm_coef)[1]
-as.numeric(tidy(lm_coef, conf.int = TRUE)[1, "estimate"])
-
-
-tidy(lm_coef_l3, conf.int = TRUE) %>%
+t2 <- tidy(lm_coef_l3, conf.int = TRUE) %>%
   mutate(termm = ifelse(grepl("year_abn", term), "slope", "int"),
-         site = gsub("site|year_abn:", "", term)) %>%
-   print(n = 22)
+         site = gsub("site|year_abn:", "", term),
+         site = gsub("year_abn", "belarus", site)) %>%
+   # print(n = 22) %>% 
+  filter(termm == "slope") %>% arrange(estimate)
 
 # create table of regression coefficients for the rate of change of the "time to half" 
  
@@ -2805,7 +3013,7 @@ gg_coef_rate_change_by_site_l3_horiz <-
 
 
 # vertical
-# gg_coef_rate_change_by_site_l3_vert <-
+gg_coef_rate_change_by_site_l3_vert <-
   ggplot(data = left_join(coef_df2_l3, mean_coef_df_wide_l3, by = "site"),
          aes(y = fct_reorder(site, estimate_slope), 
              x = estimate_slope)) + 
@@ -2813,7 +3021,7 @@ gg_coef_rate_change_by_site_l3_horiz <-
   geom_point() + 
   geom_errorbar(mapping = aes(xmin = conf.low_slope, xmax = conf.high_slope), width = 0.2) +
   geom_vline(xintercept = 0, linetype = "dashed") + 
-  labs(y = "Site", 
+  labs(y = NULL, #"Site", 
        x = "Rate of change of recultivation speed \n(time to recultivate half of area, \nyears per year)") + 
   theme(legend.position = "none",
         plot.margin = unit(c(0.4, 0.6, 0.2, 0.2), "cm"))
@@ -2844,8 +3052,17 @@ dev.off()
 ggsave(plot = plot_grid(gg_l3_cohort_coef_all + theme(legend.position = "bottom"),
                         gg_coef_rate_change_by_site_l3_vert,
                         ncol = 2, rel_widths = c(1, 0.6), align = "h", axis = "b"),
-       filename = paste0(p_plots, run_label, "/presentation/", "rate_of_change_recultivation_speed", run_label, ".pdf"), 
+       filename = paste0(p_plots, run_label, "/presentation/", "rate_of_change_recultivation_speed_old", run_label, ".pdf"), 
        width = 11, height = 6, units = "in")
+
+
+# for SI ------------------------- #
+ggsave(plot = plot_grid(gg_cohort_coefs_grid,
+                        gg_coef_rate_change_by_site_l3_vert,
+                        ncol = 2, rel_widths = c(1, 0.6), align = "h", axis = "b"),
+       filename = paste0(p_plots, run_label, "/decay/", "rate_of_change_recultivation_speed_combo_old", run_label, ".pdf"), 
+       width = 11, height = 6, units = "in")
+
 
 ```
 
