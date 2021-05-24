@@ -492,11 +492,3 @@ template_raster <- extend(small_mask, extent(as.Spatial(sf_file)), value = 0)
 
 
 ```
-
-
-# PREDICTS
-
-```{r load-predicts}
-
-```
-
