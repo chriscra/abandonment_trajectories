@@ -105,6 +105,8 @@ table(predicts$Years_since_fragmentation_or_conversion)
 levels(predicts$Predominant_land_use)
 summary(predicts$Years_since_fragmentation_or_conversion)
 nrow(predicts) - 2636413 # 613,991 records with information on the years since fragmentation
+predicts %>% filter(!is.na(Years_since_fragmentation_or_conversion)) %>% nrow() # how many records have time data associated with them?
+
 # --------------------------------------------------------------- #
 
 predicts_2nd <- predicts %>% filter(Predominant_land_use %in% c("Primary vegetation", "Young secondary vegetation", "Intermediate secondary vegetation", "Mature secondary vegetation", "Secondary vegetation (indeterminate age)"))
@@ -367,6 +369,8 @@ ecoregions %>% st_drop_geometry() %>% select(biome) %>% unlist(use.names = FALSE
 biome_names <- ecoregions %>% st_drop_geometry() %>% select(biome) %>% unlist(use.names = FALSE) %>% unique()
 biome_l <- vector(mode = "list", length = 16L)
 names(biome_l) <- biome_names
+
+tic()
 for(i in 1:16) {
   biome_l[[i]] <- ecoregions %>% 
     filter(biome == biome_names[i]) %>%
@@ -374,10 +378,11 @@ for(i in 1:16) {
     st_sf() %>%
     mutate(biome = biome_names[i])
 }
+toc() # took a bit of a while - maybe 60 seconds.
 
 biomes <- bind_rows(biome_l)
 
-biomes %>% st_geometry() %>% plot(main = biome_names[2])
+biomes %>% st_geometry() %>% plot(main = biome_names[2]) # this takes a very long time
 
 # I tried aggregate, st_union, st_combine, merge, etc., and I couldn't find a simple way to dissolve an sf object based on an attribute, other than doing them all individually, then binding them back together. 
 
