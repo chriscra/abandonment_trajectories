@@ -77,6 +77,24 @@ cap_labels <- function(string) capwords(gsub("_", " ", string))
 
 
 # ------------------------ #
+# capitalize site labels
+# ------------------------ #
+cap_update_labels <- function(string) {
+  capwords(ifelse(grepl("herze", string, ignore.case = TRUE),
+                  gsub("_", " & ", string),
+                  ifelse(grepl("bel", string, ignore.case = TRUE),
+                         gsub("belarus", "Belarus/Smolensk", string),
+                         ifelse(grepl("goias", string, ignore.case = TRUE),
+                                gsub("goias", "Goiás", string),
+                                ifelse(grepl("shaanxi", string, ignore.case = TRUE),
+                                       gsub("shaanxi", "Shaanxi/Shanxi", string),
+                                       gsub("_", " ", string))))))
+}
+# for use in facet_wrap(labeller = as_labeller(cap_update_labels))
+
+
+
+# ------------------------ #
 # scale a vector by mean and sd
 scale_this <- function(x){
   (x - mean(x, na.rm=TRUE)) / sd(x, na.rm=TRUE)

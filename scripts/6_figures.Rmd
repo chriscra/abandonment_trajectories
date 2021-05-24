@@ -2218,7 +2218,7 @@ gg_age_class_bins_grid <-
       legend.title = element_text(size = 10)
       ) +
     scale_fill_brewer(palette = "Greens", direction = 1) +
-      facet_wrap(vars(site), scales = "free_y", labeller = as_labeller(cap_labels)) +  # see _util_misc_functions.R
+      facet_wrap(vars(site), scales = "free_y", labeller = as_labeller(cap_update_labels)) +  # see _util_misc_functions.R
     theme(legend.position = c(0.885, 0.12), 
         legend.spacing = unit(2, units = "mm"), 
         legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) + 
@@ -2231,7 +2231,6 @@ gg_age_class_bins_grid <-
 ggsave(plot = gg_age_class_bins_grid,
        filename = paste0(p_plots, run_label, #"/presentation", 
        "/abn_area_by_age_grid", run_label, ".pdf"),
-
        width = 7, height = 5, units = "in", dpi = 400
 )
 

@@ -218,7 +218,16 @@ if(!dir.exists(paste0(p_output, "plots/", run_label))) {
 
 gg_mean_length <-
   ggplot(data = mean_length_df %>%
-           filter(abn_threshold == "5"),
+           filter(abn_threshold == "5") %>%
+           mutate(site = capwords(ifelse(grepl("herze", site, ignore.case = TRUE),
+                                         gsub("_", " & ", site),
+                                  ifelse(grepl("bel", site, ignore.case = TRUE),
+                                         gsub("belarus", "Belarus/Smolensk", site),
+                                  ifelse(grepl("goias", site, ignore.case = TRUE),
+                                         gsub("goias", "Goiás", site),
+                                  ifelse(grepl("shaanxi", site, ignore.case = TRUE),
+                                         gsub("shaanxi", "Shaanxi/Shanxi", site),
+                                         gsub("_", " ", site))))))),
          mapping = aes(x = fct_reorder(site, order), #fct_reorder2(site, abn_threshold, desc(mean_duration)),
                        y = mean_duration, 
                        color = length_type)) + 
@@ -240,19 +249,30 @@ gg_mean_length <-
                            col = length_type, 
                            linetype = "Overall \nMean")) + 
   scale_linetype_manual(values = c("Overall \nMean" = "dashed")) + 
-  scale_colour_discrete(labels = c(all = "All periods", 
+  scale_color_discrete(labels = c(all = "All periods", 
                                    max = "Max. length \nper pixel")) +
+  # scale_shape_manual(values = c(16, 21), # filled and closed circles
+  #                    labels = c(all = "All periods", 
+  #                               max = "Max. length \nper pixel")) + 
   guides(color = guide_legend(order = 1))
     
 
 
 # ----------------- save ---------------- #
-png(filename = paste0(p_output, "plots/", run_label, "/mean_lengths", run_label, ".png"), 
-    # width = 6, height = 5, 
-    width = 5, height = 4, 
-    units = "in", res = 400)
-print(gg_mean_length)
-dev.off()
+ggsave(plot = gg_mean_length,
+       filename = paste0(p_plots, run_label, "/mean_lengths", run_label, ".pdf"), 
+    width = 5, height = 4.5, units = "in")
+
+# png(filename = paste0(p_output, "plots/", run_label, "/mean_lengths", run_label, ".png"), 
+#     # width = 6, height = 5, 
+#     width = 5, height = 4, 
+#     units = "in", res = 400)
+# print(gg_mean_length)
+# dev.off()
+
+library(colorblindr)
+cvd_grid(gg_mean_length)
+
 
 
 
