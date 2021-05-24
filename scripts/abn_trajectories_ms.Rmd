@@ -18,10 +18,10 @@ output:
   bookdown::html_document2:
     toc: true
 editor_options:
-  chunk_output_type: inline
+  chunk_output_type: console
 bibliography: [/Users/christophercrawford/Google_Drive/Library/library.bib, packages.bib]
 nocite: |
-  @RStudioTeam2020, @R-rmarkdown, @R-bookdown, @R-knitr
+  @RStudio, @R-rmarkdown, @R-bookdown, @R-knitr
 header-includes:
   \newcommand{\beginsupplement}{\setcounter{figure}{0} \setcounter{section}{0} \setcounter{table}{0} \setcounter{equation}{0} \renewcommand{\thefigure}{S\arabic{figure}} \renewcommand{\thesection}{S\arabic{section}} \renewcommand{\thetable}{S\arabic{table}} \renewcommand\theequation{S\arabic{equation}}}
 ---
@@ -29,17 +29,11 @@ header-includes:
 rmarkdown::render("scripts/abn_trajectories_ms.Rmd",
                   output_file = paste0(p_proj, "writing/previews/", "abn_duration_draft", format(Sys.Date(), ("_%Y_%m_%d")), ".docx"))
 
-rmarkdown::render("scripts/abn_trajectories_ms.Rmd",
-                  output_file = paste0(p_proj, "writing/previews/", "abn_duration_draft", format(Sys.Date(), ("_%Y_%m_%d")), ".pdf"),
-                  output_format = "bookdown::pdf_document2")
-
 
 # Save PDF with SI for linking below:
 rmarkdown::render("scripts/abn_trajectories_ms.Rmd",
                   output_file = paste0(p_proj, "writing/previews/", "abn_duration_draft_w_SI.pdf"),
                   output_format = "bookdown::pdf_document2")
-
-
 
 # bookdown::preview_chapter(
 #   input = "abn_trajectories_ms.Rmd",
@@ -54,7 +48,7 @@ rmarkdown::render("scripts/abn_trajectories_ms.Rmd",
 ```{r set-chunk-opts, include = FALSE}
 # set default chunk options
 knitr::opts_chunk$set(
-  out.width = "1\\textwidth",  # if compiling a pdf, include this option
+  # out.width = "1\\textwidth",  # if compiling a pdf, include this option
   # comment = NA,
   # fig.width=6, fig.height=6, 
   echo = FALSE # the code itself will NOT be printed with results
@@ -70,6 +64,8 @@ source(paste0(p_proj, "scripts/util/_util_master.R"))
 needed_packages
 github_packages
 knitr::write_bib(x = c(needed_packages, github_packages), file = 'packages.bib')
+knitr::write_bib(x = c("car"), file = 'extra.bib')
+
 citation(package = needed_packages[1])
 
 # knitr::write_bib(x = c(needed_packages[c(14)]), file = 'packages_top.bib')
@@ -633,7 +629,7 @@ Abandonment duration varied within sites, with individual site standard deviatio
 # (ref:caption-mean-abn-duration) Sites included in this study, from @Yin2020.
 # cite inline using the following  \@ref(fig:mean-abn-duration)
 
-knitr::include_graphics(path = paste0(p_plots, run_label, "/mean_lengths", run_label, ".png"))
+knitr::include_graphics(path = paste0(p_plots, run_label, "/mean_lengths", run_label, ".pdf"))
 ```
 
 (ref:caption-area-abn-by-age-class) Cumulative area abandoned at each site through time, according to age class (in years).
@@ -830,12 +826,11 @@ Code to replicate these analyses is available on GitHub at [https://github.com/c
 
 # Acknowledgements
 
-We thank the following researchers at the University of Wisconsin, whose land cover maps made this analysis possible: Amintas Brandão, Johanna Buchner, David Helmers, Benjamin G. Iuliano, Niwaeli E. Kimambo, Katarzyna E. Lewińska, Elena Razenkova, Afag Rizayeva, Natalia Rogova, Seth A. Spawn, & Yanhua Xie.
-We are also deeply indebted to Alex Wiebe, whose statistical advice informed and significantly improved our abandonment decay models.
-We also thank members of The Drongos research group for advice and companionship.
-This work was supported by Princeton University's Research Computing high performance cluster resources (*Insert text here from PRC website*), and by the High Meadows Foundation.
-
-
+We thank the following researchers at the University of Wisconsin-Madison, whose land cover maps made this analysis possible: Amintas Brandão, Johanna Buchner, David Helmers, Benjamin G. Iuliano, Niwaeli E. Kimambo, Katarzyna E. Lewińska, Elena Razenkova, Afag Rizayeva, Natalia Rogova, Seth A. Spawn, & Yanhua Xie.
+We are deeply indebted to Alex Wiebe, whose statistical advice informed and significantly improved our models of abandonment decay and recultivation.
+We also thank members of The Drongos research group for invaluable advice and companionship.
+This work was substantially performed using the Princeton Research Computing resources at Princeton University, a consortium of groups led by the Princeton Institute for Computational Science and Engineering (PICSciE) and Office of Information Technology's Research Computing.
+This work was supported by the High Meadows Foundation.
 
 
 \newpage
@@ -992,6 +987,14 @@ Area by land cover class is shown for each site in Figure \@ref(fig:area-by-lc),
 knitr::include_graphics(path = paste0(p_plots, run_label, "/area_abn_panel", run_label, ".pdf"))
 ```
 
+We also find that a significant area of abandoned croplands were recultivated by the end of our time series (Figure \@ref(fig:abn-prop-lc)).
+
+(ref:caption-abn-prop-lc) Proportion of abandoned cropland in each land cover class as of 2017.
+
+```{r abn-prop-lc, fig.cap = '(ref:caption-abn-prop-lc)', echo=FALSE}
+knitr::include_graphics(path = paste0(p_plots, run_label, "/abn_prop_lc_2017", run_label, ".pdf"))
+```
+
 (ref:caption-area-by-lc) Area in each land cover class at each site through time. Land cover classes are cropland, grassland, woody vegetation, non-vegetation, and abandoned (for at least 5 years).
 
 ```{r area-by-lc, fig.cap = '(ref:caption-area-by-lc)'}
@@ -1002,14 +1005,6 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/area_by_lc_grid", ru
 
 ```{r turnover-grid, fig.cap = '(ref:caption-turnover-grid)'}
 knitr::include_graphics(path = paste0(p_plots, run_label, "/turnover_grid", run_label, ".pdf"))
-```
-
-However, we also find that a significant area of these abandoned croplands were recultivated by the end of our time series (on average  of abandoned area across sites).
-
-(ref:caption-abn-prop-lc) Proportion of abandoned cropland in each land cover class as of 2017.
-
-```{r abn-prop-lc, fig.cap = '(ref:caption-abn-prop-lc)', echo=FALSE}
-knitr::include_graphics(path = paste0(p_plots, run_label, "/abn_prop_lc_2017", run_label, ".pdf"))
 ```
 
 
@@ -1101,18 +1096,11 @@ knitr::include_graphics(
 
 ### Model selection and diagnostics {#mod-AIC-diag}
 
-Model diagnostics:
-
-- residuals vs. fitted values (for each site)
-- qqplot (for each site)
-- residuals vs. time (all sites)
-- AIC
-
-We chose a model with the following specifications shown in Equation \@ref(eq:mod-spec).
+We chose a model with the following specifications shown in Equation \@ref(eq:mod-spec-SI).
 For cohorts of abandonment initially abandoned in years $y = 1988 ... 2013$, we estimate the proportion $p$ of each cohort $y$ remaining abandoned as a function of time $t$ (i.e. based on the number of years after initial abandonment).
 
 \begin{equation}
-p_{y} = 1 + \beta_{1,y} log(t + 1) + \beta_{2,y} t (\#eq:mod-spec)
+p_{y} = 1 + \beta_{1,y} log(t + 1) + \beta_{2,y} t (\#eq:mod-spec-SI)
 \end{equation}
 
 Where $\beta_{1,y}$ represents the regression coefficient on the log term of time $t$ for cohort $y$, and $\beta_{2,y}$ represents the regression coefficient on the linear term of time $t$ for cohort $y$.
@@ -1120,16 +1108,14 @@ We allow for site and cohort level fixed effects, fitting unique coefficients fo
 
 This corresponds to a `lm()` call of `lm(formula = I(proportion - 1)  ~ 0 + log(time + 1):cohort:site + I(time):cohort:site)`
 
+Model selection was done based on Akaike Information Criterion (AIC) values (Figure \@ref(fig:AIC)).
+We checked linear model assumptions through visual inspection of both residuals vs. fitted plots (Figure \@ref(fig:diag-resid-fitted)) and Q-Q plots (Figure \@ref(fig:diag-qq)).
+See also Figure \@ref(fig:diag-combo) to see diagnostic plots for the full model, including all sites.
+
 (ref:caption-AIC) Akaike Information Criterion (AIC) values for various model specifications. More negative AIC values indicate a better model fit.
 
 ```{r AIC, fig.cap = '(ref:caption-AIC)', fig.width = 7.5}
 knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "mod_AIC_mega_plot", run_label, ".png"))
-```
-
-(ref:caption-diag-combo) Diagnostic plots for all sites together.
-
-```{r diag-combo, fig.cap = '(ref:caption-diag-combo)'}
-knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "l3_cohort_diag_combo", run_label, ".png"))
 ```
 
 (ref:caption-diag-resid-fitted) Residuals vs. fitted diagnostic plots for each site.
@@ -1144,20 +1130,25 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "l3_cohort_
 knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "l3_cohort_diag_qq_subset", run_label, ".png"))
 ```
 
+(ref:caption-diag-combo) Diagnostic plots for all sites together.
+
+```{r diag-combo, fig.cap = '(ref:caption-diag-combo)'}
+knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "l3_cohort_diag_combo", run_label, ".png"))
+```
 
 ### Rate of change {#section-methods-rate-of-change}
 
 We examined the rate of change of recultivation rates by calculating the time required for 50% of each cohort to be recultivated and running a simple linear regression on these values as a function of time. 
-This model is shown in Equation \@ref(eq:rate-of-change-lm), and results are shown in Figure \@ref(fig:decay-rate-of-change).
-
-For cohorts of abandonment initially abandoned in years $y = 1988 ... 2013$, we estimate the time required for half of a given cohort to be recultivated $t{h,y}$ of each cohort $y$ remaining abandoned as a function of time $t$ (i.e. based on the number of years after initial abandonment).
+We estimate the time required for half (50%) of a given cohort of abandoned cropland to be recultivated, $t_{half,s}$, as a function of the year of initial abandonment ($yearabn_{s}$), at each site $s$.
+This model is shown in Equation \@ref(eq:rate-of-change-lm).
 
 \begin{equation}
-t{h,s} = \beta_{0,s} + \beta_{1,s} year_abandoned{s} (\#eq:rate-of-change-lm)
+t_{half,s} = \beta_{0,s} + \beta_{1,s} yearabn_{s} (\#eq:rate-of-change-lm)
 \end{equation}
 
-Where $\beta_{1,s}$ represents the regression slope on the year abandoned for site $s$, and $\beta_{0,s}$ represents the intercept.
+Where $\beta_{1,s}$ represents the regression slope on the year abandoned for site $s$ ($yearabn_{s}$), and $\beta_{0,s}$ represents the intercept.
 This corresponds to a `lm()` call of `lm(formula = t_half ~ year_abandoned)` run for each site individually (functionally the same as site fixed effects).
+Results are shown in Figure \@ref(fig:decay-rate-of-change).
 
 We confirmed that model assumptions were met through visual inspection of residuals vs. fitted plots (Figure \@ref(fig:rate-of-change-diag-resid-fitted)) and Q-Q plots (Figure \@ref(fig:rate-of-change-diag-qq)).
 
@@ -1173,7 +1164,6 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/rate_of_change
 # old version, with quadrants, and old CIs
 # knitr::include_graphics(path = paste0(p_plots, run_label, "/presentation/rate_of_change_recultivation_speed", run_label, ".pdf"))
 # knitr::include_graphics(path = paste0(p_plots, run_label, "/presentation/rate_of_change_recultivation_speed_old", run_label, ".pdf"))
-
 ```
 
 (ref:caption-rate-of-change-diag-resid-fitted) Residuals vs. fitted diagnostic plots for each site, for simple `lm` call corresponding to Eq. \@ref(eq:rate-of-change-lm).
@@ -1182,12 +1172,11 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/rate_of_change
 knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "rate_of_change_l3_diag_ind_resid_v_fitted", run_label, ".png"))
 ```
 
-(ref:caption-diag-qq) QQ plots for each site, calculated using the `car` package (@R-car).
+(ref:caption-rate-of-change-diag-qq) QQ plots for each site, calculated using the `car` package (@R-car).
 
 ```{r rate-of-change-diag-qq, fig.cap = '(ref:caption-rate-of-change-diag-qq)'}
 knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "rate_of_change_l3_diag_ind_qq", run_label, ".png"))
 ```
-
 
 (ref:caption-decay-time-to-range) An alternative representation of the mean decay rate for each site (also shown in Figure \@ref(fig:decay-curves-by-site)). The color of each dot corresponds to the proportion remaining after a given amount of time.
 
@@ -1223,7 +1212,8 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/",
 
 ### Alternative assumptions about annual additional abandonment
 
-As noted above, we make two simple assumptions in our extrapolation of abandonment and recultivation: specifically, that 1) recultiavtion rates remain the same ()
+As noted above, we make two simple assumptions in our extrapolation of abandonment and recultivation: specifically, that 1) recultivation rates remain the same (based on mean recultivation trends at each site, shown in Figure \@ref(fig:decay-curves-by-site), and that 2) a constant amount of cropland is newly abandoned each year, based on the mean annual gain in abandonment shown in Figure \@ref(fig:turnover-grid) (dark green bars).
+
 However, these assumptions may not be very realistic (actually, they almost certainly are not realistic). 
 In particular, it is unlikely that a constant amount of land will be newly abandoned each year indefinitely. 
 I can think of three alternative assumptions we could make:
@@ -1243,7 +1233,7 @@ Perhaps this is a sign that the least valuable land is abandoned earliest, and t
 The decay rates for cohorts towards the end of the time series are rather fast at many sites (these cohorts also have the fewest observations), which makes the site average fast as well. 
 This is one reason why the mean age is so low in many places. 
 
-#### Alternative mean decay rates
+#### (*REMOVE*) Alternative mean decay rates
 
 Currently, to get the mean decay rate for each site, I simply average each coefficient (for the log and the linear terms) across all cohorts, and then use these two mean values as the coefficients for the mean site trend (the solid blue lines in Figure \@ref(fig:decay-model-grid)).
 I think this makes sense, because it treats each cohort of abandonment equally (rather than giving more weight to cohorts with more observations, i.e. older cohorts). 
