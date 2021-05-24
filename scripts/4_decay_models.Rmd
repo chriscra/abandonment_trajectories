@@ -1053,7 +1053,8 @@ mod_AIC %>%
 
 gg_AIC <- ggplot(data = mod_AIC,
        mapping = aes(x = fct_reorder(site, desc(AIC)), y = -AIC, 
-                     group = fct_reorder(mod, AIC), fill = fct_reorder(mod, AIC))) + 
+                     # group = fct_reorder(mod, AIC), 
+                     fill = fct_reorder(mod, AIC))) + 
   theme_classic() +
   geom_col(position = position_dodge(0.9)) +
   theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) + 
@@ -2603,12 +2604,21 @@ write_csv(fitted_df_l3, file = paste0(p_dat_derived, run_label, "/decay_mod_fitt
 ```{r *mean-trend-by-site-l3}
 # plot it, reordering the factors by the coefficient (to make the legend easier to read)
 gg_model_curves_by_site_l3 <-
-  ggplot(data = fitted_df_l3 %>% filter(age < 140),
+  ggplot(data = fitted_df_l3 %>% filter(age < 140) %>%
+           mutate(site = capwords(ifelse(grepl("herze", site, ignore.case = TRUE),
+                                         gsub("_", " & ", site),
+                                  ifelse(grepl("bel", site, ignore.case = TRUE),
+                                         gsub("belarus", "Belarus/Smolensk", site),
+                                  ifelse(grepl("goias", site, ignore.case = TRUE),
+                                         gsub("goias", "Goiás", site),
+                                  ifelse(grepl("shaanxi", site, ignore.case = TRUE),
+                                         gsub("shaanxi", "Shaanxi/Shanxi", site),
+                                         gsub("_", " ", site))))))),
        mapping = aes(x = age, y = fitted, color = fct_reorder(site, time_to_0.5))) +
   theme_classic() +
   geom_line(size = 1.1) +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray70") + 
-      geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray70") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
 
   labs(#title = "Decay of abandoned land over time", 
        caption = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
@@ -2629,7 +2639,7 @@ gg_model_curves_by_site_l3 +
 ggsave(plot = gg_model_curves_by_site_l3 + 
          labs(caption = NULL) +
          scale_x_continuous(n.breaks = 15) + 
-         theme(legend.position = c(0.9, 0.65)),
+         theme(legend.position = c(0.875, 0.65)),
        filename = paste0(p_plots, run_label, "/decay/", "mean_decay_curves", run_label, ".pdf"), 
        width = 7, height = 4, units = "in", dpi = 400)
 
@@ -2823,6 +2833,34 @@ gg_rate_of_changes_2 <-
 gg_rate_of_changes_2
 gg_coef_rate_change_by_site_l3_vert # old, to compare
 
+# models themselves:
+lm_rate_of_change_ind$belarus %>%
+  tidy(., conf.int = TRUE)
+
+confint(lm_coef_l3)
+library(car)
+
+# oscar's recommendation of how to do the linear combination with "car" - but it requires filling out the hypothesis.matrix, which I don't entirely know how to do.
+linearHypothesis(lm_coef_l3, hypothesis.matrix)
+
+# , hypothesis.matrix, rhs=NULL,
+#     test=c("F", "Chisq"), vcov.=NULL, 
+# 	white.adjust=c(FALSE, TRUE, "hc3", "hc0", "hc1", "hc2", "hc4"), 
+# 	singular.ok=FALSE, ...)
+
+lm_coef_l3 # all sites together
+lm_coef_l3$coefficients
+confint(lm_coef_l3$coefficients[1])
+
+install.packages("multcomp")
+library(multcomp)
+mod_test <- glht(lm_coef_l3, linfct = c("year_abn + year_abn:sitebosnia_herzegovina = 0"))
+mod_test_w <- glht(lm_coef_l3, linfct = c("year_abn + year_abn:sitewisconsin = 0"))
+
+summary(mod_test)
+confint(mod_test)
+confint(mod_test_w)
+confint()
 
 # save combo with facet grid
 
