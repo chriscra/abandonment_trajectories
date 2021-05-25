@@ -483,7 +483,7 @@ gg_area_lc_facet_grid <-
     
     scale_color_manual(values = plot_cols) + 
   facet_wrap(vars(site),
-             labeller = as_labeller(cap_labels),
+             labeller = as_labeller(cap_update_labels),
              scales = "free")
 
 

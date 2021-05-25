@@ -1155,10 +1155,12 @@ We confirmed that model assumptions were met through visual inspection of residu
 (ref:caption-decay-rate-of-change) The rate of change of decay rates (measured by the time required for 50% of each cohort to be recultivated) at each site over the course of the time series. Individual site trends are shown in the grid at left. Solid lines show simple linear regressions, the slopes of which are shown at right. Gray bands around the linear trends at left and the error bars on slope estimates at the right both represent 95% confidence intervals.
 
 ```{r decay-rate-of-change, fig.cap = '(ref:caption-decay-rate-of-change)', echo=FALSE}
-knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/rate_of_change_recultivation_speed_combo", run_label, ".pdf"))
+knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/rate_of_change_recultivation_speed_combo", 
+                                      "_indiv", run_label, ".pdf"))
 
 # old confidence intervals
-# knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/rate_of_change_recultivation_speed_combo_old", run_label, ".pdf"))
+# knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/rate_of_change_recultivation_speed_combo",
+#                                       "_old", run_label, ".pdf"))
 
 
 # old version, with quadrants, and old CIs

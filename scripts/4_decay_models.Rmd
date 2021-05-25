@@ -1211,7 +1211,7 @@ lm_mega_0_l <- lm(log(proportion) ~ 0 + time,
 
 
 ```{r mega-lm}
-# note: it shouldn't make a difference whether you run the model for each site individually or as one mega model. For simplicity, I'm going to continue with the site specific models, since that is how I've largely coded things so far. 
+# note: it shouldn't make a difference whether you run the model for each site individually or as one mega model. For simplicity, I'm going to continue with the site specific models, since that is how I've largely coded things so far. However, note that the confidence intervals on the individual models will be different from the CIs for the full model including all sites.
 
 # constructing a model of all sites, with cohort and site fixed effects
 str(dat_l)
@@ -1237,6 +1237,23 @@ coef_l3_mega <- tidy(lm_mega_lin_log_lin_l) %>%
   mutate(site = gsub("site", "", str_extract(term, "site[a-z,_]*")),
          year_abn = as.integer(str_extract(term, "[1-2][0-9][0-9][0-9]")),
          coef_term = ifelse(grepl("log", term), "log", "lin"))
+
+
+# are the coefficient estimates exactly the same?
+all.equal(
+  coef_l3_mega %>% select(site, coef_term, year_abn, estimate),
+  coef_df_l3 %>% select(site, coef_term = term, year_abn, estimate)
+)
+
+tjoin <- left_join(
+  coef_l3_mega %>% select(site, coef_term, year_abn, estimate_full = estimate), 
+  coef_df_l3 %>% select(site, coef_term = term, year_abn, estimate_indiv = estimate)
+  )
+
+# yes, they are identical!
+tjoin %>% mutate(test = all.equal(estimate_full, estimate_indiv)) %>% .$test %>% table()
+tjoin %>% mutate(diff = estimate_full - estimate_indiv) %>% .$diff %>% round(., digits = 14)
+
 
 coef_l3_mega %>% filter(is.na(year_abn)) %>% print(n = 22)
 coef_l3_mega %>% filter(site == "belarus", coef_term == "log")
@@ -1540,8 +1557,8 @@ ggsave(plot = gg_decay_simple,
 
 # Check Assumptions
 
-```{r Oscar}
-# chat with Oscar
+```{r Oscar-2020}
+# chat with Oscar (December 2020)
 
 # best models so far:
 lm_mod_log2_cohort
@@ -1593,7 +1610,7 @@ ggplot(data = dat, mapping = aes(x = age, y = proportion, group = year_abn, colo
   scale_x_continuous(breaks = seq(from = 0, to = 30, by = 5))
 ```
 
-```{r diag-plots}
+```{r diag-plots-old}
 # -------------------------------------------------------------------------------------------------- #
 # ------------------------------------- log-log diagnostics plots ---------------------------------- #
 # -------------------------------------------------------------------------------------------------- #
@@ -2516,7 +2533,7 @@ gg_mean_coef_site_l3 <-
   labs(x = "Mean Coefficients", y = NULL, 
        title = "Mean Decay Rates By Site",
        subtitle = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
-       caption = "Error bars represent the mean of high and low cofficients from 95% confidence interval") + 
+       caption = "Error bars represent the mean of high and low 95% confidence interval coefficient estimates") + 
   geom_vline(xintercept = 0, linetype = "dashed") +
   theme(plot.caption = element_text(face = "italic")) + 
   facet_grid(cols = vars(term), switch = "y",
@@ -2782,39 +2799,145 @@ ggplot(data = coef_df_wide_l3 %>% filter(site == "belarus"),
 coef_df2_l3
 ```
 
-```{r l3-rate-of-change-testing}
-coef_df_wide_l3 %>% 
-  mutate(time = year_abn - 1987) %>%
-  filter(
-    site == "chongqing",
-    !is.na(time_to_0.5)
-    ) %>% 
-  lm(time_to_0.5 ~ year_abn, data = .) %>%
-  # lm(time_to_0.5 ~ time, data = .) %>%
-  tidy(., conf.int = TRUE) %>% mutate(site = "chongqing")
+```{r l3-rate-of-change}
+# --------------------------------------------------------------------------- #
+# calculate linear model for time to half for each cohort, full model including all sites:
 
+lm_coef_l3 <- lm(time_to_0.5 ~ year_abn * site - 1, data = filter(coef_df_wide_l3, !is.na(time_to_0.5)))
+
+
+# diagnostic plots
+
+plot(lm_coef_l3, 1)
+plot(lm_coef_l3, 2)
+
+
+png(filename = paste0(p_plots, run_label, "/decay/", "rate_of_change_l3_diag_full_mod", run_label, ".png"), 
+    width = 8, height = 5, units = "in", res = 400)
+par(mfrow = c(1, 2))
+plot(lm_coef_l3, 1)
+plot(lm_coef_l3, 2)
+dev.off()
+
+```
+
+```{r l3-roc-lincom}
+# Discussion with Oscar, May 18, 2021
+# Oscar's recommendation of how to do the linear combination with "car" - but it requires filling out the hypothesis.matrix, which I don't entirely know how to do. So, I ended up doing the lienar combination using multcomp
+library(car)
+linearHypothesis(lm_coef_l3, c("year_abn + year_abn:sitewisconsin = 0"))
+
+
+install.packages("multcomp")
+library(multcomp)
+
+coef_sites <- names(coef(lm_coef_l3)) %>% #Extract the coefficient names, tidy(lm_coef_l3)$term also works
+  grep("abn", ., value = TRUE)
+
+lm_coef_l3 %>%
+  glht(., linfct = paste0("year_abn + ", coef_sites[2], " = 0")) %>%
+  confint() %>% tidy()
+
+lincom_ci <- lapply(2:11, function(i) {
+  lm_coef_l3 %>%
+    glht(., linfct = paste0("year_abn + ", coef_sites[i], " = 0")) %>%
+    confint() %>% tidy() %>% mutate(site = site_df$site[i])
+}) %>% bind_rows() %>% rename(term = contrast)
+
+lincom_ci <- 
+  tidy(lm_coef_l3, conf.int = TRUE) %>% filter(term == "year_abn") %>% 
+  mutate(site = site_df$site[1]) %>%
+  select(term, estimate, conf.low, conf.high, site) %>%
+  bind_rows(., lincom_ci)
+
+lincom_ci %>% arrange(conf.high)
+
+# new coefficient plots with new, linear combination confidence intervals
+gg_roc_lincom <- lincom_ci %>%
+  ggplot(data = .,
+         aes(y = fct_reorder(site, estimate), 
+             x = estimate)) + 
+  theme_classic() +
+  geom_point() + 
+  geom_errorbar(mapping = aes(xmin = conf.low, xmax = conf.high), width = 0.2) +
+  geom_vline(xintercept = 0, linetype = "dashed") + 
+  labs(y = NULL, #"Site", 
+       x = "Rate of change of recultivation speed \n(slope of time to 50% recultivation, \nin terms of years per year)") + 
+  theme(legend.position = "none",
+        plot.margin = unit(c(0.4, 0.6, 0.2, 0.2), "cm"))
+
+
+# for SI ------------------------- #
+ggsave(plot = plot_grid(gg_cohort_coefs_grid,
+                        gg_roc_lincom,
+                        ncol = 2, rel_widths = c(1, 0.6), align = "h", axis = "b"),
+       filename = paste0(p_plots, run_label, "/decay/", "rate_of_change_recultivation_speed_combo", 
+                         "_lincom", run_label, ".pdf"), 
+       width = 11, height = 6, units = "in")
+
+
+# combo quadrant with coefs:
+
+ggsave(plot = plot_grid(gg_l3_cohort_coef_all + theme(legend.position = "bottom"),
+                        gg_roc_lincom,
+                        ncol = 2, rel_widths = c(1, 0.6), align = "h", axis = "b"),
+       filename = paste0(p_plots, run_label, "/presentation/", "rate_of_change_recultivation_speed", 
+                         "_lincom", run_label, ".pdf"), 
+       width = 11, height = 6, units = "in")
+
+
+
+
+
+# extras:
+# ---------------------------------------------------------------- #
+# calculate the CIs directly, using the variance-covariance matrix
+# ---------------------------------------------------------------- #
+vcov(lm_coef_l3) %>% colnames()
+mat <- vcov(lm_coef_l3)
+mat %>% as_tibble()
+
+test_se <- sqrt(
+  mat["year_abn", "year_abn"] + 
+    mat["year_abn:sitebosnia_herzegovina", "year_abn:sitebosnia_herzegovina"] + 
+    2 * mat["year_abn", "year_abn:sitebosnia_herzegovina"]
+)
+
+# see:
+# https://stats.stackexchange.com/questions/446676/measuring-standard-error-of-two-or-more-coefficients-combined 
+
+coef(lm_coef_l3)["year_abn"] + coef(lm_coef_l3)["year_abn:sitebosnia_herzegovina"] - 1.9705*test_se
+coef(lm_coef_l3)["year_abn"] + coef(lm_coef_l3)["year_abn:sitebosnia_herzegovina"] + 1.9705*test_se
+
+glht(lm_coef_l3, linfct = c("year_abn + year_abn:sitebosnia_herzegovina = 0")) %>%
+  confint() %>% tidy()
+```
+
+```{r l3-roc-indiv}
+# create list of linear models for each site individually
 lm_rate_of_change_ind <- lapply(1:11, function(i) {
   lm(time_to_0.5 ~ year_abn, data = filter(coef_df_wide_l3, site == site_df$site[i], !is.na(time_to_0.5)))
 })
 
 names(lm_rate_of_change_ind) <- site_df$site
 
+# create tidied data.frame, for plotting
 dt_recult_rate <- lapply(lm_rate_of_change_ind, function(i) {
   tidy(i, conf.int = TRUE) 
 }) %>% bind_rows(.id = "site") 
 
+# are the coefficient estimates exactly the same? Yes.
+all.equal(
+  dt_recult_rate %>% filter(term == "year_abn") %>% select(site, estimate),
+  lincom_ci %>% select(site, estimate)
+)
 
 
-t1 <- dt_recult_rate %>%
-  filter(term == "year_abn") %>%
-  arrange(desc(term), estimate) #%>% print(n = 22)
-
-t1 %>% mutate(diff = conf.low - conf.high) 
-t2 %>% mutate(diff = conf.low - conf.high,
-              plus = diff - 0.892 * 2)
-
+# ---------------------------------------------------------------- #
 # plot the new coefficient range:
-gg_rate_of_changes_2 <- 
+# ---------------------------------------------------------------- #
+
+gg_roc_indiv <- 
   dt_recult_rate %>% filter(term == "year_abn") %>%
   left_join(., mean_coef_df_wide_l3, by = "site") %>%
   ggplot(data = .,
@@ -2829,55 +2952,28 @@ gg_rate_of_changes_2 <-
   theme(legend.position = "none",
         plot.margin = unit(c(0.4, 0.6, 0.2, 0.2), "cm"))
 
-
-gg_rate_of_changes_2
+gg_roc_lincom
+gg_roc_indiv
 gg_coef_rate_change_by_site_l3_vert # old, to compare
 
-# models themselves:
-lm_rate_of_change_ind$belarus %>%
-  tidy(., conf.int = TRUE)
 
-confint(lm_coef_l3)
-library(car)
-
-# oscar's recommendation of how to do the linear combination with "car" - but it requires filling out the hypothesis.matrix, which I don't entirely know how to do.
-linearHypothesis(lm_coef_l3, hypothesis.matrix)
-
-# , hypothesis.matrix, rhs=NULL,
-#     test=c("F", "Chisq"), vcov.=NULL, 
-# 	white.adjust=c(FALSE, TRUE, "hc3", "hc0", "hc1", "hc2", "hc4"), 
-# 	singular.ok=FALSE, ...)
-
-lm_coef_l3 # all sites together
-lm_coef_l3$coefficients
-confint(lm_coef_l3$coefficients[1])
-
-install.packages("multcomp")
-library(multcomp)
-mod_test <- glht(lm_coef_l3, linfct = c("year_abn + year_abn:sitebosnia_herzegovina = 0"))
-mod_test_w <- glht(lm_coef_l3, linfct = c("year_abn + year_abn:sitewisconsin = 0"))
-
-summary(mod_test)
-confint(mod_test)
-confint(mod_test_w)
-confint()
-
-# save combo with facet grid
 
 # for SI ------------------------- #
 ggsave(plot = plot_grid(gg_cohort_coefs_grid,
-                        gg_rate_of_changes_2,
+                        gg_roc_indiv,
                         ncol = 2, rel_widths = c(1, 0.6), align = "h", axis = "b"),
-       filename = paste0(p_plots, run_label, "/decay/", "rate_of_change_recultivation_speed_combo", run_label, ".pdf"), 
+       filename = paste0(p_plots, run_label, "/decay/", "rate_of_change_recultivation_speed_combo", 
+                         "_indiv", run_label, ".pdf"), 
        width = 11, height = 6, units = "in")
 
 
 # combo quadrant with coefs:
 
 ggsave(plot = plot_grid(gg_l3_cohort_coef_all + theme(legend.position = "bottom"),
-                        gg_rate_of_changes_2,
+                        gg_roc_indiv,
                         ncol = 2, rel_widths = c(1, 0.6), align = "h", axis = "b"),
-       filename = paste0(p_plots, run_label, "/presentation/", "rate_of_change_recultivation_speed", run_label, ".pdf"), 
+       filename = paste0(p_plots, run_label, "/presentation/", "rate_of_change_recultivation_speed", 
+                         "_indiv", run_label, ".pdf"), 
        width = 11, height = 6, units = "in")
 
 
@@ -2885,88 +2981,6 @@ ggsave(plot = plot_grid(gg_l3_cohort_coef_all + theme(legend.position = "bottom"
 
 
 
-
-coef_df2_l3 %>% arrange(estimate_slope)
-
-# full set of sites
-coef_df_wide_l3 %>% 
-  mutate(time = year_abn - 1987) %>%
-  filter(!is.na(time_to_0.5)) %>% 
-  lm(time_to_0.5 ~ year_abn + site + year_abn:site, data = .) %>%
-  # lm(time_to_0.5 ~ time, data = .) %>%
-  tidy(., conf.int = TRUE) %>% print(n = 26)
-
-
-# the confidence interval on the slope is different from the one determined via:
-coef_df2_l3 %>% filter(site == "belarus")
--0.892 -5.91
--0.892 +0.803 # cq
-( 0.089 + 0.292) 
-
--0.892 -5.91
--0.892 -5.91
-
-
-0.32 # estimate
--1.72 # lower CI from individual calculation
-2.36
-
-0.32 + 1.72
-2.36-0.32
-0.32 + 1.96 * 0.974
-
-
--2.07 # lower CI from group lm calculation
-2.71
-
--0.8919682 + 1.21 # estimate
--0.8919682 - 0.188 # low
--0.8919682 + 2.61 # high
-
-
-lm(time_to_0.5 ~ time * site - 1, 
-   data = filter(mutate(coef_df_wide_l3, time = year_abn - 1987), !is.na(time_to_0.5))) %>%
-  tidy(., conf.int = TRUE) %>%
-  mutate(termm = ifelse(grepl("time", term), "slope", "int"),
-         site = gsub("site|time:", "", term)) %>%
-   # print(n = 22) %>%
-  filter(site %in% c("time", "shaanxi"))
-
-par(mfrow = c(2, 2))
-plot(lm_coef_l3)
-
-
-# check the ranges:
-lm_coef_l3
-coef_df2_l3
-
-
-t1 %>% mutate(diff = conf.low - conf.high) 
-t2
-
-offset <- t2 %>% filter(site == "belarus") %>% .$estimate
-t1 %>% arrange(site)
-
-plot_coefs_grouped_lm <- t2 %>% arrange(site) %>%
-  mutate(adj_est = ifelse(site == "belarus", estimate, estimate + offset),
-         adj_CI_low = ifelse(site == "belarus", conf.low, conf.low + offset),
-         adj_CI_high = ifelse(site == "belarus", conf.high, conf.high + offset)) %>%
-  ggplot(data = ., mapping = aes(x = adj_est, y = fct_reorder(site, adj_est))) + 
-  theme_classic() +
-  geom_point() + 
-  geom_errorbar(mapping = aes(xmin = adj_CI_low, xmax = adj_CI_high), width = 0.2) +
-  geom_vline(xintercept = 0, linetype = "dashed")
-
-# coefficients as calculated separately:
-gg_rate_of_changes_2
-
-# original confidence intervals:
-gg_coef_rate_change_by_site_l3_vert # much wider, calculated by adding the high and low ends of the CI on the first site's slope (Belarus, i.e. the offset)
-
-
-
-confint(lm_coef_l3)
-summary(lm_coef_l3)
 
 
 # -------------------------------------------------------------------------- #
@@ -2993,26 +3007,15 @@ for (i in 1:11) {
 
 dev.off()
 
-
-
-
 ```
 
 
-```{r l3-rate-of-change}
+```{r l3-roc-full-mod-old}
 # --------------------------------------------------------------------------- #
 # OLD - these coefficient estimates have a confidence window that is too broad
 # --------------------------------------------------------------------------- #
-# calculate linear model for time to half for each cohort
 
-lm_coef_l3 <- lm(time_to_0.5 ~ year_abn * site - 1, data = filter(coef_df_wide_l3, !is.na(time_to_0.5)))
-
-t2 <- tidy(lm_coef_l3, conf.int = TRUE) %>%
-  mutate(termm = ifelse(grepl("year_abn", term), "slope", "int"),
-         site = gsub("site|year_abn:", "", term),
-         site = gsub("year_abn", "belarus", site)) %>%
-   # print(n = 22) %>% 
-  filter(termm == "slope") %>% arrange(estimate)
+lm_coef_l3
 
 # create table of regression coefficients for the rate of change of the "time to half" 
  
@@ -3090,7 +3093,8 @@ dev.off()
 ggsave(plot = plot_grid(gg_l3_cohort_coef_all + theme(legend.position = "bottom"),
                         gg_coef_rate_change_by_site_l3_vert,
                         ncol = 2, rel_widths = c(1, 0.6), align = "h", axis = "b"),
-       filename = paste0(p_plots, run_label, "/presentation/", "rate_of_change_recultivation_speed_old", run_label, ".pdf"), 
+       filename = paste0(p_plots, run_label, "/presentation/", "rate_of_change_recultivation_speed",
+                         "_old", run_label, ".pdf"), 
        width = 11, height = 6, units = "in")
 
 
@@ -3098,7 +3102,8 @@ ggsave(plot = plot_grid(gg_l3_cohort_coef_all + theme(legend.position = "bottom"
 ggsave(plot = plot_grid(gg_cohort_coefs_grid,
                         gg_coef_rate_change_by_site_l3_vert,
                         ncol = 2, rel_widths = c(1, 0.6), align = "h", axis = "b"),
-       filename = paste0(p_plots, run_label, "/decay/", "rate_of_change_recultivation_speed_combo_old", run_label, ".pdf"), 
+       filename = paste0(p_plots, run_label, "/decay/", "rate_of_change_recultivation_speed_combo",
+                         "_old", run_label, ".pdf"), 
        width = 11, height = 6, units = "in")
 
 

@@ -2263,7 +2263,7 @@ gg_turnover_facet_grid <-
               mapping = aes(x = year, y = area_ha / (10^3), color = "Net Change in Area"),
               size = 1) + 
   facet_wrap(vars(site),
-             labeller = as_labeller(cap_labels),
+             labeller = as_labeller(cap_update_labels),
              scales = "free") +
     theme(legend.position = c(0.9, 0.12),
           legend.title = element_text(size = 10))
