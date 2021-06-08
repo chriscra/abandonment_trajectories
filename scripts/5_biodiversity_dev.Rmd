@@ -492,3 +492,157 @@ template_raster <- extend(small_mask, extent(as.Spatial(sf_file)), value = 0)
 
 
 ```
+
+```{r biomes}
+# use this version to match to PREDICTS
+tic()
+ecoregions <- st_read(paste0(p_dat, "Habitats/terr-ecoregions-TNC/tnc_terr_ecoregions.shp")) %>%
+  st_make_valid()
+toc() # 20 seconds about. (making the geometries valid is quick!)
+
+
+# rename the column for WWF_MHTNAM to biome (this matches PREDICTS)
+ecoregions <- ecoregions %>% mutate(biome = WWF_MHTNAM)
+ecoregions %>% st_drop_geometry() %>% select(biome) %>% unlist(use.names = FALSE) %>% unique()
+
+# union ecoregions within each biome
+biome_names <- ecoregions %>% st_drop_geometry() %>% select(biome) %>% unlist(use.names = FALSE) %>% unique()
+biome_l <- vector(mode = "list", length = 16L)
+names(biome_l) <- biome_names
+
+tic()
+for(i in 1:16) {
+  biome_l[[i]] <- ecoregions %>% 
+    filter(biome == biome_names[i]) %>%
+    st_union() %>%
+    st_sf() %>%
+    mutate(biome = biome_names[i])
+}
+toc() # took a bit of a while - maybe 60 seconds.
+
+biomes <- bind_rows(biome_l)
+
+# I tried aggregate, st_union, st_combine, merge, etc., and I couldn't find a simple way to dissolve an sf object based on an attribute, other than doing them all individually, then binding them back together. 
+
+
+# save biomes sf file
+st_write(biomes, dsn = paste0(p_dat, "Habitats/biomes.shp"))
+save(biomes, file = paste0(p_dat, "Habitats/biomes.rds"))
+
+biomes <- st_read(paste0(p_dat, "Habitats/biomes.shp"))
+```
+
+```{r plot-biomes}
+# load biomes - see "biomes" chunk above
+biomes <- st_read(paste0(p_dat, "Habitats/biomes.shp"))
+
+# "Biomes ... are defined by The Nature Conservancy's terrestrial ecoregions of the world dataset"
+
+# make a list of cropped biomes cropped to each site:
+biomes_crop <- lapply(1:11, function(i) {
+  temp <- st_crop(biomes, extent(site_r[[i]]))
+  temp <- temp %>% mutate(site = site_df$site[i])
+  temp
+}) %>% bind_rows()
+
+site_biome_names <- biomes_crop %>% 
+  st_drop_geometry() %>% select(biome) %>% 
+  arrange(biome) %>% unique() %>% .$biome
+
+# all site - but facet_wrap doesn't work with geom_sf with free scales
+ggplot() + theme_classic() + 
+  geom_sf(data = biomes_crop, aes(fill = biome)) + 
+  # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  facet_wrap(vars(site))
+
+
+biome_pal <- gg_color_hue(9)
+names(biome_pal) <- site_biome_names
+
+site_df
+biomes_crop %>% st_drop_geometry() %>% select(biome, site) %>%
+  
+
+
+str_wrap(names(biome_pal), 20)
+
+biomes_crop %>% 
+  st_drop_geometry() %>% select(biome, site)
+  
+gg_biomes_all <-
+  ggplot(data = biomes_crop, aes(fill = biome)) +
+  theme_classic() + 
+  geom_sf() + 
+  labs(fill = NULL) +
+  theme(legend.position = "right",
+        legend.text = element_text(size = 7)) + 
+  guides(fill = guide_legend(ncol = 2)) +
+  scale_fill_manual(values = biome_pal, labels = str_wrap(names(biome_pal), 24)
+                    ) + 
+  facet_wrap(vars(site), labeller = as_labeller(cap_update_labels))
+
+  
+biomes_by_site <-
+  lapply(1:11, function(i){
+    ggplot(data = biomes_crop %>% filter(site == site_df$site[i]), aes(fill = biome)) +
+      theme_classic() + 
+      geom_sf() + 
+      labs(fill = NULL) +
+      theme(legend.position = "none",
+            axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) + 
+      guides(fill = guide_legend(ncol = 1)) + 
+      scale_fill_manual(values = biome_pal) + 
+      facet_wrap(vars(site), labeller = as_labeller(cap_update_labels))
+  })
+
+
+biome_legend <- ggpubr::get_legend(gg_biomes_all + 
+                                     guides(fill = guide_legend(nrow = 2)) +
+                                     theme(legend.position = "bottom"))
+
+ggsave(plot = 
+         plot_grid(
+           plot_grid(plotlist = biomes_by_site, ncol = 4, nrow = 3),
+           as_ggplot(biome_legend),
+           nrow = 2, rel_heights = c(2, 0.2)),
+       filename = paste0(p_plots, "biomes_by_site.pdf"), 
+    width = 7.5, height = 6.75, units = "in"
+)
+
+as_ggplot(biome_legend)
+
+# biomes_by_site[[12]] <- as_ggplot(biome_legend)
+
+ggplot(data = biomes_crop, aes(fill = biome)) +
+  theme_classic() + 
+  geom_sf() + 
+  # scale_fill_manual(values = biome_pal, labels = str_wrap(names(biome_pal), 20)) + 
+  # facet_wrap(vars(site), labeller = as_labeller(cap_update_labels)) +
+  guides(fill = guide_legend(ncol = 1)) %>% 
+  ggpubr::get_legend() %>% as_ggplot()
+```
+
+```{r biome-with-raster}
+ggplot() +
+  theme_classic() + 
+  geom_sf(data = biomes_crop %>% filter(site == "shaanxi"), aes(fill = biome)) + 
+  labs(fill = NULL) +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 7)) + 
+  guides(fill = guide_legend(ncol = 2)) +
+  scale_fill_manual(values = biome_pal, labels = str_wrap(names(biome_pal), 24)
+                    ) + 
+  facet_wrap(vars(site), labeller = as_labeller(cap_update_labels)) + 
+  geom_raster(age_r$shaanxi$y2017, mapping = aes(fill = y2017))
+
+
+plot(biomes_crop %>% filter(site == "shaanxi") %>% select(biome))
+
+p <- gplot(age_r$shaanxi$y2017) + 
+  geom_raster(aes(fill = value)) +
+  # facet_wrap(~ variable) +
+  scale_fill_gradientn(colours = terrain.colors(100)) +
+  coord_quickmap() 
+
+```
+
