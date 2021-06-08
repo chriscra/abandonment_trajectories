@@ -29,10 +29,12 @@ needed_packages <- c(
   "lamW", # to calculate the Lambert's W function, for calculating time to various proportions in abn decay models
   "equatiomatic",
   "olsrr", # for model diagnostics
+  "car", "multcomp", # recommended by Oscar Torres-Reyna for stats diagnostics
   
   # visualization:
   "rasterVis", "RColorBrewer", "viridis", "scales", "colorspace",
   "patchwork", "cowplot", # for combining multiple plots
+  "ggpubr", # for extracting legends
   "animation", "magick", "ggrepel",
   "plotly", # plotly makes interactive graphics!
   
