@@ -10,6 +10,19 @@
 # --------------------------------------------------------------- #
 # ----------------------- plotting utils ------------------------ 
 # --------------------------------------------------------------- #
+
+# general ggplot color palette
+gg_color_hue <- function(n) {
+  hues = seq(15, 375, length = n + 1)
+  hcl(h = hues, l = 65, c = 100)[1:n]
+}
+# show_col(gg_color_hue(3))
+
+# to define a color palette for plotting, first make a character vector with the colors, then assign names to match the factor levels.
+# use this as scale_fill_manual(values = your_custom_palette)
+
+
+
 # define color palette for plotting:
 # 1. Non-veg
 # 2. Woody veg

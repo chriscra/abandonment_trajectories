@@ -998,17 +998,17 @@ for (i in 1:11) {
 
 ```{r AIC}
 
-mod_ll <- list("lm_log2_l" = lm_log2_l,
-               "lm_log2_lin_l" = lm_log2_lin_l,
+mod_ll <- list("log(p) ~ 0 + log(time + 1):cohort" = lm_log2_l,
+               "log(p) ~ 0 + log(time + 1):cohort + time:cohort" = lm_log2_lin_l,
                #"lm_log2_lin_l_not0" = lm_log2_lin_l_not0,
-               "lm_lin_log_l" = lm_lin_log_l,
-               "lm_lin_log_lin_l" = lm_lin_log_lin_l,
-               "lm_l3_no_cohort_l" = lm_l3_no_cohort_l,
+               "p - 1 ~ 0 + log(time + 1):cohort" = lm_lin_log_l,
+               "p - 1 ~ 0 + log(time + 1):cohort + time:cohort" = lm_lin_log_lin_l,
+               "p - 1 ~ 0 + log(time + 1) + time" = lm_l3_no_cohort_l,
                #"lm_lin_log_lin_l_not0" = lm_lin_log_lin_l_not0,
                # "lm_log2_no_cohort_l" = lm_log2_no_cohort_l,
                # "lm_log2_year_abn_l" = lm_log2_year_abn_l,
                #"lm_0_l" = lm_0_l,
-               "lm_log_lin_l" = lm_log_lin_l
+               "log(p) ~ 0 + time:cohort" = lm_log_lin_l
                )
 
 mod_ll_mega <- list(
@@ -1021,9 +1021,11 @@ mod_ll_mega <- list(
   "log(p) ~ 0 + log(time + 1):site + \nlog(time + 1):year_abn:site" = lm_mega_log2_year_abn_l,
   "log(p) ~ 0 + time:cohort:site" = lm_mega_log_lin_l,
   "log(p) ~ 0 + time:site" = lm_mega_log_lin_no_cohort_l,
-  "log(p) ~ 0 + time:cohort:site" = lm_mega_lin_cohort_l,
+  # "log(p) ~ 0 + time:cohort:site" = lm_mega_lin_cohort_l, # identical to lm_mega_log_lin_l
   "log(p) ~ 0 + time" = lm_mega_0_l,
   "p - 1 ~ 0 + log(time + 1):year_abn:site + \ntime:year_abn:site" = lm_mega_l3_cont)
+
+
 
 # Calculate AIC
 mod_AIC <- lapply(mod_ll, 
@@ -1051,21 +1053,31 @@ write_csv(mod_AIC, file = paste0(p_dat_derived, "mod_AIC", run_label, ".csv"))
 mod_AIC %>% 
   arrange(site, AIC) %>% select(site, AIC, mod, adj.r.squared) %>% print(n = 150)
 
-gg_AIC <- ggplot(data = mod_AIC,
-       mapping = aes(x = fct_reorder(site, desc(AIC)), y = -AIC, 
+gg_AIC <-
+  ggplot(data = mod_AIC,
+       mapping = aes(x = fct_reorder(site, desc(AIC)), y = AIC, 
                      # group = fct_reorder(mod, AIC), 
                      fill = fct_reorder(mod, AIC))) + 
   theme_classic() +
   geom_col(position = position_dodge(0.9)) +
   theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) + 
-  labs(x = "Site", y = "Absolute Value AIC (larger is better)", fill = "Model")
+  labs(x = "Site", y = "AIC Value", fill = "Model Specification") +
+    facet_wrap(vars(site), scales = "free", labeller = as_labeller(cap_update_labels)) + 
+    theme(legend.position = "bottom", 
+          axis.text.x = element_blank(), 
+          axis.title.x = element_blank(), 
+          axis.ticks.x = element_blank()) + 
+    guides(fill = guide_legend(ncol = 2, byrow = FALSE))
 
 
 # Save png
-png(filename = paste0(p_plots, run_label, "/decay/", "mod_AIC_plot", run_label, ".png"), 
-    width = 10, height = 5, units = "in", res = 400)
-print(gg_AIC)
-dev.off()
+# png(filename = paste0(p_plots, run_label, "/decay/", "mod_AIC_plot", run_label, ".png"), 
+#     width = 10, height = 5, units = "in", res = 400)
+# print(gg_AIC)
+# dev.off()
+ggsave(plot = gg_AIC, 
+       filename = paste0(p_plots, run_label, "/decay/", "mod_AIC_plot", run_label, ".pdf"), 
+    width = 7.5, height = 6, units = "in")
 
 
 # mega AIC figure
@@ -2709,11 +2721,13 @@ mean_coef_df %>% mutate(site = fct_relevel(site, coef_level_order)) %>% .$site
 ```{r plot-coef-all-sites-l3}
 
 # plot all cohort coefficients with linear trend, on a facet_grid by site
-gg_cohort_coefs_grid <- 
-  ggplot(data = coef_df_wide_l3 %>% filter(),
+gg_cohort_coefs_grid <-
+  ggplot(data = coef_df_wide_l3 %>% 
+           left_join(., select(filter(dt_recult_rate, term == "year_abn"),
+                               site, roc_estimate = estimate), 
+                     by = "site"),
        mapping = aes(x = year_abn, y = time_to_0.5#, group = site, color = site
-                     )
-       ) + 
+                     )) + 
   theme_classic() +
   geom_point(position = position_jitter()) + 
   #geom_errorbar(mapping = aes(ymin = conf.low, ymax = conf.high), width = 0.3) +
@@ -2729,9 +2743,11 @@ gg_cohort_coefs_grid <-
         plot.margin = unit(c(0.4, 0.5, 0.2, 0.2), "cm")) + 
   geom_smooth(method = "lm", se = TRUE) +
   # facet_wrap(vars(site), scales = "free_y") #+
-  facet_wrap(vars(fct_reorder(site, mean_time_to_0.5)), 
+  facet_wrap(vars(fct_reorder(site, #mean_time_to_0.5
+                              roc_estimate
+                              )), 
              scales = "free_y",
-             labeller = as_labeller(cap_labels))  # see _util_misc_functions.R
+             labeller = as_labeller(cap_update_labels))  # see _util_misc_functions.R
 
 
 
@@ -2855,7 +2871,7 @@ lincom_ci %>% arrange(conf.high)
 # new coefficient plots with new, linear combination confidence intervals
 gg_roc_lincom <- lincom_ci %>%
   ggplot(data = .,
-         aes(y = fct_reorder(site, estimate), 
+         aes(y = fct_reorder(site, desc(estimate)), 
              x = estimate)) + 
   theme_classic() +
   geom_point() + 
@@ -2937,11 +2953,10 @@ all.equal(
 # plot the new coefficient range:
 # ---------------------------------------------------------------- #
 
-gg_roc_indiv <- 
+gg_roc_indiv <-
   dt_recult_rate %>% filter(term == "year_abn") %>%
-  left_join(., mean_coef_df_wide_l3, by = "site") %>%
   ggplot(data = .,
-         aes(y = fct_reorder(site, estimate), 
+         aes(y = fct_reorder(site, desc(estimate)), 
              x = estimate)) + 
   theme_classic() +
   geom_point() + 
@@ -2996,15 +3011,14 @@ for (i in 1:11) plot(lm_rate_of_change_ind[[i]], 1, main = site_df$site %>% gsub
 dev.off()
 
 # ----------------------- QQ diagnostics plot ----------------------- #
-png(filename = paste0(p_plots, run_label, "/decay/", "rate_of_change_l3_diag_ind_qq2", run_label, ".png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "rate_of_change_l3_diag_ind_qq_car", run_label, ".png"), 
     width = 9, height = 8, units = "in", res = 400)
 par(mfrow = c(3, 4))
 for (i in 1:11) {
   # plot(lm_rate_of_change_ind[[i]], 2, main = site_df$site %>% gsub("_", " ", .) %>% capwords() %>% .[i])
-  qqPlot(lm_rate_of_change_ind[[9]], main = site_df$site %>% gsub("_", " ", .) %>% capwords() %>% .[9], 
-       ylab = "Standardized Residuals", xlab = "Theoretical Quantiles")
+  qqPlot(lm_rate_of_change_ind[[i]], main = site_df$site %>% gsub("_", " ", .) %>% capwords() %>% .[i],
+         ylab = "Standardized Residuals", xlab = "Theoretical Quantiles")
 }
-
 dev.off()
 
 ```
