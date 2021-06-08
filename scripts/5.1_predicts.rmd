@@ -361,6 +361,14 @@ desert_regions <- ecoregions %>%
 
 
 ```{r biomes}
+
+# use this version to match to PREDICTS
+tic()
+ecoregions <- st_read(paste0(p_dat, "Habitats/terr-ecoregions-TNC/tnc_terr_ecoregions.shp")) %>%
+  st_make_valid()
+toc() # 20 seconds about. (making the geometries valid is quick!)
+
+
 # rename the column for WWF_MHTNAM to biome (this matches PREDICTS)
 ecoregions <- ecoregions %>% mutate(biome = WWF_MHTNAM)
 ecoregions %>% st_drop_geometry() %>% select(biome) %>% unlist(use.names = FALSE) %>% unique()
@@ -1030,7 +1038,7 @@ predicts %>% select(Measurement, Effort_corrected_measurement) %>% head() # esse
 
 # Merge sites that have the same coordinates (e.g. multiple traps on a single transect)
 nrow(predicts) # 3.25 M rows before, 2.9 M after
-predicts <- MergeSites(diversity = predicts)
+predicts <- MergeSites(diversity = predicts) # CC: this takes a long time
 # 343410 measurements that have been merged
 # Dropping unused factor levels
 ## (cc- note: this matches with the before and after row count)
@@ -1127,6 +1135,22 @@ sr1$stats # this just shows that land use has a significant effect as a factor.
 # And the model itself is shown by:
 sr1$model
 r3$model # same as r3
+
+
+
+
+test_mod <- glmer(Species_richness ~ LandUse + (1|SS) + (1|SSB) + (1|SSBS), 
+           family = "poisson", 
+           data = sites, 
+           control = glmerControl(optimizer = "bobyqa", 
+                                  optCtrl = list(maxfun = 10000))
+           )
+
+r3$model %>% fixef()
+test_mod %>% fixef()
+
+
+
 ```
 
 
@@ -1159,6 +1183,17 @@ PlotGLMERFactor(model = sr1$model,data = sr1$data,
                 logLink = "e",catEffects = "LandUse",xtext.srt=320,
                 params=list(mar = c(2.2, 3.5, 0.2, 1.2)),
                 order=c(1,4,3,8,6,2,5,7))
+
+
+
+
+# just one of the regular models:
+PlotGLMERFactor(model = sr1$model,data = sr1$data,
+                responseVar = "Species richness",seMultiplier = 1.96,
+                logLink = "e",catEffects = "LandUse",xtext.srt=320,
+                params=list(mar = c(2.2, 3.5, 0.2, 1.2)),
+                order=c(1,4,3,8,6,2,5,7))
+
 ```
 
 
@@ -1230,19 +1265,56 @@ PlotGLMERFactor(model = occ1$model, data = occ1$data,
 ## Next steps
 ### 1. Subset to biome
 ```{r subset-biome}
-# load biomes - see above
+# load biomes - see "biomes" chunk above
+biomes <- st_read(paste0(p_dat, "Habitats/biomes.shp"))
+
 
 # "Biomes ... are defined by The Nature Conservancy's terrestrial ecoregions of the world dataset"
 
-s_box <- extent(s$y2017)
+s_box <- extent(site_r[[9]]) # extent(s$y2017)
 b_box <- extent(b$y2017)
 
 plot(s$y2017)
-plot(s_box, col = "red", add = TRUE)
+plot(s_box, col = "red", add = FALSE)
 plot(s_box)
 plot(biomes[["geometry"]], add = TRUE)
 shaanxi
 belarus
+i <- 9
+# make a list of cropped biomes cropped to each site:
+biomes_crop <- lapply(1:11, function(i) {
+  temp <- st_crop(biomes, extent(site_r[[i]]))
+  temp <- temp %>% mutate(site = site_df$site[i])
+  temp
+})
+
+biomes_crop <- biomes_crop %>% bind_rows()
+
+ggplot() + theme_classic() + 
+  geom_sf(data = biomes_crop, aes(fill = biome)) + 
+  # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  facet_wrap(vars(site))
+
+ggplot() + theme_classic() + 
+  geom_sf(data = biomes_crop %>% filter(site == "shaanxi"), aes(fill = biome)) + 
+  # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  labs(fill = NULL) +
+  theme(legend.position = "bottom") + guides(fill = guide_legend(ncol = 1)) + 
+  facet_wrap(vars(site))
+
+biomes_by_site <-
+  lapply(states, function(thisState){
+    ggplot(map_data('state',region=thisState)
+           , aes(x=long,y=lat,group=group)) +
+      geom_polygon(colour='black',fill='white') +
+      facet_wrap(~region) +
+      coord_map() +
+      theme_void()
+  })
+
+
+library(cowplot)
+plot_grid(plotlist = sepStates)
 
 biomes_s  <- st_crop(biomes, extent(s$y2017))
 biomes_b  <- st_crop(biomes, extent(b$y2017))
@@ -1373,6 +1445,7 @@ gg_sites_hist %+% filter(sites_sub, Biome == "Montane Grasslands & Shrubs")
 filter(sites_sub, Biome == "Montane Grasslands & Shrubs")
 
 sites_sub %>% select(Years_since_fragmentation_or_conversion) %>% table()
+sites %>% select(Years_since_fragmentation_or_conversion) %>% table()
 ```
 
 
@@ -1736,8 +1809,10 @@ PlotGLMERFactor(model = sr1$model,data = sr1$data,
 ### 3. Years
 Try to put together a figure showing the evolution of species richness coefficient as a function of years since fragmentation
 
-```{r years}
+```{r mod-richness-v-time}
 names(sites)
+
+# initial model
 
 m0 <- glmer(Species_richness ~ LandUse:Years_since_fragmentation_or_conversion + (1|SS) + (1|SSB) + (1|SSBS), 
            family = "poisson", 
@@ -1745,6 +1820,7 @@ m0 <- glmer(Species_richness ~ LandUse:Years_since_fragmentation_or_conversion +
            control = glmerControl(optimizer = "bobyqa", 
                                   optCtrl = list(maxfun = 10000))
            )
+tidy(m0, conf.int = TRUE)
 
 sites$LandUse %>% levels() %>% grep("sec", ., value = T)
 sites_2nd <- sites %>% 
@@ -1764,16 +1840,26 @@ sites_ln <- sites %>%
   filter(Years_since_fragmentation_or_conversion > 0,
          LandUse != "Secondary vegetation (indeterminate age)") %>%
   mutate(years_ln = log(Years_since_fragmentation_or_conversion),
-         LandUse_cond = recode(LandUse, # old = new
+         LandUse_cond = dplyr::recode(LandUse, # old = new
                                "Mature secondary vegetation" = "Secondary vegetation", 
                                "Intermediate secondary vegetation" = "Secondary vegetation", 
                                "Young secondary vegetation" = "Secondary vegetation",
                                "Cropland" = "Agriculture",
                                "Pasture" = "Agriculture"))
 
-filter(sites_ln, LandUse == "Secondary vegetation (indeterminate age)")
-
 table(sites_ln$LandUse_cond)
+
+sites_sub <- sites %>% 
+  filter(Predominant_land_use %in% c("Primary vegetation", 
+                        "Mature secondary vegetation", 
+                        "Intermediate secondary vegetation",
+                        "Young secondary vegetation")) %>%
+  mutate(years_ln = log(Years_since_fragmentation_or_conversion))
+
+table(sites_sub$Years_since_fragmentation_or_conversion)
+hist(sites_sub$Years_since_fragmentation_or_conversion)
+
+
   
 # Drop classification where land use could not be identified
 sites_2nd_ln$LandUse_cond[(sites_2nd_ln$LandUse_cond=="Cannot decide")] <- NA
@@ -1843,6 +1929,7 @@ m_ysv <- GLMER(modelData = filter(sites_2nd_ln, LandUse == "Young secondary vege
             fitFamily = "poisson", fixedStruct = "Years_since_fragmentation_or_conversion",
             randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)", REML = FALSE)
 m_ysv$model
+
 plot(Species_richness ~ Years_since_fragmentation_or_conversion, 
      data = filter(sites_2nd_ln, LandUse == "Young secondary vegetation"),
      main = "Species richness as a function of Age", 
@@ -1924,24 +2011,126 @@ dev.off()
 
 ```
 
+```{r richness-proportion}
+sites_sub %>% head()
+sites_sub %>% nrow()
+sites_sub %>% filter(Diversity_metric_type == "Species richness") %>% nrow()
+predicts %>% filter(Diversity_metric_type == "Species richness") %>% nrow()
+ 
+
+sites_sub %>% select(Diversity_metric_type) %>% table()
+
+sites_sub %>% select(SSB) %>% unique() %>% head() %>% .$SSB %>% .[1] %>% as.character()
+
+sites_sub %>% filter(Diversity_metric_type == "Species richness") %>% select(SSB) %>% unique() 
+
+# %>% head() %>% .$SSB %>% .[1] %>% as.character()
+
+
+sites_sub %>% filter(SSB == "AD1_2001__Liow 2 ")
+
+sites_sub %>% group_by(SSBS) %>% mutate(prop_rich = Species_richness/ref_richness)
+# 
+```
+
+
+
+```{r mod-sub}
+
+sites_sub <- sites %>% 
+  filter(Predominant_land_use %in% c("Primary vegetation", 
+                        "Mature secondary vegetation", 
+                        "Intermediate secondary vegetation",
+                        "Young secondary vegetation")) %>%
+  mutate(years_ln = log(Years_since_fragmentation_or_conversion))
+
+table(sites_sub$Years_since_fragmentation_or_conversion)
+hist(sites_sub$Years_since_fragmentation_or_conversion)
+
+sites_sub$LandUse %>% unique
+
+mod1 <- glmer(Species_richness ~ LandUse:Years_since_fragmentation_or_conversion + (1|SS) + (1|SSB) + (1|SSBS), 
+           family = "poisson", 
+           data = sites_sub, 
+           control = glmerControl(optimizer = "bobyqa", 
+                                  optCtrl = list(maxfun = 10000))
+           )
+
+mod1
+
+mod2 <- glmer(Species_richness ~ Years_since_fragmentation_or_conversion + (1|SS) + (1|SSB) + (1|SSBS), 
+           family = "poisson", 
+           data = sites_sub, 
+           control = glmerControl(optimizer = "bobyqa", 
+                                  optCtrl = list(maxfun = 10000))
+           )
+
+
+dev.off()
+# plot
+plot(Species_richness ~ Years_since_fragmentation_or_conversion, data = sites_sub,
+     main = "Species richness as a function of Age", xlab = "Age in Years", ylab = "Species Richness")
+abline(a = fixef(mod1)[1], b = fixef(mod1)[2], lwd = 3, col = "red")
+abline(a = fixef(mod1)[1], b = fixef(mod1)[4], lwd = 3, col = "blue")
+abline(a = fixef(mod2)[1], b = fixef(mod2)[2], lwd = 3, col = "green")
+
+
+names(sites_2nd_ln)
+plot(Species_richness ~ log(Years_since_fragmentation_or_conversion), data = sites_sub,
+     main = "Species richness as a function of Age", xlab = "log(Age in Years)", ylab = "log(Species Richness)")
+abline(a = fixef(m3$model)[1], b = fixef(m3$model)[2], lwd = 3, col = "red")
+
+
+
+
+plot(Species_richness ~ Years_since_fragmentation_or_conversion, 
+     data = filter(sites_2nd_ln, LandUse == "Young secondary vegetation"),
+     main = "Species richness as a function of Age", 
+     xlab = "log(Age in Years)", ylab = "log(Species Richness)")
+abline(a = fixef(m_ysv$model)[1], b = fixef(m_ysv$model)[2], lwd = 3, col = "red")
+
+# plot
+PlotGLMERFactor(model = m_ysv$model, data = m_ysv$data,
+                responseVar = "Species richness", seMultiplier = 1.96,
+                logLink = "e", catEffects = "Years_since_fragmentation_or_conversion",
+                main = "Species richness as a function of Time",
+                xtext.srt=45,
+                plotLabels = T, add = FALSE, offset = 0.6,
+                errbar.cols = 259,
+                params = list(mar = c(2.2, 3.5, 0.2, 1.2)), order = c(1,4,3,8,6,2,5,7)
+                )
+
+
+
+```
+
+
+
 ```{r basic-plots}
 
-
-gg_richness_ysv <- ggplot(data = filter(sites_2nd_ln#, LandUse == "Young secondary vegetation"
-                     )) +
+sites_2nd_ln$LandUse
+gg_richness_ysv <- 
+  ggplot(data = sites_2nd_ln #%>% 
+           #filter(
+             #LandUse == "Young secondary vegetation"
+             #LandUse != "Mature secondary vegetation"
+             #)
+         ,
+         mapping = aes(x = Years_since_fragmentation_or_conversion, 
+                       y = Species_richness#, color = land_cover
+                       )) +
   theme_classic() +
-  geom_point(mapping = aes(x = Years_since_fragmentation_or_conversion, 
-                           y = Species_richness#, color = land_cover
-                           ), alpha = 0.3) + 
-  geom_smooth(method = "lm", mapping = aes(x = Years_since_fragmentation_or_conversion, y = Species_richness#,
-                                           #fill = land_cover, 
-                                           #color = land_cover
-                                           )) +
+  geom_point(alpha = 0.3) + 
+  geom_smooth(method = "lm") +
   labs(x = "Age (Years)", #color = "Land Cover",
        #title = "Constrained to just 'Young Secondary Vegetation'",
        title = "Species richness as a function of age (in years)",
        y = "Species Richness") #+ guides(fill = FALSE) #+ facet_grid(cols = vars(site), scales = "free_y")
 
+gg_richness_ysv %+% filter(sites_2nd_ln, 
+                           # LandUse == "Young secondary vegetation"
+                           LandUse != "Mature secondary vegetation"
+                           )
 
 png(filename = paste0(p_output, "plots/predicts_richness_age_ysv", ".png"), 
       width = 7, height = 5, units = "in", res = 400)
@@ -1960,6 +2149,164 @@ png(filename = paste0(p_output, "plots/predicts_richness_age_ysv_grid", ".png"),
       width = 9, height = 7, units = "in", res = 400)
 plot_grid(gg_richness_ysv, p2, p3, p4)
 dev.off()
+```
+
+
+```{r richness-v-time-by-biome}
+site_biome_names %>% gsub(" and ", " & ", .)
+
+site_biome_names_mod <- site_biome_names %>% gsub(" and ", " & ", .)
+
+sites_2nd %>% names
+sites_2nd_ln %>% names
+sites_2nd_ln %>% .$Biome %>% unique()
+sites_2nd_ln %>% filter(Biome == site_biome_names[5])
+
+predicts %>% select(Biome) %>% unique() %>% unlist(use.names = FALSE) #%>% length() # 14
+predicts %>% select(Predominant_land_use) %>% 
+  unique() %>% unlist(use.names = FALSE) %>% 
+  as.character() #%>% length() # 14
+
+names1 <- predicts %>% select(Biome) %>% 
+  unique() %>% unlist(use.names = FALSE) %>% 
+  as.character() #%>% length() # 14
+
+site_biome_names_mod
+names1
+
+# ok, now they match:
+site_biome_names_mod == sort(names1)[c(2:3,5:9,12:13)]
+
+
+predicts %>% filter(Biome == site_biome_names_mod[2],
+                    # Years_since_fragmentation_or_conversion > 0,
+                    Predominant_land_use %in% c("Mature secondary vegetation", 
+                                                "Intermediate secondary vegetation",
+                                                "Secondary vegetation (indeterminate age)", 
+                                                "Young secondary vegetation")
+                    ) %>% as_tibble()
+
+biomes %>% st_drop_geometry() %>% select(biome) %>% unique()
+
+
+
+predicts_sub_biomes_l <- lapply(seq_along(site_biome_names_mod), function(i) {
+  gg_richness_ysv %+% filter(sites_2nd_ln, Biome == site_biome_names_mod[i]) + labs(title = site_biome_names_mod[i])
+}
+)
+
+predicts_sub_biomes_l[[1]]
+
+ggsave(plot = plot_grid(plotlist = predicts_sub_biomes_l, ncol = 3, nrow = 3),
+       filename = paste0(p_plots, "predicts_rich_v_time_by_biome.pdf"), 
+    width = 7.5, height = 6.75, units = "in"
+)
+
+
+
+# or facet grid specifically:
+ggplot(data = sites_2nd_ln %>% filter(Biome %in% site_biome_names_mod),
+       mapping = aes(x = Years_since_fragmentation_or_conversion, 
+                     y = Species_richness#, color = land_cover
+                     )) +
+  theme_classic() +
+  geom_point(alpha = 0.3) + 
+  geom_smooth(method = "lm") +
+  labs(x = "Time (Years)", 
+       y = "Species Richness") + 
+  #guides(fill = FALSE) +
+  facet_wrap(vars(Biome), scales = "free")
+
+sites
+
+
+ggplot(data = 
+         sites %>% 
+         filter(Biome %in% site_biome_names_mod,
+                Predominant_land_use %in% c("Mature secondary vegetation", 
+                                            "Intermediate secondary vegetation",
+                                            # "Secondary vegetation (indeterminate age)", 
+                                            "Young secondary vegetation")),
+       mapping = aes(x = Years_since_fragmentation_or_conversion, 
+                     y = Species_richness#, color = land_cover
+                     )) +
+  theme_classic() +
+  geom_point(alpha = 0.3) + 
+  geom_smooth(method = "lm") +
+  labs(x = "Time (Years)", 
+       y = "Species Richness") + 
+  #guides(fill = FALSE) +
+  facet_wrap(vars(Biome), scales = "free")
+
+sites %>% names
+sites %>% select(LandUse) %>% unique
+sites %>% filter(LandUse == "Primary vegetation")
+
+sites %>% select(Biome) %>% unique
+
+
+
+ggplot(data = 
+         sites %>% 
+         filter(LandUse == "Primary vegetation",
+                Biome %in% site_biome_names_mod),
+       mapping = aes(x = Biome, 
+                     y = Species_richness#, color = land_cover
+                     )) +
+  theme_classic() +
+  geom_violin() + 
+  theme(axis.text.x = element_blank()) +
+  facet_wrap(vars(Biome), scales = "free") 
+
+
+sites %>% 
+  filter(LandUse == "Primary vegetation",
+         Biome %in% site_biome_names_mod[5]) %>%
+  ggplot(data = .) +
+  theme_classic() +
+  geom_violin(mapping = aes(x = Biome, y = Species_richness)) + 
+  geom_point(mapping = aes(x = Years_since_fragmentation_or_conversion, 
+                           y = Species_richness), 
+             alpha = 0.3) + 
+  geom_smooth(method = "lm", mapping = aes(x = Years_since_fragmentation_or_conversion, 
+                           y = Species_richness)) +
+  labs(x = "Time (Years)", 
+       y = "Species Richness")
+
+p1 <- ggplot(data = 
+         sites %>% 
+         filter(LandUse == "Primary vegetation",
+                Biome %in% site_biome_names_mod[5]),
+       mapping = aes(x = Biome, 
+                     y = Species_richness#, color = land_cover
+                     )) +
+  theme_classic() +
+  geom_violin() + 
+  theme(axis.text.x = element_blank()) +
+  facet_wrap(vars(Biome), scales = "free") 
+
+p2 <- 
+  sites %>% 
+  filter(Predominant_land_use %in% c("Mature secondary vegetation", 
+                                     "Intermediate secondary vegetation",
+                                     # "Secondary vegetation (indeterminate age)", 
+                                     "Young secondary vegetation"),
+         Biome %in% site_biome_names_mod[5]) %>%
+  ggplot(data = ., mapping = aes(x = Years_since_fragmentation_or_conversion, 
+                           y = Species_richness)) + 
+  theme_classic() +
+  geom_point(alpha = 0.3) + 
+  geom_smooth(method = "lm") +
+  labs(x = "Time (Years)", 
+       y = "Species Richness") + 
+  #guides(fill = FALSE) +
+  facet_wrap(vars(Biome), scales = "free")
+
+
+plot_grid(
+  p2, p1, ncol = 2, align = "h", axis = "b"
+)
 
 ```
+
 
