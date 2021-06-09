@@ -60,7 +60,7 @@ length_distill_df <- read_csv(file = paste0(p_dat_derived, run_label, "/",
 # length_distill_df %>% filter(site == "shaanxi") %>% select(length_type) %>% unique()
 
 
-mean_length_df <- lapply(c(1, 3, 5, 10), function(x) {
+mean_length_df <- lapply(c(1, 3, 5, 7, 10), function(x) {
   length_distill_df %>% as_tibble() %>% 
     mutate(product = length*freq) %>% 
     filter(length >= x) %>% # to filter by length # this is important for max, since some pixels have max length of 0
@@ -205,6 +205,44 @@ Three plots:
 2. Summary lengths by abandonment threshold (like 1, but with different thresholds)
 3. Histograms (all periods and max lengths)
 
+```{r}
+
+# alternative plot, with violin plots? or point clouds?
+vt <- length_distill_df %>% as_tibble() %>% 
+    filter(length >= 5,
+           # site == "shaanxi",
+           length_type == "all") %>% # to filter by length # this is important for max, since some pixels have max length of 0 
+  mutate(fr = round(freq/10000, digits = 0)) %>% 
+  group_by(site) %>%
+  summarise(site = unique(site), 
+            length = rep(length, fr),
+            mean = mean(length))
+
+vt <- vt %>%
+  left_join(., vt %>% ungroup() %>%
+              arrange(mean) %>% select(site, mean) %>% unique() %>%
+              mutate(order = 1:n()))
+
+# Fancy violin plots
+
+ggplot(data = vt, mapping = aes(x = fct_reorder(site, order), y = length)) +
+  theme_classic() +
+    ylab("Time abandoned (years)") + xlab("Site") +
+  geom_violin(scale = "width", alpha = 0.5) +
+  geom_jitter(height = 0.5, width = 0.2, 
+              alpha = 0.05) + 
+  geom_boxplot(width=0.1) + 
+  stat_summary(fun.y = mean, geom = "point", size = 2, color = "red") + 
+  # stat_summary(fun.y = median, geom = "point", size = 2, color = "blue") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 330, vjust = 1, hjust = 0),
+        plot.caption = element_text(face = "italic"))
+  
+
+
+```
+
+
 
 ```{r plot-mean-abn-duration}
 
@@ -275,16 +313,15 @@ cvd_grid(gg_mean_length)
 
 
 
-
-
 # 2. Plot mean length across multiple abandonment thresholds ------
 
 gg_mean_length_by_threshold <- 
   ggplot(data = mean_length_df,
          mapping = aes(x = fct_reorder(site, mean_duration), y = mean_duration, fill = fct_reorder(site, mean_duration))) + 
   theme_classic() +
-  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0),
-        plot.caption = element_text(face = "italic")) +
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0, size = 5),
+        plot.caption = element_text(face = "italic"),
+        legend.position = "bottom") +
   labs(title = "Mean length of abandonment",
        #caption = "Counting only recultivation of 2 or more continuous years",
        linetype = NULL,
@@ -298,6 +335,7 @@ gg_mean_length_by_threshold <-
                                  abn_threshold = c("1" = "abn threshold = 1",
                                                    "3" = "abn threshold = 3",
                                                    "5" = "abn threshold = 5",
+                                                   "7" = "abn threshold = 7",
                                                    "10" = "abn threshold = 10"))) +
   geom_hline(data = mean_length_df %>% 
                group_by(abn_threshold, length_type) %>%
@@ -311,7 +349,7 @@ gg_mean_length_by_threshold <-
 
 
 # ----------------- save ---------------- #
-png(filename = paste0(p_output, "plots/", run_label, "/mean_lengths_by_threshold", run_label, ".png"), 
+png(filename = paste0(p_output, "plots/", run_label, "/mean_lengths_by_threshold1", run_label, ".png"), 
     width = 8.5, height = 5, units = "in", res = 400)
 print(gg_mean_length_by_threshold)
 dev.off()
