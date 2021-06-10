@@ -2630,6 +2630,31 @@ ggsave(plot =
        run_label, ".pdf"),
        width = 11, height = 13, units = "in", dpi = 400
        )
+
+
+
+
+
+
+# cropping the map:
+ggplot() + 
+  theme_classic() +
+  geom_sf(data = world %>% filter(continent != "Antarctica"), 
+          fill = NA, color = "gray") +
+  geom_sf(data = site_sf, mapping = aes(fill = desc)) + 
+  labs(#subtitle = "Map projection: longlat", 
+       x = NULL, y = NULL) +
+  theme(legend.position = "bottom") + 
+  geom_label_repel(data = site_sf,
+                   aes(label = label, geometry = geometry),
+                   stat = "sf_coordinates",
+                   min.segment.length = 0.0, segment.alpha = 1,
+                   point.padding = 0.2, box.padding = 0.2,
+                   label.size = 0.3, color = "black") + 
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
+  theme(legend.position = "none",
+        plot.margin = margin(0, 0, 2, 0, "mm"))
+
 ```
 
 ```{r map-max-age-composite}

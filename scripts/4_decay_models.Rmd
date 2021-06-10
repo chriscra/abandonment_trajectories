@@ -3593,8 +3593,22 @@ ggplot(data = filter(dat_l, site == "shaanxi"),
 future_df_l3 %>% filter(exp_area_ha > 0) %>% arrange(desc(age))
 future_df_l3 %>% select(age) %>% max() %>% signif(2) / 9
 
+# Proportion of land that is over 30 years old far into the extrapolation:
 future_df_l3 %>% mutate(
-  age_bin = cut(age, breaks = seq(from = 0, to = 140, by = 15), right = TRUE))
+  age_bin = cut(age, breaks = seq(from = 0, to = 140, by = 15), right = TRUE)) %>%
+  filter(year == 2120) %>% 
+  group_by(site) %>%
+  summarise(total_abn_in_2120 = sum(exp_area_ha)) %>% 
+  left_join(., 
+            future_df_l3 %>% mutate(
+              age_bin = cut(age, breaks = seq(from = 0, to = 140, by = 15), right = TRUE)) %>%
+              filter(year == 2120, age > 30) %>% 
+              group_by(site) %>%
+              summarise(over_30 = sum(exp_area_ha)),
+            by = "site") %>%
+  mutate(prop = 100 * over_30/total_abn_in_2120)
+
+
 
 gg_extrapolated_area_by_age_bin <-
   ggplot(data = future_df_l3 %>% 
