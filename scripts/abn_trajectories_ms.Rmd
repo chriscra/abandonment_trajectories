@@ -263,8 +263,7 @@ abn_duration_stats <- list(
 ```
 
 
-# Abstract
-*Must be <250 words (currently 250)*
+# Abstract (<250 words)
 
 Agricultural expansion is a major cause of land-use change globally, but millions of hectares of cropland are simultaneously being abandoned as a result of demographic, economic, and environmental changes.
 These abandoned croplands could be immensely valuable for carbon sequestration and biodiversity restoration.
@@ -277,8 +276,7 @@ Counter to optimistic assumptions, most abandonment is unlikely to be permanent 
 New policies and incentives will be needed to lengthen the period of abandonment so as to generate these and other benefits.
 Until then, abandoned croplands will remain untapped opportunities.
 
-## Significance Statement
-*Must be <120 words (currently 124)*
+# Significance Statement (<120 words)
 
 Demographic, economic, and environmental changes often result in cropland abandonment. 
 While sometimes seen as a threat to food security and cultural landscapes, abandonment is increasing billed as an opportunity for habitat restoration and carbon sequestration.
@@ -288,49 +286,51 @@ Using annual land-cover maps, we track abandonment and recultivation at eleven s
 Contrary to previous assumptions, abandonment is short-lived and frequently recultivated.
 Until policymakers take steps to reduce recultivation and provide incentives for regeneration, abandonment will remain a missed opportunity.
 
-## Keywords
+<!-- ## Classification -->
+
+<!-- SOCIAL SCIENCES: Environmental Sciences -->
+
+<!-- BIOLOGICAL SCIENCES: Sustainability Science -->
+
+<!-- ## Keywords  -->
+
+<!-- Agriculture, cropland abandonment, biodiversity conservation, secondary succession, carbon sequestration, land cover mapping -->
 
 # Introduction
 
 Populations are in flux around the world, as people seek new economic opportunities in cities and flee changing environments and conflicts [@Sanderson2018].
 Coupled with environmental degradation and changing agricultural technologies, this rural outmigration has contributed to a decline in the economic viability of some agricultural lands, resulting in a growing global trend of agricultural abandonment [@ReyBenayas2007; @Prishchepov2021].
-Furthermore, in a world with increasing competition for land, these abandoned agricultural lands are highly sought after for diverse goals such as biofuel production [@Naess2021], carbon sequestration [@Griscom2017; @Chazdon2016a], or increased cultivation [@Meyfroidt2016].
-To conservation scientists, these lands represent a potentially large source of new habitat for wildlife as vegetation regenerates [@Chazdon2020; @Xie2019; @Navarro2012].
+Furthermore, in a world with increasing competition for land, these abandoned agricultural lands are highly sought after for diverse goals such as biofuel production [@Naess2021], carbon sequestration [@Griscom2017; @Chazdon2016a], or recultivation [@Meyfroidt2016].
+To conservationists, these lands represent a potentially large source of new habitat as ecosystems regenerate [@Chazdon2020; @Xie2019; @Navarro2012].
 
 Millions of hectares of agricultural lands have been abandoned over the last half century [@Li2017], but for how long and to what end is unclear.
-Understanding agricultural abandonment and its potential environmental impacts requires not only detailed information on where and when abandonment takes place, but critically, what happens to croplands and pastures after they are abandoned.
-In order for abandoned lands to yield environmental benefits, they must stay abandoned long enough for appreciable gains to be made in both biomass and the species that make up intact ecological communities, which can take decades or longer to approach the levels of intact reference ecosystems, with species recolonizing at different successional stages [@Cook-Patton2020; @Nerlekar2020; @Rozendaal2019; @Acevedo-Charry2019; @Gilroy2014; @Isbell2019; @Poorter2016].
-As a result, information on the long-term persistence and outcomes of abandoned lands is critical to understand the potential for these areas to help mitigate the ongoing climate and biodiversity crises, and design appropriate policy responses.
+Understanding the environmental impacts of agricultural abandonment requires not only detailed information on where and when abandonment takes place, but critically, what happens to croplands and pastures after they are abandoned.
+In order for abandoned lands to yield environmental benefits, they must stay abandoned long enough for appreciable gains to be made in both biomass and the species that make up intact ecological communities, which can take decades or longer to approach the levels of intact reference ecosystems, with species recolonizing at different successional stages [@Rozendaal2019; @Acevedo-Charry2019; @Isbell2019; @Nerlekar2020; @Gilroy2014; @Cook-Patton2020; @Poorter2016].
+As such, information on the long-term persistence and outcomes of abandoned lands is critical to understand the potential for these areas to help mitigate the ongoing climate and biodiversity crises, and design appropriate policy responses.
 
 Yet until recently, it has been difficult to gather detailed information on abandonment.
 Many estimates of abandonment are inferred by aggregating coarse estimates of regional cultivation, such as from FAO data on cultivated areas [@Isbell2019; @Munroe2013]).
 When derived from satellite imagery, abandonment is most frequently estimated by comparing land cover maps for two distinct points in time, and simply taking the difference in cultivated area (e.g. 1992 and 2015 in [@Naess2021]).
-Annual land-cover time series are becoming more common, but are often limited to a short period of time (e.g. 2-12 years [@Alcantara2013; @Estel2015; @Lark2015]; but see @Dara2018), limiting their utility for understanding abandonment.
-These approaches all lack the spatial and temporal detail needed to understand long-term outcomes for individual croplands, which is critical for understanding the environmental implications of abandonment [@Yin2020].
-Importantly, by masking dynamic patterns of abandonment and recultivation, they may result in significant overestimates of abandonment. 
+Annual land-cover time series are becoming more common, but are typically limited to a short timespan (e.g. 2-12 years [@Alcantara2013; @Estel2015; @Lark2015]; but see @Dara2018).
+These approaches all lack the spatial and temporal detail needed to understand long-term outcomes for individual croplands, and by masking dynamic patterns of abandonment and recultivation, may result in significant overestimates of abandonment [@Yin2020].
 
-Recent advances in satellite imagery-based land-cover mapping have made it possible to produce maps of land cover with both high spatial resolution and temporal resolution, allowing us to ask questions about the timing and trajectories of agricultural abandonment and land cover change. 
-Here, we utilize a new annual time-series of cropland abandonment [@Yin2020] derived from publicly available Landsat imagery (1987-2017) to investigate the duration and persistence of abandonment at eleven sites across four continents, including sites in Brazil, the US, Eastern Europe, Russia, the Middle East, and China (Figure \@ref(fig:site-locations)).
-
-Previous analyses have primarily explored the age and persistence of secondary forests in the Neotropics by identifying regeneration via the signal of woody regrowth in satellite imagery, finding that forest regeneration is often short-lived [@Reid2018; @Nunes2020; @Smith2020; @Schwartz2020].
-Half of secondary forests are recleared in as little as 5 to 8 years in the Brazilian Amazon [@Aguiar2016; @Chazdon2016a; @Nunes2020], and 20 years or less in southern Costa Rica [@Reid2018].
-More generally, reforestation may be as much as ten times more likely to be recleared than to persist [@Schwartz2020].
+Previous analyses explored the age and persistence of secondary forests in the Neotropics by identifying regeneration through the detection of woody regrowth in satellite imagery, finding that forest regeneration is often short-lived [@Reid2018; @Nunes2020; @Smith2020; @Schwartz2020].
+Half of secondary forests were recleared in as little as 5 to 8 years in the Brazilian Amazon [@Aguiar2016; @Chazdon2016a; @Nunes2020], and 20 years or less in southern Costa Rica [@Reid2018].
 Yet while well-suited to analyses of forest regrowth, approaches that rely on woody vegetation risk missing abandonment that is in earlier stages of regeneration or does not transition into woody vegetation, particularly in landscapes with non-forest habitats [@Yin2020].
 
-In order to address this constraint, Yin et al. -@Yin2020 used a trajectory-based approach produced more accurate maps of cropland abandonment that did not rely on more easily detectable woody revegetation, which allow for a focus on abandonment itself, not only the regenerating forests that may or may not follow abandonment.
-@Dara2018 provide to our knowledge the only other analysis of abandonment based on a time series of annual land cover maps, yet is limited to just one region (northern Kazakstan).
-By leveraging this new dataset [@Yin2020], we are able to ask questions about patterns of persistence and the longevity of abandonment and regeneration over a broad range of environments and agricultural contexts.
+Recent advances in remote sensing have made it possible to produce maps of cropland abandonment at both high spatial and temporal resolution.
+Yin et al. -@Yin2020 used a trajectory-based approach to produce accurate maps of cropland abandonment without relying on woody revegetation, allowing for a direct focus on abandonment and an expansion to a broader set of non-forest biomes.
+Here, we utilize this new annual time-series of cropland abandonment [@Yin2020] to investigate the duration and persistence of abandonment at eleven sites across four continents, including sites in Brazil, the United States, Eastern Europe, Russia, the Middle East, and China (Figure \@ref(fig:site-locations)).
 
-We address three specific questions: How long does cropland abandonment last, on average, and how does this vary geographically? How quickly is land recultivated, as measured by individual recultivation (or "decay") rates, and how do these rates vary through time? Finally, if recultivation rates stay about the same, and a similar amount of land is newly abandoned each year, how can we expect the mean age of abandoned croplands to change in these landscapes into the future?
+We address three specific questions: How long does cropland abandonment last, on average, and how does this vary geographically? How quickly is land recultivated, as measured by individual recultivation (or "decay") rates, and how do these rates vary through time? Finally, if abandonment and recultivation rates stay about the same, how can we expect the mean age of abandoned croplands to change in these landscapes into the future?
 
-By making use of more accurate and finer resolution abandonment maps, covering a longer period and broader set of sites than previous studies, we provide the most detailed understanding of the timing and persistence of abandonment to date. 
-We find that abandonment is rarely permanent, but rather a dynamic phenomenon that varies spatially and temporally.
-These simple insights about the trajectories taken by abandoned croplands provide much needed context to broad statements about recent and future abandonment and the contribution that abandonment many make to habitat regeneration and biodiversity conservation [@Chazdon2020].
-The bulk of abandoned land may be relatively short-lived, from the perspective of ecological succession or carbon sequestration, and unlikely to regenerate into valuable habitat on its own without active policies to protect this land and encourage regeneration.
-Together, these results provide a better understanding of the temporal nature of cropland abandonment and its implications for the environment, and should inform the design of policies to manage abandoned lands moving forward.
+By making use of more accurate and finer resolution abandonment maps, covering a longer period and broader set of sites than previous studies, we provide the most detailed analysis of the timing and persistence of cropland abandonment to date.
+<!-- Foreshadow results? -->
+<!-- We find that abandonment is rarely permanent, but rather a dynamic phenomenon that varies spatially and temporally. -->
+<!-- The bulk of abandoned land is relatively short-lived, and therefore unlikely to regenerate into carbon- and species-rich ecosystems without active policies to encourage regeneration. -->
+These results provide much needed context on the temporal nature of cropland abandonment and its potential to conserve biodiversity and provide ecosystem services.
 
 # Results
-
 ```{r results-outline, include = FALSE}
 # Overarching question: how durable is abandonment?
 # 
