@@ -205,14 +205,16 @@ Three plots:
 2. Summary lengths by abandonment threshold (like 1, but with different thresholds)
 3. Histograms (all periods and max lengths)
 
-```{r}
+```{r violin}
 
 # alternative plot, with violin plots? or point clouds?
 vt <- length_distill_df %>% as_tibble() %>% 
     filter(length >= 5,
            # site == "shaanxi",
            length_type == "all") %>% # to filter by length # this is important for max, since some pixels have max length of 0 
-  mutate(fr = round(freq/10000, digits = 0)) %>% 
+  mutate(fr = round(freq#/100000
+                    , 
+                    digits = 0)) %>% 
   group_by(site) %>%
   summarise(site = unique(site), 
             length = rep(length, fr),
@@ -229,15 +231,58 @@ ggplot(data = vt, mapping = aes(x = fct_reorder(site, order), y = length)) +
   theme_classic() +
     ylab("Time abandoned (years)") + xlab("Site") +
   geom_violin(scale = "width", alpha = 0.5) +
-  geom_jitter(height = 0.5, width = 0.2, 
-              alpha = 0.05) + 
-  geom_boxplot(width=0.1) + 
-  stat_summary(fun.y = mean, geom = "point", size = 2, color = "red") + 
+  # geom_boxplot(width=0.2) + 
+  # geom_jitter(height = 0.5, width = 0.2, alpha = 0.2) + 
+  # stat_summary(fun.y = mean, geom = "point", size = 3, color = "red") + 
   # stat_summary(fun.y = median, geom = "point", size = 2, color = "blue") +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 330, vjust = 1, hjust = 0),
         plot.caption = element_text(face = "italic"))
-  
+
+
+
+
+# original plot, with the violin plots
+ggplot(data = mean_length_df %>%
+           filter(abn_threshold == "5") %>%
+           mutate(site = capwords(ifelse(grepl("herze", site, ignore.case = TRUE),
+                                         gsub("_", " & ", site),
+                                  ifelse(grepl("bel", site, ignore.case = TRUE),
+                                         gsub("belarus", "Belarus/Smolensk", site),
+                                  ifelse(grepl("goias", site, ignore.case = TRUE),
+                                         gsub("goias", "Goiás", site),
+                                  ifelse(grepl("shaanxi", site, ignore.case = TRUE),
+                                         gsub("shaanxi", "Shaanxi/Shanxi", site),
+                                         gsub("_", " ", site))))))),
+         mapping = aes(x = fct_reorder(site, order), #fct_reorder2(site, abn_threshold, desc(mean_duration)),
+                       y = mean_duration, 
+                       color = length_type)) + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 330, vjust = 1, hjust = 0),
+        plot.caption = element_text(face = "italic")) +
+  labs(#title = "Mean length of abandonment",
+       #caption = "Counting only recultivation of 2 or more continuous years",
+       linetype = NULL,
+       color = "Mean of:", 
+       y = "Mean abandonment duration (years)", 
+       x = "Site") +
+  geom_point(size = 2, alpha = 0.85) + 
+  geom_hline(data = mean_length_df %>% 
+               group_by(abn_threshold, length_type) %>%
+               summarise(overall_mean = mean(mean_duration, na.rm = TRUE)) %>% 
+               filter(abn_threshold == "5"), 
+             mapping = aes(yintercept = overall_mean, 
+                           col = length_type, 
+                           linetype = "Mean \nAcross \nSites")) + 
+  scale_linetype_manual(values = c("Mean \nAcross \nSites" = "dashed")) + 
+  scale_color_discrete(labels = c(all = "All periods", 
+                                   max = "Max. length \nper pixel")) +
+  # scale_shape_manual(values = c(16, 21), # filled and closed circles
+  #                    labels = c(all = "All periods", 
+  #                               max = "Max. length \nper pixel")) + 
+  guides(color = guide_legend(order = 1))
+
+
 
 
 ```
@@ -285,8 +330,8 @@ gg_mean_length <-
                filter(abn_threshold == "5"), 
              mapping = aes(yintercept = overall_mean, 
                            col = length_type, 
-                           linetype = "Overall \nMean")) + 
-  scale_linetype_manual(values = c("Overall \nMean" = "dashed")) + 
+                           linetype = "Mean \nAcross \nSites")) + 
+  scale_linetype_manual(values = c("Mean \nAcross \nSites" = "dashed")) + 
   scale_color_discrete(labels = c(all = "All periods", 
                                    max = "Max. length \nper pixel")) +
   # scale_shape_manual(values = c(16, 21), # filled and closed circles

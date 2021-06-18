@@ -536,6 +536,10 @@ biomes <- st_read(paste0(p_dat, "Habitats/biomes.shp"))
 # load biomes - see "biomes" chunk above
 biomes <- st_read(paste0(p_dat, "Habitats/biomes.shp"))
 
+
+ggplot() + theme_classic() + 
+  geom_sf(data = biomes, aes(fill = biome))
+
 # "Biomes ... are defined by The Nature Conservancy's terrestrial ecoregions of the world dataset"
 
 # make a list of cropped biomes cropped to each site:
@@ -621,6 +625,33 @@ ggplot(data = biomes_crop, aes(fill = biome)) +
   guides(fill = guide_legend(ncol = 1)) %>% 
   ggpubr::get_legend() %>% as_ggplot()
 ```
+
+```{r mn-biome}
+usa <- ne_states(returnclass = "sf", country = "United States of America")
+mn <- usa %>%
+  filter(name == "Minnesota")
+
+wi <- usa %>% filter(name == "Wisconsin")
+plot(mn$geometry)
+plot(wi$geometry)
+mn_biome <- st_crop(biomes, extent(mn))
+wi_biome <- st_crop(biomes, extent(wi))
+
+ggplot() +
+  theme_classic() + 
+  geom_sf(data = mn_biome, aes(fill = biome))
+
+ggplot() +
+  theme_classic() + 
+  geom_sf(data = wi_biome, aes(fill = biome))
+
+ggplot() + theme_classic() + 
+  geom_sf(data = mn_biome, aes(fill = biome)) +
+  geom_sf(data = wi_biome, aes(fill = biome))
+
+
+```
+
 
 ```{r biome-with-raster}
 ggplot() +

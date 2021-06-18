@@ -2664,6 +2664,14 @@ gg_model_curves_by_site_l3 +
   geom_hline(yintercept = 0.0746) +
   coord_cartesian(xlim = c(15, 25))
 
+
+gg_model_curves_by_site_l3 + 
+         labs(caption = NULL) +
+         scale_x_continuous(n.breaks = 15) + 
+         theme(legend.position = c(0.875, 0.65)) +
+  # scale_color_viridis(discrete = TRUE)
+  scale_color_manual(values = c( "light blue" , "orange" , "light yellow" , "pink" , "light cyan",  "mint" , 'pear' , "olive" , "pale grey"))
+
 # for MS
 ggsave(plot = gg_model_curves_by_site_l3 + 
          labs(caption = NULL) +
