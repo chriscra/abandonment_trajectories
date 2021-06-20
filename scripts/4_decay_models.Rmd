@@ -493,32 +493,48 @@ gg_lin_log_lin_cohort_tmp_s <-
   geom_hline(yintercept = 0.5, linetype = "dashed") + 
   labs(#title = "Decay of abandoned land over time", 
        #subtitle = site_df$description[9], 
-       caption = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
+       caption = "stats::lm() formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
        x = "Time since initial abandonment (years)", 
        y = "Proportion of abandoned land remaining",
        color = "Cohort \n(Year First \nAbandoned)",
-       linetype = "") + 
+       linetype = NULL) + 
 
   geom_line(data = mutate(augment(lm_lin_log_lin_l[[9]]),
                           time = round(exp(`log(time + 1)`), digits = 0) - 1,
                           age = time + 5,
                           proportion = .fitted + 1,
-                          year_abn = as.numeric(levels(cohort))[cohort])) + 
+                          year_abn = as.numeric(levels(cohort))[cohort]),
+            linetype = "longdash") + 
   
   # site mean coefficients: (note, needs to be transformed 4 to the right, so that plotting works)
   geom_function(fun = function(x) {
     mean_coef_tmp_l3_s$mean_est[2]*log(x-4) + mean_coef_tmp_l3_s$mean_est[1]*((x-4) - 1) + 1},
     mapping = aes(linetype = "Mean \nDecay \nRate"),
-    color = "blue", size = 1, inherit.aes = FALSE) + 
-  theme(legend.position = c(0.9, 0.7))
+    color = viridis(n = 9)[2], size = 1.25, inherit.aes = FALSE) + 
+  theme(legend.position = c(0.9, 0.68),
+        legend.background = element_rect(fill = "transparent") #,
+        # legend.box.background = element_rect(fill = "transparent")
+        )
+
+# show_col(colours = viridis(n = 9)[2])
 
 # save ------------- #
-png(filename = paste0(p_plots, run_label, "/decay/", "ms_fig_l3_cohort", run_label, "_s.png"), 
-  width = 6.5, height = 5.5, 
-  units = "in", res = 400)
-print(gg_lin_log_lin_cohort_tmp_s)
-dev.off()
+ggsave(plot = gg_lin_log_lin_cohort_tmp_s, 
+       filename = paste0(p_plots, run_label, "/decay/", "ms_fig_l3_cohort", run_label, "_s.png"), 
+  width = 5, height = 4.5, units = "in", dpi = 400)
 
+ggsave(plot = gg_lin_log_lin_cohort_tmp_s, 
+       filename = paste0(p_plots, run_label, "/decay/", "ms_fig_l3_cohort", run_label, "_s.pdf"), 
+  width = 5, height = 4.5, units = "in")
+
+ggsave(plot = gg_lin_log_lin_cohort_tmp_s +
+         scale_color_viridis(), 
+       filename = paste0(p_plots, run_label, "/decay/", "ms_fig_l3_cohort_viridis", run_label, "_s.pdf"), 
+  width = 5, height = 4.5, units = "in")
+
+cvd_grid(gg_lin_log_lin_cohort_tmp_s)
+cvd_grid(gg_lin_log_lin_cohort_tmp_s +
+         scale_color_viridis())
 
 
 
