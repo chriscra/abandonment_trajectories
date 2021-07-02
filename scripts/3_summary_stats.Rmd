@@ -461,7 +461,7 @@ area_summary_df <-
 
 
 # ----------------------------------------------------------- #
-# 2. Calculate the are at each site that is abandoned at any point during the time series (>= 5 years)
+# 2. Calculate the area at each site that is abandoned at any point during the time series (>= 5 years)
 # ----------------------------------------------------------- #
 area_ever_abn <- lapply(1:11, function(i) {
   bin <- max_age_r[[i]]
@@ -575,6 +575,52 @@ ggsave(plot = gg_area_lc_facet_grid,
        filename = paste0(p_plots, run_label, "/area_by_lc_grid", run_label, ".pdf"), 
     width = 7, height = 5, units = "in"
 )
+```
+
+```{r area-abn-as-prop-cropland}
+# what proportion of cropland five years ago is abandoned each year?
+area_dat %>% 
+  filter(lc == "Abandoned (>=5)", year == 2017)
+
+
+# I need the gain in abandoned land, in order to determine the newly abandoned area as a proportion of the amount of cropland five years before
+the_year <- 2012
+
+left_join(
+  turnover_dat %>% 
+    filter(site == "shaanxi", change == "gain") %>% 
+    select(site, year, abn_area_ha = area_ha), #, year == the_year)
+  
+  area_dat %>% 
+    filter(site == "shaanxi", lc == "Cropland") %>%
+    mutate(year = year + 5) %>% 
+    select(site, cropland_area_5_yr_prior = area_ha, year),
+  
+  by = c("site", "year"))
+
+
+
+left_join(
+  filter(area_dat, lc == "Abandoned (>=5)", year == 2017) %>%
+    select(site, year, area_abn = area_ha),
+  filter(area_dat, lc == "Cropland", year == 2017 - 5) %>%
+    select(site, cropland_5_yr_before = area_ha),
+  by = c("site"))
+  
+  
+  select()
+
+
+# plot area abandoned as a proportion of the amount of cropland at the start of the time series:
+ggplot(data = area_summary_df,
+       mapping = aes(y = fct_reorder(site, desc(area_abn_ha_2017/cropland_area_1987)), 
+                     x = area_abn_ha_2017/cropland_area_1987)) + 
+  geom_col() +
+  theme_classic() + 
+  labs(x = "Proportion of cropland in 1987 that is abandoned", y = "Site")
+
+
+
 ```
 
 

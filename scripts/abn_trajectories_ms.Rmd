@@ -265,7 +265,8 @@ abn_duration_stats <- list(
 ```
 
 
-# Abstract (<250 words)
+# Abstract
+*Must be <250 words*
 
 Agricultural expansion is a major cause of land-use change globally, but millions of hectares of cropland are simultaneously being abandoned as a result of demographic, economic, and environmental changes.
 These abandoned croplands could be immensely valuable for carbon sequestration and biodiversity restoration.
@@ -278,14 +279,15 @@ Counter to optimistic assumptions, most abandonment is unlikely to be permanent 
 New policies and incentives will be needed to lengthen the period of abandonment so as to generate these and other benefits.
 Until then, abandoned croplands will remain untapped opportunities.
 
-# Significance Statement (<120 words)
+# Significance Statement
+*Must be <120 words*
 
 Demographic, economic, and environmental changes often result in cropland abandonment. 
 While sometimes seen as a threat to food security and cultural landscapes, abandonment is increasing billed as an opportunity for habitat restoration and carbon sequestration.
-However, those environmental benefits largely depend on how long ecosystems have to regenerate and accumulate carbon and biodiversity following abandonment, which takes decades in many ecosystems.
+However, those environmental benefits largely depend on how long ecosystems have to regenerate and accumulate carbon and biodiversity following abandonment.
 Existing studies often rely on single snapshots in time to estimate abandonment, and ignore recultivation.
 Using annual land-cover maps, we track abandonment and recultivation at eleven sites across four continents that have recently experienced abandonment.
-Contrary to previous assumptions, abandonment is short-lived and frequently recultivated.
+Contrary to previous assumptions, abandonment is short-lived and most abandoned croplands are recultivated within three decades or less.
 Until policymakers take steps to reduce recultivation and provide incentives for regeneration, abandonment will remain a missed opportunity.
 
 <!-- ## Classification -->
@@ -300,17 +302,17 @@ Until policymakers take steps to reduce recultivation and provide incentives for
 
 # Introduction
 
-Populations are in flux around the world, as people seek new economic opportunities in cities and flee changing environments and conflicts [@Sanderson2018].
+Human populations are in flux around the world, as people seek new economic opportunities in cities and flee changing environments and conflicts [@Sanderson2018].
 Coupled with environmental degradation and changing agricultural technologies, this rural outmigration has contributed to a decline in the economic viability of some agricultural lands, resulting in a growing global trend of agricultural abandonment [@ReyBenayas2007; @Prishchepov2021].
 Furthermore, in a world with increasing competition for land, these abandoned agricultural lands are highly sought after for diverse goals such as biofuel production [@Naess2021], carbon sequestration [@Griscom2017; @Chazdon2016a], or recultivation [@Meyfroidt2016].
-To conservationists, these lands represent a potentially large source of new habitat as ecosystems regenerate [@Chazdon2020; @Xie2019; @Navarro2012].
+To conservationists, these lands represent a potentially large opportunity for biodiversity recovery as former croplands regenerate into native vegetation [@Chazdon2020; @Xie2019; @Navarro2012].
 
-Millions of hectares of agricultural lands have been abandoned over the last half century [@Li2017], but for how long and to what end is unclear.
+Millions of hectares of agricultural lands have been abandoned over the last half century [@Li2017], with abandonment predicted to continue in many places [@Sanderson2018; @Popp2017], but for how long and to what end is unclear.
 Understanding the environmental impacts of agricultural abandonment requires not only detailed information on where and when abandonment takes place, but critically, what happens to croplands and pastures after they are abandoned.
-In order for abandoned lands to yield environmental benefits, they must stay abandoned long enough for appreciable gains to be made in both biomass and the species that make up intact ecological communities, which can take decades or longer to approach the levels of intact reference ecosystems, with species recolonizing at different successional stages [@Rozendaal2019; @Acevedo-Charry2019; @Isbell2019; @Nerlekar2020; @Gilroy2014; @Cook-Patton2020; @Poorter2016].
-As such, information on the long-term persistence and outcomes of abandoned lands is critical to understand the potential for these areas to help mitigate the ongoing climate and biodiversity crises.
+In order for abandoned lands to yield environmental benefits, they must stay abandoned long enough for appreciable gains to be made in both plant biomass and the species that make up intact ecological communities, which can take decades or longer to approach the levels of intact reference ecosystems, with species recolonizing at different successional stages [@Rozendaal2019; @Acevedo-Charry2019; @Isbell2019; @Nerlekar2020; @Gilroy2014; @Cook-Patton2020; @Poorter2016].
+As such, information on the long-term persistence and outcomes of abandoned lands is critical to understanding the potential for these areas to help mitigate the ongoing climate and biodiversity crises.
 
-Yet until recently, it has been difficult to gather detailed information on abandonment.
+Until recently, it has been difficult to gather detailed information on abandonment.
 Many estimates of abandonment are inferred by aggregating coarse estimates of regional cultivation, such as from FAO data on cultivated areas [@Isbell2019; @Munroe2013].
 When derived from satellite imagery, abandonment is most frequently estimated by simply taking the difference in cultivated area between land cover maps for two distinct points in time (e.g. 1992 and 2015 [@Naess2021]).
 Annual land-cover time series are becoming more common, but are typically limited to a short timespan (e.g. 2-12 years [@Alcantara2013; @Estel2015; @Lark2015]; though see @Dara2018).
@@ -324,10 +326,11 @@ Recent advances in remote sensing have made it possible to produce maps of cropl
 Yin et al. -@Yin2020 used a trajectory-based approach to produce accurate maps of cropland abandonment without relying on woody revegetation, allowing for a direct focus on abandonment and an expansion to a broader set of non-forest biomes.
 Here, we utilize this new annual time-series of cropland abandonment [@Yin2020] to investigate the duration and persistence of abandonment at eleven sites across four continents, including sites in Brazil, the United States, Eastern Europe, Russia, the Middle East, and China (Figure \@ref(fig:site-locations)).
 
-We address three specific questions: How long does cropland abandonment last, on average, and how does this vary geographically? How quickly is land recultivated, as measured by individual recultivation (or "decay") rates, and how do these rates vary through time? Finally, if abandonment and recultivation rates stay about the same, how can we expect the mean age of abandoned croplands to change in these landscapes into the future?
+We address three sets of questions: How long does abandoned cropland stay abanadoned during our time series, on average, and how does this vary geographically? How quickly is recultivation expected to take place based on the year of abandonment, and how do these individual recultivation (or "decay") rates vary through time? Finally, if abandonment and recultivation continue at current rates, how will the mean age of abandoned croplands change in these landscapes into the future?
 
-By making use of more accurate and finer resolution abandonment maps, covering a longer period and broader set of sites than previous studies, we provide the most detailed analysis of the timing and persistence of cropland abandonment to date.
-Together, these results provide much needed context on the temporal nature of cropland abandonment and its potential to provide ecosystem services and conserve biodiversity.
+By making use of new, more accurate and finer resolution abandonment maps, and by covering a longer period and broader set of sites than previous studies, we provide the most detailed analysis to date of the timing and persistence of cropland abandonment.
+Given that some abandonment periods are inherently limited by the length of our time series (making the mean duration a moving target), tracking recultivation rates for each year provides a more accurate understanding of persistence.
+Together, these results provide much needed context on the temporal nature of cropland abandonment and its potential to sequester carbon and conserve biodiversity.
 
 <!-- Foreshadow results? -->
 <!-- We find that abandonment is rarely permanent, but rather a dynamic phenomenon that varies spatially and temporally. -->
@@ -587,8 +590,9 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/site_locations_w_abn
 
 ## Abandonment duration
 
-We found substantial amounts of cropland abandonment, observing `r area_abn_stats$total_area_abn_Mha_all_sites` million ha (Mha) of abandoned croplands across our eleven sites as of 2017 (`r area_abn_stats$total_area_abn_as_percent_of_total`% of the `r area_abn_stats$total_area_Mha_all_sites` Mha total site area; Figure \@ref(fig:site-locations).
-Cropland abandonment at individual sites ranged between `r area_abn_stats$min_area_as_prop_site`% (`r area_abn_stats$min_area_as_prop_site_site`) and `r area_abn_stats$max_area_as_prop_site`% (`r area_abn_stats$max_area_as_prop_site_site`) of total site area (Figures \@ref(fig:area-abn-by-age-class) and \@ref(fig:area-abn-panel)^[Note: figure numbers will be updated to read "Fig. S1," etc. in the final version.]).
+Cropland abandonment was widespread across our eleven study sites.
+We detected `r area_abn_stats$total_area_abn_Mha_all_sites` million ha (Mha) of abandoned croplands across our eleven sites as of 2017 (`r area_abn_stats$total_area_abn_as_percent_of_total`% of the `r area_abn_stats$total_area_Mha_all_sites` Mha total site area; Figure \@ref(fig:site-locations).
+Cropland abandonment at individual sites ranged between `r area_abn_stats$min_area_as_prop_site`% (`r area_abn_stats$min_area_as_prop_site_site`) and `r area_abn_stats$max_area_as_prop_site`% (`r area_abn_stats$max_area_as_prop_site_site`) of total site area (Figures \@ref(fig:area-abn-by-age-class) and \@ref(fig:area-abn-panel)^[Note: figure numbers above 4 will be updated to read "Fig. S1," etc. in the final version.]).
 The notable exception was Mato Grosso, where only `r area_abn_stats$mg_abn_as_percent`% of the total site area was abandoned as of 2017 (see Section \@ref(mato-grosso)).
 
 However, we also found that many of these abandoned croplands were recultivated during our time series: `r recult_stats$mean_thr_5`% of abandoned area, averaged across all sites (SD = `r recult_stats$sd_thr_5`%; Figure \@ref(fig:recult-by-threshold)).
@@ -607,15 +611,16 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/mean_lengths", run_l
 
 ## Modeling abandonment decay & recultivation
 
-We tracked individual groups (i.e. "cohorts") of croplands that were abandoned in a given year, modeling the proportion of each cohort remaining abandoned as a function of time since initial abandonment (see Section \@ref(methods), Figure \@ref(fig:abn-decay-s)).
+We defined a cohort of abandoned cropland as the group of all cropland abandoned in a given year at a given site.
+We then tracked these cohorts through time, modeling the proportion of each cohort remaining abandoned as a function of time since initial abandonment (see Section \@ref(methods), Figure \@ref(fig:abn-decay-s)).
 This allows us to predict how long a given abandoned cropland will persist before it is recultivated, regardless of when it was abandoned during the time series, and also calculate the mean recultivation (or "decay") trajectory at each site (Figure \@ref(fig:decay-curves-by-site)).
 
 Recultivation occurred relatively quickly: >50% of abandoned croplands were projected to be recultivated within 25 years at almost all sites, ranging between `r decay_stats$t0.5_min` years (`r decay_stats$t0.5_min_site`) and `r decay_stats$t0.5_max` years (`r decay_stats$t0.5_max_site`).
 The primary exception was our site in Shaanxi/Shanxi Provinces (China), which showed more durable abandonment.
-Our models predicted `r decay_stats$shaanxi_0.5` years to decline by half, and `r decay_stats$shaanxi_0` years for complete turnover (Figure \@ref(fig:decay-curves-by-site)).
+Our models predicted a half-life of `r decay_stats$shaanxi_0.5` years (here defined as the time required for half of the croplands abandoned in a given year to be recultivated), and `r decay_stats$shaanxi_0` years for complete turnover (here defined as the time required for all abandonment in a given cohort to be recultivated) (Figure \@ref(fig:decay-curves-by-site)).
 These mean decay trajectories also display wide variation in the proportion of abandoned croplands that persist beyond 20 years: as few as `r decay_stats$percent_at_20_min`% at `r decay_stats$percent_at_20_min_site`, up to `r decay_stats$percent_at_20_max`% at `r decay_stats$percent_at_20_max_site`.
 
-(ref:caption-decay-curves-by-site) Mean decay trajectories for each site, based on the mean coefficients across all cohorts of abandoned land.
+(ref:caption-decay-curves-by-site) Mean decay trajectories for each site, based on the mean coefficients across all cohorts of abandoned cropland at each site.
 
 ```{r decay-curves-by-site, fig.cap = '(ref:caption-decay-curves-by-site)', echo=FALSE}
 # switch to wide (full time span) vs. just the first 50 years
@@ -625,9 +630,9 @@ These mean decay trajectories also display wide variation in the proportion of a
 knitr::include_graphics(path = paste0(p_plots, run_label, "/decay", "/mean_decay_curves", run_label, ".pdf"))
 ```
 
-By modeling recultivation for each cohort of abandonment, we are also able to investigate whether recultivation is accelerating.
+By modeling recultivation for each cohort of abandonment, we are also able to investigate whether recultivation of abandoned cropland is accelerating.
 Most sites showed a negative trend in the time required for recultivation, indicating that abandoned croplands were being recultivated more quickly throughout the time series (Figure \@ref(fig:decay-rate-of-change)).
-A simple linear regression on the time required for 50% recultivation revealed that just over half of our sites show negative rates of change that were significantly different from zero: Bosnia & Herzegovina, Volgograd, Wisconsin, Nebraska, Orenburg, and Iraq (Figure \@ref(fig:decay-rate-of-change)).
+A simple linear regression on the half-life (the time required for 50% recultivation) revealed that just over half of our sites show negative rates of change that were significantly different from zero: Bosnia & Herzegovina, Volgograd, Wisconsin, Nebraska, Orenburg, and Iraq (Figure \@ref(fig:decay-rate-of-change)).
 The remaining sites showed trends that were not significantly different from zero.
 
 ```{r old-roc-text, include = FALSE}
@@ -661,60 +666,56 @@ Even at Shaanxi, the site projected to see the most durable abandonment, we see 
 Using a new high-resolution annual land-cover time series, we uncovered significant amounts of abandonment since 1987, constituting `r area_abn_stats$total_area_abn_as_percent_of_total`% of the total land area, and `r area_abn_stats$total_area_abn_as_percent_of_crop87`% of cropland in 1987, across our eleven sites.
 However, we also uncover significant levels of recultivation, observing that on average, 37% of abandoned croplands were recultivated by 2017, lasting 15 years on average.
 We observed a wide range of variation across sites, with some sites showing accelerating rates of recultivation.
-Yet, even the sites with the most durable abandonment are unlikely to see large amounts of land persist for longer than 50 years.
+Yet, even the sites with the most durable abandonment are unlikely to see large amounts of land persist uncultivated for longer than 50 years.
 Our modeled decay rates portray a more dynamic process, where abandonment is rarely an endpoint but rather part of a cycle of turnover on decadal timescales [@Munroe2013].
 
-Furthermore, by using an annual time series and tracking cohorts of abandoned croplands based on the year of abandonment, we develop a more accurate picture of abandonment persistence.
-For example, while Shaanxi had among the shortest observed abandonment durations, current recultivation trajectories indicate more durable abandonment than we can observe during the time series, given an increase in abandonment later in the time series.
+Furthermore, by using an annual time series and tracking cohorts of abandoned croplands based on the year of abandonment, we developed a more accurate picture of abandonment persistence.
+For example, while Shaanxi had among the shortest observed abandonment durations, current recultivation trajectories indicate more durable abandonment than we can observe during the time series, given an increase in the rate of abandonment coupled with a decrease in recultivation rates later in the time series.
 Similarly, Bosnia & Herzegovina, which had the longest mean abandonment duration, experienced accelerating recultivation towards the end of the time series, challenging future persistence.
 
-There is little information on variation in fallowing times around the world [@Chazdon2016a], but the abandonment and impermanence that we observe generally matches that observed in other studies.
+The abandonment and impermanence that we observe generally matches that observed in other studies, although such studies are relatively rare [@Chazdon2016a].
 To our knowledge, the only other study that uses an annual time series to investigate agricultural abandonment (in a grassland region of northern Kazakhstan between 1991-2017; [@Dara2018]), observed abandonment of about 40% of cultivated areas, and the subsequent recultivation of about 20% of that abandonment.
 This recultivation, while in line with our most durable site (Shaanxi), was lower than both our average across sites (`r recult_stats$mean_thr_5`%), and that seen at our sites closest to Kazakhstan:  Orenburg and Volgograd, Russia, which saw recultivation of `r area_recult_threshold %>% filter(abn_threshold == 5, site == "orenburg") %>% .$proportion_recultivated %>% round(digits = 4) * 100`% and `r area_recult_threshold %>% filter(abn_threshold == 5, site == "volgograd") %>% .$proportion_recultivated %>% round(digits = 4) * 100`% respectively (Figure \@ref(fig:recult-by-threshold)).
 
-Our projected 50% recultivation times of 12-24 years at most sites were similar to that observed by Reid et al. (20 years @Reid2019), but were slightly longer than those observed elsewhere in the Neotropics [@Chazdon2016a; @Nunes2020; @Smith2020].
+Our projected half-lives of 12-24 years at most sites were similar to that observed by Reid et al. (20 years @Reid2019), but were slightly longer than those observed elsewhere in the Neotropics [@Chazdon2016a; @Nunes2020; @Smith2020].
 Secondary forests were recleared more quickly in the Brazilian Amazon (50% within 5 to 8 years), where 80% of secondary forests were younger than 20 years old [@Chazdon2016a; @Nunes2020; @Smith2020].
 Across the tropics, only 33% of forests regenerating after recent deforestation were older than 10 years [@Vancutsem2021].
 However, these differences may be the result of 1) a time delay between abandonment and the detection of woody vegetation regrowth, 2) our exclusion of abandonment less than five years, or 3) our method of modeling recultivation for each cohort individually, thereby reducing the influence of the time series length.
 
-## Implications for biodiversity recovery
+## Implications for biodiversity recovery and carbon sequestration
 
-Our results show that, contrary to optimistic assumptions, a significant amount of abandonment is unlikely to be permanent.
-Furthermore, estimates of abandonment based on short time series or two points in time (e.g. 83 Mha estimated by Næss et al. [@Naess2021]) likely overestimate the amount of durable abandonment on the order of 20-45% or more. 
-Recultivation at this scale may dramatically limit the scope for abandoned croplands to play a role in carbon sequestration or the regeneration of biodiversity.
+Our results show that, contrary to optimistic assumptions, most cropland abandonment is unlikely to be permanent.
+Furthermore, estimates of abandonment based on short time series or two points in time (e.g. 83 Mha estimated by Næss et al. [@Naess2021]) likely overestimate the amount of durable abandonment by roughly 20-45% or more. 
+Recultivation at this scale may dramatically limit the scope for abandoned croplands to play a major role in carbon sequestration or the regeneration of biodiversity.
 
 There is significant uncertainty about how quickly and how completely ecosystems recover through ecological succession following disturbances and abandonment [@Norden2015; @Crouzeilles2016; @Arroyo-Rodriguez2017].
 Yet, evidence suggests that natural regeneration can be a viable ecosystem restoration strategy under the right conditions (e.g. following less intense disturbances, in landscapes containing intact source ecosystems), resulting in secondary growth that can approach the habitat and carbon values of intact ecosystems [@Crouzeilles2019; @Gilroy2014; @Arroyo-Rodriguez2017].
 
 However, even under the right conditions, recovery requires time.
 Some aspects of ecosystems recover more quickly than others, but in most cases, it takes multiple decades to recover species richness to values close to those in reference systems. 
-Rarer, forest-adapted, and old-growth dependent species return even more slowly, and metrics that better capture the recovery towards old-growth ecosystems, such as community composition, species similarity, and vegetation structure, can take much longer to recover than richness or abundance, which can be dominated by widespread generalist species [@Meli2017; @Arroyo-Rodriguez2017; @Crouzeilles2016; @Rydgren2020].
+Rarer, forest-adapted, and old-growth dependent species return even more slowly, and metrics that better capture the recovery towards old-growth ecosystems, such as community composition, species similarity, and vegetation structure, can take much longer to recover than simply total species richness or abundance, which can be dominated by widespread generalist species [@Meli2017; @Arroyo-Rodriguez2017; @Crouzeilles2016; @Rydgren2020].
 
-Some ecosystems and biomes seem to recover more quickly and successfully than others, namely in relatively higher latitudes, relatively colder climates, and in relatively more humid biomes [@Prach2018].
-Our sites cover a range of biomes^[I previously included the biomes for each site, but removed them because they took up so much real estate. I can put them back in, however. "Our sites cover a range of biomes, including Temperate Broadleaf and Mixed Forests (Belarus/Smolensk, Bosnia & Herzegovina, Wisconsin), Temperate Grasslands, Savannas, and Shrublands (Nebraska, Orenburg, Volgograd), and Tropical Grassland (Goiás, Mato Grosso), Tropical Moist Broadleaf Forests (Chongqing, Mato Grosso), Montane Grassland and Shrublands (Shaanxi), and Deserts & Xeric Shrublands (Iraq)."] (Figure \@ref(fig:site-biomes)), and land cover outcomes for abandoned croplands showed wide variation across sites, with most abandonment in Wisconsin being classified as forest by 2017 (`r lc_stats$forest_max`% forest, `r lc_stats$forest_max_grassland`% grassland), but remaining mostly in grassland elsewhere (Figure \@ref(fig:abn-prop-lc)).
-This limited woody vegetation regrowth may be a product of the biome or simply insufficient time for woody biomass to develop, and land cover alone cannot confidently serve as a proxy for ecosystem recovery.
-
-Tropical ecosystems are among the most diverse in the world, but in some cases can regenerate quite quickly, though not on a time scale as short as the abandonment we observe here.
+Tropical ecosystems are among the most speciose in the world.
+In some cases they can regenerate quite quickly, though not on a time scale as short as the abandonment we observe here.
 Neotropical chronosequences show that lowland tropical forests recover quickly in terms of tree species richness (reaching 80% of old-growth levels after 20 years, 90% after 31 years), but slowly in terms of tree species composition (34% of old-growth levels after 20 years, requiring 487 years to reach 90%) [@Rozendaal2019].
 These sites retained relatively high forest cover (76% on average), however, and recovery is likely to be even slower in less-forested ecosystems [@Rozendaal2019].
 
-Some studies indicate quick recovery of vertebrate groups: for example, bird and dung beetle communities in regenerating pastures had recovered similarity to those in primary reference forests after 15-30 years in the Colombian Andes [@Gilroy2014].
-However, most other studies point to longer recovery times. 
+Though some studies indicate quick recovery of vertebrate groups [@Gilroy2014], most point to longer recovery times. 
 A recent meta-analysis of tropical forests found that while amphibian, bird, mammal, and reptile species richness largely recovered within 40 years, species compositional similarity took much longer to recover (if at all), particularly for late-successional species, insectivores, and forest specialists [@Acevedo-Charry2019].
 None of the vertebrate groups reached similarity to reference old-growth forests, even in the oldest secondary forests (30-65 years).
 
-Some evidence indicates that grassland ecosystems recover more quickly following disturbances than forests [@Jones2009], but recent studies have highlighted the long recovery times for secondary grasslands. 
-Nerlekar & Veldman [@Nerlekar2020] show that on average, secondary grasslands contained only 53-76% of the plant species richness of old-growth grasslands, and even after full recovery of species richness (with minimum recovery times of >100 years), compositional similarity to old-growth grasslands remained low (43%).
+Older evidence indicates that grassland ecosystems can recover more quickly following disturbances than forests [@Jones2009], but recent studies have highlighted the long recovery times for secondary grasslands. 
+Nerlekar & Veldman [@Nerlekar2020] show that on average, secondary grasslands (between 1-251 years old) contained only 53-76% of the plant species richness of old-growth grasslands; even after full recovery of species richness (with minimum estimated recovery times of >100 years), compositional similarity to old-growth grasslands remained low (43%).
 Similarly, Isbell et al. [@Isbell2019] showed that after quick initial gains in biodiversity following abandonment (averaging over 1/3 diversity after just one year), both biodiversity and productivity grew slowly over time, reaching only 73% of the diversity and 53% of the productivity levels of a reference ecosystem after 91 years.
 Eurasian grasslands, where widespread abandonment has occurred, had not fully recovered plant species richness or community composition after 24 years [@Kampf2016], nor bird species richness and diversity after 18 years [@Kamp2011].
-
-## Carbon sequestration potential
 
 Regenerating habitats may also only achieve a small fraction of their carbon storage potential if they last only a few decades. 
 While carbon accumulates quickly over the first few decades of regeneration, it can take between 50-100 years to achieve similar levels of biomass as old-growth forests [@Poorter2016; @Martin2013]. 
 A study of Neotropical aboveground biomass recovery showed that forests were able to recover 90% of the biomass of old-growth forests after a median of 66 years, yet were typically at <50% biomass after 20 years.
-But like biodiversity, carbon accumulation estimates vary by biome and by prior land use. 
+But, like biodiversity, carbon accumulation estimates vary by biome and by prior land use. 
 Based on estimates of potential aboveground carbon accumulation rates during the first 30 years of natural regeneration across biomes [@Cook-Patton2020], we would expect the abandoned croplands we observe to accumulate between 30-70 Mg C per ha over 20 years, or 18%-45% of the 110-250 Mg C per ha total that could be accumulated over 100 years [@Cook-Patton2020].
+Much of the abandonment we observe occurred in grassy biomes, where soil carbon sequestration may be more important.
+However, like aboveground biomass, soil carbon may accumulate slowly, taking up to a century (or possibly longer) to return to reference levels [@Yang2019].
 
 ```{r, include = FALSE}
 # Estimates for total carbon accumulation over time from Cook-Patton et al. 2020 (Nature, "Mapping carbon accumulation potential from global natural forest regrowth"), based on the best fit lines in Figure 1:
@@ -739,45 +740,30 @@ cook_patton
 
 ```
 
-Much of the abandonment we observe occurred in grassy biomes, where soil carbon sequestration may be more important.
-However, like aboveground biomass, soil carbon may accumulate slowly, taking up to a century (or possibly longer) to return to reference levels [@Yang2019].
-
-## Additional challenges to regeneration
-
-Recultivation is not the only potential barrier to regeneration in abandoned croplands.
-Soil degradation, a lack of nearby source populations, a lack of natural disturbance regimes, and climate change all pose significant challenges [@Crouzeilles2016; @Crouzeilles2019]. 
-Soil conditions recover slowly in restored agricultural landscapes, and is often incomplete even after 50 years [@Parkhurst2021].
+Moreover, merely abandoning croplands may be insufficient to achieve carbon or biodiversity goals for a variety of reasons, in addition to recultivation. 
+The degradation and slow recovery of soils, a lack of nearby source populations, a lack of natural disturbance regimes, and climate change all pose significant challenges [@Crouzeilles2016; @Crouzeilles2019; @Parkhurst2021].
 While natural regeneration can be cheaper and more successful than active restoration under the right conditions, more heavily altered systems require more active approaches and longer recovery times [@Crouzeilles2017; @Gilroy2014; @Meli2017].
-
-Grassland regeneration faces particular challenges, because many grasslands require the maintenance of natural disturbance regimes (e.g. grazing or fire), which are often nonexistent in areas experiencing abandonment [@Nerlekar2020].
-Some ecologists highlight the potential loss of grassland and farmland biodiversity if low-intensity farmlands are abandoned and replaced by woody vegetation, causing some species to gain and others to lose habitat, particularly in historically unforested ecosystems [@Wright2012; @Queiroz2014; @Nerlekar2020; @Sirami2008].
-In some cases, approaches that aim to restore disturbance regimes and a mix of habitats might result in better conservation outcomes, depending on the species and ecosystems of conservation concern [@ReyBenayas2007].
+Grassland regeneration faces particular challenges, because many grasslands require the maintenance of natural disturbance regimes (e.g. grazing or fire), which may be absent following abandonment [@Nerlekar2020].
+In certain cases, grassland biodiversity may be lost if low-intensity farmlands are abandoned and replaced by woody vegetation, particularly in historically unforested ecosystems [@ReyBenayas2007; @Nerlekar2020; @Queiroz2014; @Sirami2008].
 
 ## Drivers of abandonment and recultivation
 
 Our results also include a range of interesting temporal patterns of abandonment. 
-For example, Bosnia & Herzegovina displays a strong bifurcated pattern, where early abandonment remains relatively durable, while later other abandonment is recultivated relatively quickly. 
+For example, Bosnia & Herzegovina displays a strong bifurcated pattern, where early abandonment remained relatively durable, while croplands abandoned in later years were recultivated relatively quickly. 
 This could be a function of sociopolitical upheaval in Eastern Europe and Russia in the early 1990s [@Prishchepov2012], but it could also simply be a function of time: the longer a field is abandoned, the less likely it is to be recultivated [@Dara2018]. 
 If the least viable lands are abandoned first, then the most recently abandoned croplands should therefore be most attractive for recultivation.
 Younger abandoned fields may also simply be easier to reclear, due to less woody regrowth (as farmers prefer [@Prishchepov2021a]). 
 Our highest performing model of recultivation included two *time* terms (linear and logarithmic), indicating that time may influence recultivation through multiple mechanisms.
 
-## Defining abandonment
-
-The length of fallow periods may vary widely around the world, and many studies use different definitions of abandonment. 
-While distinguishing abandonment from long fallow periods remains a challenge, it is possible that longer abandonment thresholds would be more appropriate in certain contexts.
-We varied our definition (Section \@ref(abn-thresholds)) and found that, as expected, longer definitions resulted in less abandonment over all, longer average abandonment durations (Figure \@ref(fig:abn-thresholds-mean-duration)), and lower recultivation rates (Figure \@ref(fig:recult-by-threshold)). 
-However, even when only considering abandonment longer than 10 years, we still observed between `r recult_stats$min_10`% and `r recult_stats$max_10`% recultivation at `r recult_stats$min_10_site` and `r recult_stats$max_10_site` respectively, enough to significantly curtail regeneration and any associated benefits.
-
 ## Conclusions
 
-As we have shown, cropland abandonment is unlikely to be permanent in many places around the world that have experienced recent abandonment.
-Without the development of careful policies and concerted efforts to protect these croplands, they are unlikely to provide significant biodiversity and carbon benefits. 
+Abandoned croplands at eleven sites across the globe show little evidence of remaining uncultivated for long periods of time. 
+Without the development of policies and incentives to discourage recultivation, these areas are unlikely to provide significant biodiversity and carbon benefits. 
 Our results reinforce growing calls for enhanced monitoring of regeneration [@Cook-Patton2021], and the development of a stronger policy framework for managing these lands [@Chazdon2020].
 
 In addition to the biophysical challenges outlined above, there are a range of socioeconomic and political barriers hindering habitat regeneration in abandoned croplands.
 These include policies that obligate farmers to cultivate land, a lack of incentives to protect and foster regenerating habitats, and perhaps most importantly, negative cultural perceptions of "abandonment" and the "messy" landscapes that result [@Chazdon2020].
-Agricultural abandonment is the product of broad societal changes, and the pain associated with the loss of certain landscapes and ways of life should be addressed.
+Agricultural abandonment is the product of broad societal changes, and the pain associated with the loss of certain types of landscapes and ways of life should be addressed.
 Recent behavioral research on farmer decisions to recultivate abandoned croplands highlights the importance of addressing sociopolitical factors such as corruption, political and institutional support for agriculture, and demographics, alongside biophysical and environmental conditions, in order to understand and manage abandonment [@Prishchepov2021a].
 
 In order for abandoned croplands to provide environmental benefits through habitat regeneration or carbon sequestration, they must persist for longer. 
@@ -785,7 +771,7 @@ This could involve incorporating abandoned fields in protected areas, incorporat
 The relative durability of abandonment at our Chinese sites point to the potential influence of large-scale reforestation programs implemented over the last 25 years, despite ongoing opportunities to improve biodiversity outcomes [@Hua2016]. 
 Such policies should be developed alongside local communities in order to best manage the trade-offs between biodiversity, carbon storage, and livelihoods.
 
-Our results make one thing clear: if cropland abandonment continues to be as short-lived as we show here, the negative socioeconomic consequences of abandonment will continue to dominate, and the large potential benefits of regenerating habitats to both store carbon and sustain biodiversity will remain an untapped opportunity.
+Our results make one thing clear: if cropland abandonment continues to be as short-lived as we show here, the large potential benefits of regenerating habitats to both store carbon and sustain biodiversity will remain an untapped opportunity.
 
 # Materials and Methods {#methods}
 
@@ -815,7 +801,8 @@ Our results make one thing clear: if cropland abandonment continues to be as sho
 ## Abandonment maps
 
 We use annual land cover maps for 1987-2017 [@Yin2020], derived from publicly available Landsat satellite imagery (30 m resolution), mapping four land cover classes: 1) cropland, 2) herbaceous vegetation (e.g. grassland), 3) woody vegetation (e.g. forests), and 4) non-vegetation (e.g. water, urban, or barren land).
-Our 11 sites were mapped with high accuracy and provide broad coverage of different continents and ecosystems (Figure \@ref(fig:site-locations)).
+Our eleven sites were mapped with high accuracy and provide broad coverage of different continents and ecosystems (Figure \@ref(fig:site-locations)).
+We focus exclusively on cropland abandonment; pasture abandonment is more difficult to discern from satellite imagery and is not captured in our data.
 Yin et al. [@Yin2020] selected sites where recent abandonment was likely due to socioeconomic, political, or environmental factors.
 Thus, while our results are likely representative of those areas that have recently experienced abandonment, they likely overestimate the overall prevalence of abandonment across all agricultural regions.
 
@@ -823,8 +810,9 @@ Thus, while our results are likely representative of those areas that have recen
 
 Differentiating abandonment from short-term fallowing or crop rotations is difficult because agricultural practices can vary widely by region, and studies use many different definitions [@Yin2020].
 Here, we define "abandonment" as cropland that is no longer under active cultivation and is left free of direct human influence, therefore excluding shifts to less intensive uses such as extensive grazing.
-To exclude short-term fallowing, we define croplands as abandoned when they remain uncultivated for five or more consecutive years (following FAO [@FAO2016]; see sensitivity analysis in Section \@ref(abn-thresholds)).
-We focus exclusively on cropland abandonment; pasture abandonment is more difficult to discern from satellite imagery and is not captured in our data.
+To exclude short-term fallowing, we define croplands as abandoned when they remain uncultivated for five or more consecutive years (following FAO [@FAO2016])
+Recognizing that longer abandonment thresholds may be more appropriate in certain contexts, we performed a sensitivity analysis varying our definition (Section \@ref(abn-thresholds)) and found that, as expected, longer definitions resulted in less abandonment over all, longer average abandonment durations (Figure \@ref(fig:abn-thresholds-mean-duration)), and lower recultivation rates (Figure \@ref(fig:recult-by-threshold)).
+However, even when only considering abandonment longer than 10 years, we still observed between `r recult_stats$min_10`% and `r recult_stats$max_10`% recultivation across our sites (at `r recult_stats$min_10_site` and `r recult_stats$max_10_site` respectively), enough to significantly curtail regeneration and any associated benefits.
 
 ## Data processing
 
@@ -1017,6 +1005,11 @@ However, because Mato Grosso showed large amounts of new cultivation over the so
 
 ## Biomes
 
+Some ecosystems and biomes seem to recover more quickly and successfully than others, namely in relatively higher latitudes, relatively colder climates, and in relatively more humid biomes [@Prach2018].
+Our sites cover a range of biomes, including Temperate Broadleaf and Mixed Forests (Belarus/Smolensk, Bosnia & Herzegovina, Wisconsin), Temperate Grasslands, Savannas, and Shrublands (Nebraska, Orenburg, Volgograd), and Tropical Grassland (Goiás, Mato Grosso), Tropical Moist Broadleaf Forests (Chongqing, Mato Grosso), Montane Grassland and Shrublands (Shaanxi), and Deserts & Xeric Shrublands (Iraq) (Figure \@ref(fig:site-biomes)).
+Land cover outcomes for abandoned croplands showed wide variation across sites, with most abandonment in Wisconsin being classified as forest by 2017 (`r lc_stats$forest_max`% forest, `r lc_stats$forest_max_grassland`% grassland), but remaining mostly in grassland elsewhere (Figure \@ref(fig:abn-prop-lc)).
+This limited woody vegetation regrowth may be a product of the biome or simply insufficient time for woody biomass to develop, and land cover alone cannot confidently serve as a proxy for ecosystem recovery.
+
 (ref:caption-site-biomes) Site biomes, using biome classifications from The Nature Conservancy's Terrestrial Ecoregions of The World (TEOW) database, derived from @Olson2001 and @Olson2002.
 
 ```{r site-biomes, fig.cap = '(ref:caption-site-biomes)', echo=FALSE}
@@ -1069,7 +1062,7 @@ knitr::include_graphics(path = paste0(p_output, "plots/", run_label, "/recultiva
 
 ## Maps of abandonment duration as of 2017 and maximum duration during time series
 
-(ref:caption-map-abn-age-2017) Duration of cropland abandonment (in years) as of 2017 at our 11 sites.
+(ref:caption-map-abn-age-2017) Duration of cropland abandonment (in years) as of 2017 at our eleven sites.
 
 ```{r map-abn-age-2017, fig.cap = '(ref:caption-map-abn-age-2017)'}
 knitr::include_graphics(path = paste0(p_plots, run_label, "/abn_age_maps_2017_rev", run_label, ".pdf"))
@@ -1348,13 +1341,12 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/",
 
 As noted above, we make two simple assumptions in our extrapolation of abandonment and recultivation: specifically, that 1) recultivation rates remain the same (based on mean recultivation trends at each site, shown in Figure \@ref(fig:decay-curves-by-site), and that 2) a constant amount of cropland is newly abandoned each year, based on the mean annual gain in abandonment shown in Figure \@ref(fig:turnover-grid) (dark green bars).
 
-However, these assumptions may not be very realistic (actually, they almost certainly are not realistic). 
-In particular, it is unlikely that a constant amount of land will be newly abandoned each year indefinitely. 
+However, the second assumption, that a constant amount of cropland is newly abandoned indefinitely is almost certainly unrealistic.
 I can think of three alternative assumptions we could make:
 
-1. We could assume that the amount of abandoned land each year would be more likely to gradually decline, so that less and less land is abandoned each year.
-2. We could also set a limit to how much total area could be abandoned, perhaps based on a percent of cropland in a site, for example. 
-3. Or, finally, we could base this on the trend in abandoned land each year (running a regression on the gain columns in part d of the main results panel figures).
+2. We could set a limit to how much total area could be abandoned, perhaps based on a percent of cropland in a site, for example. 
+3. We could alternatively assume that the amount of abandoned land each year would be more likely to gradually decline, so that less and less land is abandoned each year.
+4. Or, finally, we could base this on the trend in abandoned land each year (running a regression on the gain columns in part d of the main results panel figures).
 
 *To do: run this extrapolation for the three different sets of assumptions, and assess the results.*
 

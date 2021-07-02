@@ -24,7 +24,6 @@ library(VIF) # for selecting models for a linear model. Recommended by Liang.
 
 # Decay Models
 
-
 Reminder of the framework for the first paper: characterizing abandonment trajectories & recultivation
 - Looking at abandonment length (mean age), persistence, turnover (half-life), and predictors of age and recultivation. To a lesser extent, recultivation rates
 - Variation between sites
@@ -3150,6 +3149,16 @@ ggsave(plot = plot_grid(gg_cohort_coefs_grid,
 
 # Extrapolation
 
+My main question: if decay rates remain about the same at each site, and a similar and constant area of cropland is newly abandoned each year, how does the persistence of abandoned cropland change into the future?
+
+Specific questions:
+Q1. At what value does the mean abandonment duration plateau?
+Q2. How long does it take for the mean abandonment duration to plateau?
+Q3. What proportion of abandonment cropland lasts beyond 30 years?
+
+
+
+Scenarios:
 Q1. What would the age classes look like in 30 years:
 a) assuming the average decay rate holds for the next 30 years
 b) assuming the trend in decay rate continues for the next 30 years (i.e. slowing down in Shaanxi, speeding up in Belarus)
@@ -3157,11 +3166,46 @@ c) assuming we shift the decay curve
 
 Q2. What would the mean age of abandoned land look like in 30 years, following the same assumptions?
 
+
+## Assumptions
+
+We make two simple assumptions in our extrapolation of abandonment and recultivation: specifically, that 
+1) recultivation rates remain the same (based on mean recultivation trends at each site), and that; 
+2) a constant amount of cropland is newly abandoned each year, based on the mean annual gain in abandonment at each site.
+
+However, this second assumption is almost certainly unrealistic.
+Three alternative assumptions include:
+
+2. Limit how much total area can be abandoned, based on the total amount of cropland at each site at the start of the time series. 
+- The amount of abandoned cropland can never exceed the amount of cropland in 1987. 
+
+3. We could alternatively assume that the amount of abandoned land each year would be more likely to gradually decline, so that less and less land is abandoned each year.
+- Linear decline in area abandoned over 30 years, so that 0 ha are abandoned in 2050
+
+4. Or, finally, we could base this on the trend in abandoned land each year (running a regression on the gain columns in part d of the main results panel figures).
+
 How to calculate this?
 factors:
 1. initial amount of land abandoned. (drawn from a range of abandoned values, constrained by how much land is available?)
 2. The decay rate - how much of the initial amount of land that was abandoned is still abandoned, in time t? This gives us the proportion of the original amount remaining, which we can then multiply by the initial amount abandoned.
 3. 
+
+```{r}
+area_summary_df %>% select(site, total_site_area_ha_2017, cropland_area_1987, area_abn_ha_2017, area_as_prop_crop, area_as_prop_site) %>%
+  mutate(crop_as_prop_site_area = cropland_area_1987 / total_site_area_ha_2017)
+
+round((sum(area_summary_df$area_abn_ha_2017) / sum(area_summary_df$cropland_area_1987)), 
+    digits = 4) * 100
+
+area_summary_df %>% select(site, area_abn_ha_2017, cropland_area_1987, area_as_prop_crop) %>% 
+  filter(site != "mato_grosso") %>%
+  summarise(#mean_prop_crop = mean(area_as_prop_crop),
+            total_area_abn = sum(area_abn_ha_2017),
+            total_cropland_area = sum(cropland_area_1987)
+            ) %>%
+  mutate(total_abn_as_prop_of_total_crop = total_area_abn / total_cropland_area)
+```
+
 
 ```{r extrapolation-testing}
 dat_l
@@ -3303,13 +3347,15 @@ cc_estimate_area_abn(year = 2000) %>% summarise(area = sum(exp_area)) %>% as.num
 
 
 ```{r mean-initial-area-abn}
+area_summary_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", "area_summary_df", run_label, ".csv"))
+
 # ----------------------------------------------------------------------- #
 # Average area initially abandoned at each site, in a data.frame
 # ----------------------------------------------------------------------- #
 mean_initial_area_abn <- dat_l %>% filter(age == 5) %>%
   select(site, year_abn, initial_area_abn = area_ha) %>%
   group_by(site) %>%
-  summarise(mean = mean(initial_area_abn))
+  summarise(mean_area_abn = mean(initial_area_abn))
 
 mean_initial_area_abn
 
@@ -3321,13 +3367,20 @@ mean_initial_area_abn <- mean_initial_area_abn %>%
                        site, area_ha)) %>%
   mutate(percent_of_total = 100*mean/area_ha)
 
+mean_initial_area_abn %>% 
+left_join(., filter(area_dat, lc == "Cropland", year == 1987) %>% 
+                        select(site, cropland_area_1987 = area_ha),
+                      by = c("site"))
 
+area_summary_df
+area_dat %>% 
+  filter(lc %in% c("Cropland"), year == 1987)
 
 # ----------------------------------------------------------------------- #
 # plot the average initial area abandoned for each site
 # ----------------------------------------------------------------------- #
 gg_mean_area_by_site <- ggplot(data = mean_initial_area_abn, 
-       mapping = aes(y = fct_reorder(site, desc(mean)), x = mean)) + 
+       mapping = aes(y = fct_reorder(site, desc(mean_area_abn)), x = mean_area_abn)) + 
   geom_col() + theme_classic() +
   labs(x = "Additional area abandoned in each year, on average", y = "Site",
        title = "Additional area abandoned each year, on average")
@@ -3335,13 +3388,19 @@ gg_mean_area_by_site <- ggplot(data = mean_initial_area_abn,
 
 # as a percentage of the total area of each site
 ggplot(data = mean_initial_area_abn, 
-       mapping = aes(y = fct_reorder(site, desc(mean)), x = 100*mean/area_ha)) + 
+       mapping = aes(y = fct_reorder(site, desc(mean_area_abn)), x = 100*mean_area_abn/area_ha)) + 
   geom_col() + theme_classic() +
   labs(x = "Additional area abandoned in each year, on averag", y = "Site",
        title = "Additional area abandoned each year, on average",
        subtitle = "As a percent of total area in site")
 
 # as a percentage of the amount of cropland in the previous year:
+ggplot(data = mean_initial_area_abn, 
+       mapping = aes(y = fct_reorder(site, desc(mean_area_abn)), x = 100*mean_area_abn/area_ha)) + 
+  geom_col() + theme_classic() +
+  labs(x = "Additional area abandoned in each year, on averag", y = "Site",
+       title = "Additional area abandoned each year, on average",
+       subtitle = "As a percent of total area in site")
 
 
 # ----------------------------------------------------------------------- #
@@ -3418,7 +3477,7 @@ cc_extrapolate_abn <- function(extrapolate_to_year = 2100,
     site = site_,
     year = extrapolate_to_year,
     year_abn = 1988:extrapolate_to_year,
-    mean_initial_area_abn = mean_initial_area_abn %>% filter(site == site_) %>% .$mean, 
+    mean_initial_area_abn = mean_initial_area_abn %>% filter(site == site_) %>% .$mean_area_abn, 
     age = extrapolate_to_year - year_abn + 1) %>%
     
     # match with fitted values (expected proportions)
