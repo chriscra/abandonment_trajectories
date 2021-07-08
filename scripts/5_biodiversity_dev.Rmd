@@ -16,7 +16,7 @@ source("scripts/0_start.R")
 pnv <- raster(paste0(p_dat, "/Habitats/PNV/Hengl_2018_PNV/1km/pnv_biome.type_biome00k_c_1km_s0..0cm_2000..2017_v0.1.tif"))
 
 # Resolution
-res(pnv) * 110 # = 0.9167 km grid (~ 1 km)
+res(l) * 110 # = 0.9167 km grid (~ 1 km)
 
 
 # color palette information
@@ -135,6 +135,10 @@ Which pnv map should we use? The published 1 km map, or the 250 m map?
 ```{r pnv-250m}
 pnv_250 <- raster(paste0(p_dat, "/Habitats/PNV/Hengl_2018_PNV/250m/pnv_biome.type_biome00k_c_250m_s0..0cm_2000..2017_v0.2.tif"))
 
+pnv_250 <- rast(paste0(p_dat, "/Habitats/PNV/Hengl_2018_PNV/250m/pnv_biome.type_biome00k_c_250m_s0..0cm_2000..2017_v0.2.tif"))
+
+plot(pnv_250)
+
 # Resolution
 res(pnv) * 110 # = 0.9167 km grid (~ 1 km)
 res(pnv_250) * 110 # = 0.229 km grid (~ 250 m)
@@ -211,6 +215,66 @@ b_area_250
 b_area
 # 2/3 in 9, or "cool mixed forest"
 # 1/3 in 15, or "cold evergreen needleleaf forest"
+
+
+```
+
+```{r nlcd}
+
+install.packages("terra")
+library(terra)
+
+# update filenames to match yours:
+pnv_250 <- rast(paste0(p_dat, "/Habitats/PNV/Hengl_2018_PNV/250m/pnv_biome.type_biome00k_c_250m_s0..0cm_2000..2017_v0.2.tif"))
+
+nlcd <- rast(paste0(p_dat, "LU/nlcd_2019_land_cover_l48_20210604/nlcd_2019_land_cover_l48_20210604.img"))
+plot(nlcd)
+
+install.packages("rnaturalearth")
+library(rnaturalearth)
+
+usa <- rnaturalearth::ne_states(country = "United States of America", returnclass = "sf")
+plot(usa$geometry)
+
+nj <- usa %>% filter(name == "New Jersey")
+mi <- usa %>% filter(name == "Michigan")
+plot(nj)
+
+# to crop the nlcd to nj, first reproject the nj sf object to aea
+nj_aea <- st_transform(nj, crs(nlcd))
+plot(nj_aea$geometry)
+plot(nj$geometry)
+
+# make sure 
+pnv_nj <- crop(pnv_250, nj)
+nlcd_nj <- crop(nlcd, nj_aea)
+plot(nlcd_nj)
+plot(pnv_nj)
+
+pnv_nj_aea <- project(x = pnv_nj, y = nlcd_nj, filename = paste0(p_dat, "Habitats/PNV/pnv_nj_aea.tif"))
+
+# it worked!
+plot(nlcd_nj)
+plot(pnv_nj_aea, add = T)
+plot(nj_aea$geometry, add = T)
+
+
+# now, try for the entire CONUS
+conus <- usa %>% filter(!name %in% c("Alaska", "Hawaii"))
+plot(conus$geometry)
+
+# crop pnv to conus
+pnv_conus <- crop(pnv_250, conus)
+
+pnv_conus_aea <- project(x = pnv_conus, y = "+proj=aea +lat_0=23 +lon_0=-96 +lat_1=29.5 +lat_2=45.5 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs", filename = paste0(p_dat, "Habitats/PNV/pnv_conus_aea.tif"))
+
+plot(pnv_conus_aea) # it worked!
+
+# add the outline of CONUS
+conus_aea <- st_transform(conus, crs(nlcd))
+plot(conus_aea$geometry, add = T)
+
+
 
 
 ```
