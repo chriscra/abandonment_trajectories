@@ -13,7 +13,7 @@ p_proj <- "/Users/christophercrawford/Google_Drive/_Projects/abandonment_traject
 # ------------------------- #
 
 needed_packages <- c(
-  "data.table", "raster", "rgdal", "sp", "sf", "mapview", 
+  "data.table", "raster", "terra", "rgdal", "sp", "sf", "mapview", 
   "gdalUtils", "gdata", "GISTools", "rgeos", "lwgeom", "fasterize",
   "ncdf4", # for opening NetCDF spatial files
   
@@ -34,6 +34,7 @@ needed_packages <- c(
   # visualization:
   "rasterVis", "RColorBrewer", "viridis", "scales", "colorspace",
   "patchwork", "cowplot", # for combining multiple plots
+  "ggridges",
   "ggpubr", # for extracting legends
   "animation", "magick", "ggrepel",
   "plotly", # plotly makes interactive graphics!

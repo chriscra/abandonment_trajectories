@@ -28,7 +28,7 @@
 
 # -------------------------------------------------------- #
 # load libraries
-cluster_packages <- c("data.table", "tictoc", "raster",
+cluster_packages <- c("data.table", "tictoc", "raster", "terra",
                       "landscapemetrics", "landscapetools", "sp",
                       "tidyverse", "rgdal", "dtraster")
 install_pkg <- lapply(cluster_packages, library, character.only = TRUE)
@@ -144,7 +144,7 @@ for (i in dt_ids) {
 
 
 # -------------------------------------------------------- #
-# 4. Summarize the abandonment datatables into dataframes for plotting purposes ----
+# 4. Summarize the abandonment data.tables into data.frames for plotting purposes ----
 cat("4. Summarizing abandonment data.tables: ", site, fill = TRUE)
 
 cc_summarize_abn_dts(

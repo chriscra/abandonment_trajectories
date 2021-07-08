@@ -7,7 +7,7 @@
 
 
 # load libraries
-cluster_packages <- c("data.table", "tictoc", "raster",
+cluster_packages <- c("data.table", "tictoc", "raster", "terra",
                       "landscapemetrics", "landscapetools", "sp",
                       "tidyverse", "rgdal", "dtraster", "pryr")
 install_pkg <- lapply(cluster_packages, library, character.only = TRUE)
