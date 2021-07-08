@@ -95,6 +95,17 @@ age_r <- lapply(seq_along(age_files), function(i) {brick(age_files[i])})
 names(age_r) <- site_df$site
 for (i in seq_along(age_r)) {names(age_r[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
 
+# load max age rasters
+max_age_files <- list.files(paste0(p_dat_derived, "max_age/", run_label), 
+                        full.names = TRUE) %>%
+  grep(".tif", ., value = TRUE)
+max_age_r2 <- lapply(seq_along(max_age_files), function(i) {brick(max_age_files[i])})
+names(max_age_r2) <- site_df$site
+
+max_age_r <- lapply(seq_along(max_age_files), function(i) {rast(max_age_files[i])})
+names(max_age_r) <- site_df$site
+
+
 # year of first abandonment maps (from He)
 yoa_files <- list.files(paste0(p_dat, "Abandonment/year_of_abandonment/"))
 
