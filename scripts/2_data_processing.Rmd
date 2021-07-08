@@ -199,17 +199,19 @@ site_label_list <- c("_b", "_bh", "_c",
                      "_n", "_o", "_s", 
                      "_v", "_w")
 
-description <- c("Eastern Belarus/Smolensk, Russia",
-               "Bosnia & Herzegovina", 
-               "Chongqing Province, China",
-               "Goiás, Brazil", 
-               "Iraq", 
-               "Mato Grosso, Brazil", 
-               "Nebraska, USA", 
-               "Orenburg, Russia", 
-               "Shaanxi/Shanxi Provinces, China", 
-               "Volgograd, Russia", 
-               "Wisconsin, USA")
+site_description <- c(
+  "Vitebsk, Belarus/Smolensk, Russia",
+  "Bosnia & Herzegovina", 
+  "Chongqing Province, China",
+  "Goiás, Brazil",
+  "Iraq", 
+  "Mato Grosso, Brazil",
+  "Nebraska/Wyoming, USA", 
+  "Orenburg, Russia/Oral, Kazakhstan",
+  "Shaanxi/Shanxi Provinces, China", 
+  "Volgograd, Russia", 
+  "Wisconsin, USA"
+  )
 
 site_merge_layers <- site_list[c(3, 4, 5, 7, 8, 9, 10)]
 c("chongqing", "goias", "iraq", "nebraska", "orenburg", "shaanxi", "volgograd")
@@ -236,17 +238,7 @@ site_df <- data.frame(site = site_list,
          woody_veg = 2,
          cropland = 3,
          grassland = 4,
-         description = c("Eastern Belarus/Smolensk, Russia",
-               "Bosnia & Herzegovina", 
-               "Chongqing Province, China",
-               "Goiás, Brazil", 
-               "Iraq", 
-               "Mato Grosso, Brazil", 
-               "Nebraska, USA", 
-               "Orenburg, Russia", 
-               "Shaanxi/Shanxi Provinces, China", 
-               "Volgograd, Russia", 
-               "Wisconsin, USA")
+         description = site_description
          )
 
 # Update land cover classes for the following sites:
@@ -273,10 +265,8 @@ site_df[site_df$site == "wisconsin",
 
 site_df
 
-
-
 # save site_df
-write_csv(site_df, path = paste0(p_dat_derived, "site_df.csv"))
+write_csv(site_df, file = paste0(p_dat_derived, "site_df.csv"))
 ```
 
 
