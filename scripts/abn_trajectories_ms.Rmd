@@ -10,13 +10,13 @@ abstract: |
   |
   | $^*$Corresponding Author, ccrawford@princeton.edu, Robertson Hall, Princeton University, Princeton, NJ
 output:
+  bookdown::html_document2:
+    toc: true
+  bookdown::pdf_document2:
+    keep_tex: true
   bookdown::word_document2:
     reference_docx: /Users/christophercrawford/Google_Drive/_Projects/writing/scripts/word_style_ref.docx
     number_sections: false
-  bookdown::pdf_document2:
-    keep_tex: true
-  bookdown::html_document2:
-    toc: true
 editor_options:
   chunk_output_type: console
 bibliography: [/Users/christophercrawford/Google_Drive/Library/library.bib, packages.bib]
@@ -387,7 +387,20 @@ Together, these results provide much needed context on the temporal nature of cr
 
 site_df_w_size # note that this includes NA or 0 lc class cells, so is an overestimate. Use the site area from area_summary_df
 area_summary_df %>% names
+
+area_summary_df %>% 
+  select(site, area_abn_ha_2017, area_ever_abn_ha, cropland_area_1987, total_crop_extent_ha_r, total_site_area_ha_2017, 
+         area_as_prop_site, area_as_prop_total_crop, area_as_prop_crop87) %>% 
+  arrange(area_as_prop_total_crop)
+
+area_summary_df %>% 
+  select(site, area_abn_ha_2017, area_ever_abn_ha, cropland_area_1987, total_crop_extent_ha_r, area_as_prop_total_crop, area_as_prop_crop87) %>% 
+  arrange(area_as_prop_total_crop) %>% 
+  mutate(prop_total_to_87 = total_crop_extent_ha_r/cropland_area_1987)
+
+
 area_summary_df %>% select(site, area_abn_ha_2017, total_site_area_ha_2017, area_as_prop_site) %>% arrange(area_as_prop_site)
+
 
 # ---------------------------------------------------------------------- #
 # area abandoned statistics
@@ -404,12 +417,20 @@ area_abn_stats <- list(
   "mg_abn_as_percent" = area_summary_df %>% filter(site == "mato_grosso") %>% select(area_as_prop_site) %>% round(digits = 4) * 100,
   
   "total_area_Mha_all_sites" = round(area_summary_df$total_site_area_ha_2017 %>% sum() / 10^6 , digits = 2),
+  "total_crop_extent_area_Mha_all_sites" = round(area_summary_df$total_crop_extent_ha_r %>% sum() / 10^6 , digits = 2),
+  "total_crop_area_1987_Mha_all_sites" = round(area_summary_df$cropland_area_1987 %>% sum() / 10^6 , digits = 2),
   "total_area_abn_Mha_all_sites" = round(area_summary_df$area_abn_ha_2017 %>% sum() / 10^6, digits = 2),
+  
   "total_area_abn_as_percent_of_total" = round((area_summary_df$area_abn_ha_2017 %>% sum()) / (area_summary_df$total_site_area_ha_2017 %>% sum()), digits = 4) * 100,
   
   "total_area_abn_as_percent_of_crop87" = round(
     (sum(area_summary_df$area_abn_ha_2017) / sum(area_summary_df$cropland_area_1987)), 
     digits = 4) * 100,
+  
+  "total_area_abn_as_percent_of_total_crop_extent" = round(
+    (sum(area_summary_df$area_abn_ha_2017) / sum(area_summary_df$total_crop_extent_ha_r)), 
+    digits = 4) * 100,
+  
   
   "min_area_as_prop_site" = area_summary_df %>% filter(site != "mato_grosso") %>% slice_min(area_as_prop_site) %>% select(area_as_prop_site) %>% round(digits = 4) * 100,
   "min_area_as_prop_site_site" =  area_summary_df %>% filter(site != "mato_grosso") %>% slice_min(area_as_prop_site) %>% .$site %>% capwords(),
@@ -591,7 +612,7 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/site_locations_w_abn
 ## Abandonment duration
 
 Cropland abandonment was widespread across our eleven study sites.
-We detected `r area_abn_stats$total_area_abn_Mha_all_sites` million ha (Mha) of abandoned croplands across our eleven sites as of 2017 (`r area_abn_stats$total_area_abn_as_percent_of_total`% of the `r area_abn_stats$total_area_Mha_all_sites` Mha total site area; Figure \@ref(fig:site-locations).
+We detected `r area_abn_stats$total_area_abn_Mha_all_sites` million ha (Mha) of abandoned croplands across our eleven sites as of 2017 (`r area_abn_stats$total_area_abn_as_percent_of_total_crop_extent`% of the `r area_abn_stats$total_crop_extent_area_Mha_all_sites` Mha of croplands cultivated at some point during the time series, `r area_abn_stats$total_area_abn_as_percent_of_total`% of the `r area_abn_stats$total_area_Mha_all_sites` Mha total site area, and `r area_abn_stats$total_area_abn_as_percent_of_crop87`% of the `r area_abn_stats$total_crop_area_1987_Mha_all_sites` Mha total cropland area in 1987; Figure \@ref(fig:site-locations).
 Cropland abandonment at individual sites ranged between `r area_abn_stats$min_area_as_prop_site`% (`r area_abn_stats$min_area_as_prop_site_site`) and `r area_abn_stats$max_area_as_prop_site`% (`r area_abn_stats$max_area_as_prop_site_site`) of total site area (Figures \@ref(fig:area-abn-by-age-class) and \@ref(fig:area-abn-panel)^[Note: figure numbers above 4 will be updated to read "Fig. S1," etc. in the final version.]).
 The notable exception was Mato Grosso, where only `r area_abn_stats$mg_abn_as_percent`% of the total site area was abandoned as of 2017 (see Section \@ref(mato-grosso)).
 
@@ -606,7 +627,11 @@ Abandonment duration varied within sites, with individual site standard deviatio
 # (ref:caption-mean-abn-duration) Sites included in this study, from @Yin2020.
 # cite inline using the following  \@ref(fig:mean-abn-duration)
 
-knitr::include_graphics(path = paste0(p_plots, run_label, "/mean_lengths", run_label, ".pdf"))
+# old version
+# knitr::include_graphics(path = paste0(p_plots, run_label, "/mean_lengths", run_label, ".pdf")) 
+
+# new version, flipped, with histograms
+knitr::include_graphics(path = paste0(p_plots, run_label, "/mean_lengths_w_ridges_hist", run_label, ".pdf"))
 ```
 
 ## Modeling abandonment decay & recultivation
@@ -717,7 +742,7 @@ Based on estimates of potential aboveground carbon accumulation rates during the
 Much of the abandonment we observe occurred in grassy biomes, where soil carbon sequestration may be more important.
 However, like aboveground biomass, soil carbon may accumulate slowly, taking up to a century (or possibly longer) to return to reference levels [@Yang2019].
 
-```{r, include = FALSE}
+```{r cook-patton, include = FALSE}
 # Estimates for total carbon accumulation over time from Cook-Patton et al. 2020 (Nature, "Mapping carbon accumulation potential from global natural forest regrowth"), based on the best fit lines in Figure 1:
 # https://www.nature.com/articles/s41586-020-2686-x#Fig1
 
@@ -960,7 +985,7 @@ Area by land cover class is shown for each site in Figure \@ref(fig:area-by-lc),
 We also find that a significant area of abandoned croplands were recultivated by the end of our time series (Figure \@ref(fig:recult-by-threshold)).
 
 <!-- (Previously in Main Text Results) -->
-The timing of abandonment varied across sites (Figure \@ref(fig:area-abn-by-age-class)), with some sites showing more abandonment earlier in the time series (e.g. Iraq, Bosnia & Herzegovina, Volgograd, Nebraska, & Mato Grosso), some showing consistent abandonment over time (e.g. Eastern Belarus/Smolensk, Russia; Goiás, Brazil; and Wisconsin), and others showing abandonment increasing later in the time series (e.g. sites in Shaanxi/Shanxi and Chongqing Provinces, China).
+The timing of abandonment varied across sites (Figure \@ref(fig:area-abn-by-age-class)), with some sites showing more abandonment earlier in the time series (e.g. Iraq; Bosnia & Herzegovina; Volgograd, Russia; Nebraska/Wyoming, USA; & Mato Grosso, Brazil), some showing consistent abandonment over time (e.g. Vitebsk, Belarus/Smolensk, Russia; Goiás, Brazil; and Wisconsin, USA), and others showing abandonment increasing later in the time series (e.g. sites in Shaanxi/Shanxi and Chongqing Provinces, China).
 
 (ref:caption-area-abn-by-age-class) Cumulative area abandoned at each site through time, according to age class (in years).
 <!-- ^[Previously included in main text, and can be moved back if there is room.] -->
@@ -1006,7 +1031,7 @@ However, because Mato Grosso showed large amounts of new cultivation over the so
 ## Biomes
 
 Some ecosystems and biomes seem to recover more quickly and successfully than others, namely in relatively higher latitudes, relatively colder climates, and in relatively more humid biomes [@Prach2018].
-Our sites cover a range of biomes, including Temperate Broadleaf and Mixed Forests (Belarus/Smolensk, Bosnia & Herzegovina, Wisconsin), Temperate Grasslands, Savannas, and Shrublands (Nebraska, Orenburg, Volgograd), and Tropical Grassland (Goiás, Mato Grosso), Tropical Moist Broadleaf Forests (Chongqing, Mato Grosso), Montane Grassland and Shrublands (Shaanxi), and Deserts & Xeric Shrublands (Iraq) (Figure \@ref(fig:site-biomes)).
+Our sites cover a range of biomes, including Temperate Broadleaf and Mixed Forests (Vitebsk Belarus/Smolensk, Russia; Bosnia & Herzegovina; Wisconsin, USA), Temperate Grasslands, Savannas, and Shrublands (Nebraska/Wyoming, USA; Orenburg, Russia/Oral, Kazakhstan; Volgograd, Russia), and Tropical Grassland (Goiás and Mato Grosso, Brazil), Tropical Moist Broadleaf Forests (Chongqing, China; Mato Grosso, Brazil), Montane Grassland and Shrublands (Shaanxi/Shanxi, China), and Deserts & Xeric Shrublands (Iraq) (Figure \@ref(fig:site-biomes)).
 Land cover outcomes for abandoned croplands showed wide variation across sites, with most abandonment in Wisconsin being classified as forest by 2017 (`r lc_stats$forest_max`% forest, `r lc_stats$forest_max_grassland`% grassland), but remaining mostly in grassland elsewhere (Figure \@ref(fig:abn-prop-lc)).
 This limited woody vegetation regrowth may be a product of the biome or simply insufficient time for woody biomass to develop, and land cover alone cannot confidently serve as a proxy for ecosystem recovery.
 
@@ -1473,7 +1498,7 @@ knitr::include_graphics(path = si_panel_figs[11])
 
 ## Individual Decay Model Results
 
-(ref:caption-decay-model-indiv-site-b) Decay model results for Eastern Belarus and Smolensk, Russia, showing raw data (green points), modeled abandonment trajectories for individual years (green lines), and the mean decay trajectory for the site as a whole (blue lines). The mean decay trajectory is calculated in two ways: 1) from the mean of the coefficients for each cohort (solid blue line), and 2) as a single linear regression without cohort-level fixed effects (F.E.; dashed blue line).
+(ref:caption-decay-model-indiv-site-b) Decay model results for Vitebsk, Belarus and Smolensk, Russia, showing raw data (green points), modeled abandonment trajectories for individual years (green lines), and the mean decay trajectory for the site as a whole (blue lines). The mean decay trajectory is calculated in two ways: 1) from the mean of the coefficients for each cohort (solid blue line), and 2) as a single linear regression without cohort-level fixed effects (F.E.; dashed blue line).
 
 (ref:caption-decay-model-indiv-site-bh) Decay model results for Bosnia & Herzegovina, showing raw data (green points), modeled abandonment trajectories for individual years (green lines), and the mean decay trajectory for the site as a whole (blue lines). The mean decay trajectory is calculated in two ways: 1) from the mean of the coefficients for each cohort (solid blue line), and 2) as a single linear regression without cohort-level fixed effects (F.E.; dashed blue line).
 
