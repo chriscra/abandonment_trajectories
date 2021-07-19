@@ -38,8 +38,9 @@ plot_breaks <- c(0, 1, 2, 3, 4)
 ```
 
 ```{r set-run_label}
-run_label <- "_2021-03-05"
+run_label <- "_2021_03_13"
 
+# run_label <- "_2021-03-05"
 # run_label <- "_b1"
 ```
 
@@ -280,45 +281,50 @@ yoa_files <- list.files(paste0(p_dat, "Abandonment/year_of_abandonment/"))
 age_files <- list.files(paste0(p_dat_derived, "age_rasters"), full.names = TRUE) %>%
   grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
 
-# map_files <- list.files(paste0(p_dat, "Abandonment/final_maps/"))
+
+# ----------------------------------------------------------------------- #
+# prepared input rasters (derived by Chris)
+# ----------------------------------------------------------------------- #
 site_input_raster_files <- list.files(paste0(p_dat_derived, "input_rasters"), full.names = TRUE) %>%
   grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = TRUE)
 
 
-r <- lapply(seq_along(site_input_raster_files), function(i) {
-  # brick(paste0(p_dat_derived, "input_rasters/", site_input_raster_files[i]))
-  brick(site_input_raster_files[i])
-  }
-  )
-
-# names(r) <- site_input_raster_files
-names(r) <- site_df$site
-r
-for (i in 1:11) {print(nlayers(r[[i]]))}
-for (i in 1:11) {
-  print(names(r[i]))
-  print(names(r[[i]]))
-}
-
+# ----------------------------------------------------------------------- #
+# ----------------------------------------------------------------------- #
+lc <- lapply(seq_along(site_input_raster_files), function(i) {brick(site_input_raster_files[i])})
+names(lc) <- site_df$site
 
 # rename raster layers:
 for (i in 1:11) {
-  if (names(r[i]) == "nebraska") {
-    names(r[[i]]) <- paste0("y", 1986:2018)
+  if (names(lc[i]) == "nebraska") {
+    names(lc[[i]]) <- paste0("y", 1986:2018)
   } else {
-    if (names(r[i]) == "wisconsin") {
-      names(r[[i]]) <- paste0("y", 1987:2018)
+    if (names(lc[i]) == "wisconsin") {
+      names(lc[[i]]) <- paste0("y", 1987:2018)
     } else {
       # everything else, just 1987:2017
-      names(r[[i]]) <- paste0("y", 1987:2017)
-    }
-  }
-}
+      names(lc[[i]]) <- paste0("y", 1987:2017)
+    }}}
 
+
+# ----------------------------------------------------------------------- #
+# ----------------------------------------------------------------------- #
+# load in as terra::SpatRaster
+lct <- lapply(seq_along(site_input_raster_files), function(i) {rast(site_input_raster_files[i])})
+names(lct) <- site_df$site
+
+# rename raster layers:
 for (i in 1:11) {
-  print(names(r[i]))
-  print(names(r[[i]]))
-  }
+  if (names(lct[i]) == "nebraska") {
+    names(lct[[i]]) <- paste0("y", 1986:2018)
+  } else {
+    if (names(lct[i]) == "wisconsin") {
+      names(lct[[i]]) <- paste0("y", 1987:2018)
+    } else {
+      # everything else, just 1987:2017
+      names(lct[[i]]) <- paste0("y", 1987:2017)
+    }}}
+
 
 ```
 
@@ -326,38 +332,57 @@ for (i in 1:11) {
 ```{r site-area}
 # plot total site area:
 
-plot(c(ncell(b), ncell(s), sapply(seq_along(r), FUN = function(i) ncell(r[[i]]))))
-layer <- r[[1]][[1]]
-layer %>% raster::area() %>% cellStats(., "sum") # 47331.03 km2
+test_layer <- lct[[9]]$y1987
+plot(test_layer)
+freq(test_layer)
+
+# remove 0s
+ncell(test_layer)
+
+test_layer %>% 
+  classify(., rcl = tribble(~"is", ~"becomes", 0, NA)) %>%  # remove the 0s
+  terra::cellSize(., unit = "km", mask = TRUE) %>%  # calculate cell areas
+  terra::global(., fun = "sum", na.rm = TRUE) # sum across all cell areas
+
+# can't handle expanse for large sites like belarus... don't even try.
+# test_layer %>% expanse(unit = "km")
+
 
 tic()
-r[[1]][[1]] %>% raster::area() %>% cellStats(., "sum")
-toc()
-
-tic()
-site_area <- sapply(seq_along(r), FUN = function(i) {
-  r[[i]][[1]] %>% raster::area() %>% cellStats(., "sum")
+site_area <- lapply(seq_along(lct), 
+                    FUN = function(i) {
+  temp_layer <- lct[[i]][[1]]
+  
+  area_ha <- temp_layer %>% 
+    classify(., rcl = tribble(~"is", ~"becomes", 0, NA)) %>%  # remove the 0s
+    terra::cellSize(., unit = "ha", mask = TRUE) %>%  # calculate cell areas
+    terra::global(., fun = "sum", na.rm = TRUE) # sum across all cell areas
+  
+  tmp_tbl <- tibble(
+    site = site_df$site[i],
+    area_ha = as.numeric(area_ha),
+    ncell = ncell(temp_layer)
+    )
+  
+  tmp_tbl
   }
-  )
-toc()
+  ) %>% bind_rows()
+toc() 
 
+site_area
 
-num_cells <- sapply(seq_along(r), FUN = function(i) ncell(r[[i]]))
-num_cells
-names(r)
-num_cells[1:7]
-names(r)[1:7]
-site_df$site[2:8]
-site_df
+site_df_w_size_old <- read_csv(file = paste0(p_dat_derived, "site_df_w_size_old.csv"))
+site_df_w_size_old %>%
+  left_join(., site_area) %>%
+  mutate(discrepancy = area/area_ha * 100)
+
 
 site_df_w_size <- site_df %>%
-  mutate(ncell = num_cells,
-         area = site_area)
+  left_join(., site_area)
 
-write_csv(site_df_w_size, path = paste0(p_dat_derived, "site_df_w_size.csv"))
+write_csv(site_df_w_size, file = paste0(p_dat_derived, "site_df_w_size.csv"))
 site_df_w_size <- read_csv(file = paste0(p_dat_derived, "site_df_w_size.csv"))
 
-area_b1_s
 
 # 
 gg_site_ncell <- ggplot(data = site_df_w_size) + 
@@ -2370,6 +2395,7 @@ percent_affected_df %>% group_by(filter, relative_to) %>% summarize(max = max(pe
 
 
 # Update area calculations
+
 ```{r load-bs-testing-data}
 bs <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
 names(bs) <- paste0("y", 1987:2017)
@@ -3190,4 +3216,275 @@ nrow(abn_age_dt) + nrow(area_dt)
 
 
 ```
+
+
+# Update area calculations *again* based on `terra`'s new area calculation
+
+```{r load-test-data}
+# note: the final function (cc_summarize_abn_dts()) takes as the input argument the input LC rasters as .tif files.
+# p_input_rasters
+
+# start with shaanxi as the input file:
+site_input_raster_files
+
+test_input_file <- site_input_raster_files[9]
+
+
+lc
+lct
+```
+
+```{r update-cc_calc_area_per_lc_abn}
+
+
+cc_calc_area_per_lc_abn_update <- function(land_cover_dt, 
+                                           abn_age_dt, 
+                                           land_cover_raster, 
+                                           abandonment_threshold = 5) {
+  
+  # ------------------------
+  # abandonment_threshold <- 5
+  # land_cover_raster <- raster(paste0(p_dat_derived, "input_rasters/", site, ".tif")) # for testing only 
+  # land_cover_dt <- fread(input = paste0(p_dat_derived, "input_data.tables/", site, ".csv")) # for testing only
+  # abn_age_dt <- fread(input = paste0(p_dat_derived, "age_dts/", 
+  #                                    site, "_age", run_label, ".csv")) # for testing only
+
+  # names(abn_age_dt) <- c("x","y", paste0("y", 1987:2017))
+  col_names <- grep("x$|y$", names(land_cover_dt), value = TRUE, invert = TRUE)
+
+  # ---------------------
+  area_raster <- terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
+    # classify(., rcl = tribble(~"is", ~"becomes", 0, NA)) %>%  # remove the 0s
+    terra::cellSize(., unit = "km", mask = FALSE) %>% # calculate cell areas
+    raster(.) # convert back to raster for as.data.table.raster()
+
+  area_dt <- as.data.table.raster(area_raster)
+  setnames(area_dt, old = "area", new = "pixel_area") # update layer names
+  
+  # # ----------------------------
+  # area_raster <- raster::area(land_cover_raster) # calculate area in km2
+  # area_dt <- as.data.table.raster(area_raster) # convert to data.table
+  # setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
+  
+  # round x and y columns to deal with floating point imprecision:
+  round_digits1 <- 11
+  while(merge(x = abn_age_dt[, 1:3],
+              y = area_dt, 
+              all.x = TRUE, by = c("x", "y"), sort = FALSE
+  )[is.na(pixel_area), .N] > 0) {
+    round_digits1 <- round_digits1 - 1
+    abn_age_dt[, ':='(x = round(x, round_digits1), y = round(y, round_digits1))]
+    area_dt[, ':='(x = round(x, round_digits1), y = round(y, round_digits1))]
+  }
+  cat(fill = TRUE, "Note: abn_age_dt x and y columns rounded to", round_digits1, "digits to facilitate merge.")
+  
+  round_digits2 <- 11
+  while(merge(x = land_cover_dt[, 1:3], y = area_dt, 
+              all.x = TRUE, by = c("x", "y"), sort = FALSE
+  )[is.na(pixel_area), .N] > 0) {
+    round_digits2 <- round_digits2 - 1
+    land_cover_dt[, ':='(x = round(x, round_digits2), y = round(y, round_digits2))]
+    area_dt[, ':='(x = round(x, round_digits2), y = round(y, round_digits2))]
+  }
+  cat(fill = TRUE, "Note: land_cover_dt x and y columns rounded to", round_digits2, "digits to facilitate merge.")
+  
+  # merge area to abn_age_dt and land_cover_dt, based on the x and y coordinates, 
+  # saving only those rows in area_dt that match abn_age_dt and land_cover_dt, respectively:
+  abn_age_dt <- merge(x = abn_age_dt, 
+                      y = area_dt, all.x = TRUE, 
+                      by = c("x","y"), sort = FALSE)
+  land_cover_dt <- merge(x = land_cover_dt, y = area_dt, all.x = TRUE, 
+                         by = c("x","y"), sort = FALSE)
+  
+  
+  if(abn_age_dt[is.na(pixel_area), .N] + 
+      land_cover_dt[is.na(pixel_area), .N] > 0 ) {stop("Merge did not match at 100%")}
+  
+  for (i in seq_along(col_names)) {
+    temp_dt <- 
+      land_cover_dt[, by = c(col_names[i]), # by land cover categories in column i,
+                    
+                    # sum all pixel_area values (km2) and multiply by 100 to get total area in ha
+                    .("total_area" = sum(pixel_area) * 100)  
+                    
+                    # then reorder by lc class
+                    ][order(get(col_names[i]))] 
+    
+    setnames(temp_dt, old = col_names[i], new = "lc")
+    setnames(temp_dt, old = "total_area", new = col_names[i]) # rename the total_area column to that specific year
+    
+    if(i > 1) {
+      lc_area_df <- merge(lc_area_df, temp_dt, by = "lc")
+    } else {
+      lc_area_df <- temp_dt
+    }
+  }
+  
+  # now, recode and pivot
+  lc_area_df <- lc_area_df %>% 
+    as_tibble() %>%
+    filter(lc != 0) %>% 
+    mutate(lc = as_factor(lc),
+           lc = dplyr::recode(lc, # old = new # must specify dplyr::
+                       "1" = "Non-veg.", 
+                       "2" = "Woody veg.",
+                       "3" = "Cropland", 
+                       "4" = "Grassland")) %>%
+    pivot_longer(cols = starts_with("y"), names_to = "year", values_to = "area_ha") %>%
+    mutate(year = as.integer(gsub("y", "", year))) %>%
+    select(year, lc, area_ha)
+  
+  abandoned_area_df_threshold <- tibble(
+    year = 1987:2017,
+    lc = paste0("Abandoned (>=", abandonment_threshold, ")"),
+    area_ha = sapply(1:31, function(i) {
+      abn_age_dt[get(paste0("y", 1987:2017)[i]) >= abandonment_threshold, 
+                 sum(pixel_area) * 100]
+      }
+      )
+    )
+  
+  
+  abandoned_area_df_all <- tibble(
+    year = 1987:2017,
+    lc = "Abandoned (>1)",
+    area_ha = sapply(1:31, function(i) {
+      abn_age_dt[get(paste0("y", 1987:2017)[i]) > 0, 
+                 sum(pixel_area) * 100]
+      }
+      )
+    )
+  
+  # return the tibble
+  area_df <- bind_rows(lc_area_df, abandoned_area_df_threshold, abandoned_area_df_all)
+  
+}
+
+
+# ----------------------------------------------------------------------------- #
+# testing to make sure this works:
+# ----------------------------------------------------------------------------- #
+# load files:
+lc_r <- raster(paste0(p_dat_derived, "input_rasters/", site, ".tif")) # for testing only
+lc_dt <- fread(input = paste0(p_dat_derived, "input_data.tables/", site, ".csv")) # for testing only
+age_dt <- fread(input = paste0(p_dat_derived, "age_dts/",
+                                   site, "_age", run_label, ".csv")) # for testing only
+
+
+# ------------- calculate total area per lc, with abandonment ---------------- #
+area_tmp2 <- cc_calc_area_per_lc_abn_update(land_cover_dt = lc_dt, 
+                                    abn_age_dt = age_dt, 
+                                    land_cover_raster = lc_r,
+                                    abandonment_threshold = abandonment_threshold)
+
+
+
+
+# this what I want to make sure matches with the results of this 
+ref_area_df <- read_csv("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/data_derived/_2021_03_13/shaanxi_result_area_2021_03_13.csv")
+
+ref_area_df
+area_df
+area_tmp
+
+identical(area_df, area_tmp)
+identical(area_tmp, area_tmp2)
+
+ggplot(data = area_tmp2 %>% filter(lc != "Abandoned (>1)")
+    ) +
+    theme_classic() +
+    # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+    labs(y = expression("Area  (10"^{6}*" ha)") , 
+         x = "Year", 
+         title = "Area by Land Cover, with Abandonment",
+         #subtitle = subtitle,
+         color = NULL #"Land Cover"
+         ) + 
+    geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
+                            group = lc, color = fct_reorder(lc, lc, .desc = TRUE)),
+              size = 1.5) + 
+    theme(legend.position = "bottom",
+          legend.title = element_text(size = 10)) +
+    guides(color = guide_legend(nrow = 2, ncol = 3)) +
+    
+    scale_color_manual(values = plot_cols) #+   facet_wrap(vars(site))
+
+```
+
+```{r update-cc_calc_abn_area}
+
+```
+
+
+```{r update-cc_calc_persistence}
+
+```
+
+
+```{r update-cc_calc_abn_diff}
+
+```
+
+
+```{r update-cc_summarize_abn_dts}
+cc_summarize_abn_dts <- function(input_path,
+                                 output_path,
+                                 site,
+                                 run_label = paste0("_", Sys.Date()),
+                                 abandonment_threshold = 5,
+                                 include_all = FALSE) {
+  cat(fill = TRUE, "cc_summarize_abn_dts(): Summarizing results for site: ", site)
+  cat(fill = TRUE, "input_path: ", input_path)
+  cat(fill = TRUE, "output_path: ", output_path)
+  cat(fill = TRUE, "run_label: ", run_label)
+  cat(fill = TRUE, "abandonment_threshold: >=" , abandonment_threshold)
+
+  # load files:
+  lc_r <- raster(paste0(input_path, site, ".tif"))
+  lc_dt <- fread(input = paste0(input_path, site, ".csv")) 
+  age_dt <- fread(input = paste0(input_path, site, "_age", run_label, ".csv"))
+  
+  cat("calculating total area in each land cover class, and that is abandoned (for at least as long as the abandonment threshold), over time.", fill = TRUE)
+  # ------------- calculate total area per lc, with abandonment ---------------- #
+  area <- cc_calc_area_per_lc_abn(land_cover_dt = lc_dt, 
+                                  abn_age_dt = age_dt, 
+                                  land_cover_raster = lc_r,
+                                  abandonment_threshold = abandonment_threshold)
+  
+  cat("calculate abandonment persistence", fill = TRUE)
+  # ------------------------ abandonment persistence --------------------------- #
+  persistence <- cc_calc_persistence(abn_age_dt = age_dt, 
+                                          land_cover_raster = lc_r,
+                                          abandonment_threshold = abandonment_threshold)
+  
+  cat("calculate abandonment area turnover", fill = TRUE)
+  # -------------------- calculate the abandonment area turnover ------------------- #
+  turnover <- cc_calc_abn_diff(abn_age_dt = age_dt, 
+                                           land_cover_raster = lc_r,
+                                           abandonment_threshold = abandonment_threshold)
+  
+  # save individual results_df
+  write_csv(area, file = paste0(output_path, site, "_result_area", run_label,".csv"))
+  write_csv(persistence, file = paste0(output_path, site, "_result_persistence", run_label,".csv"))
+  write_csv(turnover, file = paste0(output_path, site, "_result_turnover", run_label,".csv"))
+  
+  # updating object names names
+  assign(paste0("area", run_label), area)
+  assign(paste0("persistence", run_label), persistence)
+  assign(paste0("turnover", run_label), turnover)
+  
+  # save files
+  save(list = c(paste0("area", run_label), 
+                paste0("persistence", run_label),
+                paste0("turnover", run_label)
+                ), 
+       file = paste0(output_path, site, "_result_dfs", run_label, ".rds")
+       )
+  
+  cat("saved files:", paste0(output_path, site, "_result_dfs", run_label, ".rds"), fill = TRUE)
+  
+}
+
+```
+
 
