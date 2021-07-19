@@ -10,7 +10,7 @@ source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectori
 ```
 
 ```{r set-run_label}
-run_label <- "_2021-03-05"
+run_label <- "_2021_03_13" #"_2021-03-05"
 
 # run_label <- "_b1"
 ```
@@ -192,13 +192,15 @@ animate(bt, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
 ```
 
 ```{r global-site-map}
-r
-plot(r$shaanxi$y1987)
+lc
+age_r
+plot(lc$shaanxi$y1987)
+
 
 r_extent <- lapply(r, raster::extent)
 plot(r_extent$belarus)
 
-site_sf <- lapply(r, FUN = function(x) {
+site_sf <- lapply(age_r, FUN = function(x) {
   x %>% 
     extent() %>% 
     as(., 'SpatialPolygons') %>%
@@ -211,12 +213,14 @@ site_sf <- lapply(r, FUN = function(x) {
          desc = site_df$description)
 
 
+dev.off()
 
-
-plot(site_sf)
+plot(site_sf$geometry)
 
 # basemap
 world <- ne_countries(scale = "small", returnclass = "sf") # can set returnclass to sf or sp.
+world_10 <- ne_countries(scale = "large", returnclass = "sf") # can set returnclass to sf or sp.
+world_states <- ne_states(returnclass = "sf")
 
 # set crs for site_sf 
 st_crs(site_sf) <- st_crs(world$geometry)
@@ -2433,7 +2437,7 @@ grid.arrange(mp1, mp2)
 # aggregate using max function
 age_2017_aggregated_10_max_l <- lapply(1:11, function(i) {
   temp <- age_r[[i]][["y2017"]]
-  temp <- raster::aggregate(temp, fact = 10, fun = max)
+  temp <- raster::aggregate(temp, fact = 100, fun = max)
   temp
 })
 # update names of the list items, and rename the raster layers after each site
@@ -2557,8 +2561,9 @@ for (i in 1:11) {
   )
 }
 
-
+# --------------------------------------------------- #
 # make levelplots for full rasters
+# --------------------------------------------------- #
 for (i in 1:11) {
   assign(
   x = paste0("lp", site_df$label[i]),
@@ -2647,11 +2652,108 @@ ggsave(plot =
 
 
 
-# cropping the map:
+```
+
+```{r fig1-terra}
+age_r[[i]][["y2017"]]
+
+# load the rasters with terra
+tt <- rast(age_files[9])
+
+
+names(tt) <- paste0("y", 1987:2017)
+tt
+plot(tt$y2017, type="interval", plg=list(x="topright"))
+
+
+age_t <- lapply(seq_along(age_files), function(i) {rast(age_files[i])})
+names(age_t) <- site_df$site
+for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
+
+
+# ------------------------------------------------------------------- #
+# plot with terra
+# ------------------------------------------------------------------- #
+
+
+plot(age_t$shaanxi$y2017, type = "interval", breaks = seq(from = 5, to = 30, by = 5), col = viridis(n = 5), bg = "dark gray")
+
+tt <- classify(age_t$shaanxi$y2017, seq(from = 5, to = 30, by = 5), right = FALSE)
+ttr <- classify(age_t$shaanxi$y2017, seq(from = 5, to = 30, by = 5), right = TRUE)
+
+levels(tt)
+levels(ttr)
+
+plot(tt)
+plot(ttr, col = viridis(n = 5, direction = -1))
+
+
+plot(age_t$shaanxi$y2017, type = "interval", breaks = seq(from = 5, to = 30, by = 5),
+     plg=list(x="topright"), mar = c(2.1, 2.1, 1.1, 1.1))
+
+
+freq(age_t$shaanxi$y2017)
+
+
+
+# ------------------------------------------------------------------- #
+# rasterVis
+# ------------------------------------------------------------------- #
+
+levelplot(age_r$shaanxi$y2017,
+          main = site_sf$lab_desc[9],
+          colorkey = TRUE, scales=list(draw=TRUE),
+          par.settings = myTheme,
+          at = seq(5, 30, by = 1), 
+          xlab = NULL, ylab = NULL, margin = FALSE,
+          # shrink = c(1.5, 1.5)
+          # shrink = c(1, 1)
+          )
+
+
+# ------------------------------------------------------------------- #
+# tmap
+# ------------------------------------------------------------------- #
+install.packages("tmap")
+library(tmap)
+data("World")
+
+tm_shape(World) +
+    tm_polygons(col = "gray90",
+                alpha = .5
+                ) #+
+  # tm_shape(age_r$shaanxi$y2017) +
+  #   tm_raster("y2017", palette = terrain.colors(10))
+
+tm_shape(World) + tm_borders()
+
+tm_shape(age_r$shaanxi$y2017) +
+    tm_raster("y2017", palette = terrain.colors(10))
+
+tt
+
+smol <- aggregate(age_r$shaanxi$y2017, fact = 10, fun = max)
+smoler <- aggregate(smol, fact = 10)
+plot(smol)
+plot(smoler)
+
+dev.off()
+
+temp <- copy(age_r$shaanxi$y2017)
+temp
+plot(temp)
+
+tm_shape(rast(age_r$shaanxi$y2017)) + tm_raster(alpha = 0.7)
+
+tm_shape(smoler) + tm_raster(alpha = 0.7)
+tm_shape(temp) + tm_raster(alpha = 0.7)
+
+```
+
+```{r try2}
 ggplot() + 
   theme_classic() +
-  geom_sf(data = world %>% filter(continent != "Antarctica"), 
-          fill = NA, color = "gray") +
+  geom_sf(data = world %>% filter(continent != "Antarctica"), fill = NA, color = "gray") +
   geom_sf(data = site_sf, mapping = aes(fill = desc)) + 
   labs(#subtitle = "Map projection: longlat", 
        x = NULL, y = NULL) +
@@ -2661,12 +2763,418 @@ ggplot() +
                    stat = "sf_coordinates",
                    min.segment.length = 0.0, segment.alpha = 1,
                    point.padding = 0.2, box.padding = 0.2,
-                   label.size = 0.3, color = "black") + 
+                   label.size = 0.3, color = "black") +
   coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
   theme(legend.position = "none",
         plot.margin = margin(0, 0, 2, 0, "mm"))
+```
+
+
+```{r crop-world}
+# cropping the map:
+
+world_crop <- st_crop(world, extent(site_sf) + c(50, 20))
+
+gg_world_crop <-
+  ggplot() + 
+  theme_classic() +
+  geom_sf(data = world_crop, 
+          fill = NA, color = "gray") +
+  geom_sf(data = site_sf, mapping = aes(fill = desc)) + 
+  labs(x = NULL, y = NULL) +
+  theme(legend.position = "bottom") + 
+  geom_label_repel(data = site_sf,
+                   aes(label = label, geometry = geometry),
+                   stat = "sf_coordinates",
+                   min.segment.length = 0.0, segment.alpha = 1,
+                   point.padding = 0.2, box.padding = 0.2,
+                   label.size = 0.3, color = "black") + 
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
+  theme(legend.position = "none",
+        plot.margin = margin(0, 0, 0, 0, "mm"))
+
+
+gg_world_crop
+
+plot_grid
+```
+
+
+```{r ggdraw}
+## ggdraw 
+# --------
+
+png(filename = paste0(p_output, "plots/terra_inset.png"), 
+    width = 3, height = 3, units = "in", res = 400)
+plot(age_t$shaanxi$y2017, type = "interval", breaks = seq(from = 5, to = 30, by = 5),
+     plg=list(x="topright"), mar = c(2.1, 2.1, 1.1, 1.1),
+     main = )
+dev.off()
+
+ggsave(plot = ggdraw() + 
+         draw_plot(gg_world_crop, scale = 0.68) + 
+         draw_image(paste0(p_output, "plots/terra_inset.png"),
+                    x = 0.3, y = 0.3, scale = 0.25),
+       filename = paste0(p_plots, run_label,
+                         "/fig1_test", ".pdf"),
+       width = 10, height = 6, units = "in", dpi = 400)
+```
+
+
+```{r generate-age-maps-thumb}
+
+i <- 9
+
+# titles
+inset_map_titles <- paste0("(", gsub("_", "", site_df$label), ") ", site_df$description) 
+
+
+# ------------------------------------------------------------------ #
+# base terra plot
+# ------------------------------------------------------------------ #
+
+# save as pdf
+for (i in 1:11) {
+
+  pdf(file = paste0(p_output, "plots/fig1/fig1_inset_borders", site_df$label[i], ".pdf"),
+    width = 4.5, height = 4.5
+    )
+  
+  # png(filename = paste0(p_output, "plots/fig1/fig1_inset", site_df$label[i], ".png"), 
+  #   width = 4.5, height = 4.5, units = "in", res = 400)
+
+  par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
+
+  plot(age_t[[i]]$y2017, 
+       type = "interval", 
+       breaks = seq(from = 5, to = 30, by = 5),
+       legend = FALSE,
+       col = viridis(n = 5), colNA = "gray95",
+     # mar = c(2.1, 2.1, 4.1, 1.1),
+     main = inset_map_titles[i])
+  
+  plot(world_states %>% 
+         {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>% 
+         st_geometry(), add = T, border = "gray50")
+
+  plot(world_10 %>% 
+         {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>% 
+         st_geometry(), add = T, border = "black")
+
+  dev.off()
+}
+
+# ------------------------------------------------------------------ #
+# Save legend
+# ------------------------------------------------------------------ #
+
+pdf(file = paste0(p_output, "plots/fig1/fig1_inset_legends.pdf"), 
+    width = 6, height = 8)
+plot.new()
+par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
+
+plot(age_t[[i]]$y2017, 
+       type = "interval", 
+       breaks = seq(from = 5, to = 30, by = 5),
+       legend = "right", legend.shrink = 2, 
+       plg = list(cex = 3),
+       col = viridis(n = 5), colNA = "gray95",
+     legend.only = TRUE)
+
+dev.off()
+  
+
+
+# ------------------------------------------------------------------ #
+# Save site age map as level plot
+# ------------------------------------------------------------------ #
+
+max_pixels <- 5e2
+include_legend <- FALSE
+my_width <- 3
+my_height <- 3
+
+strwrap(site_df$description, width = 0.5) %>% paste(., sep = "\n")
+
+for (i in 1:11) {
+  pdf(paste0(p_output, "plots/fig1/test_fig1_inset_lp_border", site_df$label[i], ".pdf"), 
+    width = my_width, height = my_height)
+  
+    # png(paste0(p_output, "plots/fig1/fig1_inset", site_df$label[i], "_lp.png"), 
+    # width = 4.5, height = 4.5, units = "in", res = 400)
+    
+  myTheme <- viridisTheme()
+  myTheme$regions$col <- viridis(n = 5, direction = 1)
+  myTheme$panel.background$col = 'gray95' 
+  
+  lattice.options(
+    layout.heights = list(bottom.padding = list(x = 0), top.padding = list(x = 0)),
+    layout.widths = list(left.padding = list(x = 0), right.padding = list(x = 0))
+    )
+
+  # par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
+
+  print(
+    levelplot(
+        age_r[[i]]$y2017,
+        # main = inset_map_titles[i],
+        colorkey = include_legend,
+        scales=list(draw=TRUE),
+        maxpixels = max_pixels,
+        par.settings = myTheme,
+        at = seq(5, 30, by = 5),
+        xlab = NULL, ylab = NULL,
+        margin = FALSE
+        ) +
+  layer(sp.polygons(world_states %>% 
+                      {if (i %in% c(4, 6)) . else  st_crop(., extent(site_sf[i, ]))} %>% 
+                      as_Spatial(), 
+                    col = "gray50")) +
+  layer(sp.polygons(world_10 %>% 
+                      {if (i %in% c(4, 6)) . else  st_crop(., extent(site_sf[i, ]))} %>% 
+                      as_Spatial(), 
+                    col = "black"))
+        )
+
+  dev.off()
+}
+
+
+# ------------------------------------------------------------------ #
+# Save world map
+# ------------------------------------------------------------------ #
+
+gg_world_thumb <- ggplot() +
+  theme_classic() +
+  geom_sf(data = world %>% filter(continent != "Antarctica") #%>%
+            # st_crop(., #extent(site_sf) + c(50, 20)
+            #         extent(c(-130, 140, -60, 160))
+            #         )
+          , 
+          fill = NA, color = "gray") +
+  geom_sf(data = site_sf, mapping = aes(fill = desc)) + 
+  labs(#subtitle = "Map projection: longlat", 
+       x = NULL, y = NULL) +
+  geom_label_repel(data = site_sf,
+                   aes(label = label, geometry = geometry),
+                   stat = "sf_coordinates",
+                   min.segment.length = 0.0, segment.alpha = 1,
+                   point.padding = 0.2, box.padding = 0.2,
+                   label.size = 0.3, color = "black") + 
+  coord_sf(expand = TRUE, crs = st_crs("+proj=natearth2")
+           ) +
+  theme(legend.position = "none",
+        plot.margin = margin(0, 0, 2, 0, "mm"))
+
+ggsave(plot = gg_world_thumb,
+       filename = paste0(p_plots, "/fig1/fig1_world.pdf"),
+       width = 5, height = 3)
 
 ```
+
+
+```{r ggdraw-w-levelplots}
+# first with aggregated rasters, since they're much easier to work with
+age_2017_aggregated_10_max_l
+
+# save level plots to objects
+for (i in 1:11) {
+  assign(
+  x = paste0("lpt", site_df$label[i]),
+  value =
+      levelplot(
+        age_2017_aggregated_10_max_l[[i]],
+        main = site_sf$lab_desc[i],
+        colorkey = FALSE,
+        scales=list(draw=TRUE),
+        par.settings = myTheme,
+        at = seq(5, 30, by = 5), 
+        xlab = NULL, ylab = NULL,
+        margin = FALSE
+        )
+  )
+}
+
+# save as pdf
+for (i in 1:11) {
+  png(filename = paste0(p_output, "plots/terra_inset2", site_df$label[i], ".png"), 
+    width = 4, height = 4, units = "in", res = 400)
+  
+  # print(levelplot(
+  #       age_2017_aggregated_10_max_l[[i]],
+  #       main = site_sf$lab_desc[i],
+  #       colorkey = TRUE,
+  #       scales=list(draw=TRUE),
+  #       par.settings = myTheme,
+  #       at = seq(5, 30, by = 5), 
+  #       xlab = NULL, ylab = NULL,
+  #       margin = FALSE
+  #       ))
+  
+  plot(age_t[[i]]$y2017, 
+       type = "interval", 
+       breaks = seq(from = 5, to = 30, by = 5),
+       legend = FALSE,
+     # mar = c(2.1, 2.1, 4.1, 1.1),
+     main = site_sf$lab_desc[i])
+  
+  dev.off()
+}
+
+
+
+# with level plots
+lpt_s
+
+lpt <- levelplot(smoler,
+  #age_r$shaanxi$y2017,
+          main = site_sf$lab_desc[9],
+          colorkey = TRUE, scales=list(draw=TRUE),
+          par.settings = myTheme,
+          at = seq(5, 30, by = 5), 
+          xlab = NULL, ylab = NULL, margin = FALSE,
+          # shrink = c(1.5, 1.5)
+          # shrink = c(1, 1)
+          )
+
+lpt
+
+gg_fig1 <- ggdraw() + 
+  draw_plot(gg_world_crop, scale = 0.68) + 
+  draw_plot(lpt_w, x = 0.10, y = 0.6, scale = 0.25) + 
+  draw_plot(lpt_b, x = 0.30, y = 0.6, width = 0.25, height = 0.25, vjust = 0) + 
+  draw_plot(lpt_v, x = 0.50, y = 0.6, width = 0.25, height = 0.25, vjust = 0) + 
+  draw_plot(lpt_s, x = 0.70, y = 0.6, width = 0.25, height = 0.25, vjust = 0)
+
+ggsave(plot = gg_fig1,
+       filename = paste0(p_plots, run_label,
+                         "/fig1_test2", ".pdf"),
+       width = 10, height = 6, units = "in", dpi = 400)
+
+
+inset_height <- 0.3
+my_hjust <- 0.5
+
+top_row_y <- 0.85
+bottom_row_y <- 0.15
+
+# figure out plotting alignment
+gcircle <- grid::circleGrob()
+ggdraw() + 
+  draw_plot(gcircle, height = 0.25, 
+            # ok, starts in the middle of the plot (x axis), bottom (y axis)
+            x = 0.1, y = 0.1,
+            hjust = 0.5, vjust = 0.5, 
+            # halign = 0, valign = 0
+            )
+
+
+
+gg_fig1.2 <-
+  ggdraw() + 
+  draw_plot(gg_world_crop, height = 0.45, 
+            x = 0.5, y = 0.5, hjust = 0.5, vjust = 0.5) + 
+    
+  # top row, left to right
+  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[11], ".png"),
+             x = 0.1, y = top_row_y, hjust = 0.5, vjust = 0.5, 
+             height = inset_height) +
+  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[1], ".png"),
+             x = 0.375, y = top_row_y, hjust = 0.5, vjust = 0.5, 
+             height = inset_height) +
+  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[10], ".png"),
+             x = 0.625, y = top_row_y, hjust = 0.5, vjust = 0.5, 
+             height = inset_height) +
+  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[8], ".png"),
+             x = 0.9, y = top_row_y, hjust = 0.5, vjust = 0.5,
+             height = inset_height) #+
+  
+  # left column
+  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[7], ".png"),
+             x = 0, y = 0.6, hjust = 0.5, vjust = 0.5, 
+             height = inset_height) +   
+  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[6], ".png"),
+             x = 0, y = 0.4, hjust = 0.5, vjust = 0.5, 
+             height = inset_height) +
+  
+  # right column
+  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[9], ".png"),
+             x = 1, y = 0.5, hjust = 0.5, vjust = 0.5, 
+             height = inset_height) +   
+  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[3], ".png"),
+             x = 1, y = 0.5, hjust = 0.5, vjust = 0.5, 
+             height = inset_height) +
+    
+    
+  # bottom row
+  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[4], ".png"),
+             x = 0, y = bottom_row_y, hjust = 0.5, vjust = 0.5, 
+             height = inset_height) +   
+  
+  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[2], ".png"),
+             x = 0, y = bottom_row_y, hjust = 0.5, vjust = 0.5, 
+             height = inset_height) +   
+  
+  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[5], ".png"),
+             x = 0, y = bottom_row_y, hjust = 0.5, vjust = 0.5, 
+             height = inset_height)
+
+
+ggsave(plot = gg_fig1.2,
+       filename = paste0(p_plots, run_label,
+                         "/fig1_test3", ".pdf"),
+       width = 8, height = 6, units = "in", dpi = 400)
+
+
+
+
+# backup
+
+# 
+#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[11], ".png"),
+#              x = 0, y = 0, hjust = 0, vjust = 0, halign = 0.0, valign = 1,
+#              height = inset_height) #+
+#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[1], ".png"),
+#              x = 0, y = 1, hjust = 0, vjust = 1, halign = 1/3, valign = 1,
+#              height = inset_height) +
+#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[10], ".png"),
+#              x = 0, y = 1, hjust = 0, vjust = 1, halign = 2/3, valign = 1,
+#              height = inset_height) +
+#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[8], ".png"),
+#              x = 0, y = 1, hjust = 0, vjust = 1, halign = 1, valign = 1,
+#              height = inset_height) +
+#   
+#   # left column
+#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[7], ".png"),
+#              x = 0, y = 0.6, hjust = 0, vjust = 0.5, halign = 0, valign = 0,
+#              height = inset_height) +   
+#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[6], ".png"),
+#              x = 0, y = 0.4, hjust = 0, vjust = 0.5, halign = 0, valign = 0,
+#              height = inset_height) +
+#   
+#   # right column
+#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[9], ".png"),
+#              x = 1, y = 0.5, hjust = 1, vjust = 0, halign = 1, valign = 0,
+#              height = inset_height) +   
+#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[3], ".png"),
+#              x = 1, y = 0.5, hjust = 1, vjust = 1, halign = 1, valign = 0,
+#              height = inset_height) +
+#     
+#     
+#   # bottom row
+#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[4], ".png"),
+#              x = 0, y = 0, hjust = 0, vjust = 0, halign = 0, valign = 0,
+#              height = inset_height) +   
+#   
+#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[2], ".png"),
+#              x = 0, y = 0, hjust = 0, vjust = 0, halign = 1/3, valign = 0,
+#              height = inset_height) +   
+#   
+#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[5], ".png"),
+#              x = 0, y = 0, hjust = 0, vjust = 0, halign = 2/3, valign = 0,
+#              height = inset_height)
+```
+
 
 ```{r map-max-age-composite}
 
@@ -2736,6 +3244,7 @@ ggsave(plot =
 
 ```{r end}
 env_size(ls())
+
 
 ```
 
