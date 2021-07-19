@@ -505,26 +505,36 @@ dev.off()
 
 for (i in 1:11) {
   gg_hist <-
-    ggplot(data = filter(length_distill_df, site == site_df$site[i], length > 0)) + 
+    ggplot(data = filter(length_distill_df, site == site_df$site[i], length > 0
+                         # length >= 5
+                         )) + 
     theme_classic() +
     labs(linetype = "", x = "Time abandoned (years)", 
-         y = expression("Count  (10"^{6}*" pixels)")
-    ) +
+         y = expression("Count  (10"^{6}*" pixels)"),
+         color = "Mean") +
     geom_col(mapping = aes(x = length, y = freq/(10^6)), fill = "gray70") +
     facet_grid(rows = vars(length_type), scales = "free",
                labeller = labeller(length_type = c(all = "all abn. periods", #old = "new",
                                                    max = "max. length per pixel"))) +
-    geom_vline(data = filter(mean_length_df,
-                             site == site_df$site[i],
-                             abn_threshold == 1), 
-               aes(xintercept = mean_duration, linetype = "mean"),
-               show.legend = TRUE, size = 1) + 
-    scale_linetype_manual(values = c("mean" = "dashed")) +
-    theme(legend.position = c(0.85, 0.95), plot.caption = element_text(face = "italic"))
-  
+    # means
+    geom_vline(data = filter(mean_length_df, site == site_df$site[i], 
+                             !abn_threshold %in% c(3)), 
+               mapping = aes(xintercept = mean_duration, 
+                             color = as_factor(abn_threshold)#, linetype = "mean (>1)"
+                             ),
+               show.legend = TRUE, size = 1, linetype = "dashed") + 
+
+    scale_color_manual(values = viridis(n = 4), #c("5" = "#C51B7D", "1" = "#F1B6DA"),
+                       labels = c("5" = "Mean (>=5)", "1" = "Mean (>1)",
+                                  "7" = "Mean (>=7)", "10" = "Mean (>=10)")) +
+
+    theme(#legend.position = c(0.85, 0.95)
+      )
 
   # save
-  png(filename = paste0(p_output, "plots/", run_label, "/length_hist", run_label, site_df$label[i], ".png"), 
+  png(filename = paste0(p_output, "plots/", run_label, "/length_hist_all", 
+                        # "/length_hist", 
+                        run_label, site_df$label[i], ".png"), 
       width = 7, height = 5, units = "in", res = 400)
   print(gg_hist)
   dev.off()
