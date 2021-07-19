@@ -2638,6 +2638,7 @@ fitted_df_l3 <- lapply(site_df$site, FUN = function(x) {
 
 
 
+
 # save fitted_df_l3
 
 write_csv(fitted_df_l3, file = paste0(p_dat_derived, run_label, "/decay_mod_fitted_df_l3", run_label, ".csv"))
@@ -3157,16 +3158,6 @@ Q2. How long does it take for the mean abandonment duration to plateau?
 Q3. What proportion of abandonment cropland lasts beyond 30 years?
 
 
-
-Scenarios:
-Q1. What would the age classes look like in 30 years:
-a) assuming the average decay rate holds for the next 30 years
-b) assuming the trend in decay rate continues for the next 30 years (i.e. slowing down in Shaanxi, speeding up in Belarus)
-c) assuming we shift the decay curve
-
-Q2. What would the mean age of abandoned land look like in 30 years, following the same assumptions?
-
-
 ## Assumptions
 
 We make two simple assumptions in our extrapolation of abandonment and recultivation: specifically, that 
@@ -3176,13 +3167,24 @@ We make two simple assumptions in our extrapolation of abandonment and recultiva
 However, this second assumption is almost certainly unrealistic.
 Three alternative assumptions include:
 
-2. Limit how much total area can be abandoned, based on the total amount of cropland at each site at the start of the time series. 
-- The amount of abandoned cropland can never exceed the amount of cropland in 1987. 
-
-3. We could alternatively assume that the amount of abandoned land each year would be more likely to gradually decline, so that less and less land is abandoned each year.
+2. We could alternatively assume that the amount of abandoned land each year would be more likely to gradually decline, so that less and less land is abandoned each year.
 - Linear decline in area abandoned over 30 years, so that 0 ha are abandoned in 2050
 
+3. Limit how much total area can be abandoned, based on the maximum extent of cropland at each site. 
+- There is a constant amount of newly abandoned land each year, based on the same assumption (mean annual gain in abandonment at each site). 
+- But, the amount of abandoned cropland can never exceed the maximum extent of cropland over the course of the time series.
+- So, once the amount of abandoned land reaches the maximum extent of cropland at that site, the new annual gain in abandonment is set to equal the amount that is recultivated each year, based on the recultivation rates.
+
 4. Or, finally, we could base this on the trend in abandoned land each year (running a regression on the gain columns in part d of the main results panel figures).
+- There amount of newly abandoned land is based on the trend in the gain in abandonment each year. Conservatively, we assume this to be either declining, or staying constant. Sites where the gain in abandonment each year is increasing is conservatively assumed to be constant through time.
+
+- Constant recultivation rate at each site. 
+
+Future work could include looking at scenarios that change the recultivation (decay) rates:
+a) assuming the average decay rate holds for the next 30 years
+b) assuming the trend in decay rate continues for the next 30 years (i.e. slowing down in Shaanxi, speeding up in Belarus)
+c) assuming we shift the decay curve
+
 
 How to calculate this?
 factors:

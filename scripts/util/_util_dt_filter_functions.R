@@ -1477,7 +1477,7 @@ cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster
     as_tibble() %>%
     filter(lc != 0) %>% 
     mutate(lc = as_factor(lc),
-           lc = recode(lc, # old = new
+           lc = dplyr::recode(lc, # old = new
                        "1" = "Non-veg.", 
                        "2" = "Woody veg.",
                        "3" = "Cropland", 
@@ -2402,7 +2402,7 @@ cc_4_panel_plots <- function(input_path,
     # means
     geom_vline(data = filter(mean_length_df, site == input_site, #site_df$site[i], 
                              abn_threshold != 3), 
-               mapping = aes(xintercept = mean_length, color = as_factor(abn_threshold)#, linetype = "mean (>1)"
+               mapping = aes(xintercept = mean_duration, color = as_factor(abn_threshold)#, linetype = "mean (>1)"
                              ),
                show.legend = TRUE, size = 1, linetype = "dashed"
                ) + 

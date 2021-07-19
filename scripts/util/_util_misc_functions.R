@@ -25,6 +25,24 @@ env_size <- function(workspace = ls()) {
   message("total workspace is ", appendLF = F); print(size, units='auto')
 }
 
+# get_env_size <- function() {
+#   my_workspace <- ls()
+#   temp <- tibble(
+#     things = my_workspace[1:10]) %>%
+#     mutate(size = sapply(1:10, #seq_along(my_workspace), 
+#                          function(i) {
+#                            object_size(get(my_workspace[i]))
+#                          }
+#     ),
+#     size_mb = size / 1e3)
+#   
+#   temp
+# }
+# 
+# object_size(age_2017_grid)
+# 
+# get_env_size()
+
 # ------------------------- #
 # calculate a dummy data.table
 # ------------------------- #

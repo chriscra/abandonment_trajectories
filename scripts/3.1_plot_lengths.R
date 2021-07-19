@@ -160,7 +160,7 @@ dev.off()
 # ----------------- plot histograms ---------------- #
 # -------------------------------------------------------------------- #
 for (i in 1:11) {
-  gg_hist <-
+  # gg_hist <-
     ggplot(data = filter(length_distill_df, site == site_df$site[i], length > 0)) + 
     theme_classic() +
     labs(linetype = "", x = "Time abandoned (years)", 
