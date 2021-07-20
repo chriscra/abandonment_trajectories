@@ -774,7 +774,7 @@ area_ever_abn3
 identical(area_ever_abn, area_ever_abn3)
 
 
-area_ever_abn %>% summarise(total_ever_abn_Mha = sum(area_ever_abn_ha))
+area_ever_abn %>% summarise(total_ever_abn_Mha = sum(area_ever_abn_ha)/1e6)
 # area_ever_abn3 %>% summarise(total_ever_abn_Mha = sum(area_ever_abn_ha))
 
 
@@ -1124,6 +1124,54 @@ See "4_lc_of_abn.R"
 ```{r}
 abn_lc_count_2017 <- read_csv(file = paste0(p_dat_derived, run_label, "/", "abn_lc_count_2017", run_label, ".csv"))
 abn_prop_lc_2017 <- read_csv(file = paste0(p_dat_derived, run_label, "/", "abn_prop_lc_2017", run_label, ".csv"))
+
+```
+
+
+# Comparing annual trajectory to two snapshots in time
+
+```{r load-lc-rasters}
+# ---------------------------------------------------------------- #
+# 1. load land cover rasters
+# ---------------------------------------------------------------- #
+
+# ---------------------------------------------------------------- #
+# 2. Extract only 2017 & 1987
+# ---------------------------------------------------------------- #
+
+
+# ---------------------------------------------------------------- #
+# 3. reclassify the rasters, so that it's just cropland in 1987 (0-1), and just cropland in 2017 (0-1)
+# ---------------------------------------------------------------- #
+
+
+
+# ---------------------------------------------------------------- #
+# 4. Subtract the two (1987 - 2017), so that pixels that were cropland (1) in 1987, but not in 2017 (0) have a value of 1.
+# Pixels that are cropland in both will be 0
+# Pixels that are cropland in 2017 (1) but not in 1987 (0) will have a value of -1
+# ---------------------------------------------------------------- #
+
+
+# ---------------------------------------------------------------- #
+# 5. calculate the area in each class
+# ---------------------------------------------------------------- #
+
+
+# ---------------------------------------------------------------- #
+# 6. Compare to area abandoned ever, and the area abandoned in 2017
+# ---------------------------------------------------------------- #
+
+
+
+# ---------------------------------------------------------------- #
+# 7. Calculate overlap between two abandonment maps
+# ---------------------------------------------------------------- #
+# Add the two abandonment maps to each other, and calculate the Jaccard Similarity
+# J = intersection of A and B / union of A and B
+# sum of cells that = 2 / sum of cells > 0
+
+
 
 ```
 
