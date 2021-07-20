@@ -2647,18 +2647,10 @@ write_csv(fitted_df_l3, file = paste0(p_dat_derived, run_label, "/decay_mod_fitt
 
 
 ```{r *mean-trend-by-site-l3}
-# plot it, reordering the factors by the coefficient (to make the legend easier to read)
+# MS Figure 3
+
 gg_model_curves_by_site_l3 <-
-  ggplot(data = fitted_df_l3 %>% filter(age < 140) %>%
-           mutate(site = capwords(ifelse(grepl("herze", site, ignore.case = TRUE),
-                                         gsub("_", " & ", site),
-                                  ifelse(grepl("bel", site, ignore.case = TRUE),
-                                         gsub("belarus", "Belarus/Smolensk", site),
-                                  ifelse(grepl("goias", site, ignore.case = TRUE),
-                                         gsub("goias", "Goiás", site),
-                                  ifelse(grepl("shaanxi", site, ignore.case = TRUE),
-                                         gsub("shaanxi", "Shaanxi/Shanxi", site),
-                                         gsub("_", " ", site))))))),
+  ggplot(data = fitted_df_l3 %>% filter(age < 140),
        mapping = aes(x = age, y = fitted, color = fct_reorder(site, time_to_0.5))) +
   theme_classic() +
   geom_line(size = 1.1) +
@@ -2670,7 +2662,19 @@ gg_model_curves_by_site_l3 <-
        x = "Time since initial abandonment (years)", 
        y = "Proportion of abandoned land remaining",
        color = "Site") + 
-  guides(col = guide_legend(reverse = TRUE))
+  theme(legend.background = element_blank()) + 
+  scale_color_discrete(labels = c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
+                              "bosnia_herzegovina" = "Bosnia &\nHerzegovina",
+                              "chongqing" = "Chongqing, China",
+                              "goias" = "Goiás, Brazil",
+                              "iraq" = "Iraq",
+                              "mato_grosso" = "Mato Grosso, Brazil",
+                              "nebraska" = "Nebraska /\nWyoming, USA",
+                              "orenburg" = "Orenburg, Russia /\nUralsk, Kazakhstan",
+                              "shaanxi" = "Shaanxi/Shanxi,\nChina",
+                              "volgograd" = "Volgograd, Russia",
+                              "wisconsin" = "Wisconsin, USA")) + 
+  guides(col = guide_legend(reverse = FALSE, ncol = 2))
 
 
 gg_model_curves_by_site_l3 %+% filter(fitted_df_l3, time < 50)
@@ -2688,15 +2692,20 @@ gg_model_curves_by_site_l3 +
   # scale_color_viridis(discrete = TRUE)
   scale_color_manual(values = c( "light blue" , "orange" , "light yellow" , "pink" , "light cyan",  "mint" , 'pear' , "olive" , "pale grey"))
 
-# for MS
-ggsave(plot = gg_model_curves_by_site_l3 + 
+# -------------------------------------------------------------------------------- #
+# Save Figure 3 for Manuscript
+# -------------------------------------------------------------------------------- #
+ggsave(plot =
+         gg_model_curves_by_site_l3 + 
          labs(caption = NULL) +
          scale_x_continuous(n.breaks = 15) + 
-         theme(legend.position = c(0.875, 0.65)),
+         theme(legend.position = c(0.76, 0.76)),
        filename = paste0(p_plots, run_label, "/decay/", "mean_decay_curves", run_label, ".pdf"), 
        width = 7, height = 4, units = "in", dpi = 400)
 
 
+
+# extras 
 # cropped:
 png(filename = paste0(p_plots, run_label, "/decay/", "model_decay_curves_by_site_l3", run_label, ".png"), 
     width = 7, height = 6, units = "in", res = 400)
