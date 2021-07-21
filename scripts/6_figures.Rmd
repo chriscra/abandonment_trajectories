@@ -3245,6 +3245,10 @@ ggsave(plot =
 ```{r end}
 env_size(ls())
 
+tmpFiles(current=TRUE,
+         orphan=FALSE, 
+         old=TRUE, 
+         remove=TRUE)
 
 ```
 

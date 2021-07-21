@@ -46,7 +46,10 @@ needed_packages <- c(
   # spatial, ecological packages, extra:
   "rnaturalearth", "smoothr", "spatialEco", "maps", "rangeBuilder",
   "rredlist",
-  "landscapemetrics", "landscapetools"
+  "landscapemetrics", "landscapetools",
+  
+  # rmarkdown
+  "rmarkdown", "bookdown", "knitr"
   )
 
 extra_packages <- c("")
@@ -81,7 +84,6 @@ install_missing_packages(needed_packages)
 
 #install.packages(needed_packages) # old method
 # install <- lapply(needed_packages, library, character.only = TRUE) # load them
-
 
 
 
