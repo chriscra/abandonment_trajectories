@@ -292,7 +292,7 @@ write_csv(area_dat, file = paste0(p_dat_derived, "area_dat", run_label, ".csv"))
 # ---------------------------------------------------------------------- #
 # plot facet grid
 # ---------------------------------------------------------------------- #
-ggplot(data  = area_dat %>% filter(lc != "Abandoned (>1)")
+ggplot(data = area_dat %>% filter(lc != "Abandoned (>1)")
     ) +
     theme_classic() +
     # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
@@ -440,13 +440,6 @@ names(lm_0_l) <- site_df$site
 ```
 
 
-```{r mod-equation, results = "asis"}
-# install.packages("equatiomatic")
-library(equatiomatic)
-equatiomatic::extract_eq(lm_lin_log_lin_l$shaanxi, use_coefs = FALSE, wrap = TRUE)
-
-```
-
 ```{r save-basic-model-plot-all-sites}
 # ------------------------------------------------ #
 # linear-log-linear model, with cohort fixed effects
@@ -466,22 +459,88 @@ cc_save_decay_model_plots()
 # save plots
 lapply(1:11, function(i) cc_save_decay_model_plots(site_index = i, add_no_cohort = FALSE))
 lapply(1:11, function(i) cc_save_decay_model_plots(site_index = i, add_no_cohort = TRUE))
+```
 
-
-
-
+```{r fig4-model-shaanxi}
 # ------------------------------------------------ #
 # for the manuscript main text: shaanxi, lin-log-lin
 # ------------------------------------------------ #
 mean_coef_tmp_l3_s <- tidy(lm_lin_log_lin_l[[9]]) %>% 
-  mutate(site = site_df$site[i],
+  mutate(site = site_df$site[9],
          coef_term = sub(":*cohort....:*", "", term),
          year_abn = ifelse(coef_term == "log(time + 1)", gsub(".*cohort", "", term), parse_number(term)),
          cohort = as.factor(year_abn)) %>% 
   group_by(coef_term) %>%
   summarise(mean_est = mean(estimate, na.rm = TRUE)) %>% arrange(coef_term)
+
+
+# categorical color scheme
+gg_fig4 <- ggplot(data = filter(dat_l, site == site_df$site[9]),
+         mapping = aes(x = age, y = proportion, 
+                       group = year_abn, 
+                       color = cut(year_abn, 
+                                   breaks = c(1988, 1990, 1995, 2000, 2005, 2010, 2013),
+                                   labels = c("1988-1990", "1991-1995", "1996-2000",
+                                              "2001-2005", "2006-2010", "2011-2013"),
+                                   include.lowest = TRUE)
+                       )) + 
+  theme_classic() + 
   
-# plot
+    # mean decay trend
+  geom_function(fun = function(x) {
+    mean_coef_tmp_l3_s$mean_est[2]*log(x-4) + mean_coef_tmp_l3_s$mean_est[1]*((x-4) - 1) + 1},
+    mapping = aes(linetype = "Mean Decay\nRate"),
+    color = "black", size = 1.25, inherit.aes = FALSE) + 
+  
+  # observed points
+  geom_point() + 
+  
+# fitted points
+  geom_line(data = mutate(augment(lm_lin_log_lin_l[[9]]),
+                          time = round(exp(`log(time + 1)`), digits = 0) - 1,
+                          age = time + 5,
+                          proportion = .fitted + 1,
+                          year_abn = as.numeric(levels(cohort))[cohort]),
+            linetype = 5, #"longdash",# size = 2
+            aes(alpha = "Fitted"),
+            ) + 
+  scale_color_brewer(palette = "Greens", direction = -1) +
+  scale_x_continuous(n.breaks = 6) +
+  geom_hline(yintercept = 0.5, linetype = "dashed") + 
+  labs(x = "Time since initial abandonment (years)", 
+       y = "Proportion of abandoned land remaining",
+       color = "Cohort (Year \nFirst Abandoned)\n",
+       linetype = NULL) + 
+  
+  guides(color = guide_legend(order = 1,
+                              override.aes = list(size = 5, linetype = NULL))) +
+  scale_alpha_manual(name = NULL,
+                     values = c(1), # breaks = c(0, "Fitted"),
+                     guide = guide_legend(
+                       order = 2,
+                       override.aes = list(
+                         # size = 0.5, 
+                         # linetype = 6, size = 1.15, #
+                         color = brewer_pal(palette = "Greens")(6)[6]
+                       ))) + 
+    theme(legend.position = c(0.87, 0.70),
+        legend.background = element_rect(fill = "transparent"),
+        # legend.box.background = element_rect(fill = "transparent"),
+        # legend.key.size = unit(8, 'mm'),
+        legend.spacing.y = unit(-2, "mm")
+        )
+
+gg_fig4
+
+show_col(colours = brewer_pal(palette = "Greens")(6))
+show_col(colours = brewer_pal(palette = "Greens")(6)[6])
+
+ggsave(plot = gg_fig4, filename = paste0(p_plots, "fig4.pdf"), 
+       width = 5, height = 4.5, units = "in")
+
+# -------------------------------------------------------- #
+# continous color scheme:
+# -------------------------------------------------------- #
 gg_lin_log_lin_cohort_tmp_s <-
   ggplot(data = filter(dat_l, site == site_df$site[9]),
          mapping = aes(x = age, y = proportion, 
@@ -490,9 +549,9 @@ gg_lin_log_lin_cohort_tmp_s <-
   geom_point() + scale_color_distiller(palette = "Greens") + 
   scale_x_continuous(n.breaks = 6) +
   geom_hline(yintercept = 0.5, linetype = "dashed") + 
-  labs(#title = "Decay of abandoned land over time", 
-       #subtitle = site_df$description[9], 
-       caption = "stats::lm() formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
+  labs(# title = "Decay of abandoned land over time", 
+       # subtitle = site_df$description[9], 
+       # caption = "stats::lm() formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
        x = "Time since initial abandonment (years)", 
        y = "Proportion of abandoned land remaining",
        color = "Cohort \n(Year First \nAbandoned)",
@@ -509,23 +568,32 @@ gg_lin_log_lin_cohort_tmp_s <-
   geom_function(fun = function(x) {
     mean_coef_tmp_l3_s$mean_est[2]*log(x-4) + mean_coef_tmp_l3_s$mean_est[1]*((x-4) - 1) + 1},
     mapping = aes(linetype = "Mean \nDecay \nRate"),
-    color = viridis(n = 9)[2], size = 1.25, inherit.aes = FALSE) + 
+    color = "black", size = 1.25, inherit.aes = FALSE) + 
   theme(legend.position = c(0.9, 0.68),
         legend.background = element_rect(fill = "transparent") #,
-        # legend.box.background = element_rect(fill = "transparent")
+        # legend.box.background = element_rect(fill = "transparent"),
         )
 
-# show_col(colours = viridis(n = 9)[2])
+  # show_col(colours = viridis(n = 9)[2])
 
 # save ------------- #
+  
+# pdf
+ggsave(plot = gg_lin_log_lin_cohort_tmp_s, 
+       filename = paste0(p_plots, "fig4_cont.pdf"
+                         # old path name
+                         # run_label, "/decay/", "ms_fig_l3_cohort", run_label, "_s.pdf"
+                         ), 
+  width = 5, height = 4.5, units = "in")
+
+  # png
 ggsave(plot = gg_lin_log_lin_cohort_tmp_s, 
        filename = paste0(p_plots, run_label, "/decay/", "ms_fig_l3_cohort", run_label, "_s.png"), 
   width = 5, height = 4.5, units = "in", dpi = 400)
 
-ggsave(plot = gg_lin_log_lin_cohort_tmp_s, 
-       filename = paste0(p_plots, run_label, "/decay/", "ms_fig_l3_cohort", run_label, "_s.pdf"), 
-  width = 5, height = 4.5, units = "in")
 
+
+# viridis
 ggsave(plot = gg_lin_log_lin_cohort_tmp_s +
          scale_color_viridis(), 
        filename = paste0(p_plots, run_label, "/decay/", "ms_fig_l3_cohort_viridis", run_label, "_s.pdf"), 
@@ -534,6 +602,13 @@ ggsave(plot = gg_lin_log_lin_cohort_tmp_s +
 cvd_grid(gg_lin_log_lin_cohort_tmp_s)
 cvd_grid(gg_lin_log_lin_cohort_tmp_s +
          scale_color_viridis())
+
+
+
+
+
+
+
 
 
 
@@ -2646,7 +2721,7 @@ write_csv(fitted_df_l3, file = paste0(p_dat_derived, run_label, "/decay_mod_fitt
 ```
 
 
-```{r *mean-trend-by-site-l3}
+```{r *fig3-mean-trend-by-site-l3}
 # MS Figure 3
 
 gg_model_curves_by_site_l3 <-
@@ -2699,8 +2774,13 @@ ggsave(plot =
          gg_model_curves_by_site_l3 + 
          labs(caption = NULL) +
          scale_x_continuous(n.breaks = 15) + 
-         theme(legend.position = c(0.76, 0.76)),
-       filename = paste0(p_plots, run_label, "/decay/", "mean_decay_curves", run_label, ".pdf"), 
+         theme(legend.position = c(0.76, 0.76),
+               # legend.spacing.y = unit(4, 'mm')
+               # legend.key.size = unit(7, 'mm')
+               ),
+       filename = paste0(p_plots, "/fig3.pdf"),
+         # old path name
+         # paste0(p_plots, run_label, "/decay/", "mean_decay_curves", run_label, ".pdf"), 
        width = 7, height = 4, units = "in", dpi = 400)
 
 
@@ -3434,14 +3514,23 @@ ggplot(data = test1, #%>% filter(site== "belarus"),
 
 ```{r trend-in-annual-gain-area-abn}
 
-ggplot(data = turnover_dat %>% filter(change == "gain"), 
-       mapping = aes(x = year, y = area_ha / (10^3))) + 
+gg_trend_in_new_abn <- 
+  ggplot(data = turnover_dat %>% filter(change == "gain"), 
+       mapping = aes(x = year, y = area_ha / (1e3))) + 
   theme_classic() +
     geom_col() + 
-  geom_smooth(method = "lm") + 
-  facet_wrap(vars(site))
+  labs(y = "Area (10^3 ha)", title = "Trend in newly abandoned cropland each year") +
+  geom_smooth(method = "lm", se = 0.95) + 
+  facet_wrap(vars(site), scales = "free_y")
 
 
+# Save: 
+ggsave(plot = gg_trend_in_new_abn,
+       filename = paste0(p_plots, "_2021_03_13/decay/trend_in_new_abn.pdf"),
+       width = 8, height = 5, units = "in", dpi = 400)
+
+# ---------------------------------------------------------------------- #
+# ---------------------------------------------------------------------- #
 
 turnover_dat %>% filter(change == "gain") %>%
   group_by(site) %>%
