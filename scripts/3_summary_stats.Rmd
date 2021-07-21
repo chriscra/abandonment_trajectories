@@ -208,188 +208,6 @@ Three plots:
 2. Summary lengths by abandonment threshold (like 1, but with different thresholds)
 3. Histograms (all periods and max lengths)
 
-```{r violin}
-
-# alternative plot, with violin plots? or point clouds?
-vt <- length_distill_df %>% as_tibble() %>% 
-    filter(length >= 5,
-           # site == "shaanxi",
-           length_type == "all") %>% # to filter by length # this is important for max, since some pixels have max length of 0 
-  mutate(fr = round(freq/10000
-                    , 
-                    digits = 0)) %>% 
-  group_by(site) %>%
-  summarise(site = unique(site), 
-            length = rep(length, fr),
-            mean = mean(length))
-
-# rm(vt)
-
-vt <- vt %>%
-  left_join(., vt %>% ungroup() %>%
-              arrange(mean) %>% select(site, mean) %>% unique() %>%
-              mutate(order = 1:n()))
-
-# Fancy violin plots
-
-gg_mean_w_violin <-
-  ggplot() + 
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 330, vjust = 1, hjust = 0),
-        plot.caption = element_text(face = "italic")) +
-  labs(linetype = NULL,
-       color = "Mean of:", 
-       y = "Mean abandonment duration (years)", 
-       x = "Site") +
-  geom_jitter(data = vt, 
-              mapping = aes(x = fct_reorder(site, order), y = length),
-              height = 0.5, width = 0.2, alpha = 0.025) +
-  
-  geom_violin(data = vt, 
-              mapping = aes(x = fct_reorder(site, order), y = length), scale = "width", alpha = 0) +
-  
-  geom_point(data = mean_length_df %>%
-           filter(abn_threshold == "5"),
-             mapping = aes(x = fct_reorder(site, order), y = mean_duration, color = length_type),
-             size = 3, alpha = 0.85) + 
-  
-  geom_hline(data = mean_length_df %>% 
-               group_by(abn_threshold, length_type) %>%
-               summarise(overall_mean = mean(mean_duration, na.rm = TRUE)) %>% 
-               filter(abn_threshold == "5"), 
-             mapping = aes(yintercept = overall_mean, 
-                           col = length_type, 
-                           linetype = "Mean \nAcross \nSites")) + 
-  
-  scale_linetype_manual(values = c("Mean \nAcross \nSites" = "dashed")) + 
-  scale_color_discrete(labels = c(all = "All periods", 
-                                   max = "Max. length \nper pixel")) +
-  scale_x_discrete(breaks = site_df$site,
-                   labels = site_df$description) +
-  guides(color = guide_legend(order = 1)) + 
-  scale_y_continuous(breaks = c(5, 10, 15, 20, 25, 30))
-
-
-ggsave(plot = gg_mean_w_violin,
-       filename = paste0(p_plots, run_label, "/mean_lengths_w_violin", run_label, ".pdf"), 
-    width = 6, height = 5, units = "in")
-
-
-
-```
-
-```{r ridges}
-install.packages("ggridges")
-library(ggridges)
-
-vt
-
-ggplot(iris, aes(x = Sepal.Length, y = Species, group = Species)) + 
-  geom_density_ridges(fill = "#00AFBB") + 
-  theme_classic()
-
-gg_mean_length_ridges <-
-  ggplot() +
-  
-  geom_density_ridges2(
-    data = vt, 
-    mapping = aes(y = fct_reorder(site, desc(order)), x = length, group = site),
-    stat = "binline", bins = 26,
-    scale = 0.95) + 
-  
-  geom_vline(data = mean_length_df %>% 
-               group_by(abn_threshold, length_type) %>%
-               summarise(overall_mean = mean(mean_duration, na.rm = TRUE)) %>% 
-               filter(abn_threshold == "5"),
-             mapping = aes(xintercept = overall_mean, 
-                           col = length_type, 
-                           linetype = "Mean \nAcross \nSites")) + 
-  scale_linetype_manual(values = c("Mean \nAcross \nSites" = "dashed")) +
-  
-  geom_point(data = mean_length_df %>%
-           filter(abn_threshold == "5"),
-             mapping = aes(y = fct_reorder(site, desc(order)),
-                           x = mean_duration, 
-                           color = length_type),
-             size = 3, alpha = 0.85) + 
-  scale_color_discrete(labels = c(all = "All periods",
-                                   max = "Maximum length per pixel")) +
-
-  scale_y_discrete(expand = c(0.02, 0),
-                   labels = c("belarus" = "Vitebsk, Belarus/\nSmolensk, Russia",
-                              "bosnia_herzegovina" = "Bosnia &\n Herzegovina",
-                              "chongqing" = "Chongqing,\n China",
-                              "goias" = "Goiás, Brazil",
-                              "iraq" = "Iraq",
-                              "mato_grosso" = "Mato Grosso, Brazil",
-                              "nebraska" = "Nebraska/\nWyoming, USA",
-                              "orenburg" = "Orenburg, Russia/\nUralsk, Kazakhstan",
-                              "shaanxi" = "Shaanxi/Shanxi,\n China",
-                              "volgograd" = "Volgograd, Russia",
-                              "wisconsin" = "Wisconsin, USA")) +
-  # scale_y_discrete(breaks = site_df$site, 
-  #                  labels = site_df$description) + 
-  
-  scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30), expand = c(0, 0)) + 
-  theme_classic() +
-  labs(y = "Site", x = "Mean abandonment duration (years)",
-       color = "Mean of:", linetype = ""
-       ) + 
-  theme(legend.position = "bottom",
-        legend.margin=margin(),
-        axis.text.y = element_text(vjust = 0),
-        panel.grid.major.x = element_line()
-        ) + 
-  guides(color = guide_legend(order = 1, nrow = 2, override.aes = list(linetype = 0)
-                              ), 
-         linetype = guide_legend(order = 2)) + 
-  
-  coord_cartesian(clip = "off")
-
-
-gg_mean_length_ridges
-
-ggsave(plot = gg_mean_length_ridges,
-       filename = paste0(p_plots, run_label, "/mean_lengths_w_ridges_hist", run_label, ".pdf"), 
-    width = 4.75, height = 6, units = "in")
-
-
-
-
-```
-
-```{r histograms}
-
-gg_raw_hist <- ggplot(data = filter(length_distill_df, #site == site_df$site[9], 
-                     length_type == "all",
-                     length >= 5)) + 
-    theme_classic() +
-    xlab("Time abandoned (years)") + ylab(expression("Count  (10"^{6}*" pixels)")) +
-    geom_col(mapping = aes(x = length, y = freq/(10^6))) +
-    facet_grid(rows = vars(site), scales = "free") +
-    
-    theme(#legend.position = c(0.85, 0.95)
-          ) + 
-  scale_x_continuous(breaks = seq(from = 5, to = 30, by = 5))
-
-ggsave(plot = gg_raw_hist, 
-       filename = paste0(p_plots, run_label, "/mean_lengths_default_hist", run_label, ".pdf"), 
-    width = 5, height = 8, units = "in")
-
-ggplot() +
-  geom_density_ridges(
-    data = vt, 
-    mapping = aes(y = site, x = length, group = site),
-    stat = "binline", bins = 26,
-    scale = 0.95,
-    draw_baseline	= FALSE
-    ) + 
-  theme_ridges()
-
-
-```
-
-
 ```{r plot-mean-abn-duration}
 
 # create directory for plot outputs
@@ -541,6 +359,192 @@ for (i in 1:11) {
 }
 
 ```
+
+```{r violin}
+
+# alternative plot, with violin plots? or point clouds?
+vt <- length_distill_df %>% as_tibble() %>% 
+    filter(length >= 5,
+           # site == "shaanxi",
+           length_type == "all") %>% # to filter by length # this is important for max, since some pixels have max length of 0 
+  mutate(fr = round(freq/10000
+                    , 
+                    digits = 0)) %>% 
+  group_by(site) %>%
+  summarise(site = unique(site), 
+            length = rep(length, fr),
+            mean = mean(length))
+
+# rm(vt)
+
+vt <- vt %>%
+  left_join(., vt %>% ungroup() %>%
+              arrange(mean) %>% select(site, mean) %>% unique() %>%
+              mutate(order = 1:n()))
+
+# Fancy violin plots
+
+gg_mean_w_violin <-
+  ggplot() + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 330, vjust = 1, hjust = 0),
+        plot.caption = element_text(face = "italic")) +
+  labs(linetype = NULL,
+       color = "Mean of:", 
+       y = "Mean abandonment duration (years)", 
+       x = "Site") +
+  geom_jitter(data = vt, 
+              mapping = aes(x = fct_reorder(site, order), y = length),
+              height = 0.5, width = 0.2, alpha = 0.025) +
+  
+  geom_violin(data = vt, 
+              mapping = aes(x = fct_reorder(site, order), y = length), scale = "width", alpha = 0) +
+  
+  geom_point(data = mean_length_df %>%
+           filter(abn_threshold == "5"),
+             mapping = aes(x = fct_reorder(site, order), y = mean_duration, color = length_type),
+             size = 3, alpha = 0.85) + 
+  
+  geom_hline(data = mean_length_df %>% 
+               group_by(abn_threshold, length_type) %>%
+               summarise(overall_mean = mean(mean_duration, na.rm = TRUE)) %>% 
+               filter(abn_threshold == "5"), 
+             mapping = aes(yintercept = overall_mean, 
+                           col = length_type, 
+                           linetype = "Mean \nAcross \nSites")) + 
+  
+  scale_linetype_manual(values = c("Mean \nAcross \nSites" = "dashed")) + 
+  scale_color_discrete(labels = c(all = "All periods", 
+                                   max = "Max. length \nper pixel")) +
+  scale_x_discrete(breaks = site_df$site,
+                   labels = site_df$description) +
+  guides(color = guide_legend(order = 1)) + 
+  scale_y_continuous(breaks = c(5, 10, 15, 20, 25, 30))
+
+
+ggsave(plot = gg_mean_w_violin,
+       filename = paste0(p_plots, run_label, "/mean_lengths_w_violin", run_label, ".pdf"), 
+    width = 6, height = 5, units = "in")
+
+
+
+```
+
+```{r fig2-ridges}
+install.packages("ggridges")
+library(ggridges)
+
+vt
+
+ggplot(iris, aes(x = Sepal.Length, y = Species, group = Species)) + 
+  geom_density_ridges(fill = "#00AFBB") + 
+  theme_classic()
+
+gg_mean_length_ridges <-
+  ggplot() +
+  
+  geom_density_ridges2(
+    data = vt, 
+    mapping = aes(y = fct_reorder(site, desc(order)), x = length, group = site),
+    stat = "binline", bins = 26,
+    scale = 0.95) + 
+  
+  geom_vline(data = mean_length_df %>% 
+               group_by(abn_threshold, length_type) %>%
+               summarise(overall_mean = mean(mean_duration, na.rm = TRUE)) %>% 
+               filter(abn_threshold == "5"),
+             mapping = aes(xintercept = overall_mean, 
+                           col = length_type, 
+                           linetype = "Mean \nAcross \nSites")) + 
+  scale_linetype_manual(values = c("Mean \nAcross \nSites" = "dashed")) +
+  
+  geom_point(data = mean_length_df %>%
+           filter(abn_threshold == "5"),
+             mapping = aes(y = fct_reorder(site, desc(order)),
+                           x = mean_duration, 
+                           color = length_type),
+             size = 3, alpha = 0.85) + 
+  scale_color_discrete(labels = c(all = "All periods",
+                                   max = "Maximum length per pixel")) +
+
+  scale_y_discrete(expand = c(0.02, 0),
+                   labels = c("belarus" = "Vitebsk, Belarus/\nSmolensk, Russia",
+                              "bosnia_herzegovina" = "Bosnia &\n Herzegovina",
+                              "chongqing" = "Chongqing,\n China",
+                              "goias" = "Goiás, Brazil",
+                              "iraq" = "Iraq",
+                              "mato_grosso" = "Mato Grosso, Brazil",
+                              "nebraska" = "Nebraska/\nWyoming, USA",
+                              "orenburg" = "Orenburg, Russia/\nUralsk, Kazakhstan",
+                              "shaanxi" = "Shaanxi/Shanxi,\n China",
+                              "volgograd" = "Volgograd, Russia",
+                              "wisconsin" = "Wisconsin, USA")) +
+  # scale_y_discrete(breaks = site_df$site, 
+  #                  labels = site_df$description) + 
+  
+  scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30), expand = c(0, 0)) + 
+  theme_classic() +
+  labs(y = "Site", x = "Mean abandonment duration (years)",
+       color = "Mean of:", linetype = ""
+       ) + 
+  theme(legend.position = "bottom",
+        legend.margin=margin(),
+        axis.text.y = element_text(vjust = 0),
+        panel.grid.major.x = element_line()
+        ) + 
+  guides(color = guide_legend(order = 1, nrow = 2, override.aes = list(linetype = 0)
+                              ), 
+         linetype = guide_legend(order = 2)) + 
+  
+  coord_cartesian(clip = "off")
+
+
+gg_mean_length_ridges
+
+
+ggsave(plot = gg_mean_length_ridges,
+       filename = paste0(p_plots, "/fig2.pdf"), 
+         # paste0(p_plots, run_label, "/mean_lengths_w_ridges_hist", run_label, ".pdf"), 
+    width = 4.75, height = 6, units = "in")
+
+
+
+
+```
+
+```{r histograms}
+
+gg_raw_hist <- ggplot(data = filter(length_distill_df, #site == site_df$site[9], 
+                     length_type == "all",
+                     length >= 5)) + 
+    theme_classic() +
+    xlab("Time abandoned (years)") + ylab(expression("Count  (10"^{6}*" pixels)")) +
+    geom_col(mapping = aes(x = length, y = freq/(10^6))) +
+    facet_grid(rows = vars(site), scales = "free") +
+    
+    theme(#legend.position = c(0.85, 0.95)
+          ) + 
+  scale_x_continuous(breaks = seq(from = 5, to = 30, by = 5))
+
+ggsave(plot = gg_raw_hist, 
+       filename = paste0(p_plots, run_label, "/mean_lengths_default_hist", run_label, ".pdf"), 
+    width = 5, height = 8, units = "in")
+
+ggplot() +
+  geom_density_ridges(
+    data = vt, 
+    mapping = aes(y = site, x = length, group = site),
+    stat = "binline", bins = 26,
+    scale = 0.95,
+    draw_baseline	= FALSE
+    ) + 
+  theme_ridges()
+
+
+```
+
+
+
 
 # Area abandoned
 
@@ -805,6 +809,36 @@ area_recultivated_df <-
               total_area_abn_remaining_2017) %>%
   mutate(proportion_recultivated = total_area_abn_recultivated_2017/total_initial_area_abn)
 
+
+# ----------------------------------------------------------- #
+# Proportion of each site's area in non-vegetated land
+# ----------------------------------------------------------- #
+area_dat %>% 
+  filter(lc %in% c("Non-veg.", "Woody veg.", "Cropland", "Grassland"), year == 2017) %>%
+  group_by(site) %>%
+  summarise(total_site_area_ha = sum(area_ha)) %>% 
+  left_join(area_dat, ., by = c("site")) %>% 
+  mutate(prop_total_area = area_ha/total_site_area_ha) %>%
+  group_by(site, lc) %>%
+  summarise(max_prop_in_non_veg = max(prop_total_area)) %>%
+  arrange(max_prop_in_non_veg) %>%
+  
+# plot
+  filter(., lc == "Non-veg.") #%>%
+  ggplot(data = .) +
+    theme_classic() +
+    labs(y = expression("Area  (10"^{6}*" ha)"), x = "Year", 
+         title = "Area by Land Cover, with Abandonment",
+         color = NULL) + 
+    geom_line(mapping = aes(x = year, y = prop_total_area, #area_ha / (10^6), # convert to millions of ha
+                            group = lc, color = fct_reorder(lc, lc, .desc = TRUE)),
+              size = 1.5) + 
+    theme(legend.position = "bottom",
+          legend.title = element_text(size = 10)) +
+    guides(color = guide_legend(nrow = 2, ncol = 3)) +
+    
+    scale_color_manual(values = plot_cols) + 
+  facet_wrap(vars(site))
 
 # ----------------------------------------------------------- #
 # merge all together
@@ -1130,47 +1164,191 @@ abn_prop_lc_2017 <- read_csv(file = paste0(p_dat_derived, run_label, "/", "abn_p
 
 # Comparing annual trajectory to two snapshots in time
 
-```{r load-lc-rasters}
+```{r 2yr-abn-method}
 # ---------------------------------------------------------------- #
 # 1. load land cover rasters
 # ---------------------------------------------------------------- #
+# prepared input rasters (derived by Chris)
+site_input_raster_files <- list.files(paste0(p_dat_derived, "input_rasters"), full.names = TRUE) %>%
+  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = TRUE)
+
+lct <- lapply(seq_along(site_input_raster_files), function(i) {rast(site_input_raster_files[i])})
+names(lct) <- site_df$site
+
+# rename raster layers:
+for (i in 1:11) {
+  if (names(lct[i]) == "nebraska") {
+    names(lct[[i]]) <- paste0("y", 1986:2018)
+  } else {
+    if (names(lct[i]) == "wisconsin") {
+      names(lct[[i]]) <- paste0("y", 1987:2018)
+    } else {
+      # everything else, just 1987:2017
+      names(lct[[i]]) <- paste0("y", 1987:2017)
+    }}}
 
 # ---------------------------------------------------------------- #
 # 2. Extract only 2017 & 1987
 # ---------------------------------------------------------------- #
+i <- 9
+lct_87_17 <- lapply(1:11, function(i) {lct[[i]] %>% subset(., c("y1987", "y2017"))})
 
-
+names(lct_87_17) <- site_df$site
+plot(lct_87_17$shaanxi)
 # ---------------------------------------------------------------- #
 # 3. reclassify the rasters, so that it's just cropland in 1987 (0-1), and just cropland in 2017 (0-1)
 # ---------------------------------------------------------------- #
-
-
+lct_rcl <- lapply(1:2, function(i) {
+  classify(lct_87_17[[i]], 
+           rcl = tribble(
+             ~"is", ~"becomes", 
+             NA, 0,
+             0, 0,
+             1, 0,
+             2, 0,
+             3, 1,
+             4, 0),
+           filename = paste0(p_dat_derived, "input_rasters/subsets/", site_df$site[i], "_87_17_rcl.tif"))
+  }
+  )
+names(lct_rcl) <- site_df$site
+tmpFiles(current = TRUE, )
 
 # ---------------------------------------------------------------- #
-# 4. Subtract the two (1987 - 2017), so that pixels that were cropland (1) in 1987, but not in 2017 (0) have a value of 1.
-# Pixels that are cropland in both will be 0
+# 4. Subtract the two (1987 - 2017), so that pixels that were cropland (1) in 1987, but not in 2017 (0) (i.e. are "abandoned" by this definition) have a value of 1.
+# Pixels that are cropland in both will be 0 (as will pixels that are non cropland in both)
 # Pixels that are cropland in 2017 (1) but not in 1987 (0) will have a value of -1
 # ---------------------------------------------------------------- #
+lct_sub <- lapply(1:11, function(i) {
+  lct_rcl[[i]]$y1987 - lct_rcl[[i]]$y2017
+  }
+  )
+
+names(lct_sub) <- site_df$site
 
 
 # ---------------------------------------------------------------- #
 # 5. calculate the area in each class
 # ---------------------------------------------------------------- #
 
+abn_area_2017_2yr <- sapply(1:11, function(i) {
+  abn_mask <- classify(lct_sub[[i]], rcl = 
+             tribble(
+               ~"is", ~"becomes", 
+               -1, NA,
+               0, NA,
+               1, 1)
+             )
+  size <- cellSize(abn_mask, unit = "ha", mask = TRUE)
+  area_ha <- global(size, fun = "sum", na.rm = TRUE)
+  as.numeric(area_ha)
+  })
+
+abn_area_2017_2yr
+
+
+# ---------------------------------------------------------------- #
+# 5.5. Calculate new area abandoned using terra methods
+# ---------------------------------------------------------------- #
+
+
+# load abandonment age rasters
+# abandonment age maps (produced by Chris)
+age_files <- list.files(paste0(p_dat_derived, "age_rasters/", run_label), 
+                        full.names = TRUE) %>%
+  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
+
+age_t <- lapply(seq_along(age_files), function(i) {rast(age_files[i])})
+names(age_t) <- site_df$site
+for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
+
+# area in 2017
+freq(age_t$shaanxi$y2017)
+
+# make abn mask
+abn_age_mask_cc <- lapply(1:11, function(i) {
+  classify(age_t[[i]]$y2017, 
+           rcl = tibble("is" = 0:30, becomes = if_else(is < 5, NA_real_, 1))
+           )})
+
+names(abn_age_mask_cc) <- site_df$site
+
+plot(abn_age_mask_cc$shaanxi)
+
+abn_area_2017_cc <- sapply(1:11, function(i) {
+  size <- cellSize(abn_age_mask_cc[[i]], unit = "ha", mask = TRUE)
+  area_ha <- global(size, fun = "sum", na.rm = TRUE)
+  as.numeric(area_ha)
+  })
+
+abn_area_2017_cc %>% sum()/1e6
 
 # ---------------------------------------------------------------- #
 # 6. Compare to area abandoned ever, and the area abandoned in 2017
 # ---------------------------------------------------------------- #
+
+area_summary_df %>% 
+  select(site, area_abn_ha_2017) %>% 
+  mutate(area_ha_2017_terra = abn_area_2017_cc#,
+         #area_ha_2017_2yr = abn_area_2017_2yr
+         ) %>%
+  mutate(percent_diff = 100*(area_ha_2017_terra - area_abn_ha_2017)/area_abn_ha_2017)
+
+
 
 
 
 # ---------------------------------------------------------------- #
 # 7. Calculate overlap between two abandonment maps
 # ---------------------------------------------------------------- #
+
 # Add the two abandonment maps to each other, and calculate the Jaccard Similarity
 # J = intersection of A and B / union of A and B
 # sum of cells that = 2 / sum of cells > 0
 
+abn_mask_2yr_01 <- lapply(1:11, function(i) {
+  classify(lct_sub[[i]], rcl = 
+             tribble(
+               ~"is", ~"becomes", 
+               -1, 0,
+               0, 0,
+               1, 1)
+             )
+  })
+
+abn_age_mask_cc_01 <- lapply(1:11, function(i) {
+  classify(age_t[[i]]$y2017, 
+           rcl = tibble("is" = 0:30, becomes = if_else(is < 5, 0, 1))
+           )})
+
+jaccard_similarity <- lapply(1:11, function(i) {
+  add <- abn_mask_2yr_01[[i]] + abn_age_mask_cc_01[[i]]
+  intersection <- classify(add, rcl = tribble(~"is", ~"becomes", 
+                                              0, NA,
+                                              1, NA,
+                                              2, 1))
+  
+  union <- classify(add, rcl = tribble(~"is", ~"becomes", 
+                                              0, NA,
+                                              1, 1,
+                                              2, 1))
+  
+  int_area <- intersection %>% 
+    cellSize(., unit = "ha", mask = TRUE) %>% 
+    global(., fun = "sum", na.rm = TRUE) %>%
+    as.numeric()
+  
+  union_area <- union %>% 
+    cellSize(., unit = "ha", mask = TRUE) %>% 
+    global(., fun = "sum", na.rm = TRUE) %>%
+    as.numeric()
+  
+  as.numeric(area_ha)
+  
+  
+  
+})
+plot(lct_sub[[lct_sub > 0]])
 
 
 ```
