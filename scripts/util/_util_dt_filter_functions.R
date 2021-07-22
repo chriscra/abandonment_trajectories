@@ -1415,9 +1415,20 @@ cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster
                                     abandonment_threshold = 5) {
   # names(abn_age_dt) <- c("x","y", paste0("y", 1987:2017))
   col_names <- grep("x$|y$", names(land_cover_dt), value = TRUE, invert = TRUE)
-  area_raster <- raster::area(land_cover_raster) # calculate area in km2
-  area_dt <- as.data.table.raster(area_raster) # convert to data.table
-  setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
+  
+  # ----------- new area calculation added 7/22/21 --------------- #
+  area_raster <- terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
+    # classify(., rcl = tribble(~"is", ~"becomes", 0, NA)) %>%  # remove the 0s
+    terra::cellSize(., unit = "km", mask = FALSE) %>% # calculate cell areas
+    raster(.) # convert back to raster for as.data.table.raster()
+  
+  area_dt <- as.data.table.raster(area_raster)
+  setnames(area_dt, old = "area", new = "pixel_area") # update layer names
+  # -------------------------------------------------------------- #
+  # -------- old version -------- #
+  # area_raster <- raster::area(land_cover_raster) # calculate area in km2
+  # area_dt <- as.data.table.raster(area_raster) # convert to data.table
+  # setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
   
   # round x and y columns to deal with floating point imprecision:
   round_digits1 <- 11
@@ -1521,9 +1532,21 @@ cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster
 # and sum the second column of the areas to calculate the total area.
 
 cc_calc_abn_area <- function(abn_age_dt, land_cover_raster, abandonment_definition = 5) {
-  area_raster <- raster::area(land_cover_raster) # calculate area in km2
-  area_dt <- as.data.table.raster(area_raster) # convert to data.table
-  setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
+
+  # ----------- new area calculation added 7/22/21 --------------- #
+  area_raster <- terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
+    # classify(., rcl = tribble(~"is", ~"becomes", 0, NA)) %>%  # remove the 0s
+    terra::cellSize(., unit = "km", mask = FALSE) %>% # calculate cell areas
+    raster(.) # convert back to raster for as.data.table.raster()
+  
+  area_dt <- as.data.table.raster(area_raster)
+  setnames(area_dt, old = "area", new = "pixel_area") # update layer names
+  # -------------------------------------------------------------- #
+  # -------- old version -------- #
+  # area_raster <- raster::area(land_cover_raster) # calculate area in km2
+  # area_dt <- as.data.table.raster(area_raster) # convert to data.table
+  # setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
+
   
   # round x and y columns to deal with floating point imprecision:
   round_digits <- 11
@@ -1562,9 +1585,20 @@ cc_calc_persistence <- function(abn_age_dt,
                                 land_cover_raster,
                                 abandonment_threshold = 5) {
   if(length(abn_age_dt) > 33) {stop("Code is designed to work with abn_age_dt for just 1987:2017.")}
-  area_raster <- raster::area(land_cover_raster) # calculate area in km2
-  area_dt <- as.data.table.raster(area_raster) # convert to data.table
-  setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
+  
+  # ----------- new area calculation added 7/22/21 --------------- #
+  area_raster <- terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
+    # classify(., rcl = tribble(~"is", ~"becomes", 0, NA)) %>%  # remove the 0s
+    terra::cellSize(., unit = "km", mask = FALSE) %>% # calculate cell areas
+    raster(.) # convert back to raster for as.data.table.raster()
+  
+  area_dt <- as.data.table.raster(area_raster)
+  setnames(area_dt, old = "area", new = "pixel_area") # update layer names
+  # -------------------------------------------------------------- #
+  # -------- old version -------- #
+  # area_raster <- raster::area(land_cover_raster) # calculate area in km2
+  # area_dt <- as.data.table.raster(area_raster) # convert to data.table
+  # setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
   
   # round x and y columns to deal with floating point imprecision between area_dt and abn_age_dt:
   round_digits <- 11
@@ -1757,9 +1791,19 @@ cc_calc_persistence <- function(abn_age_dt,
 cc_calc_abn_diff <- function(abn_age_dt, land_cover_raster,
                                   abandonment_threshold = 5) {
   
-  area_raster <- raster::area(land_cover_raster) # calculate area in km2
-  area_dt <- as.data.table.raster(area_raster) # convert to data.table
-  setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
+  # ----------- new area calculation added 7/22/21 --------------- #
+  area_raster <- terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
+    # classify(., rcl = tribble(~"is", ~"becomes", 0, NA)) %>%  # remove the 0s
+    terra::cellSize(., unit = "km", mask = FALSE) %>% # calculate cell areas
+    raster(.) # convert back to raster for as.data.table.raster()
+  
+  area_dt <- as.data.table.raster(area_raster)
+  setnames(area_dt, old = "area", new = "pixel_area") # update layer names
+  # -------------------------------------------------------------- #
+  # -------- old version -------- #
+  # area_raster <- raster::area(land_cover_raster) # calculate area in km2
+  # area_dt <- as.data.table.raster(area_raster) # convert to data.table
+  # setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
   
   # round x and y columns to deal with floating point imprecision between area_dt and abn_age_dt:
   round_digits <- 11
