@@ -2,7 +2,7 @@
 # Christopher Crawford, Princeton University, July 8th, 2021
 
 # Script to *ONLY* summarize fully processed data.tables, 
-# reproducing step 4 of "2_analyze_abn.R"
+# breaking out step 4 of "2_analyze_abn.R" to be stand-alone script.
 # -------------------------------------------------------- #
 
 # Originally written to implement updated area estimates from terra::cellSize()
