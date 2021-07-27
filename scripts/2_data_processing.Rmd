@@ -11,30 +11,30 @@ R notebook for loading and processing the land cover time-series raster data fro
 ```{r initialize}
 source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
 
-# define color palette for plotting:
-# 1. Non-veg
-# 2. Woody veg
-# 3. Crop
-# 4. Grassland
-plot_cols <- c("gray80", # gray, 1. Non-veg
-               terrain.colors(9)[1], # dark green, 2. Woody veg
-               terrain.colors(9)[5], # gold, 3. Crop
-               terrain.colors(9)[3] # light green, 4. Grassland
-               )
-plot_cols_new <- c("gray80", # gray, 1. Non-veg
-               terrain.colors(9)[5], # gold, 2 (formerly 3) Crop
-               terrain.colors(9)[3], # light green, 3 (formerly 4) Grassland
-               terrain.colors(9)[1]  # dark green, 4 (formerly 2) Woody veg
-               )
-
-plot_breaks <- c(0, 1, 2, 3, 4)
-
-# show_col(terrain.colors(20))
-# show_col(topo.colors(20))
-# show_col(cm.colors(20))
+# # define color palette for plotting:
+# # 1. Non-veg
+# # 2. Woody veg
+# # 3. Crop
+# # 4. Grassland
+# plot_cols <- c("gray80", # gray, 1. Non-veg
+#                terrain.colors(9)[1], # dark green, 2. Woody veg
+#                terrain.colors(9)[5], # gold, 3. Crop
+#                terrain.colors(9)[3] # light green, 4. Grassland
+#                )
+# plot_cols_new <- c("gray80", # gray, 1. Non-veg
+#                terrain.colors(9)[5], # gold, 2 (formerly 3) Crop
+#                terrain.colors(9)[3], # light green, 3 (formerly 4) Grassland
+#                terrain.colors(9)[1]  # dark green, 4 (formerly 2) Woody veg
+#                )
 # 
-# show_col(plot_cols)
-# show_col(plot_cols[c(1, 3, 2)])
+# plot_breaks <- c(0, 1, 2, 3, 4)
+# 
+# # show_col(terrain.colors(20))
+# # show_col(topo.colors(20))
+# # show_col(cm.colors(20))
+# # 
+# # show_col(plot_cols)
+# # show_col(plot_cols[c(1, 3, 2)])
 ```
 
 ```{r set-run_label}
@@ -201,15 +201,15 @@ site_label_list <- c("_b", "_bh", "_c",
                      "_v", "_w")
 
 site_description <- c(
-  "Vitebsk, Belarus/Smolensk, Russia",
+  "Vitebsk, Belarus / Smolensk, Russia",
   "Bosnia & Herzegovina", 
-  "Chongqing Province, China",
+  "Chongqing, China",
   "Goiás, Brazil",
   "Iraq", 
   "Mato Grosso, Brazil",
   "Nebraska/Wyoming, USA", 
-  "Orenburg, Russia/Oral, Kazakhstan",
-  "Shaanxi/Shanxi Provinces, China", 
+  "Orenburg, Russia / Uralsk, Kazakhstan",
+  "Shaanxi/Shanxi, China", 
   "Volgograd, Russia", 
   "Wisconsin, USA"
   )
@@ -3235,7 +3235,7 @@ lct
 ```
 
 ```{r update-cc_calc_area_per_lc_abn}
-
+project()
 
 cc_calc_area_per_lc_abn_update <- function(land_cover_dt, 
                                            abn_age_dt, 
@@ -3252,8 +3252,9 @@ cc_calc_area_per_lc_abn_update <- function(land_cover_dt,
   # names(abn_age_dt) <- c("x","y", paste0("y", 1987:2017))
   col_names <- grep("x$|y$", names(land_cover_dt), value = TRUE, invert = TRUE)
 
-  # ---------------------
-  area_raster <- terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
+  # ----------- new area calculation added 7/22/21 --------------- #
+  area_raster <- land_cover_raster %>%
+    # terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
     # classify(., rcl = tribble(~"is", ~"becomes", 0, NA)) %>%  # remove the 0s
     terra::cellSize(., unit = "km", mask = FALSE) %>% # calculate cell areas
     raster(.) # convert back to raster for as.data.table.raster()
@@ -3261,7 +3262,7 @@ cc_calc_area_per_lc_abn_update <- function(land_cover_dt,
   area_dt <- as.data.table.raster(area_raster)
   setnames(area_dt, old = "area", new = "pixel_area") # update layer names
   
-  # # ----------------------------
+  # # ------------------------------------------------------------ #
   # area_raster <- raster::area(land_cover_raster) # calculate area in km2
   # area_dt <- as.data.table.raster(area_raster) # convert to data.table
   # setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
@@ -3360,68 +3361,468 @@ cc_calc_area_per_lc_abn_update <- function(land_cover_dt,
   
 }
 
+# ----------------------------------------------------------------------------- #
+# Implement the same update in cc_calc_abn_area() - exactly the same situation.
+# ----------------------------------------------------------------------------- #
 
 # ----------------------------------------------------------------------------- #
 # testing to make sure this works:
 # ----------------------------------------------------------------------------- #
 # load files:
-lc_r <- raster(paste0(p_dat_derived, "input_rasters/", site, ".tif")) # for testing only
+site <- site_df$site[9]
+# lc_r <- raster(paste0(p_dat_derived, "input_rasters/", site, ".tif")) # for testing only
+lc_r <- rast(x = paste0(p_dat_derived, "input_rasters/", site, ".tif"))[[1]]
+
+# lc_r <- raster("/Users/christophercrawford/Downloads/shaanxi.tif")
+# rast(lc_r)
+
+
 lc_dt <- fread(input = paste0(p_dat_derived, "input_data.tables/", site, ".csv")) # for testing only
 age_dt <- fread(input = paste0(p_dat_derived, "age_dts/",
                                    site, "_age", run_label, ".csv")) # for testing only
 
 
 # ------------- calculate total area per lc, with abandonment ---------------- #
-area_tmp2 <- cc_calc_area_per_lc_abn_update(land_cover_dt = lc_dt, 
+area_tmp <- cc_calc_area_per_lc_abn_update(land_cover_dt = lc_dt, 
                                     abn_age_dt = age_dt, 
                                     land_cover_raster = lc_r,
-                                    abandonment_threshold = abandonment_threshold)
+                                    abandonment_threshold = 5)
 
 
 
 
 # this what I want to make sure matches with the results of this 
-ref_area_df <- read_csv("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/data_derived/_2021_03_13/shaanxi_result_area_2021_03_13.csv")
+ref_area_df <- read_csv("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/data_derived/_2021_03_13_old_area/shaanxi_result_area_2021_03_13.csv")
+cluster_tmp <- read_csv("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/data_derived/_2021_03_13/shaanxi_result_area_2021_03_13.csv")
 
 ref_area_df
 area_df
 area_tmp
 
-identical(area_df, area_tmp)
-identical(area_tmp, area_tmp2)
+all_equal(area_tmp, cluster_tmp)
 
-ggplot(data = area_tmp2 %>% filter(lc != "Abandoned (>1)")
-    ) +
+for (i in seq_along(area_tmp)) {
+  print(all.equal(area_tmp[, i], cluster_tmp[, i]))}
+
+
+all_equal(area_tmp, ref_area_df)
+
+area_tmp %>% mutate(area_ha0 = ref_area_df$area_ha,
+                    percent_diff = 100*(area_ha - area_ha0) / area_ha0) %>%
+  arrange(percent_diff) %>% 
+  summarise(mean_p_diff = mean(percent_diff))
+
+ggplot(data = area_tmp %>% filter(lc != "Abandoned (>1)")) +
     theme_classic() +
-    # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
     labs(y = expression("Area  (10"^{6}*" ha)") , 
          x = "Year", 
          title = "Area by Land Cover, with Abandonment",
-         #subtitle = subtitle,
-         color = NULL #"Land Cover"
-         ) + 
-    geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
+         color = NULL) + 
+    geom_line(mapping = aes(x = year, y = area_ha / (10^6),
                             group = lc, color = fct_reorder(lc, lc, .desc = TRUE)),
               size = 1.5) + 
     theme(legend.position = "bottom",
           legend.title = element_text(size = 10)) +
     guides(color = guide_legend(nrow = 2, ncol = 3)) +
-    
-    scale_color_manual(values = plot_cols) #+   facet_wrap(vars(site))
+    scale_color_manual(values = plot_cols)
 
 ```
-
-```{r update-cc_calc_abn_area}
-
-```
-
 
 ```{r update-cc_calc_persistence}
+
+
+# Original function
+# -------------------------------------------------------------------------------- #
+# calculate persistence of abandoned land over time, either as a raw count or as a percentage
+# -------------------------------------------------------------------------------- #
+cc_calc_persistence_update <- function(abn_age_dt, 
+                                land_cover_raster,
+                                abandonment_threshold = 5) {
+  if(length(abn_age_dt) > 33) {stop("Code is designed to work with abn_age_dt for just 1987:2017.")}
+  
+  # ----------- new area calculation added 7/22/21 --------------- #
+  area_raster <- terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
+    # classify(., rcl = tribble(~"is", ~"becomes", 0, NA)) %>%  # remove the 0s
+    terra::cellSize(., unit = "km", mask = FALSE) %>% # calculate cell areas
+    raster(.) # convert back to raster for as.data.table.raster()
+  area_dt <- as.data.table.raster(area_raster)
+  setnames(area_dt, old = "area", new = "pixel_area") # update layer names
+  
+  # # ------------------------------------------------------------ #
+  # area_raster <- raster::area(land_cover_raster) # calculate area in km2
+  # area_dt <- as.data.table.raster(area_raster) # convert to data.table
+  # setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
+  # 
+  # area_raster <- raster::area(land_cover_raster) # calculate area in km2
+  # area_dt <- as.data.table.raster(area_raster) # convert to data.table
+  # setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
+  
+  # round x and y columns to deal with floating point imprecision between area_dt and abn_age_dt:
+  round_digits <- 11
+  
+  while(merge(x = abn_age_dt[, 1:3], y = area_dt,  # conditional test
+              all.x = TRUE, by = c("x", "y"), sort = FALSE
+  )[is.na(pixel_area), .N] > 0) {
+    round_digits <- round_digits - 1
+    abn_age_dt[, ':='(x = round(x, round_digits), y = round(y, round_digits))] # rounding step
+    area_dt[, ':='(x = round(x, round_digits), y = round(y, round_digits))] # rounding step
+  }
+  
+  # merge area to the abn_age_dt, based on the x and y coordinates, 
+  abn_age_dt <- merge(x = abn_age_dt, y = area_dt, all.x = TRUE, by = c("x", "y"), sort = FALSE)
+  
+  if(abn_age_dt[is.na(pixel_area), .N] > 0) {stop("Merge did not match at 100%")}
+  
+  cat(fill = TRUE, "Note: x and y columns rounded to", round_digits, "digits to facilitate merge.")
+  
+  # first calculate a list of 30 vectors corresponding to abandonment originating in a particular year.
+  persistence_list <- lapply(1:30, function(j) {
+    # calculate a vector of the summed area (ha) of abandoned pixels that originate 
+    # in a particular year (i.e. cohort), and the area (ha) of those pixels in each 
+    # subsequent year, starting in 1988. 
+    # Filled with NAs for periods that are beyond the length of the time series.
+    
+    temp_vector <- c(rep(NA, j),
+                     sapply(1:(31 - j), function(i) {
+                       abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, 
+                                  sum(pixel_area) * 100] # calculate area in km2, then convert to ha
+                     }))
+    
+    # remove cells that are below abandonment threshold:
+    if (abandonment_threshold > 1) {
+      temp_vector[c(1:(abandonment_threshold - 1) + j)] <- NA
+      if(length(temp_vector) > 31){temp_vector <- temp_vector[c(1:31)]}
+    }
+    
+    # return vector
+    temp_vector
+  }
+  )
+  
+  # combine list into a data.frame
+  persistence_df <- data.frame(
+    do.call("cbind", persistence_list))
+  
+  names(persistence_df) <- paste0("y", 1988:2017)
+  
+  persistence_df <- persistence_df %>%
+    mutate(year = 1987:2017) %>%
+    select(year, everything()) %>%
+    
+    # pivot to long format
+    pivot_longer(cols = paste0("y", 1988:2017), 
+                 names_to = "year_abn", 
+                 values_to = "area_ha",
+                 values_drop_na = TRUE) %>%
+    mutate(year_abn = as.integer(gsub("y", "", year_abn))) %>% 
+    
+    # calculate proportion remaining
+    group_by(year_abn) %>% mutate(proportion = area_ha / max(area_ha)) %>% ungroup() %>% 
+    
+    # calculate age bins, keeping in mind that these bins are [) 
+    # i.e. closed on the left side, open on the right 5 <= x < 10
+    mutate(age = year - year_abn + 1,
+           bins = cut(age, breaks = c(0, 5, 10, 15, 20, 25, 30), right = FALSE, include.lowest = TRUE),
+           bins = as_factor(bins))
+  
+  persistence_df
+}
+  
+
+
+
+# ----------------------------------------------------------------------------- #
+# testing to make sure this works:
+# ----------------------------------------------------------------------------- #
+# load files:
+site <- site_df$site[9]
+land_cover_raster <- raster(paste0(p_dat_derived, "input_rasters/", site, ".tif")) # for testing only
+abn_age_dt <- fread(input = paste0(p_dat_derived, "age_dts/",
+                                   site, "_age", run_label, ".csv")) # for testing only
+
+
+
+# ------------- calculate persistence update ---------------- #
+persistence_tmp1 <- cc_calc_persistence(abn_age_dt = abn_age_dt,
+                                    land_cover_raster = land_cover_raster,
+                                    abandonment_threshold = 5)
+
+# this what I want to make sure matches with the results of this 
+ref_df <- read_csv("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/data_derived/_2021_03_13/shaanxi_result_persistence_2021_03_13.csv")
+
+persistence_tmp
+identical(persistence_tmp, persistence_tmp1)
+ref_df
+all.equal(data.frame(persistence_tmp), data.frame(ref_df))
+
+# percent difference
+persistence_tmp %>% mutate(prop0 = ref_df$proportion,
+                           percent_diff = 100*(proportion - prop0) / prop0) %>%
+  arrange(desc(percent_diff)) %>% 
+  summarise(mean_p_diff = mean(percent_diff)) # mean difference of < 0.0006%
+
+
+
+
+test_dat <- persistence_tmp %>% 
+  mutate(site = "shaanxi", time = age - 5, cohort = factor(year_abn))
+
+dat_l
+# plot
+
+# test mod:
+# linear - log - linear
+
+
+test_mod <- lm(I(proportion - 1)  ~ 0 + log(time + 1):cohort + I(time):cohort,  
+               data = test_dat
+               )
+tidy(test_mod)
+tidy(lm_lin_log_lin_l$shaanxi)
+
+test_mean_coef <- tidy(test_mod) %>% 
+  mutate(site = site_df$site[9],
+         coef_term = sub(":*cohort....:*", "", term),
+         year_abn = ifelse(coef_term == "log(time + 1)", gsub(".*cohort", "", term), parse_number(term)),
+         cohort = as.factor(year_abn)) %>% 
+  group_by(coef_term) %>%
+  summarise(mean_est = mean(estimate, na.rm = TRUE)) %>% arrange(coef_term)
+
+
+ggplot(data = test_dat,
+         mapping = aes(x = age, y = proportion, 
+                       group = year_abn, 
+                       color = cut(year_abn, 
+                                   breaks = c(1988, 1990, 1995, 2000, 2005, 2010, 2013),
+                                   labels = c("1988-1990", "1991-1995", "1996-2000",
+                                              "2001-2005", "2006-2010", "2011-2013"),
+                                   include.lowest = TRUE)
+                       )) + 
+  theme_classic() + 
+  
+    # mean decay trend
+  geom_function(fun = function(x) {
+    test_mean_coef$mean_est[2]*log(x-4) + test_mean_coef$mean_est[1]*((x-4) - 1) + 1},
+    mapping = aes(linetype = "Mean Decay\nRate"),
+    color = "black", size = 1.25, inherit.aes = FALSE) + 
+  
+  # observed points
+  geom_point() + 
+  
+# fitted points
+  geom_line(data = mutate(augment(test_mod),
+                          time = round(exp(`log(time + 1)`), digits = 0) - 1,
+                          age = time + 5,
+                          proportion = .fitted + 1,
+                          year_abn = as.numeric(levels(cohort))[cohort]),
+            linetype = 5, #"longdash",# size = 2
+            aes(alpha = "Fitted"),
+            ) + 
+  scale_color_brewer(palette = "Greens", direction = -1) +
+  scale_x_continuous(n.breaks = 6) +
+  geom_hline(yintercept = 0.5, linetype = "dashed") + 
+  labs(x = "Time since initial abandonment (years)", 
+       y = "Proportion of abandoned land remaining",
+       color = "Cohort (Year \nFirst Abandoned)\n",
+       linetype = NULL) + 
+  
+  guides(color = guide_legend(order = 1,
+                              override.aes = list(size = 5, linetype = NULL))) +
+  scale_alpha_manual(name = NULL,
+                     values = c(1), # breaks = c(0, "Fitted"),
+                     guide = guide_legend(
+                       order = 2,
+                       override.aes = list(
+                         # size = 0.5, 
+                         # linetype = 6, size = 1.15, #
+                         color = brewer_pal(palette = "Greens")(6)[6]
+                       ))) + 
+    theme(legend.position = c(0.87, 0.70),
+        legend.background = element_rect(fill = "transparent"),
+        # legend.box.background = element_rect(fill = "transparent"),
+        # legend.key.size = unit(8, 'mm'),
+        legend.spacing.y = unit(-2, "mm")
+        )
 
 ```
 
 
 ```{r update-cc_calc_abn_diff}
+cc_calc_abn_diff_update <- function(abn_age_dt, land_cover_raster,
+                                  abandonment_threshold = 5) {
+  
+  # ----------- new area calculation added 7/22/21 --------------- #
+  area_raster <- terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
+    # classify(., rcl = tribble(~"is", ~"becomes", 0, NA)) %>%  # remove the 0s
+    terra::cellSize(., unit = "km", mask = FALSE) %>% # calculate cell areas
+    raster(.) # convert back to raster for as.data.table.raster()
+  
+  area_dt <- as.data.table.raster(area_raster)
+  setnames(area_dt, old = "area", new = "pixel_area") # update layer names
+  # -------------------------------------------------------------- #
+  # -------- old version -------- #
+  # area_raster <- raster::area(land_cover_raster) # calculate area in km2
+  # area_dt <- as.data.table.raster(area_raster) # convert to data.table
+  # setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
+  
+  # round x and y columns to deal with floating point imprecision between area_dt and abn_age_dt:
+  round_digits <- 11
+  
+  while(merge(x = abn_age_dt[, 1:3], y = area_dt,  # conditional test
+              all.x = TRUE, by = c("x", "y"), sort = FALSE
+  )[is.na(pixel_area), .N] > 0) {
+    round_digits <- round_digits - 1
+    abn_age_dt[, ':='(x = round(x, round_digits), y = round(y, round_digits))] # rounding step
+    area_dt[, ':='(x = round(x, round_digits), y = round(y, round_digits))] # rounding step
+  }
+  
+  # merge area to the abn_age_dt, based on the x and y coordinates, 
+  abn_age_dt <- merge(x = abn_age_dt, y = area_dt, all.x = TRUE, by = c("x", "y"), sort = FALSE)
+  
+  if(abn_age_dt[is.na(pixel_area), .N] > 0) {stop("Merge did not match at 100%")}
+  
+  cat(fill = TRUE, "Note: x and y columns rounded to", round_digits, "digits to facilitate merge.")
+  
+  
+  # first calculate a list of 30 vectors corresponding to abandonment originating in a particular year.
+  abn_turnover_list <- lapply(1:30, function(j) {
+    # Calculate a vector of counts of abandoned pixels that originate in a particular year, 
+    # and the count of those pixels in each year following, starting in 1988.
+    # Filled with 0s for periods that are beyond the length of the time series.
+    # Then, calculate the difference year-to-year for each abandonment cohort.
+    
+    # count the number of rows where age = 1 in 1st year of abandonment, 
+    # age = 2 in 2nd, age = 3 in 3rd, etc. For js that increase progressively, 
+    # representing different cohorts of abandonment (i.e. year of first abandonment). 
+    # E.g. j = 1 represents 1988, and the vector represents the amount of land from that 
+    # cohort that is abandoned in 1988, 1989, 1990, etc. 
+    
+    temp_vector_diff <- c(
+      rep(0, j),
+      sapply(1:(31 - j), function(i) {
+        abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, sum(pixel_area) * 100] # calculate the area in ha
+      })
+    ) 
+    
+    # need to remove cells below abandonment threshold
+    if (abandonment_threshold > 1) {
+      temp_vector_diff[c(j + 1:(abandonment_threshold - 1))] <- 0
+    }
+    
+    # trim to right length
+    if(length(temp_vector_diff) > 31){
+      temp_vector_diff <- temp_vector_diff[c(1:31)]
+    }
+    
+    # calculate diff
+    temp_vector_diff <- diff(temp_vector_diff)
+    
+  }
+  )
+  
+  # combine list into a data.frame
+  abn_turnover_df <- data.frame(
+    do.call("cbind", abn_turnover_list))
+  
+  names(abn_turnover_df) <- paste0("y", 1988:2017)
+  
+  abn_turnover_df <- abn_turnover_df %>%
+    mutate(year = 1988:2017) %>%
+    select(year, everything())
+  
+  # pivot to long format
+  abn_turnover_long <- abn_turnover_df %>%
+    pivot_longer(cols = paste0("y", 1988:2017), 
+                 names_to = "year_abn", 
+                 values_to = "area_ha",
+                 values_drop_na = TRUE) %>%
+    mutate(year_abn = as.integer(gsub("y", "", year_abn)))
+  
+  
+  # calculate net, gain, and loss:
+  # net gain in abandoned land area
+  abn_area_net <- abn_turnover_long %>%
+    group_by(year) %>% 
+    summarise(net = sum(area_ha))
+  
+  # gain
+  abn_area_gain <- abn_turnover_long %>%
+    group_by(year) %>% 
+    filter(area_ha > 0) %>%
+    summarise(gain = sum(area_ha))
+  
+  # loss
+  abn_area_loss <- abn_turnover_long %>%
+    group_by(year) %>% 
+    filter(area_ha < 0) %>%
+    summarise(loss = sum(area_ha))
+  
+  turnover_df <- abn_area_net %>% 
+    full_join(., abn_area_gain, by = "year") %>%
+    full_join(., abn_area_loss, by = "year") %>%
+    pivot_longer(cols = c("net", "gain", "loss"),
+                 names_to = "change", values_to = "area_ha",
+                 values_drop_na = TRUE)
+  
+  turnover_df
+  
+}
+
+# ----------------------------------------------------------------------------- #
+# testing to make sure this works:
+# ----------------------------------------------------------------------------- #
+# load files:
+site <- site_df$site[9]
+land_cover_raster <- raster(paste0(p_dat_derived, "input_rasters/", site, ".tif")) # for testing only
+abn_age_dt <- fread(input = paste0(p_dat_derived, "age_dts/",
+                                   site, "_age", run_label, ".csv")) # for testing only
+
+
+
+# ------------- calculate persistence update ---------------- #
+turnover_tmp <- cc_calc_abn_diff_update(abn_age_dt = abn_age_dt,
+                                    land_cover_raster = land_cover_raster,
+                                    abandonment_threshold = 5)
+
+
+# this what I want to make sure matches with the results of this 
+ref_df <- read_csv("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/data_derived/_2021_03_13/shaanxi_result_turnover_2021_03_13.csv")
+
+turnover_tmp
+ref_df
+all.equal(data.frame(turnover_tmp), data.frame(ref_df))
+
+# percent difference
+turnover_tmp %>% mutate(area_ha0 = ref_df$area_ha,
+                           percent_diff = 100*(area_ha - area_ha0) / area_ha) %>%
+  arrange(desc(percent_diff)) %>% 
+  summarise(mean_p_diff = mean(percent_diff, na.rm = TRUE)) # mean difference of < 0.0006%
+
+tmp_dat <- 
+  ref_ha %>% 
+  # turnover_tmp %>% 
+  mutate(site = "shaanxi")
+
+ggplot() +
+    theme_classic() + 
+    labs(y = expression("Annual area turnover (10"^{3}*" ha)"), 
+         x = "Year", 
+         fill = NULL, color = NULL) + 
+    scale_color_manual(values = c("black"),
+                       labels = "Net Change") + 
+    scale_fill_manual(values = brewer_pal(palette = "Greens")(5)[3:2],
+                      labels = c("Area Gained", "Area Lost")) + 
+    theme(legend.position = "bottom",
+          legend.title = element_text(size = 10)
+    ) +
+    geom_col(data = filter(tmp_dat, change != "net"),
+             mapping = aes(x = year, y = area_ha / (10^3), 
+                           group = change, fill = change)) + 
+    geom_line(data = filter(tmp_dat, change == "net"),
+              mapping = aes(x = year, y = area_ha / (10^3), color = "Net Change in Area"),
+              size = 1.5) + 
+  facet_wrap(vars(site))
+
 
 ```
 
