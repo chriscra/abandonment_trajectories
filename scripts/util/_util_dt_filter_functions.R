@@ -3,7 +3,7 @@
 # abandonment trajectories custom functions
 # 
 # --------------------------------------------------------------- #
-
+# updated: July 23, 2021
 
 # raster prep functions ----
 
@@ -1417,7 +1417,8 @@ cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster
   col_names <- grep("x$|y$", names(land_cover_dt), value = TRUE, invert = TRUE)
   
   # ----------- new area calculation added 7/22/21 --------------- #
-  area_raster <- terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
+  area_raster <- land_cover_raster %>%
+    # terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
     # classify(., rcl = tribble(~"is", ~"becomes", 0, NA)) %>%  # remove the 0s
     terra::cellSize(., unit = "km", mask = FALSE) %>% # calculate cell areas
     raster(.) # convert back to raster for as.data.table.raster()
@@ -1534,7 +1535,8 @@ cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster
 cc_calc_abn_area <- function(abn_age_dt, land_cover_raster, abandonment_definition = 5) {
 
   # ----------- new area calculation added 7/22/21 --------------- #
-  area_raster <- terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
+  area_raster <- land_cover_raster %>%
+    # terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
     # classify(., rcl = tribble(~"is", ~"becomes", 0, NA)) %>%  # remove the 0s
     terra::cellSize(., unit = "km", mask = FALSE) %>% # calculate cell areas
     raster(.) # convert back to raster for as.data.table.raster()
@@ -1587,7 +1589,8 @@ cc_calc_persistence <- function(abn_age_dt,
   if(length(abn_age_dt) > 33) {stop("Code is designed to work with abn_age_dt for just 1987:2017.")}
   
   # ----------- new area calculation added 7/22/21 --------------- #
-  area_raster <- terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
+  area_raster <- land_cover_raster %>%
+    # terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
     # classify(., rcl = tribble(~"is", ~"becomes", 0, NA)) %>%  # remove the 0s
     terra::cellSize(., unit = "km", mask = FALSE) %>% # calculate cell areas
     raster(.) # convert back to raster for as.data.table.raster()
@@ -1792,7 +1795,8 @@ cc_calc_abn_diff <- function(abn_age_dt, land_cover_raster,
                                   abandonment_threshold = 5) {
   
   # ----------- new area calculation added 7/22/21 --------------- #
-  area_raster <- terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
+  area_raster <- land_cover_raster %>%
+    # terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
     # classify(., rcl = tribble(~"is", ~"becomes", 0, NA)) %>%  # remove the 0s
     terra::cellSize(., unit = "km", mask = FALSE) %>% # calculate cell areas
     raster(.) # convert back to raster for as.data.table.raster()
@@ -1928,7 +1932,8 @@ cc_summarize_abn_dts <- function(input_path,
   cat(fill = TRUE, "abandonment_threshold: >=" , abandonment_threshold)
 
   # load files:
-  lc_r <- raster(paste0(input_path, site, ".tif"))
+  lc_r <- rast(x = paste0(input_path, site, ".tif"))[[1]]
+  # lc_r <- raster(paste0(input_path, site, ".tif"))
   lc_dt <- fread(input = paste0(input_path, site, ".csv")) 
   age_dt <- fread(input = paste0(input_path, site, "_age", run_label, ".csv"))
   
@@ -2550,7 +2555,7 @@ cc_save_decay_model_plots <- function(site_index, add_no_cohort = TRUE) {
   
   
   # plot
-  # gg_tmp <-
+  gg_tmp <-
   ggplot(data = filter(dat_l, site == site_df$site[i]), 
          mapping = aes(x = age, y = proportion, 
                        group = year_abn, color = year_abn)) + 
