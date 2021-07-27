@@ -14,7 +14,9 @@ echo "My SLURM_ARRAY_JOB_ID is $SLURM_ARRAY_JOB_ID."
 echo "My SLURM_ARRAY_TASK_ID is $SLURM_ARRAY_TASK_ID"
 echo "Executing on the machine:" $(hostname)
 
-module load gdal # this line loads gdal, which is required for sf
+# load any required modules
+module load gdal/2.2.4
+module load geos/3.7.2
 
 # set working directory
 cd /home/clc6/abandonment_trajectories/scripts
@@ -61,6 +63,7 @@ Rscript ./2_analyze_abn.R $SLURM_ARRAY_TASK_ID
 # w (11)  nrow: 70,874,020.   ID: 33706895_11;  Time: 01:33:15; Memory Utilized: 109.50 GB; (73.00% of 150.00 GB)
 
 # To submit a specific set of array sub-jobs, use the comma delimiter in the array index list.
+# Just make sure to turn off the array and mem per cpu variables
 # You can do a similar thing to set specific memory allocation.
 # Use the following in the future to manually set memory:
 
