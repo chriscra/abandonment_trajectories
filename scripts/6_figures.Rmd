@@ -13,6 +13,7 @@ source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectori
 run_label <- "_2021_03_13" #"_2021-03-05"
 
 # run_label <- "_b1"
+
 ```
 
 ```{r load-data}
@@ -99,10 +100,10 @@ for (i in seq_along(age_r)) {names(age_r[[i]]) <- paste0("y", 1987:2017)} # reme
 max_age_files <- list.files(paste0(p_dat_derived, "max_age/", run_label), 
                         full.names = TRUE) %>%
   grep(".tif", ., value = TRUE)
-max_age_r2 <- lapply(seq_along(max_age_files), function(i) {brick(max_age_files[i])})
-names(max_age_r2) <- site_df$site
 
-max_age_r <- lapply(seq_along(max_age_files), function(i) {rast(max_age_files[i])})
+max_age_r <- lapply(seq_along(max_age_files), function(i) {
+  rast(max_age_files[i]) # brick(max_age_files[i]) # to load as rasters, not SpatRasters
+  })
 names(max_age_r) <- site_df$site
 
 

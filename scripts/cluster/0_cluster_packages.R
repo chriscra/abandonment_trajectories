@@ -35,7 +35,7 @@ source("util/_util_dt_filter_functions.R")
 
 
 cluster_packages <- c(
-  "data.table", "raster", "rgdal", "sp", "sf",
+  "data.table", "raster", "terra", "rgdal", "sp", "sf",
   "gdalUtils", "gdata", "GISTools", "rgeos", "lwgeom", "fasterize",
   "tidyverse", "lobstr", "pryr", "reshape2",  # tidyverse includes ggplot2, dplyr, tidyr, readr, purrr, tibble, stringr, and forcats
   "tictoc",  "magrittr", "parallel",

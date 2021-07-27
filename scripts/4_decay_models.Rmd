@@ -253,7 +253,8 @@ dat_l_0 <- select(dat_l, site, time_1, age, initial_area_abn, cohort, year_abn) 
 
 
 ```{r dat_l-save, eval = FALSE}
-write_csv(dat_l, file = paste0(p_dat_derived, "abn_decay_data", run_label, ".csv"))
+write_csv(dat_l, file = paste0(p_dat_derived, "persistence_dat", run_label, ".csv"))
+# replaced "abn_decay_data" with "persistence_dat"
 ```
 
 
@@ -261,14 +262,12 @@ write_csv(dat_l, file = paste0(p_dat_derived, "abn_decay_data", run_label, ".csv
 # ------------------------------------------ #
 # when reloading, must restructure factors:
 
-dat_l <- read_csv(file = paste0(p_dat_derived, "abn_decay_data", run_label, ".csv")) %>%
+dat_l <- read_csv(file = paste0(p_dat_derived, "persistence_dat", run_label, ".csv")) %>%
   mutate(site = as.factor(site),
          bins = as.factor(bins),
          year_abn_bins = as.factor(year_abn_bins),
          cohort = as.factor(cohort))
 
-dat_l0 #<- dat_l
-identical(dat_l0, dat_l)
 # when is the first year abandonment can take place?
 dat_l %>% filter(area_ha > 0) %>% group_by(site) %>% summarise(first_year = min(year_abn))
 
@@ -586,22 +585,26 @@ ggsave(plot = gg_lin_log_lin_cohort_tmp_s,
                          ), 
   width = 5, height = 4.5, units = "in")
 
-  # png
-ggsave(plot = gg_lin_log_lin_cohort_tmp_s, 
-       filename = paste0(p_plots, run_label, "/decay/", "ms_fig_l3_cohort", run_label, "_s.png"), 
-  width = 5, height = 4.5, units = "in", dpi = 400)
 
 
 
 # viridis
+
+ggsave(plot = gg_fig4 + scale_color_viridis(discrete = TRUE),
+       filename = paste0(p_plots, "fig4_viridis.pdf"), 
+  width = 5, height = 4.5, units = "in")
+
+
 ggsave(plot = gg_lin_log_lin_cohort_tmp_s +
          scale_color_viridis(), 
-       filename = paste0(p_plots, run_label, "/decay/", "ms_fig_l3_cohort_viridis", run_label, "_s.pdf"), 
+       filename = paste0(p_plots, "fig4_viridis_cont.pdf"), 
   width = 5, height = 4.5, units = "in")
 
 cvd_grid(gg_lin_log_lin_cohort_tmp_s)
 cvd_grid(gg_lin_log_lin_cohort_tmp_s +
          scale_color_viridis())
+
+
 
 
 
@@ -787,6 +790,7 @@ for (i in 1:11) {
 
 
 ```{r testing-CI}
+add_no_cohort <- FALSE
 
 ggplot(data = filter(dat_l, site == site_df$site[i]), 
                                       mapping = aes(x = age, y = proportion, 
@@ -826,7 +830,7 @@ ggplot(data = filter(dat_l, site == site_df$site[i]),
               color = "blue",
               size = 1, inherit.aes = FALSE) +
   
-  geom_ribbon(data =   augment(lm_l3_no_cohort_l[[i]],
+  geom_ribbon(data = augment(lm_l3_no_cohort_l[[i]],
                                newdata = tibble(time = 5:30 - 5),
                                interval = "confidence") %>%
                 mutate(age = time + 5,
@@ -2503,7 +2507,7 @@ load(file = paste0(p_dat_derived, run_label, "/decay_mod_coef_dfs.rds"),
 ```{r l3-half-life}
 # how long does it take for each site to reach 0.5?
 
-install.packages("lamW")
+# install.packages("lamW")
 library(lamW)
 lambertW0()
 
@@ -2538,11 +2542,12 @@ gg_time_to_0.5_l3 <- ggplot(data = mean_coef_df_wide_l3,
                                         y = time_to_0.5, color = site)) + 
   theme_classic() +
   geom_point(size = 2) + 
-  #geom_errorbar(mapping = aes(ymin = time_to_0.5_low, ymax = time_to_0.5_high), width = 0.3) +
+  # geom_errorbar(mapping = aes(ymin = time_to_0.5_low, ymax = time_to_0.5_high), width = 0.3) +
   labs(y = "Mean Time to Half (Years)", x = "Site", 
        title = "Time required for abandoned land to decay by half",
-       subtitle = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
-       caption = "Error bars represent the mean of high and low cofficients from 95% confidence interval") + 
+       # caption = "Error bars represent the mean of high and low cofficients from 95% confidence interval",
+       subtitle = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort"
+       ) + 
   # geom_vline(xintercept = 0, linetype = "dashed") +
   theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0), 
         legend.position = "none", plot.caption = element_text(face = "italic"),
@@ -2750,7 +2755,6 @@ gg_model_curves_by_site_l3 <-
                               "volgograd" = "Volgograd, Russia",
                               "wisconsin" = "Wisconsin, USA")) + 
   guides(col = guide_legend(reverse = FALSE, ncol = 2))
-
 
 gg_model_curves_by_site_l3 %+% filter(fitted_df_l3, time < 50)
 # gg_model_curves_by_site_l3 + geom_vline(xintercept = 25.4)
