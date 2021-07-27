@@ -17,9 +17,13 @@ source(paste0(p_proj, "scripts/util/_util_master.R"))
 ```
 
 ```{r load-data}
+run_label <- "_2021_03_13"
+
 # load combined persistence, area, and turnover datasets:
 
-persistence_dat <- read_csv(file = paste0(p_dat_derived, "abn_decay_data", run_label, ".csv")) %>%
+# replaced "abn_decay_data" with "persistence_dat"
+# in 4_decay_models.Rmd, this object is also referred to as "dat_l"
+persistence_dat <- read_csv(file = paste0(p_dat_derived, "persistence_dat", run_label, ".csv")) %>%
   mutate(site = as.factor(site),
          bins = as.factor(bins),
          year_abn_bins = as.factor(year_abn_bins),
@@ -110,7 +114,7 @@ the two are quite similar, so just use the mean of means
 # ---------------------------------------------------------------- #
 # 1. Take mean of the site mean lengths:
 # note, this is the value given for the horizontal dashed lines on the main mean abn duration figure
-knitr::include_graphics(path = paste0(p_plots, run_label, "/mean_lengths", run_label, ".png"))
+# knitr::include_graphics(path = paste0(p_plots, run_label, "/mean_lengths", run_label, ".png"))
 
 
 # load files ------------- #
@@ -436,10 +440,6 @@ library(ggridges)
 
 vt
 
-ggplot(iris, aes(x = Sepal.Length, y = Species, group = Species)) + 
-  geom_density_ridges(fill = "#00AFBB") + 
-  theme_classic()
-
 gg_mean_length_ridges <-
   ggplot() +
   
@@ -552,45 +552,35 @@ ggplot() +
 
 ```{r total-possible-cropland}
 
-# 
-# tic()
-# tt_area <- expanse(total_crop_mask, unit = "ha")
-# toc() # much much faster than the cellSize %>% global() method below, but crashes with the full site rasters (except shaanxi, for some reason)
-# 
-# tic()
-# tt_cell_areas <- cellSize(total_crop_mask, unit = "ha", mask = TRUE)
-# global(tt_cell_areas, fun = "sum", na.rm = TRUE)
-# toc()
-
 # ------------------------------------------------------ #
 # trying this for all rasters:
 # ------------------------------------------------------ #
-tmpFiles(current = T, remove = TRUE)
+# terraOptions(todisk = TRUE)
+terraOptions()
 
 # prepared input rasters (derived by Chris)
 site_input_raster_files <- list.files(paste0(p_dat_derived, "input_rasters"), full.names = TRUE) %>%
   grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = TRUE)
 
-
-lc <- lapply(seq_along(site_input_raster_files), function(i) {rast(site_input_raster_files[i])})
-names(lc) <- site_df$site
+lct <- lapply(seq_along(site_input_raster_files), function(i) {rast(site_input_raster_files[i])})
+names(lct) <- site_df$site
 
 # rename raster layers:
 for (i in 1:11) {
-  if (names(lc[i]) == "nebraska") {
-    names(lc[[i]]) <- paste0("y", 1986:2018)
+  if (names(lct[i]) == "nebraska") {
+    names(lct[[i]]) <- paste0("y", 1986:2018)
   } else {
-    if (names(lc[i]) == "wisconsin") {
-      names(lc[[i]]) <- paste0("y", 1987:2018)
+    if (names(lct[i]) == "wisconsin") {
+      names(lct[[i]]) <- paste0("y", 1987:2018)
     } else {
       # everything else, just 1987:2017
-      names(lc[[i]]) <- paste0("y", 1987:2017)
+      names(lct[[i]]) <- paste0("y", 1987:2017)
     }}}
 
 
 tic()
-lc_total_crop_mask <- lapply(lc, function(x) {
-  reclassified <- classify(x, rcl = tribble(
+lc_total_crop_mask <- lapply(1:11, function(i) {
+  reclassified <- classify(lct[[i]], rcl = tribble(
   ~"is", ~"becomes", 
   0, NA,
   1, NA,
@@ -600,76 +590,19 @@ lc_total_crop_mask <- lapply(lc, function(x) {
   
   lc_crop_mask <- max(reclassified, na.rm = TRUE)
   rm(reclassified)
-  tmpFiles(current = T, remove = TRUE)
+  
+  # write new total_crop_mask raster to file:
+
+  terra::writeRaster(lc_crop_mask,
+              filename = paste0(p_dat_derived, "total_crop_mask/", 
+                                site_df$site[i], "_total_crop_mask.tif"),
+              overwrite = TRUE
+              )
 
   lc_crop_mask
 })
 toc()
 # 2101 seconds
-
-# create directory, if it doesn't exist yet:
-if(!dir.exists(paste0(p_dat_derived, "total_crop_mask/"))) {
-  dir.create(paste0(p_dat_derived, "total_crop_mask/"))
-}
-
-# write new total_crop_mask rasters to file:
-lapply(1:11, function(i) {
-  writeRaster(lc_total_crop_mask[[i]], 
-              filename = paste0(p_dat_derived, "total_crop_mask/", 
-                                site_df$site[i], "_total_crop_mask.tif")
-              )
-  }
-  )
-
-# reload
-total_crop_mask_files <- list.files(paste0(p_dat_derived, "total_crop_mask"), full.names = TRUE)
-lc_total_crop_mask <- lapply(
-  seq_along(total_crop_mask_files), 
-  function(i) {
-    rast(total_crop_mask_files[i])
-    })
-
-names(lc_total_crop_mask) <- site_df$site
-
-for(i in 1:11) {
-  print(names(lc_total_crop_mask[i]))
-  print(freq(lc_total_crop_mask[[i]]))
-  }
-
-
-# this seems to crash with the larger places. so, try the manual method of calculating cellSize
-# expanse(lc_total_crop_mask$shaanxi, unit = "ha")
-
-# terra method (this yields a different area estimation than raster:area(), due to different cell sizes)
-lc_total_crop_mask_area_ha_terra <- sapply(1:11, function(i) {
-  size <- cellSize(lc_total_crop_mask[[i]], unit = "ha", mask = FALSE)
-  product <- size * lc_total_crop_mask[[i]]
-  area_ha <- global(product, fun = "sum", na.rm = TRUE)
-  
-  as.numeric(area_ha)
-  })
-
-# raster method
-tic()
-lc_total_crop_mask_area_ha_raster <- sapply(1:11, function(i) {
-  # calculate area raster
-  bin <- raster(lc_total_crop_mask[[i]])
-  size <- raster::area(bin)
-  product <- size * bin
-  area_ha <- cellStats(product, "sum") * 100
-  area_ha
-  })
-toc()
-
-raster(lc_total_crop_mask[[i]])
-lc_total_crop_mask[[i]]
-lc_total_crop_mask_area_ha_terra / 
-lc_total_crop_mask_area_ha_raster
-
-total_crop_mask <- tibble(site = site_df$site,
-       total_crop_extent_ha_t = lc_total_crop_mask_area_ha_terra,
-       total_crop_extent_ha_r = lc_total_crop_mask_area_ha_raster
-       )
 
 ```
 
@@ -744,6 +677,9 @@ area_summary_df <-
 # ----------------------------------------------------------- #
 # 2. Calculate the area at each site that is abandoned at any point during the time series (>= 5 years)
 # ----------------------------------------------------------- #
+
+max_age_r <- sdf
+
 tic()
 area_ever_abn <- lapply(1:11, function(i) {
   bin <- max_age_r[[i]]
@@ -785,7 +721,39 @@ area_ever_abn %>% summarise(total_ever_abn_Mha = sum(area_ever_abn_ha)/1e6)
 # ----------------------------------------------------------- #
 # 3. Total extent of all cropland ever cultivated during time series
 # ----------------------------------------------------------- #
-total_crop_mask
+
+total_crop_mask_files <- list.files(paste0(p_dat_derived, "total_crop_mask/old"), full.names = TRUE)
+lc_total_crop_mask <- lapply(
+  seq_along(total_crop_mask_files), 
+  function(i) {
+    rast(total_crop_mask_files[i])
+    })
+
+names(lc_total_crop_mask) <- site_df$site
+
+for(i in 1:11) {
+  print(names(lc_total_crop_mask[i]))
+  print(freq(lc_total_crop_mask[[i]]))
+  }
+
+cellSize(ttt, unit = "ha", mask = TRUE) %>% global(., fun = "sum", na.rm = TRUE)
+
+
+# calculate area
+lc_total_crop_mask_area_ha <- sapply(1:11, function(i) {
+  size <- cellSize(lc_total_crop_mask[[i]], unit = "ha", mask = FALSE)
+  product <- size * lc_total_crop_mask[[i]]
+  area_ha <- global(product, fun = "sum", na.rm = TRUE)
+  
+  as.numeric(area_ha)
+  })
+
+
+total_crop_mask_area <- tibble(site = site_df$site,
+       total_crop_extent_ha = lc_total_crop_mask_area_ha
+       )
+
+total_crop_mask_area
 
 
 # ---------------------------------------------------------------------- #
@@ -846,7 +814,7 @@ area_dat %>%
 
 area_summary_df <- area_summary_df %>% 
   left_join(., area_ever_abn, by = c("site")) %>%
-  left_join(., total_crop_mask, by = c("site")) %>%
+  left_join(., total_crop_mask_area, by = c("site")) %>%
   left_join(., area_recultivated_df, by = c("site"))
 
 
@@ -1187,19 +1155,22 @@ for (i in 1:11) {
       names(lct[[i]]) <- paste0("y", 1987:2017)
     }}}
 
-# ---------------------------------------------------------------- #
-# 2. Extract only 2017 & 1987
-# ---------------------------------------------------------------- #
-i <- 9
-lct_87_17 <- lapply(1:11, function(i) {lct[[i]] %>% subset(., c("y1987", "y2017"))})
 
-names(lct_87_17) <- site_df$site
-plot(lct_87_17$shaanxi)
 # ---------------------------------------------------------------- #
-# 3. reclassify the rasters, so that it's just cropland in 1987 (0-1), and just cropland in 2017 (0-1)
+# 2-4 all together:
 # ---------------------------------------------------------------- #
-lct_rcl <- lapply(1:2, function(i) {
-  classify(lct_87_17[[i]], 
+
+abn_2yr_mask <- lapply(1:11, 
+                  function(i) {
+  # 2. Extract only 2017 & 1987
+  lct_87_17_tmp <- lct[[i]] %>% 
+    subset(., c("y1987", "y2017"),
+           filename = paste0(p_dat_derived, "abn_2yr/", site_df$site[i], "_87_17.tif"),
+           overwrite=TRUE
+           )
+  
+  # 3. reclassify the rasters, so that it's just cropland in 1987 (0-1), and just cropland in 2017 (0-1)
+  lct_87_17_tmp <- classify(lct_87_17_tmp, 
            rcl = tribble(
              ~"is", ~"becomes", 
              NA, 0,
@@ -1208,49 +1179,56 @@ lct_rcl <- lapply(1:2, function(i) {
              2, 0,
              3, 1,
              4, 0),
-           filename = paste0(p_dat_derived, "input_rasters/subsets/", site_df$site[i], "_87_17_rcl.tif"))
+           filename = paste0(p_dat_derived, "abn_2yr/", site_df$site[i], "_87_17_rcl.tif"),
+           overwrite=TRUE)
+  
+  # 4. Subtract the two (1987 - 2017), so that pixels that were cropland (1) in 1987, but not in 2017 (0) (i.e. are "abandoned" by this definition) have a value of 1 - 0 = 1.
+  # Pixels that are cropland in both will be 1 - 1 = 0 (as will pixels that are non cropland in both 0 - 0 = 0)
+  # Pixels that are cropland in 2017 (1) but not in 1987 (0) will have a value of 0 - 1 = -1
+  subtract <- lct_87_17_tmp$y1987 - lct_87_17_tmp$y2017
+  
+  terra::writeRaster(subtract, 
+                     filename = paste0(p_dat_derived, "abn_2yr/", 
+                                       site_df$site[i], "_87_17_sub.tif"),
+                     overwrite=TRUE)
+  
+  # 5. Reclassify into 0-1 abandonment mask
+  mask <- classify(subtract, rcl = 
+                     tribble(
+                       ~"is", ~"becomes", 
+                       -1, NA_real_,
+                       0, NA_real_,
+                       1, 1),
+                   filename = paste0(p_dat_derived, "abn_2yr/", site_df$site[i], "_abn_2yr_mask.tif"),
+                   overwrite=TRUE
+                   )
+  mask
   }
   )
-names(lct_rcl) <- site_df$site
-tmpFiles(current = TRUE, )
+
+names(abn_2yr_mask) <- site_df$site
+plot(abn_2yr_mask$shaanxi)
 
 # ---------------------------------------------------------------- #
-# 4. Subtract the two (1987 - 2017), so that pixels that were cropland (1) in 1987, but not in 2017 (0) (i.e. are "abandoned" by this definition) have a value of 1.
-# Pixels that are cropland in both will be 0 (as will pixels that are non cropland in both)
-# Pixels that are cropland in 2017 (1) but not in 1987 (0) will have a value of -1
-# ---------------------------------------------------------------- #
-lct_sub <- lapply(1:11, function(i) {
-  lct_rcl[[i]]$y1987 - lct_rcl[[i]]$y2017
-  }
-  )
-
-names(lct_sub) <- site_df$site
-
-
-# ---------------------------------------------------------------- #
-# 5. calculate the area in each class
+# 6. calculate the area abandoned at each site
 # ---------------------------------------------------------------- #
 
-abn_area_2017_2yr <- sapply(1:11, function(i) {
-  abn_mask <- classify(lct_sub[[i]], rcl = 
-             tribble(
-               ~"is", ~"becomes", 
-               -1, NA,
-               0, NA,
-               1, 1)
-             )
-  size <- cellSize(abn_mask, unit = "ha", mask = TRUE)
+abn_2yr_area_ha <- sapply(1:11, 
+                          function(i) {
+  size <- cellSize(abn_2yr_mask[[i]], unit = "ha", mask = TRUE)
+  # product <- abn_2yr_mask[[i]] * size
   area_ha <- global(size, fun = "sum", na.rm = TRUE)
   as.numeric(area_ha)
   })
 
-abn_area_2017_2yr
+
+```
 
 
+```{r abn_cc_mask}
 # ---------------------------------------------------------------- #
 # 5.5. Calculate new area abandoned using terra methods
 # ---------------------------------------------------------------- #
-
 
 # load abandonment age rasters
 # abandonment age maps (produced by Chris)
@@ -1266,22 +1244,27 @@ for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # reme
 freq(age_t$shaanxi$y2017)
 
 # make abn mask
-abn_age_mask_cc <- lapply(1:11, function(i) {
+abn_cc_2017_mask <- lapply(1:11, function(i) {
   classify(age_t[[i]]$y2017, 
-           rcl = tibble("is" = 0:30, becomes = if_else(is < 5, NA_real_, 1))
-           )})
+           # takes way longer to change values to 0 than to NA_real_
+           rcl = tibble("is" = 0:30, becomes = if_else(is < 5, NA_real_, 1)), 
+           filename = paste0(p_dat_derived, "abn_cc/", site_df$site[i], "_abn_cc_2017_mask.tif"),
+                   overwrite=TRUE)
+           })
 
-names(abn_age_mask_cc) <- site_df$site
+names(abn_cc_2017_mask) <- site_df$site
+plot(abn_cc_2017_mask$shaanxi)
 
-plot(abn_age_mask_cc$shaanxi)
-
-abn_area_2017_cc <- sapply(1:11, function(i) {
-  size <- cellSize(abn_age_mask_cc[[i]], unit = "ha", mask = TRUE)
+# calculate area abandoned in 2017
+abn_cc_2017_area_ha <- sapply(1:11, 
+                         function(i) {
+  size <- cellSize(abn_cc_2017_mask[[i]], unit = "ha", mask = TRUE)
+  # product <- size * abn_cc_mask[[i]]
   area_ha <- global(size, fun = "sum", na.rm = TRUE)
   as.numeric(area_ha)
   })
 
-abn_area_2017_cc %>% sum()/1e6
+abn_cc_2017_area_ha %>% sum()/1e6
 
 # ---------------------------------------------------------------- #
 # 6. Compare to area abandoned ever, and the area abandoned in 2017
@@ -1289,66 +1272,240 @@ abn_area_2017_cc %>% sum()/1e6
 
 area_summary_df %>% 
   select(site, area_abn_ha_2017) %>% 
-  mutate(area_ha_2017_terra = abn_area_2017_cc#,
+  mutate(area_ha_2017_terra = abn_cc_2017_area_ha#,
          #area_ha_2017_2yr = abn_area_2017_2yr
          ) %>%
   mutate(percent_diff = 100*(area_ha_2017_terra - area_abn_ha_2017)/area_abn_ha_2017)
+```
 
 
-
-
-
+```{r overlap}
 # ---------------------------------------------------------------- #
 # 7. Calculate overlap between two abandonment maps
 # ---------------------------------------------------------------- #
+
+abn_2yr_mask <- rast(paste0(p_dat_derived, "abn_2yr/", site_df$site[i], "_abn_2yr_mask.tif"))
+abn_cc_2017_mask <- rast(paste0(p_dat_derived, "abn_cc/", site_df$site[i], "_abn_cc_2017_mask.tif"))
+
 
 # Add the two abandonment maps to each other, and calculate the Jaccard Similarity
 # J = intersection of A and B / union of A and B
 # sum of cells that = 2 / sum of cells > 0
 
-abn_mask_2yr_01 <- lapply(1:11, function(i) {
-  classify(lct_sub[[i]], rcl = 
-             tribble(
-               ~"is", ~"becomes", 
-               -1, 0,
-               0, 0,
-               1, 1)
-             )
-  })
-
-abn_age_mask_cc_01 <- lapply(1:11, function(i) {
-  classify(age_t[[i]]$y2017, 
-           rcl = tibble("is" = 0:30, becomes = if_else(is < 5, 0, 1))
-           )})
-
-jaccard_similarity <- lapply(1:11, function(i) {
-  add <- abn_mask_2yr_01[[i]] + abn_age_mask_cc_01[[i]]
-  intersection <- classify(add, rcl = tribble(~"is", ~"becomes", 
-                                              0, NA,
-                                              1, NA,
-                                              2, 1))
+jaccard_similarity <- sapply(1:11, function(i) {
+  # both masks are 1 for abandoned (in 2017) and NA for not abandoned.
+  # adding to an NA value yields NA, so this is now the intersection, 
+  # where cells where both masks show abandonment have a value of 
+  # 1 + 1 = 2
+  intersection <- abn_2yr_mask[[i]] + abn_cc_2017_mask[[i]]
   
-  union <- classify(add, rcl = tribble(~"is", ~"becomes", 
-                                              0, NA,
-                                              1, 1,
-                                              2, 1))
+  terra::writeRaster(intersection, 
+                     filename = paste0(p_dat_derived, "abn_2yr_cc_intersection/", 
+                                       site_df$site[i], "_abn_2yr_cc_intersection.tif"),
+                     overwrite=TRUE)
   
-  int_area <- intersection %>% 
+  
+  intersection_area <- intersection %>% 
     cellSize(., unit = "ha", mask = TRUE) %>% 
     global(., fun = "sum", na.rm = TRUE) %>%
     as.numeric()
   
-  union_area <- union %>% 
+  a_area <- abn_2yr_mask[[i]] %>% 
     cellSize(., unit = "ha", mask = TRUE) %>% 
     global(., fun = "sum", na.rm = TRUE) %>%
     as.numeric()
   
-  as.numeric(area_ha)
+  b_area <- abn_cc_2017_mask[[i]] %>% 
+    cellSize(., unit = "ha", mask = TRUE) %>% 
+    global(., fun = "sum", na.rm = TRUE) %>%
+    as.numeric()
   
+  # add area calculation for both a and b, so you can do j =  int / (a + b - int)
+  jaccard <- intersection_area / (a_area + b_area - intersection_area)
   
-  
+  as.numeric(jaccard)
 })
-plot(lct_sub[[lct_sub > 0]])
+
+jaccard_similarity
+```
+
+
+```{r check-jaccard-with-shaanxi}
+# double check with shaanxi -- checks out.
+
+
+# reclassify both to 0 and 1.
+freq(abn_2yr_mask$shaanxi)
+freq(abn_cc_2017_mask$shaanxi)
+
+t_a <- classify(abn_cc_2017_mask[[9]], 
+           # takes way longer to change values to 0 than to NA_real_
+           rcl = tribble(
+                       ~"is", ~"becomes", 
+                       NA_real_, 0,
+                       1, 1), 
+           filename = paste0(p_dat_derived, "abn_2yr_cc_intersection/test/", site_df$site[9], "_abn_cc_2017_mask_01.tif"),
+                   overwrite=TRUE)
+
+t_b <- classify(abn_2yr_mask[[9]], 
+           # takes way longer to change values to 0 than to NA_real_
+           rcl = tribble(
+                       ~"is", ~"becomes", 
+                       NA_real_, 0,
+                       1, 1), 
+           filename = paste0(p_dat_derived, "abn_2yr_cc_intersection/test/", site_df$site[9], "_abn_2yr_mask_01.tif"),
+                   overwrite=TRUE)
+
+plot(t_b)
+# add them
+t_add <- t_a + t_b
+plot(t_add)
+
+t_union <- classify(t_add, 
+           # takes way longer to change values to 0 than to NA_real_
+           rcl = tribble(
+                       ~"is", ~"becomes", 
+                       0, NA_real_,
+                       1, 1,
+                       2, 1), 
+           filename = paste0(p_dat_derived, "abn_2yr_cc_intersection/test/", site_df$site[9], "_t_union.tif"),
+                   overwrite=TRUE)
+
+t_intersection <- classify(t_add,
+           # takes way longer to change values to 0 than to NA_real_
+           rcl = tribble(
+                       ~"is", ~"becomes", 
+                       0, NA_real_,
+                       1, NA_real_,
+                       2, 1), 
+           filename = paste0(p_dat_derived, "abn_2yr_cc_intersection/test/", site_df$site[9], "_t_intersection.tif"),
+                   overwrite=TRUE)
+
+t_union_area <- t_union %>% 
+    cellSize(., unit = "ha", mask = TRUE) %>% 
+    global(., fun = "sum", na.rm = TRUE) %>%
+    as.numeric()
+
+t_intersection_area <- t_intersection %>% 
+    cellSize(., unit = "ha", mask = TRUE) %>% 
+    global(., fun = "sum", na.rm = TRUE) %>%
+    as.numeric()
+
+t_intersection_area / t_union_area
+
+
+# reclassify to 0 and 1
+
+abn_2yr_overestimation
+```
+
+
+```{r 2yr-overestimation}
+abn_2yr_overestimation <- 
+  data.frame(site = site_df$site,
+             area_ha_cc = abn_cc_2017_area_ha,
+             area_2yr = abn_2yr_area_ha
+             ) %>%
+  mutate(percent_diff = 100 * (area_2yr - area_ha_cc) / area_ha_cc,
+         jaccard = jaccard_similarity)
+
+
+
+# ----------------------------------------------------------- #
+# save the summary file
+# ----------------------------------------------------------- #
+write_csv(abn_2yr_overestimation, file = paste0(p_dat_derived, run_label, "/", "abn_2yr_overestimation", run_label, ".csv"))
+# abn_2yr_overestimation <- read_csv(file = paste0(p_dat_derived, run_label, "/", "abn_2yr_overestimation", run_label, ".csv"))
+
+```
+
+
+```{r 2yr-overestimation-plot}
+# ----------------------------------------------------------- #
+# plot
+# ----------------------------------------------------------- #
+abn_2yr_overestimation <- 
+  read_csv(file = paste0(p_dat_derived, run_label, "/", 
+                         "abn_2yr_overestimation", run_label, ".csv"))
+
+
+
+install.packages("ggforce")
+library(ggforce)
+
+
+ggplot(data = abn_2yr_overestimation #%>% filter(site != "mato_grosso")
+       , 
+       mapping = aes(x = fct_reorder(site, desc(percent_diff)), y = percent_diff)) + 
+  geom_col() +
+  # coord_flip() +
+  theme_classic() + 
+  theme(axis.text.x = element_text(angle = 330, vjust = 1, hjust = 0)) +
+  scale_x_discrete(labels = c("belarus" = "Vitebsk, Belarus /\n Smolensk, Russia",
+                              "bosnia_herzegovina" = "Bosnia & Herzegovina",
+                              "chongqing" = "Chongqing, China",
+                              "goias" = "Goiás, Brazil",
+                              "iraq" = "Iraq",
+                              "mato_grosso" = "Mato Grosso, Brazil",
+                              "nebraska" = "Nebraska/Wyoming, USA",
+                              "orenburg" = "Orenburg, Russia /\n Uralsk, Kazakhstan",
+                              "shaanxi" = "Shaanxi/Shanxi, China",
+                              "volgograd" = "Volgograd, Russia",
+                              "wisconsin" = "Wisconsin, USA")) + 
+  facet_zoom(ylim = c(-35, 25))
+```
+
+```{r gt-table}
+install.packages("gt")
+library(gt)
+
+abn_2yr_overestimation <- 
+  read_csv(file = paste0(p_dat_derived, run_label, "/", 
+                         "abn_2yr_overestimation", run_label, ".csv")) %>%  
+  arrange(percent_diff) %>% 
+  mutate(
+    # area_ha_cc = area_ha_cc %>% round(digits = 0) %>% prettyNum(big.mark = ","),
+         # area_2yr = area_2yr %>% round(digits = 0) %>% prettyNum(big.mark = ","),
+         # percent_diff = percent_diff %>% round(digits = 2) %>% paste0(., "%"),
+         # jaccard = jaccard %>% round(digits = 2)
+         ) %>% 
+  left_join(., site_df %>% select(site, description), by = "site")
+
+
+abn_2yr_overestimation %>% 
+  select(description, area_ha_cc, area_2yr, percent_diff, jaccard) %>%
+
+  knitr::kable(., 
+             col.names = c("Site", "Area (annual)", "Area (2017-1987)", 
+                           "Percent Difference", "Jaccard Similarity"),
+             align = "lrrrr", format = "simple",
+             caption = "Cropland abandonment (in Mha) as of 2017 as identified using a) our annual time series and a five-year abandonment definition and b) the difference between only two years.") 
+
+
+
+gt_2yr <- abn_2yr_overestimation %>%
+  select(description, area_ha_cc:jaccard) %>%
+  gt() %>%
+  tab_header(title = "Table 1. Cropland abandonment (in Mha) as of 2017 as identified using a) our annual time series and a five-year abandonment definition and b) the difference between only two years.") %>%
+  tab_options(heading.align = "left") %>%
+  cols_label(
+    description = "Site", 
+    area_ha_cc = "Area (annual, as of 2017)", 
+    area_2yr = "Area (2017-1987)", 
+    percent_diff = "Percent Difference", 
+    jaccard = "Jaccard Similarity") %>%
+  cols_align(align = "left", columns = description) %>%
+  cols_align(align = "right", columns = c("area_ha_cc", "area_2yr", "percent_diff", "jaccard")) %>%
+  fmt_percent(columns = percent_diff, decimals = 2, scale_values = FALSE) %>%
+  fmt_number(., columns = c("area_ha_cc", "area_2yr"), use_seps = TRUE, sep_mark = ",", decimals = 0) %>%
+  fmt_number(., columns = c("jaccard"), use_seps = TRUE, sep_mark = ",", decimals = 2)
+
+gt_2yr
+
+gtsave(gt_2yr, filename = paste0(p_plots, run_label, "/", 
+                         "table_1_abn_2yr_overestimation.png"))
+
+# webshot::install_phantomjs()
 
 
 ```

@@ -26,7 +26,7 @@ header-includes:
 ---
 ```{r load-packages-functions, eval = TRUE, echo = FALSE, include = FALSE}
 source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
-source(paste0(p_proj, "scripts/util/_util_master.R"))
+# source(paste0(p_proj, "scripts/util/_util_master.R"))
 # devtools::install_github("benmarwick/wordcountaddin", type = "source", dependencies = TRUE)
 ```
 
@@ -66,6 +66,11 @@ knitr::opts_chunk$set(
   # fig.width=6, fig.height=6, 
   echo = FALSE # the code itself will NOT be printed with results
   )
+
+options(knitr.table.format = function() {
+  if (knitr::is_latex_output())
+    "latex" else "simple"
+})
 ```
 
 
@@ -84,6 +89,7 @@ knitr::write_bib(x = c(needed_packages, github_packages), file = 'packages.bib')
 ```
 
 ```{r load-files, include = FALSE}
+
 # set run:
 run_label <- "_2021_03_13"
 
@@ -119,7 +125,11 @@ abn_prop_lc_2017 <- read_csv(file = paste0(p_dat_derived, run_label, "/", "abn_p
 
 
 # load combined persistence, area, and turnover datasets:
-persistence_dat <- read_csv(file = paste0(p_dat_derived, "abn_decay_data", run_label, ".csv")) %>%
+# also known as dat_l in "4_decay_models.Rmd"
+
+persistence_dat <- 
+  # dat_l <- 
+  read_csv(file = paste0(p_dat_derived, "persistence_dat", run_label, ".csv")) %>%
   mutate(site = as.factor(site),
          bins = as.factor(bins),
          year_abn_bins = as.factor(year_abn_bins),
@@ -740,6 +750,33 @@ Across the tropics, only 33% of forests regenerating after recent deforestation 
 However, these differences may be the result of 1) a time delay between abandonment and the regrowth of secondary woody vegetation that can be detected by satellites, 2) our exclusion of abandonment less than five years, or 3) our models of recultivation for each cohort, which eliminate the influence of the time series length, and lengthen abandonment estimates.
 
 ## Implications for biodiversity recovery and carbon sequestration
+
+```{r include = FALSE}
+abn_2yr_overestimation <- 
+  read_csv(file = paste0(p_dat_derived, run_label, "/", 
+                         "abn_2yr_overestimation", run_label, ".csv")) %>%  
+  arrange(percent_diff) %>% 
+  mutate(area_ha_cc = area_ha_cc %>% round(digits = 0) %>% prettyNum(big.mark = ","),
+         area_2yr = area_2yr %>% round(digits = 0) %>% prettyNum(big.mark = ","),
+         percent_diff = percent_diff %>% round(digits = 2) %>% paste0(., "%"),
+         jaccard = jaccard %>% round(digits = 2)) %>% 
+  left_join(., site_df %>% select(site, description), by = "site")
+
+```
+
+```{r 2yr-diff-table, include = FALSE}
+abn_2yr_overestimation %>% 
+  select(description, area_ha_cc, area_2yr, percent_diff, jaccard) %>%
+
+  knitr::kable(., 
+             col.names = c("Site", "Area (annual)", "Area (2017-1987)", 
+                           "Percent Difference", "Jaccard Similarity"),
+             align = "r", format = "simple",
+             caption = "Differences in cropland abandonment identified using only two years and an annual time series."
+             ) 
+
+```
+
 
 Our results show that most cropland abandonment is unlikely to be permanent, contrary to optimistic assumptions [@Campbell2008; @Naess2021].
 Estimates of abandonment based on short time series or two points in time (e.g. 83 Mha estimated by Næss et al. [@Naess2021]) likely overestimate the amount of durable abandonment, not only because of a failure to exclude short-term fallow periods, but also, as our analysis shows, as a result of high rates of recultivation.
