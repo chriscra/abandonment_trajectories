@@ -223,22 +223,93 @@ b_area
 
 install.packages("terra")
 library(terra)
+library(tictoc)
 
 # update filenames to match yours:
-pnv_250 <- rast(paste0(p_dat, "/Habitats/PNV/Hengl_2018_PNV/250m/pnv_biome.type_biome00k_c_250m_s0..0cm_2000..2017_v0.2.tif"))
-
 nlcd <- rast(paste0(p_dat, "LU/nlcd_2019_land_cover_l48_20210604/nlcd_2019_land_cover_l48_20210604.img"))
 plot(nlcd)
+# freq(nlcd) # I used this to produce a table of the classes, but warning... it took a long time.
+nlcd_classes <- read_csv("/Users/christophercrawford/Downloads/nlcd_freq.csv")
 
+terraOptions()
+terraOptions(tempdir = paste0(p_dat, "LU/nlcd_temp"), todisk = TRUE, progress=10)
+
+tic()
+nlcd <- 
+  classify(nlcd,
+           rcl = tibble("is" = nlcd_classes$value, 
+                        becomes = if_else(is == 81, 1, NA_real_)), # note, it takes way longer to change values to 0 than to NA_real_
+           filename = paste0(p_dat, "LU/nlcd_2019_pasture_mask.tif"),
+           overwrite = TRUE)
+toc() # 605 seconds
+
+
+# load sf polygons ------------- #
 install.packages("rnaturalearth")
 library(rnaturalearth)
 
 usa <- rnaturalearth::ne_states(country = "United States of America", returnclass = "sf")
-plot(usa$geometry)
+conus <- usa %>% filter(!name %in% c("Alaska", "Hawaii"))
+plot(conus$geometry)
+conus_aea <- st_transform(conus, crs(nlcd)) # reproject to aea
+
+
+# plot the pasture mask
+pdf(file = paste0(p_dat, "LU/nlcd_pasture_mask.pdf"), width = 7, height = 4)
+plot(nlcd, main = "NLCD Pasture Mask")
+plot(conus_aea$geometry, add = T, border = "gray70")
+dev.off()
+
+# crop pnv to conus
+pnv_250 <- rast(paste0(p_dat, "/Habitats/PNV/Hengl_2018_PNV/250m/pnv_biome.type_biome00k_c_250m_s0..0cm_2000..2017_v0.2.tif"))
+pnv_conus <- crop(pnv_250, conus)
+
+# reproject pnv to aea
+pnv_conus_aea <- terra::project(x = pnv_conus, 
+                         y = "+proj=aea +lat_0=23 +lon_0=-96 +lat_1=29.5 +lat_2=45.5 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
+                         filename = paste0(p_dat, "Habitats/PNV/pnv_conus_aea.tif"))
+
+plot(pnv_conus_aea) # it worked!
+plot(conus_aea$geometry, add = T)
+
+
+# extract only forested or reforestable areas:
+pnv_classes <- read_csv("/Users/christophercrawford/Downloads/pnv_classes.csv")
+
+filter(pnv_classes, reforestable == "yes")$Number # reforestable classes
+filter(pnv_classes, reforestable == "yes")$Number
+pnv_classes
+
+# you can then reclassify to get a mask that's just those "reforestable" areas, with something like:
+tic()
+pnv_reforestable_mask <- 
+  classify(pnv_conus_aea,
+           # note, it takes way longer to change values to 0 than to NA_real_
+           rcl = tibble("is" = 1:32, 
+                        becomes = if_else(is %in% filter(pnv_classes, reforestable == "yes")$Number, 1, NA_real_)),
+           othersNA = TRUE,
+           filename = paste0(p_dat, "LU/pnv_reforestable_mask.tif"),
+           overwrite = TRUE)
+toc()  # 23 seconds
+
+# plot the pasture mask
+# pdf()
+pdf(file = paste0(p_dat, "LU/pnv_reforestable_mask.pdf"), width = 7, height = 4)
+# plot(pnv_conus_aea)
+plot(pnv_reforestable_mask, main = "PNV Reforestable Areas Mask")
+plot(conus_aea$geometry, add = T, border = "gray70")
+dev.off()
+
+
+print(gg_time_to_range_all_l3)
+dev.off()
+
+# then you can go about getting the resolution to match, etc.
+
+# just doing it with a smaller subset:
 
 nj <- usa %>% filter(name == "New Jersey")
 mi <- usa %>% filter(name == "Michigan")
-plot(nj)
 
 # to crop the nlcd to nj, first reproject the nj sf object to aea
 nj_aea <- st_transform(nj, crs(nlcd))
@@ -247,9 +318,23 @@ plot(nj$geometry)
 
 # make sure 
 pnv_nj <- crop(pnv_250, nj)
+tic()
 nlcd_nj <- crop(nlcd, nj_aea)
+toc() # 1 second
 plot(nlcd_nj)
 plot(pnv_nj)
+
+nlcd_nj_pasture <- 
+  classify(nlcd_nj,
+           # takes way longer to change values to 0 than to NA_real_
+           rcl = tibble("is" = nlcd_values, becomes = if_else(is == 81, 1, NA_real_)), 
+           filename = paste0(p_dat, "LU/nlcd_nj_2019_pasture_mask.tif"),
+           overwrite = TRUE)
+plot(nlcd_nj_pasture)
+plot(nj_aea$geometry, add = T)
+
+rasterOptions(todisk = TRUE)
+
 
 pnv_nj_aea <- project(x = pnv_nj, y = nlcd_nj, filename = paste0(p_dat, "Habitats/PNV/pnv_nj_aea.tif"))
 
@@ -257,22 +342,6 @@ pnv_nj_aea <- project(x = pnv_nj, y = nlcd_nj, filename = paste0(p_dat, "Habitat
 plot(nlcd_nj)
 plot(pnv_nj_aea, add = T)
 plot(nj_aea$geometry, add = T)
-
-
-# now, try for the entire CONUS
-conus <- usa %>% filter(!name %in% c("Alaska", "Hawaii"))
-plot(conus$geometry)
-
-# crop pnv to conus
-pnv_conus <- crop(pnv_250, conus)
-
-pnv_conus_aea <- project(x = pnv_conus, y = "+proj=aea +lat_0=23 +lon_0=-96 +lat_1=29.5 +lat_2=45.5 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs", filename = paste0(p_dat, "Habitats/PNV/pnv_conus_aea.tif"))
-
-plot(pnv_conus_aea) # it worked!
-
-# add the outline of CONUS
-conus_aea <- st_transform(conus, crs(nlcd))
-plot(conus_aea$geometry, add = T)
 
 
 
