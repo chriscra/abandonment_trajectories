@@ -1,0 +1,1826 @@
+---
+title: Impermanence of cropland abandonment limits potential for environmental benefits
+
+# Use letters for affiliations, numbers to show equal authorship (if applicable) and to indicate the corresponding author
+author:
+  - name: Christopher L. Crawford
+    affiliation: a,1
+  - name: He Yin
+    affiliation: b
+  - name: Volker C. Radeloff
+    affiliation: c
+  - name: David S. Wilcove
+    affiliation: a,d
+address:
+  - code: a
+    address: Princeton School of Public and International Affairs, Princeton University, Princeton, NJ
+  - code: b
+    address: Department of Geography, Kent State University, Kent, OH
+  - code: c
+    address: SILVIS Lab, Department of Forest & Wildlife Ecology, University of Wisconsin - Madison, Madison, WI
+  - code: d
+    address: Department of Ecology & Evolutionary Biology, Princeton University, Princeton, NJ
+
+corresponding_author:
+  code: 1
+  text: "To whom correspondence should be addressed. E-mail: ccrawford@princeton.edu"
+
+# For footer text
+lead_author_surname: Crawford
+
+author_contributions: |
+  Please provide details of author contributions here.
+
+## Remove this if not required
+conflict_of_interest: |
+  Please declare any conflict of interest here.
+
+abstract: |
+  Agricultural expansion is a major cause of land-use change globally, but millions of hectares of cropland are simultaneously being abandoned as a result of demographic, economic, and environmental changes. These abandoned croplands could be immensely valuable for carbon sequestration and biodiversity restoration. However, their environmental value depends on the duration and persistence of abandonment, which is poorly known. Here, we use 30-m annual land-cover maps to examine the duration and persistence of abandonment at eleven sites across four continents that experienced cropland abandonment from 1987 and 2017. We find that abandonment is by and large fleeting, lasting on average only 14.42 years (SD = 1.52). At most sites, we project >50% of abandoned croplands to be recultivated within 25 years, and sites in Eastern Europe, Russia, and the US had accelerating rates of recultivation. If current rates of abandonment and recultivation persist, the mean duration of abandonment at most sites will plateau between 10 and 22.3 years by about 2040. Counter to optimistic assumptions, most abandonment is unlikely to be permanent and will produce little in the way of benefits for carbon sequestration or biodiversity conservation as a result. New policies and incentives will be needed to lengthen the period of abandonment so as to generate these and other benefits. Until then, abandoned croplands will remain untapped opportunities.
+
+significance: |
+  Demographic, economic, and environmental changes often result in cropland abandonment. While sometimes seen as a threat to food security and cultural landscapes, abandonment is increasing viewed as an opportunity for carbon sequestration and habitat restoration. However, those environmental benefits largely depend on how long ecosystems have to regenerate and accumulate carbon and biodiversity following abandonment. Existing studies often rely on single snapshots in time to estimate abandonment, and ignore recultivation. Using annual land-cover maps, we tracked abandonment and recultivation at eleven sites across four continents. Contrary to previous assumptions, abandonment was short-lived and most abandoned croplands were recultivated within three decades. Unless policymakers take steps to reduce recultivation and provide incentives for regeneration, abandonment will remain a missed opportunity.
+
+acknowledgements: |
+  We thank the following researchers at the University of Wisconsin-Madison, whose land cover maps made this analysis possible: Amintas Brandão, Johanna Buchner, David Helmers, Benjamin G. Iuliano, Niwaeli E. Kimambo, Katarzyna E. Lewińska, Elena Razenkova, Afag Rizayeva, Natalia Rogova, Seth A. Spawn, & Yanhua Xie. We are deeply indebted to Alex Wiebe, whose statistical advice significantly improved our models of abandonment decay and recultivation. We also thank the Drongos research group for invaluable advice and companionship. This work was supported by the High Meadows Foundation and performed using Princeton Research Computing resources at Princeton University.
+
+keywords:
+  - Agriculture
+  - Cropland abandonment
+  - Biodiversity conservation
+  - Secondary succession
+  - Carbon sequestration
+  - Land-cover mapping
+
+## must be one of: pnasresearcharticle (usual two-column layout), pnasmathematics (one column layout), or pnasinvited (invited submissions only)
+pnas_type: pnasresearcharticle
+
+bibliography: [/Users/christophercrawford/Google_Drive/Library/library.bib, packages.bib]
+csl: pnas.csl
+
+## change to true to add optional line numbering
+lineno: true
+
+output: 
+  bookdown::pdf_book:
+    base_format: rticles::pnas_article
+
+header-includes:
+  \newcommand{\beginsupplement}{\setcounter{figure}{0} \setcounter{section}{0} \setcounter{table}{0} \setcounter{equation}{0} \renewcommand{\thefigure}{S\arabic{figure}} \renewcommand{\thesection}{S\arabic{section}} \renewcommand{\thetable}{S\arabic{table}} \renewcommand\theequation{S\arabic{equation}}}
+---
+```{r load-packages-functions, eval = TRUE, echo = FALSE, include = FALSE}
+source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
+# source(paste0(p_proj, "scripts/util/_util_master.R"))
+# devtools::install_github("benmarwick/wordcountaddin", type = "source", dependencies = TRUE)
+```
+
+```{r preview-chapter, eval=FALSE, include = FALSE}
+rmarkdown::render("scripts/abn_trajectories_ms.Rmd",
+                  output_file = 
+                    paste0(p_proj, "writing/previews/", "abn_duration_draft",
+                           format(Sys.Date(), ("_%Y_%m_%d")), ".docx"))
+
+
+# Save PDF with SI for linking below:
+rmarkdown::render("scripts/abn_trajectories_ms.Rmd",
+                  output_file = paste0(p_proj, "writing/previews/", "abn_duration_draft_w_SI.pdf"),
+                  output_format = "bookdown::pdf_document2")
+
+
+# # Save html for troubleshooting:
+# rmarkdown::render("scripts/abn_trajectories_ms.Rmd",
+#                   output_file = paste0(p_proj, "writing/previews/", "abn_duration_draft_w_SI.html"),
+#                   output_format = "bookdown::html_document2")
+
+# bookdown::preview_chapter(
+#   input = "abn_trajectories_ms.Rmd",
+#   output_format = "bookdown::word_document2",
+#   output_file = paste0("abn_duration_draft", format(Sys.Date(), ("_%Y_%m_%d")), ".docx"),
+#   output_dir = paste0(p_proj, "writing/previews"),
+#   output_options = 
+#     list(reference_docx = "/Users/christophercrawford/Google_Drive/_Projects/writing/scripts/word_style_ref.docx"),
+#   preview = TRUE)
+```
+
+```{r set-chunk-opts, include = FALSE}
+# set default chunk options
+knitr::opts_chunk$set(
+  # out.width = "1\\textwidth",  # if compiling a pdf, include this option
+  # comment = NA,
+  # fig.width=6, fig.height=6, 
+  echo = FALSE # the code itself will NOT be printed with results
+  )
+
+options(knitr.table.format = function() {
+  if (knitr::is_latex_output())
+    "latex" else "pipe"
+})
+```
+
+
+```{r produce-package-bib, include = FALSE, echo = FALSE}
+# needed_packages
+# github_packages
+knitr::write_bib(x = c(needed_packages, github_packages), file = 'packages.bib')
+# knitr::write_bib(x = c("car"), file = 'extra.bib')
+
+# citation(package = needed_packages[1])
+
+# knitr::write_bib(x = c(needed_packages[c(14)]), file = 'packages_top.bib')
+# knitr::write_bib(x = c(needed_packages[3]), file = 'terra.bib')
+
+# 
+# needed_packages[1]
+# packageDescription(needed_packages[1])
+```
+
+```{r load-files, include = FALSE}
+
+# set run:
+run_label <- "_2021_03_13"
+
+# Additional paths --------------------------------------------------- #
+p_plots <- "/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/"
+
+# load general spatial data on site locations --------------------------------------------------- #
+site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
+site_df_w_size <- read.csv(file = paste0(p_dat_derived, "site_df_w_size.csv"))
+site_sf <- st_read(paste0(p_dat_derived, "site_sf.shp"))
+
+
+# load all length data (distilled)
+length_distill_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", 
+                                            "length_distill_df", run_label, ".csv"))
+
+# load mean length data
+mean_length_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", "mean_length_df", run_label, ".csv"))
+
+
+# load summary statistic derived from lengths
+summary_stats_all_sites <- read_csv(file = paste0(p_dat_derived, run_label, "/", "summary_stats_all_siteS", run_label, ".csv"))
+summary_stats_all_sites_pooled <- read_csv(file = paste0(p_dat_derived, run_label, "/", "summary_stats_all_sites_pooled", run_label, ".csv"))
+
+# load area summary stats:
+area_summary_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", "area_summary_df", run_label, ".csv"))
+area_recult_threshold <- read_csv(file = paste0(p_dat_derived, run_label, "/", "area_recult_threshold", run_label, ".csv"))
+
+
+# load stats on proportion of abandoned cropland by land cover
+abn_lc_count_2017 <- read_csv(file = paste0(p_dat_derived, run_label, "/", "abn_lc_count_2017", run_label, ".csv"))
+abn_prop_lc_2017 <- read_csv(file = paste0(p_dat_derived, run_label, "/", "abn_prop_lc_2017", run_label, ".csv"))
+
+
+# load combined persistence, area, and turnover datasets:
+# also known as dat_l in "4_decay_models.Rmd"
+
+persistence_dat <- 
+  # dat_l <- 
+  read_csv(file = paste0(p_dat_derived, "persistence_dat", run_label, ".csv")) %>%
+  mutate(site = as.factor(site),
+         bins = as.factor(bins),
+         year_abn_bins = as.factor(year_abn_bins),
+         cohort = as.factor(cohort))
+
+area_dat <- read_csv(file = paste0(p_dat_derived, "area_dat", run_label, ".csv"))
+turnover_dat <- read_csv(file = paste0(p_dat_derived, "turnover_dat", run_label, ".csv"))
+
+
+
+# load decay rate data
+load(file = paste0(p_dat_derived, run_label, "/decay_mod_coef_dfs.rds"), 
+     verbose = TRUE)
+
+# load extrapolation data
+extrapolate_df_l3 <- read_csv(file = paste0(p_dat_derived, run_label, "/extrapolate_df_l3", run_label, ".csv"))
+extrapolate_df_l3_a2 <- read_csv(file = paste0(p_dat_derived, run_label, "/extrapolate_df_l3_a2", run_label, ".csv"))
+
+
+# load data for shaanxi maps --------------------------------------------------- #
+
+# load data for decay models --------------------------------------------------- #
+fitted_df_l3 <- read_csv(file = paste0(p_dat_derived, run_label, "/decay_mod_fitted_df_l3", run_label, ".csv"))
+
+load(file = paste0(p_dat_derived, run_label, "/decay_mod_coef_dfs.rds"), verbose = TRUE)
+# contains:
+# coef_df_l3, coef_df_wide_l3, mean_coef_df_l3, mean_coef_df_wide_l3, mean_coef_proj_l3, time_to_l3
+
+
+# load extrapolation data
+extrapolate_df_l3 <- read_csv(file = paste0(p_dat_derived, run_label, "/extrapolate_df_l3", run_label, ".csv"))
+
+future_df_l3 <- read_csv(file = paste0(p_dat_derived, run_label, "/future_df_l3", run_label, ".csv"))
+
+```
+
+```{r misc-notes, eval = FALSE}
+# --------------------------------------------------
+# Miscellaneous YAML
+# --------------------------------------------------
+# Right after csl:
+#   
+# nocite: |
+#   @RStudio, @R-rmarkdown, @R-bookdown, @R-knitr
+
+# 
+# - $^a$Princeton School of Public and International Affairs, Princeton University, Princeton, NJ
+# - $^b$Department of Geography, Kent State University, Kent, OH
+# - $^c$Department of Forest & Wildlife Ecology, University of Wisconsin - Madison, Madison, WI
+# - $^d$Department of Ecology & Evolutionary Biology, Princeton University, Princeton, NJ
+# 
+
+# date: '`r format(Sys.Date(), "%B %d, %Y")`'
+# 
+# - Christopher L. Crawford^[Corresponding Author, ccrawford@princeton.edu, Robertson
+#   Hall, Princeton University, Princeton, NJ] ^[Princeton University]
+# - He Yin^[Kent State University]
+# - Volker Radeloff^[University of Wisconsin, Madison]
+# - David S. Wilcove^[Princeton University]
+
+# author:
+# - Christopher L. Crawford^[Corresponding Author, ccrawford@princeton.edu, Robertson Hall, Princeton University, Princeton, NJ] $^1$
+# - He Yin$^2$
+# - Volker Radeloff$^3$
+# - David S. Wilcove$^{1, 4}$
+# date: 
+#   $^1$Princeton School of Public and International Affairs, Princeton University, Princeton, NJ \newline 
+#   $^2$Department of Geography, Kent State University, Kent, OH \newline 
+#   $^3$Department of Forest & Wildlife Ecology, University of Wisconsin - Madison, Madison, WI \newline 
+#   $^4$Department of Ecology & Evolutionary Biology, Princeton University, Princeton, NJ
+
+
+# --------------------------------------------------
+# rmd-tips
+# --------------------------------------------------
+
+# Reference sections by including a tag directly after a header, such as {#section-label}, and then reference in line with the following:
+# See Section \@ref(section-label)
+
+
+# figures:
+# this is a chunk for including a pre-existing plot or graphic.
+#knitr::include_graphics("/Users/christophercrawford/Google_Drive/_Projects/Zambia/agroEcoTradeoff/external/plots/Estes-plots_test.png")
+
+# Figure captions:
+# https://bookdown.org/yihui/rmarkdown-cookbook/cross-ref.html
+
+# manually write figure captions outside of chunk with the following
+# (ref:caption-label) Figure caption text.
+
+# Chunk options:
+# include = FALSE - this means that the code will still be evaluated, but none of the output will be included in the resulting document.
+
+# fig.cap = '(ref:caption-label)' in the chunk options
+
+# cross reference in line with: \@ref(fig:chunk-label) (or eq:label, or tab:label)
+
+# can also include a list of figures by including the following in the YAML
+# lof: True
+# or, as I currently have it.
+# \listoffigures
+
+
+
+
+
+# --------------------------------------------------
+# PNAS Formatting
+# --------------------------------------------------
+# https://www.pnas.org/authors/submitting-your-manuscript
+# PNAS direct submission articles are usually about 4000 words with 50 references and 4 figures (though there is some variation and flexibility). The format follows: Intro, Results (possibly with sections), Discussion, Materials & Methods, Acknowledgements, References (in order they are cited). Though submissions are “format neutral” at the start, it doesn’t seem too difficult to format to match this from the start. 
+# Some recent relevant articles in PNAS: Rudel et al. 2009, Wright & Wimberly 2013, Norden et al. 2015, Lambin & Meyfroidt 2011, Griscom et al. 2017, Nerlekar & Veldman 2020.
+
+```
+
+```{r get-summary-stats, include = FALSE}
+summary_stats_all_sites
+extrapolate_df_l3
+
+abn_duration_stats <- list(
+  mean_of_means_duration = summary_stats_all_sites$mean_of_means %>% round(digits = 2),
+  mean_of_sds_duration = summary_stats_all_sites$mean_of_sds %>% round(digits = 2),
+  sd_of_mean_duration = summary_stats_all_sites$sd_of_means %>% round(digits = 2),
+  
+  extrapolation_low = extrapolate_df_l3 %>% select(site, max_mean_age) %>% unique() %>% arrange(max_mean_age) %>% .$max_mean_age %>% .[1] %>% round(digits = 1),
+  extrapolation_high = extrapolate_df_l3 %>% select(site, max_mean_age) %>% unique() %>% arrange(max_mean_age) %>% .$max_mean_age %>% .[9] %>% round(digits = 1),
+  
+  duration_min = mean_length_df %>% 
+    filter(abn_threshold == 5, length_type == "all") %>% 
+    slice_min(mean_duration) %>% 
+    select(mean_duration) %>% round(digits = 2),
+  
+  duration_min_site = mean_length_df %>% 
+    filter(abn_threshold == 5, length_type == "all") %>% 
+    slice_min(mean_duration) %>% .$site %>% capwords(),
+  
+  duration_max = mean_length_df %>% 
+    filter(abn_threshold == 5, length_type == "all") %>% 
+    slice_max(mean_duration) %>% 
+    select(mean_duration) %>% round(digits = 2),
+  
+  duration_max_site = mean_length_df %>% 
+    filter(abn_threshold == 5, length_type == "all") %>% 
+    slice_max(mean_duration) %>% .$site %>% gsub("_", " & ",.) %>% capwords(),
+  
+  sd_min = mean_length_df %>% filter(abn_threshold == 5, length_type == "all") %>% slice_min(sd_duration) %>% select(sd_duration) %>% round(digits = 2),
+  sd_min_site = mean_length_df %>% filter(abn_threshold == 5, length_type == "all") %>% slice_min(sd_duration) %>% .$site %>% capwords(),
+  
+  sd_max = mean_length_df %>% filter(abn_threshold == 5, length_type == "all") %>% slice_max(sd_duration) %>% select(sd_duration) %>% round(digits = 2),
+  sd_max_site = mean_length_df %>% filter(abn_threshold == 5, length_type == "all") %>% slice_max(sd_duration) %>% .$site %>% gsub("_", " ",.) %>% capwords()
+)
+
+
+mean_length_df %>% filter(abn_threshold == 5, length_type == "all") %>% summarise(mean_sd = mean(sd_duration))
+```
+
+
+# Abstract
+
+*Make sure the stats match the pasted abstract above! Then, remove.*
+
+Agricultural expansion is a major cause of land-use change globally, but millions of hectares of cropland are simultaneously being abandoned as a result of demographic, economic, and environmental changes.
+These abandoned croplands could be immensely valuable for carbon sequestration and biodiversity restoration.
+However, their environmental value depends on the duration and persistence of abandonment, which is poorly known.
+Here, we use 30-m annual land-cover maps to examine the duration and persistence of abandonment at eleven sites across four continents that experienced cropland abandonment from 1987 and 2017.
+We find that abandonment is by and large fleeting, lasting on average only `r abn_duration_stats$mean_of_means_duration` years (SD = `r abn_duration_stats$sd_of_mean_duration`).^[*Note: these summary statistics are calculated based on the mean abandonment duration at each site, and are therefore the mean of means, and the standard deviation of means. The mean standard deviation is now reported in the SI Section \@ref(results-si).*]
+At most sites, we project >50% of abandoned croplands to be recultivated within 25 years, and sites in Eastern Europe, Russia, and the US had accelerating rates of recultivation.
+If current rates of abandonment and recultivation persist, the mean duration of abandonment at most sites will plateau between `r abn_duration_stats$extrapolation_low` and `r abn_duration_stats$extrapolation_high` years by about 2040.
+Counter to optimistic assumptions, most abandonment is unlikely to be permanent and will produce little in the way of benefits for carbon sequestration or biodiversity conservation as a result.
+New policies and incentives will be needed to lengthen the period of abandonment so as to generate these and other benefits.
+Until then, abandoned croplands will remain untapped opportunities.
+
+# Introduction
+
+Human populations are in flux around the world, as people seek new economic opportunities in cities and flee changing environments and conflicts [@Sanderson2018].
+Coupled with environmental degradation and changing agricultural technologies, urbanization and rural outmigration have contributed to a decline in the economic viability of some agricultural lands, resulting in a growing global trend of agricultural abandonment [@ReyBenayas2007; @Prishchepov2021].
+Given increasing competition for land, these abandoned agricultural lands are highly sought after for diverse goals such as biofuel production [@Naess2021], carbon sequestration [@Griscom2017; @Chazdon2016a], or recultivation [@Meyfroidt2016].
+To conservationists, these lands represent a potentially large opportunity for biodiversity recovery as former croplands regenerate into native vegetation [@Chazdon2020; @Xie2019; @Navarro2012].
+
+Millions of hectares of agricultural lands have been abandoned over the last half century [@Li2017], with abandonment predicted to continue in many places [@Sanderson2018; @Popp2017], but for how long and to what end is unclear.
+Understanding the environmental effects of agricultural abandonment requires not only detailed information on where and when abandonment takes place, but critically, what happens to croplands after they are abandoned.
+In order for abandoned lands to yield environmental benefits, they must stay abandoned long enough for appreciable gains to be made in both plant biomass and the species that make up intact ecological communities, which can take many decades to approach the levels of intact reference ecosystems, with species recolonizing at different successional stages [@Rozendaal2019; @Acevedo-Charry2019; @Isbell2019; @Nerlekar2020; @Gilroy2014; @Cook-Patton2020; @Poorter2016].
+Knowing how long abandonment persists is critical to understanding its potential to help mitigate the ongoing climate and biodiversity crises.
+
+Until recently, it has been difficult to gather detailed information on abandonment.
+Many estimates of abandonment are inferred by aggregating regional estimates of cultivation, such as from country-level FAO data on cultivated areas [@Isbell2019; @Munroe2013].
+When derived from satellite imagery, abandonment is most frequently estimated by simply taking the difference in cultivated area between land cover maps acquired at two distinct points in time (e.g. 1992 and 2015 [@Naess2021]).
+Annual land-cover time series are becoming more common, but are typically limited to a short timespan (e.g. 2-12 years [@Alcantara2013; @Estel2015; @Lark2015]; though see @Dara2018), and most analyses are limited to a single region only.
+These approaches all lack the spatial and temporal detail needed to understand long-term outcomes for croplands at field level, and by failing to capture the dynamic patterns of abandonment and recultivation, may significantly overestimate abandonment [@Yin2020].
+
+Empirical evidence for secondary forests in the Neotropics shows that forest regeneration is often short-lived [@Reid2019; @Nunes2020; @Smith2020; @Schwartz2020], according to the mapping of woody regrowth in satellite imagery.
+In the Brazilian Amazon, half of secondary forests were recleared in as little as 5 to 8 years [@Aguiar2016; @Chazdon2016a; @Nunes2020], and in southern Costa Rica in $\leq20$ years [@Reid2019].
+However, estimates based on woody vegetation growth miss abandonment in earlier stages of regeneration and in biomes where succession does not lead to woody vegetation [@Yin2020].
+
+Recent advances in remote sensing have made it possible to produce maps of cropland abandonment at both high spatial and temporal resolution.
+Yin et al. -@Yin2020 used a trajectory-based approach to produce accurate maps of annual cropland abandonment at 30-m resolution without relying on woody revegetation, allowing for a direct focus on abandonment and analyses of both forest and non-forest biomes.
+Here, we utilize these new annual time-series of cropland abandonment [@Yin2020] to investigate the duration and persistence of abandonment at eleven sites across four continents, including sites in Brazil, the United States, Eastern Europe, Russia, the Middle East, and China (Figure \@ref(fig:maps-abn-duration)).
+
+We address three questions: How long does abandoned cropland stay abandoned (i.e. duration of abandonment), and how does this vary geographically? 
+How quickly is abandoned land recultivated (i.e. persistence of abandonment), and do recultivation (or "decay") rates vary through time? 
+Finally, if abandonment and recultivation continue at current rates, what will ultimately be the mean age of abandoned croplands?
+
+By making use of new, more accurate and finer resolution abandonment maps for eleven sites across the globe, and by covering a longer period and broader set of sites than previous studies, we provide the most detailed analysis to date of the duration and persistence of cropland abandonment.
+Given that some abandonment periods are inherently limited by the length of our time series (and may remain abandoned beyond the three decades covered by our data), tracking recultivation rates for each year provides a more accurate understanding of persistence.
+Together, these results highlight the temporal nature of cropland abandonment and its potential to sequester carbon and conserve biodiversity.
+
+<!-- Foreshadow results? -->
+<!-- We find that abandonment is rarely permanent, but rather a dynamic phenomenon that varies spatially and temporally. -->
+<!-- The bulk of abandoned land is relatively short-lived, and therefore unlikely to regenerate into carbon- and species-rich ecosystems without active policies to encourage regeneration. -->
+
+# Results
+```{r results-outline, include = FALSE}
+# Overarching question: how durable is abandonment?
+# 
+# Main questions:
+# 1. How long does abandonment last, on average? How does this vary geographically?
+# 2. How quickly is land recultivated, as measured by "abandonment decay rates"?
+    # a. How do they vary across sites? (i.e. What proportion of abandoned land remains abandoned long-term [e.g. >20 years])
+    # b. How do these decay rates vary through time at each site?
+# 3. Extrapolation: if decay rates stay about the same, and a similar amount of land is newly abandoned each year, how will mean abandonment durations change into the future?
+# 
+# ________________
+# Results outline:
+# Four pieces: 1) describing the abandonment we saw in terms of area, scale, land cover outcomes, and recultivation, 2) duration of abandonment, 3) decay rates, and 4) extrapolation. 
+# 
+# Basics - describe the abandonment we saw at our sites
+# -	how much abandonment occurred, as a proportion of site area? (Total area abandoned (% of total site area), and range of area abandoned at each site.)
+# -	When did abandonment take place? (Some took place early on in the time series, some later) (could include the figure with area abandoned))
+# -	what land cover did that abandoned land end up in?
+# -	about how much of that land was recultivated over the course of the time series? This then leads into statistics of duration... ->
+# 
+# *Abandonment Duration:
+# -	mean duration across all sites (mean of means, with mean of standard deviations)
+# -	range of mean durations at individual sites (minimum and maximum)
+# -	range of all durations within individual sites - how wide was the variation?
+# 
+# *Decay rates:
+# -	mean decay rates by site across all cohorts (Fig. ). 
+# -	time to 50% recultivation, 100% recultivation, min and max by site.
+# -	rate of changes through time.
+# 
+# *Extrapolation:
+# -	mean abandonment duration at each site in the extrapolation, overall
+# -	min and max mean duration, with sites
+# -	Most of the sites have a mean duration of less than ~20 years, and plateau by about 2040. 
+# -	even at Shaanxi, the site projected to see the most durable abandonment, we see that a relatively small amount of land will remain abandoned for longer than 50 years. 
+```
+
+```{r get-results-stats, include = FALSE}
+# site_r$shaanxi$y2017
+# test_area <- raster::area(site_r$shaanxi$y2017)
+# plot(test_area)
+# ncell(site_r$shaanxi$y2017)
+# ncell(test_area)
+# names(test_area) <- "area_km2"
+# test_dt <- as.data.table.raster(stack(site_r$shaanxi$y2017, test_area))
+# test_dt[,sum(area_km2 * 100), by = y2017]
+# 1332.768 + 1021861.526 + 153480.420 + 246237.428+ 151124.082
+
+site_df_w_size # note that this includes NA or 0 lc class cells, so is an overestimate. Use the site area from area_summary_df
+area_summary_df %>% names
+
+area_summary_df %>% 
+  select(site, area_abn_ha_2017, area_ever_abn_ha, cropland_area_1987, total_crop_extent_ha, total_site_area_ha_2017, 
+         area_as_prop_site, area_as_prop_total_crop, area_as_prop_crop87) %>% 
+  arrange(area_as_prop_total_crop)
+
+area_summary_df %>% 
+  select(site, area_abn_ha_2017, area_ever_abn_ha, cropland_area_1987, total_crop_extent_ha, area_as_prop_total_crop, area_as_prop_crop87) %>% 
+  arrange(area_as_prop_total_crop) %>% 
+  mutate(prop_crop_total_to_87 = total_crop_extent_ha/cropland_area_1987)
+
+
+area_summary_df %>% select(site, area_abn_ha_2017, total_site_area_ha_2017, area_as_prop_site) %>% arrange(area_as_prop_site)
+
+
+# ---------------------------------------------------------------------- #
+# area abandoned statistics
+area_abn_stats <- list(
+  "min" = area_summary_df %>% filter(site != "mato_grosso") %>% slice_min(area_abn_ha_2017) %>% select(area_abn_ha_2017) %>% 
+    # as.numeric() %>% 
+    prettyNum(big.mark = ","),
+  "min_site" = area_summary_df %>% filter(site != "mato_grosso") %>% slice_min(area_abn_ha_2017) %>% .$site %>% capwords(),
+  
+  "max" = area_summary_df %>% slice_max(area_abn_ha_2017) %>% select(area_abn_ha_2017) %>% round(digits = 0) %>% as.numeric() %>% prettyNum(big.mark = ","),
+  "max_site" = area_summary_df %>% slice_max(area_abn_ha_2017) %>% .$site %>% capwords(),
+
+  "mg" = area_summary_df %>% filter(site == "mato_grosso") %>% select(area_abn_ha_2017) %>% round(digits = 0) %>% as.numeric() %>% prettyNum(big.mark = ","),
+  "mg_abn_as_percent_total_crop" = area_summary_df %>% filter(site == "mato_grosso") %>% select(area_as_prop_total_crop) %>% round(digits = 4) * 100,
+  
+  "total_area_Mha_2017_all_sites" = round(area_summary_df$total_site_area_ha_2017 %>% sum() / 10^6 , digits = 2),
+  "total_crop_extent_area_Mha_2017_all_sites" = round(area_summary_df$total_crop_extent_ha %>% sum() / 10^6 , digits = 2),
+  
+  "total_area_ever_abn_Mha_all_sites" = round(area_summary_df %>% summarise(total_ever_abn_Mha = sum(area_ever_abn_ha)/1e6), digits = 2),
+  
+  
+  "total_crop_area_1987_Mha_all_sites" = round(area_summary_df$cropland_area_1987 %>% sum() / 10^6 , digits = 2),
+  "total_area_abn_Mha_2017_all_sites" = round(area_summary_df$area_abn_ha_2017 %>% sum() / 10^6, digits = 2),
+  
+  "total_area_abn_2017_as_percent_of_total" = round((area_summary_df$area_abn_ha_2017 %>% sum()) / (area_summary_df$total_site_area_ha_2017 %>% sum()), digits = 4) * 100,
+  
+  "total_area_abn_2017_as_percent_of_crop87" = round(
+    (sum(area_summary_df$area_abn_ha_2017) / sum(area_summary_df$cropland_area_1987)), 
+    digits = 4) * 100,
+  
+  "total_area_abn_2017_as_percent_of_total_crop_extent" = round(
+    (sum(area_summary_df$area_abn_ha_2017) / sum(area_summary_df$total_crop_extent_ha)), 
+    digits = 4) * 100,
+  
+  
+  "min_area_as_prop_site" = area_summary_df %>% filter(site != "mato_grosso") %>% slice_min(area_as_prop_site) %>% select(area_as_prop_site) %>% round(digits = 4) * 100,
+  "min_area_as_prop_site_site" =  area_summary_df %>% filter(site != "mato_grosso") %>% slice_min(area_as_prop_site) %>% .$site %>% capwords(),
+  
+  "max_area_as_prop_site" = area_summary_df %>% slice_max(area_as_prop_site) %>% select(area_as_prop_site) %>% round(digits = 4) * 100,
+  "max_area_as_prop_site_site" = area_summary_df %>% slice_max(area_as_prop_site) %>% .$site %>% capwords(),
+  
+  # area_as_prop_total_crop
+  "min_area_as_prop_total_crop" = area_summary_df %>% filter(site != "mato_grosso") %>% slice_min(area_as_prop_total_crop) %>% select(area_as_prop_total_crop) %>% round(digits = 4) * 100,
+  "min_area_as_prop_total_crop_site" =  area_summary_df %>% filter(site != "mato_grosso") %>% slice_min(area_as_prop_total_crop) %>% .$site %>% capwords(),
+  
+  "max_area_as_prop_total_crop" = area_summary_df %>% slice_max(area_as_prop_total_crop) %>% select(area_as_prop_total_crop) %>% round(digits = 4) * 100,
+  "max_area_as_prop_total_crop_site" = area_summary_df %>% slice_max(area_as_prop_total_crop) %>% .$site %>% gsub("_", " & ", .) %>% capwords()
+)
+
+# ---------------------------------------------------------------------- #
+area_recult_threshold %>% filter(abn_threshold == 10) %>% select(site, proportion_recultivated) %>% arrange(proportion_recultivated)
+
+# recultivation statistics
+recult_stats <- list(
+  "mean_thr_5" = area_recult_threshold %>% group_by(abn_threshold) %>% 
+    summarise(mean_proportion = mean(proportion_recultivated),
+              sd_proportion = sd(proportion_recultivated)) %>% 
+    filter(abn_threshold == 5) %>% select(mean_proportion) %>% round(digits = 4) * 100,
+  
+  "sd_thr_5" = area_recult_threshold %>% group_by(abn_threshold) %>% 
+    summarise(mean_proportion = mean(proportion_recultivated),
+              sd_proportion = sd(proportion_recultivated)) %>% 
+    filter(abn_threshold == 5) %>% select(sd_proportion) %>% round(digits = 4) * 100,
+  
+  "mean_thr_7" = area_recult_threshold %>% group_by(abn_threshold) %>% summarise(mean_proportion = mean(proportion_recultivated)) %>% 
+    filter(abn_threshold == 7) %>% select(mean_proportion) %>% round(digits = 4) * 100,
+  
+  "mean_thr_10" = area_recult_threshold %>% group_by(abn_threshold) %>% summarise(mean_proportion = mean(proportion_recultivated)) %>% 
+    filter(abn_threshold == 10) %>% select(mean_proportion) %>% round(digits = 4) * 100,
+  
+  "min_5" = area_recult_threshold %>% filter(abn_threshold == 5) %>% slice_min(proportion_recultivated) %>% .$proportion_recultivated %>% round(digits = 4) * 100,
+  "min_5_site" = area_recult_threshold %>% filter(abn_threshold == 5) %>% slice_min(proportion_recultivated) %>% .$site %>% capwords(),
+  
+  "max_5" = area_recult_threshold %>% filter(abn_threshold == 5, site != "mato_grosso") %>% slice_max(proportion_recultivated) %>% .$proportion_recultivated %>% round(digits = 4) * 100,
+  "max_5_site" = area_recult_threshold %>% filter(abn_threshold == 5, site != "mato_grosso") %>% slice_max(proportion_recultivated) %>% .$site %>% capwords(),
+  
+  "min_10" = area_recult_threshold %>% filter(abn_threshold == 10) %>% slice_min(proportion_recultivated) %>% .$proportion_recultivated %>% round(digits = 4) * 100,
+  "min_10_site" = area_recult_threshold %>% filter(abn_threshold == 10) %>% slice_min(proportion_recultivated) %>% .$site %>% capwords(),
+  
+  "max_10" = area_recult_threshold %>% filter(abn_threshold == 10, site != "mato_grosso") %>% slice_max(proportion_recultivated) %>% .$proportion_recultivated %>% round(digits = 4) * 100,
+  "max_10_site" = area_recult_threshold %>% filter(abn_threshold == 10, site != "mato_grosso") %>% slice_max(proportion_recultivated) %>% .$site %>% capwords()
+)
+
+abn_duration_stats # see "get-summary-stats"
+
+# ---------------------------------------------------------------------- #
+# land cover stats --------------------- #
+lc_stats <- list(
+  forest_min = abn_prop_lc_2017 %>% 
+    filter(lc_2017 == 2) %>% slice_min(prop_lc) %>% 
+    select(prop_lc) %>% round(digits = 2) * 100,
+  
+  forest_min_grassland = (1 - abn_prop_lc_2017 %>% 
+                     filter(lc_2017 == 2) %>% slice_min(prop_lc) %>% 
+                     select(prop_lc) %>% round(digits = 2)) * 100,
+  
+  forest_min_site = abn_prop_lc_2017 %>% 
+    filter(lc_2017 == 2) %>% slice_min(prop_lc) %>% .$site %>% capwords(),
+  
+  forest_max = abn_prop_lc_2017 %>% 
+    filter(lc_2017 == 2) %>% slice_max(prop_lc) %>% 
+    select(prop_lc) %>% round(digits = 2) * 100,
+  
+  forest_max_grassland = (1 - abn_prop_lc_2017 %>% 
+                         filter(lc_2017 == 2) %>% slice_max(prop_lc) %>% 
+                         select(prop_lc) %>% round(digits = 2)) * 100,
+  
+  forest_max_site = abn_prop_lc_2017 %>% filter(lc_2017 == 2) %>% slice_max(prop_lc) %>% .$site %>% capwords()
+  )
+
+# ---------------------------------------------------------------------- #
+# decay model stats:
+time_to_0.5 <- time_to_l3 %>% filter(p == 0.5) %>%
+  select(site, time_to_value, proportion, p) %>% arrange(time_to_value)
+
+time_to_0 <- time_to_l3 %>% filter(p == 0) %>%
+  select(site, time_to_value, proportion, p) %>% arrange(time_to_value)
+
+t0.5_max_temp <- time_to_0.5 %>%
+  slice_max(time_to_value, n = 3) %>% slice_min(time_to_value)
+
+t0.5_min_temp <- time_to_0.5 %>% slice_min(time_to_value)
+
+t0_max_temp <- time_to_0 %>%
+  slice_max(time_to_value, n = 3) %>% slice_min(time_to_value)
+
+t0_min_temp <- time_to_0 %>% slice_min(time_to_value)
+
+decay_stats <- list(
+  
+  "t0.5_max" = t0.5_max_temp %>% select(time_to_value) %>% round(., digits = 0),
+  "t0.5_max_site" = t0.5_max_temp %>% .$site %>% gsub("_", " ",.) %>% capwords(),
+  
+  "t0.5_min" = t0.5_min_temp %>% select(time_to_value) %>% round(., digits = 0),
+  "t0.5_min_site" = t0.5_min_temp %>% .$site %>% gsub("_", " ",.) %>% capwords(),
+  
+  "t0_max" = t0_max_temp %>% select(time_to_value) %>% round(., digits = 0),
+  "t0_max_site" = t0_max_temp %>% .$site %>% gsub("_", " ",.) %>% capwords(),
+  
+  "t0_min" = t0_min_temp %>% select(time_to_value) %>% round(., digits = 0),
+  "t0_min_site" = t0_min_temp %>% .$site %>% gsub("_", " ",.) %>% capwords(),
+  
+  "shaanxi_0.5" = round(time_to_l3 %>% filter(p == 0.5, site == "shaanxi") %>% .$time_to_value, digits = 0),
+  "shaanxi_0" = round(time_to_l3 %>% filter(p == 0, site == "shaanxi") %>% .$time_to_value, digits = 0),
+  
+  "mg_0.5" = round(time_to_l3 %>% filter(p == 0.5, site == "mato_grosso") %>% .$time_to_value, digits = 0),
+  "mg_0" = round(time_to_l3 %>% filter(p == 0, site == "mato_grosso") %>% .$time_to_value, digits = 0),
+  
+  "percent_at_20_min" = fitted_df_l3 %>% filter(age == 20) %>% arrange(fitted) %>% slice_min(fitted) %>% .$fitted %>% round(digits = 4) * 100,
+  "percent_at_20_min_site" = fitted_df_l3 %>% filter(age == 20) %>% arrange(fitted) %>% slice_min(fitted) %>% .$site %>% capwords(),
+  "percent_at_20_max" = fitted_df_l3 %>% filter(age == 20) %>% arrange(fitted) %>% slice_max(fitted) %>% .$fitted %>% round(digits = 4) * 100,
+  "percent_at_20_max_site" = fitted_df_l3 %>% filter(age == 20) %>% arrange(fitted) %>% slice_max(fitted) %>% .$site %>% capwords()
+)
+
+# ---------------------------------------------------------------------- #
+# extrapolation stats:
+plateau_times <- extrapolate_df_l3 %>% 
+    group_by(site) %>% slice_max(., mean_age, with_ties = FALSE) %>%
+    arrange(mean_age) %>% 
+    ungroup() %>% mutate(time = year - 1987)
+
+extrap_prop <- 
+  future_df_l3 %>% mutate(
+  age_bin = cut(age, breaks = seq(from = 0, to = 140, by = 15), right = TRUE)) %>%
+  filter(year == 2120) %>% 
+  group_by(site) %>%
+  summarise(total_abn_in_2120 = sum(exp_area_ha)) %>% 
+  left_join(., 
+            future_df_l3 %>% mutate(
+              age_bin = cut(age, breaks = seq(from = 0, to = 140, by = 15), right = TRUE)) %>%
+              filter(year == 2120, age > 30) %>% 
+              group_by(site) %>%
+              summarise(over_30 = sum(exp_area_ha)),
+            by = "site") %>%
+  mutate(prop_over_30 = 100 * over_30/total_abn_in_2120) %>%
+  left_join(., 
+            future_df_l3 %>% mutate(
+              age_bin = cut(age, breaks = seq(from = 0, to = 140, by = 15), right = TRUE)) %>%
+              filter(year == 2120, age > 50) %>% 
+              group_by(site) %>%
+              summarise(over_50 = sum(exp_area_ha)),
+            by = "site") %>%
+  mutate(prop_over_50 = 100 * over_50/total_abn_in_2120)
+
+extrapolation_stats <- list(
+  "plateau_min" = plateau_times %>% slice_min(mean_age) %>% .$mean_age %>% round(digits = 0),
+  "plateau_min_year" = plateau_times %>% slice_min(mean_age) %>% .$year,
+  "plateau_min_time" = plateau_times %>% slice_min(mean_age) %>% .$time,
+  "plateau_min_site" = plateau_times %>% slice_min(mean_age) %>% .$site %>% capwords(),
+  
+  "plateau_max" = plateau_times %>% slice_max(mean_age) %>% .$mean_age %>% round(digits = 0),
+  "plateau_max_year" = plateau_times %>% slice_max(mean_age) %>% .$year,
+  "plateau_max_time" = plateau_times %>% slice_max(mean_age, n = 3) %>% slice_min(mean_age) %>% .$time,
+  "plateau_max_site" = plateau_times %>% slice_max(mean_age) %>% .$site %>% capwords(),
+  
+  # proportions over 30
+  "prop_over_30_upper_range" = extrap_prop %>% arrange(desc(prop_over_30)) %>% filter(!site %in% c("shaanxi", "mato_grosso")) %>% slice_max(prop_over_30) %>% .$prop_over_30 %>% round(digits = 0),
+  
+  "prop_over_30_upper_range_site" = extrap_prop %>% arrange(desc(prop_over_30)) %>% filter(!site %in% c("shaanxi", "mato_grosso")) %>% slice_max(prop_over_30) %>% .$site %>% capwords(),
+  
+   "prop_over_50_shaanxi" = extrap_prop %>% filter(site == "shaanxi") %>% .$prop_over_50 %>% round(digits = 0)
+)
+
+
+# extrapolate_df_l3$year %>% max()
+# 
+# extrapolate_df_l3 %>% filter(year == 2150)
+# 
+# gg_extrapolation_panel_age_b +
+#   scale_x_continuous(breaks = seq(from = 2000, to = 2120, by = 40)) +
+#   geom_vline(xintercept = 2008)
+```
+
+(ref:caption-maps-abn-duration) Observed duration of cropland abandonment (in years) as of 2017 in our eleven study sites. Site locations are shown in Figure \@ref(fig:global-map).
+
+```{r maps-abn-duration, fig.cap = '(ref:caption-maps-abn-duration)', out.width = "17.8cm", echo=FALSE}
+# knitr::include_graphics(path = paste0(p_plots, run_label, "/site_locations_w_abn_age_rev", run_label,".pdf"))
+knitr::include_graphics(path = paste0(p_plots, "fig1.pdf"))
+
+# plot(cars)
+```
+
+## Abandonment duration
+
+Cropland abandonment was widespread across our eleven study sites.
+We detected `r area_abn_stats$total_area_abn_Mha_2017_all_sites` million ha (Mha) of abandoned croplands across our eleven sites as of 2017 (Figure \@ref(fig:maps-abn-duration)).^[*As a reminder, this is the total abandonment **as of 2017**. I report the area that was abandoned at least once during the time series below (8.32 Mha), but please let me know if you think I should change the order in which the numbers are reported. I could also update the percentages to reflect the “total area ever abandoned” number.*]
+This corresponds to `r area_abn_stats$total_area_abn_2017_as_percent_of_total_crop_extent`% of the total cropland extent, `r area_abn_stats$total_crop_extent_area_Mha_2017_all_sites` Mha (i.e. all lands that were cultivated at some point during the time series). 
+Cropland abandonment at individual sites as of 2017 ranged from `r area_abn_stats$min_area_as_prop_total_crop`% (`r area_abn_stats$min_area_as_prop_total_crop_site`) to `r area_abn_stats$max_area_as_prop_total_crop`% (`r area_abn_stats$max_area_as_prop_total_crop_site`) of the total cropland extent (Figures \@ref(fig:area-abn-by-age-class) and \@ref(fig:area-abn-panel)^[Note: figure numbers above 4 will be updated to read "Fig. S1," etc. in the final version.]), except for Mato Grosso, where only `r area_abn_stats$mg_abn_as_percent_total_crop`% was abandoned as of 2017 (see Section \@ref(mato-grosso)).
+
+However, we also found that many of these abandoned croplands were recultivated: `r recult_stats$mean_thr_5`% of abandoned area on average (SD = `r recult_stats$sd_thr_5`%; Figure \@ref(fig:recult-by-threshold)).
+In fact, `r area_abn_stats$total_area_ever_abn_Mha_all_sites` Mha of croplands were abandoned at least once during our time series.
+Accordingly, the mean duration of abandonment across all sites was short: `r abn_duration_stats$mean_of_means_duration` years (SD = `r abn_duration_stats$sd_of_mean_duration`), ranging from `r abn_duration_stats$duration_min` years (`r abn_duration_stats$duration_min_site`) to `r abn_duration_stats$duration_max` years (`r abn_duration_stats$duration_max_site`; Figure \@ref(fig:mean-abn-duration)).
+Abandonment duration also varied substantially within sites, with individual site standard deviations ranging between `r abn_duration_stats$sd_min` (`r abn_duration_stats$sd_min_site`) and `r abn_duration_stats$sd_max` years (`r abn_duration_stats$sd_max_site`) (for an average of `r abn_duration_stats$mean_of_sds_duration` years across all sites).
+
+
+```{r mean-abn-duration, fig.cap = 'Mean length of time abandoned (years) throughout our time series across study sites. Because abandonment and recultivation can occur multiple times during our time series, we show both the mean abandonment duration calculated across all periods of abandonment (in red) and the maximum length of abandonment (in blue).', echo=FALSE}
+# (ref:caption-mean-abn-duration) Sites included in this study, from @Yin2020.
+# cite inline using the following  \@ref(fig:mean-abn-duration)
+
+# old version
+# knitr::include_graphics(path = paste0(p_plots, run_label, "/mean_lengths", run_label, ".pdf")) 
+
+# new version, flipped, with histograms
+knitr::include_graphics(
+  path = paste0(p_plots, "fig2.pdf"
+                # old path
+                # run_label, "/mean_lengths_w_ridges_hist", run_label, ".pdf"
+                )
+  )
+```
+
+## Modeling abandonment decay & recultivation
+
+We defined a cohort of abandoned cropland as all cropland abandoned in a given year at a given site.
+We modeled the proportion of each cohort remaining abandoned as a function of time since initial abandonment (see Section \@ref(methods), Figure \@ref(fig:abn-decay-s)).
+This allows us to predict how long a given abandoned cropland will persist before it is recultivated, regardless of when it was abandoned during the time series, and also calculate the mean recultivation (or "decay") trajectory at each site (Figure \@ref(fig:decay-curves-by-site)).
+
+Recultivation occurred relatively quickly: >50% of abandoned croplands were projected to be recultivated within 25 years at almost all sites, ranging between `r decay_stats$t0.5_min` years (`r decay_stats$t0.5_min_site`) and `r decay_stats$t0.5_max` years (`r decay_stats$t0.5_max_site`).
+The primary exception was Shaanxi/Shanxi (China), where abandonment persisted.
+Our models predicted a half-life of `r decay_stats$shaanxi_0.5` years (here defined as the time required for half of the croplands abandoned in a given year to be recultivated), and `r decay_stats$shaanxi_0` years for complete turnover (here defined as the time required for all abandonment in a given cohort to be recultivated) (Figure \@ref(fig:decay-curves-by-site)).
+These mean decay trajectories also display wide variation in the proportion of abandoned croplands that persist beyond 20 years: as few as `r decay_stats$percent_at_20_min`% in `r decay_stats$percent_at_20_min_site`, up to `r decay_stats$percent_at_20_max`% in `r decay_stats$percent_at_20_max_site`/Shanxi (China).
+
+(ref:caption-decay-curves-by-site) Mean decay trajectories for each site, based on a linear model predicting the proportion of abandoned land remaining abandoned as a function of time (including a linear and a logarithmic term of time). The function describing each site's mean trajectory is calculated by taking the mean of each time coefficient across all cohorts of abandonment at each site.
+
+```{r decay-curves-by-site, fig.cap = '(ref:caption-decay-curves-by-site)', out.width = "17.8cm", echo=FALSE}
+# switch to wide (full time span) vs. just the first 50 years
+# show_wide <- TRUE
+# knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/model_decay_curves_by_site_l3", ifelse(show_wide, "_wide", ""), run_label, ".png"))
+
+knitr::include_graphics(
+  path = paste0(p_plots, 
+                # old path
+                # run_label, "/decay", "/mean_decay_curves", run_label, ".pdf"
+                "fig3.pdf"
+                ))
+```
+
+By modeling recultivation for each cohort of abandonment, we are also able to investigate whether recultivation of abandoned cropland is accelerating.
+Most sites showed a negative trend in the time required for recultivation, indicating that abandoned croplands were being recultivated more quickly in recent years (Figure \@ref(fig:decay-rate-of-change)).
+Based on a linear regression on the half-life (the time required for 50% recultivation), over half of our sites had rates of change that were significantly different from zero and negative, corresponding to recultivation accelerating through time: Bosnia & Herzegovina, Volgograd (Russia), Wisconsin (USA), Nebraska (USA), Orenburg (Russia) / Uralsk (Kazakhstan), and Iraq (Figure \@ref(fig:decay-rate-of-change)).
+The remaining sites showed trends that were not significantly different from zero.
+
+```{r old-roc-text, include = FALSE}
+# [*Update based on ultimate choice of model*]
+# However, a simple linear regression on the time required for half of each cohort of abandoned cropland to be recultivated revealed that most sites did not have a slope significantly different from zero (Figure \@ref(fig:decay-rate-of-change)).
+# The lone exception was our site in Bosnia & Herzegovina, where croplands abandoned later in the time series were recultivated significantly more quickly.
+```
+
+## Extrapolating abandonment and recultivation
+
+Assuming that abandonment rates and recultivation rates remain constant at each site, our extrapolation suggests that the impermanence we observe is not an artifact of our time series being only 30 years long.
+We expect the mean duration of abandonment to plateau at 20 years or less at most sites (Figure \@ref(fig:extrapolation-combo)), with the notable exception of Shaanxi/Shanxi (China), which is projected to plateau at a longer mean duration of `r extrapolation_stats$plateau_max` years. 
+The time required to plateau depends on the time required for complete turnover, ranging between `r extrapolation_stats$plateau_min_time`-`r extrapolation_stats$plateau_max_time` years for all sites except Mato Grosso (`r decay_stats$mg_0` years) and Shaanxi/Shanxi (China) (`r decay_stats$shaanxi_0` years).
+
+Furthermore, only a relatively small proportion of abandoned croplands are projected to persist beyond 30 years (less than `r extrapolation_stats$prop_over_30_upper_range`% at most sites; Figure \@ref(fig:extrapolation-area-by-age)).
+Even at Shaanxi/Shanxi (China), the site projected to have the most durable abandonment, only `r extrapolation_stats$prop_over_50_shaanxi`% of abandoned land will remain so for longer than 50 years.
+
+# Discussion
+
+```{r disc-outline}
+# Basic outline:
+# -	What do these results mean? Contrary to optimistic assumptions, we find that abandonment is not likely to be a permanent phenomenon.
+# -	Placing results in the context of other recent studies of area and potential of abandonment (lean on recent Nature Sustainability paper).
+# -	Link results to biodiversity and carbon benefits – how long does it take for carbon and biodiversity benefits to accrue in these parts of the world?
+# -	Highlight methodological advancements
+# -	Mention the sensitivity analysis we conducted on thresholds of abandonment
+# -	Policies that could be used to share the future of abandoned croplands.
+# -	End by reiterating the missed opportunity and placing a call to action. 
+```
+
+Using a new detailed and annual land-cover time series, we uncovered significant amounts of abandonment from 1987 to 2017 in eleven sites across the globe: `r area_abn_stats$total_area_abn_2017_as_percent_of_total_crop_extent`% of all lands that were cultivated at least once during our time series were abandoned as of 2017. 
+However, we also found substantial levels of recultivation, so that on average, 37% of abandoned croplands were recultivated by 2017, and abandonment lasted on average only 15 years.
+Furthermore, some sites had accelerating rates of recultivation, and even the sites with the most persistent abandonment are unlikely to remain uncultivated for $\geq50$ years.
+Our modeled decay rates portray a more dynamic process, where abandonment is rarely an endpoint but rather part of a cycle of turnover on decadal timescales [@Munroe2013].
+
+Furthermore, by using an annual time series and tracking cohorts of abandoned croplands based on the year of abandonment, we developed a much more accurate picture of abandonment persistence.
+For example, while Shaanxi/Shanxi (China) had among the shortest abandonment durations, current recultivation trajectories indicate more persistent abandonment than we can observe during the time series, given an increase in the rate of abandonment coupled with a decrease in recultivation rates over time
+To the contrary, Bosnia & Herzegovina, which had the longest mean abandonment duration, experienced accelerating recultivation in recent years, challenging future persistence.
+
+The abandonment and impermanence that we observe generally matches that observed in the few other case studies we found [@Chazdon2016a].
+To the best of our knowledge, the only other study that uses an annual time series to investigate agricultural abandonment (in a grassland region of northern Kazakhstan between 1991-2017; [@Dara2018]), observed abandonment of about 40% of cultivated areas, and the subsequent recultivation of about 20% of that abandonment.
+This recultivation rate was similar to our most persistent site (Shaanxi/Shanxi [China]), but lower than both our average across sites (`r recult_stats$mean_thr_5`%), and our closest sites:  Orenburg and Volgograd, Russia, which had recultivation rates of `r area_recult_threshold %>% filter(abn_threshold == 5, site == "orenburg") %>% .$proportion_recultivated %>% round(digits = 4) * 100`% and `r area_recult_threshold %>% filter(abn_threshold == 5, site == "volgograd") %>% .$proportion_recultivated %>% round(digits = 4) * 100`% respectively (Figure \@ref(fig:recult-by-threshold)).
+
+Our projected half-lives of 12-24 years at most sites were similar to those in Costa Rica (20 years @Reid2019), but slightly longer than in other parts of the Neotropics [@Chazdon2016a; @Nunes2020; @Smith2020].
+Secondary forests were recleared more quickly in the Brazilian Amazon (50% within 5 to 8 years), where 80% of secondary forests were $\leq20$ years old [@Chazdon2016a; @Nunes2020; @Smith2020].
+Across the tropics, only 33% of forests regenerating after recent deforestation were $\geq10$ years [@Vancutsem2021].
+However, these differences may be the result of 1) a time delay between abandonment and the regrowth of secondary woody vegetation that can be detected by satellites, 2) our exclusion of abandonment less than five years, or 3) our models of recultivation for each cohort, which eliminate the influence of the time series length, and lengthen abandonment estimates.
+
+## Implications for biodiversity recovery and carbon sequestration
+
+```{r load-2yr-diff, include = FALSE}
+abn_2yr_overestimation <- 
+  read_csv(file = paste0(p_dat_derived, run_label, "/", 
+                         "abn_2yr_overestimation", run_label, ".csv")) %>%  
+  arrange(percent_diff) %>% 
+  left_join(., site_df %>% select(site, description), by = "site")
+
+abn_2yr_stats <- list(
+  total_area_abn_Mha = round(abn_2yr_overestimation %>% group_by() %>% summarise("sum" = sum(area_2yr)) %>% as.numeric() / 10^6, digits = 2),
+  low_percent = round(abn_2yr_overestimation %>% slice_min(percent_diff) %>% .$percent_diff, digits = 2),
+  high_percent = round(abn_2yr_overestimation %>% slice_max(percent_diff) %>% .$percent_diff, digits = 2),
+  
+  low_p_site = abn_2yr_overestimation %>% slice_min(percent_diff) %>% .$description,
+  high_p_site = abn_2yr_overestimation %>% slice_max(percent_diff) %>% .$description,
+  
+  jaccard_low = round(abn_2yr_overestimation %>% slice_min(jaccard) %>% .$jaccard, digits = 4) * 100,
+  jaccard_high = round(abn_2yr_overestimation %>% slice_max(jaccard) %>% .$jaccard, digits = 4) * 100,
+  
+  jaccard_low_site = abn_2yr_overestimation %>% slice_min(jaccard) %>% .$description,
+  jaccard_high_site = abn_2yr_overestimation %>% slice_max(jaccard) %>% .$description
+  
+)
+
+abn_2yr_overestimation_char <- abn_2yr_overestimation %>%
+  mutate(jaccard = jaccard %>% round(digits = 2), 
+         area_ha_cc = area_ha_cc %>% round(digits = 0) %>% prettyNum(big.mark = ","),
+         area_2yr = area_2yr %>% round(digits = 0) %>% prettyNum(big.mark = ","),
+         percent_diff = percent_diff %>% round(digits = 2) %>% paste0(., "%"))
+
+```
+
+Our results show that most cropland abandonment is unlikely to be permanent, contrary to optimistic assumptions [@Campbell2008; @Naess2021].
+Estimates of abandonment based on short time series or two points in time (e.g. 83 Mha estimated by Næss et al. [@Naess2021]) likely overestimate the amount of durable abandonment, not only because of a failure to exclude short-term fallow periods, but also, as our analysis shows, as a result of high rates of recultivation.
+When estimating abandonment at our sites based on cultivation in two points in time (1987 and 2017), we find `r abn_2yr_stats$total_area_abn_Mha` Mha of "abandonment," a `r  round((area_abn_stats$total_area_abn_Mha_2017_all_sites - abn_2yr_stats$total_area_abn_Mha) / area_abn_stats$total_area_abn_Mha_2017_all_sites, digits = 4) * 100`% underestimate compared to the `r area_abn_stats$total_area_abn_Mha_2017_all_sites` Mha of abandonment as of 2017 identified using our full annual time series.
+This corresponds to site-level estimates that ranged between `r abs(abn_2yr_stats$low_percent)`% less (`r abn_2yr_stats$low_p_site`) and `r abn_2yr_stats$high_percent`% more (`r abn_2yr_stats$high_p_site`) area identified using the full time series.
+Furthermore, this two-year method identifies different areas of abandonment from those identified using our full annual time series, with spatial agreement of between `r abn_2yr_stats$jaccard_low`% (`r abn_2yr_stats$jaccard_low_site`) and `r abn_2yr_stats$jaccard_high`% (`r abn_2yr_stats$jaccard_high_site`) (see Table \@ref(tab:twoyr-diff-table), Section \@ref(twoyr-vs-annual)).
+Recultivation may dramatically limit the scope for abandoned croplands to play a major role in carbon sequestration or the regeneration of biodiversity.
+
+There is substantial variability in how quickly and how completely ecosystems recover following disturbances and abandonment [@Norden2015; @Crouzeilles2016; @Arroyo-Rodriguez2017].
+Natural regeneration can be a viable ecosystem restoration strategy under the right conditions, especially after low-intensity disturbances (e.g. selective logging) and when close to pristine ecosystems, resulting in secondary growth that approaches the habitat and carbon values of pristine ecosystems [@Crouzeilles2016; @Gilroy2014; @Arroyo-Rodriguez2017].
+
+However, even under optimal conditions, recovery requires time.
+In most cases, it takes multiple decades to recover species richness to values close to those in reference systems [@Meli2017; @Acevedo-Charry2019; @Isbell2019; @Nerlekar2020; @Chazdon2020]. 
+Rarer, forest-adapted, and old-growth dependent species return even more slowly, and the recovery towards old-growth ecosystems in terms of community composition, species similarity, and vegetation structure can take much longer than simply the recovery of total species richness or abundance, which can be dominated by widespread generalist species [@Meli2017; @Arroyo-Rodriguez2017; @Crouzeilles2016; @Rydgren2020].
+
+Tropical ecosystems are among the most speciose in the world.
+In some cases they can regenerate quickly, but never on a time scale as short as the abandonment we observe here.
+Neotropical chronosequences show that lowland tropical forests recover quickly in terms of tree species richness (reaching 80% of old-growth levels after 20 years, 90% after 31 years), but much more slowly in terms of tree species composition (34% of old-growth levels after 20 years, requiring 487 years to reach 90%) [@Rozendaal2019].
+These sites retained relatively high forest cover (76% on average), however, and recovery is likely to be slower in less-forested ecosystems [@Rozendaal2019].
+
+Recovery can be rapid for some vertebrate groups [@Gilroy2014], but recovery typically takes a long time for most. 
+Across tropical forests, amphibian, bird, mammal, and reptile species richness largely recovers within 40 years, but species compositional similarity takes much longer to recover (if at all), particularly for late-successional species, insectivores, and forest specialists [@Acevedo-Charry2019].
+No vertebrate groups reach similarity to reference old-growth forests, even in the oldest secondary forests (30-65 years).
+
+Grassland ecosystems can sometimes recover more quickly following disturbances than forests [@Jones2009], but not often [@Nerlekar2020; @Isbell2019]. 
+On average, secondary grasslands distributed around the world and between 1-251 years old contained only 53-76% of the plant species richness of old-growth grasslands [@Nerlekar2020]; even after full recovery of species richness (with minimum estimated recovery times of >100 years), compositional similarity to old-growth grasslands remained low (43%).
+Similarly, after quick initial gains in biodiversity following abandonment in Minnesota (USA) (averaging over 1/3 diversity after just one year), both biodiversity and productivity increased slowly over time, reaching only 73% of the diversity and 53% of the productivity levels of a reference ecosystem after 91 years [@Isbell2019].
+Eurasian grasslands, where widespread abandonment has occurred, do not fully recover in either plant species richness or community composition after 24 years [@Kampf2016], nor bird species richness and diversity after 18 years [@Kamp2011].
+
+Abandoned areas may also only achieve a small fraction of their carbon storage potential if abandonment last only a couple of decades. 
+Despite relatively quick accumulation of carbon in aboveground biomass over the first few decades of regeneration, it can take between 50-100 years for secondary forests to achieve similar levels of biomass as old-growth forests [@Poorter2016; @Martin2013]. 
+For example, Neotropical aboveground forest biomass reaches 90% of old-growth forest biomass after a median of 66 years, but <50% biomass after 20 years.
+Furthermore, like biodiversity recovery, carbon accumulation estimates vary by biome and by prior land use. 
+Based on estimates of potential aboveground carbon accumulation rates during the first 30 years of natural regeneration in different biomes [@Cook-Patton2020], we predict that the abandoned cropland areas that we studied could accumulate 30-70 Mg C in aboveground biomass per ha over 20 years, or 18%-45% of the 110-250 Mg C per ha that could be accumulated in aboveground biomass over 100 years [@Cook-Patton2020].
+Much of the abandonment we observe occurred in grassy biomes, where soil carbon sequestration can also be substantial. 
+However, soil carbon may accumulate even more slowly, taking a century or longer to return to reference levels [@Yang2019].
+
+```{r cook-patton, include = FALSE}
+# Estimates for total carbon accumulation over time from Cook-Patton et al. 2020 (Nature, "Mapping carbon accumulation potential from global natural forest regrowth"), based on the best fit lines in Figure 1:
+# https://www.nature.com/articles/s41586-020-2686-x#Fig1
+
+cook_patton <- tibble(
+  biome = c("Boreal", "Temperate conifer", "Temperate broadleaf", 
+            "Subtropical and tropical dry", "Subtropical and tropical savanna", 
+            "Subtropical and tropical moist"),
+  year20 = c(30, 25, 30, 50, 35, 70), # estimates based on visual interpretation of Fig. 1
+  year100 = c(70, 170, 165, 110, 170, 250), # estimates based on visual interpretation of Fig. 1
+  units = c("Mg C per ha")
+) %>% mutate(percent = year20/year100 * 100)
+
+cook_patton 
+
+# average carbon accumulation rate from Cook-Patton et al. 2020, across all biomes.
+3.16 * 20
+
+3.2 * 20
+1.75 * 20
+
+```
+
+In addition to the short duration of abandonment, just abandoning croplands may be insufficient to achieve carbon or biodiversity goals. 
+The degradation and slow recovery of soils, a lack of nearby source populations, a lack of natural disturbance regimes, and climate change all pose problems [@Crouzeilles2016; @Crouzeilles2019; @Parkhurst2021].
+While natural regeneration is typically cheaper and sometimes more successful than active restoration under the right conditions, more heavily altered systems typically require more active approaches and longer recovery times [@Crouzeilles2017; @Gilroy2014; @Meli2017].
+Grassland regeneration is particularly challenging, because many grasslands require natural disturbance regimes (e.g. grazing or fire), which may be absent following abandonment [@Nerlekar2020].
+Without such disturbances, grassland biodiversity may be lost if low-intensity farmlands are abandoned and replaced by woody vegetation, particularly in historically unforested ecosystems [@ReyBenayas2007; @Nerlekar2020; @Queiroz2014; @Sirami2008].
+
+## Conclusions
+
+We found strong evidence that abandoned croplands did not remain uncultivated for long periods of time at eleven sites across the globe.
+Without the development of policies and incentives to discourage recultivation, abandoned areas are unlikely to provide meaningful biodiversity and carbon benefits. 
+Our results reinforce growing calls for enhanced monitoring of regeneration [@Cook-Patton2021], and the development of a stronger policy framework for managing such lands [@Chazdon2020].
+
+In addition to the biophysical challenges outlined above, there are a range of socioeconomic and political barriers hindering habitat regeneration in abandoned croplands.
+These include policies that obligate farmers to cultivate land, a lack of incentives to protect and foster regenerating habitats, and perhaps most importantly, negative cultural perceptions of "abandonment" and the "messy" landscapes that result [@Chazdon2020].
+Agricultural abandonment reflects broad societal changes, and the pain associated with the loss of certain types of landscapes and rural ways of life is non-trivial [@ReyBenayas2007; @Meyfroidt2016; @Li2017; @Munroe2013].
+Behavioral research on farmer decisions to recultivate abandoned croplands highlights the importance of addressing factors such as corruption, political and institutional support for agriculture, and demographics, alongside biophysical and environmental conditions, when managing abandonment [@Prishchepov2021a].
+
+In order for abandoned croplands to provide environmental benefits through habitat regeneration or carbon sequestration, they must persist for longer. 
+This could involve including abandoned fields in protected areas, incorporating natural regeneration into ecosystem service schemes to allow landowners to benefit economically, or taking steps to support sustainable long-term cultivation and reduce turnover among fields that have previously been part of long-term fallowing cycles. 
+The relative durability of abandonment at Shaanxi/Shanxi (China) may be due to large-scale reforestation programs implemented over the last 25 years, which is encouraging, even though there continues to be a need to improve the biodiversity outcomes of such programs [@Hua2016]. 
+Such policies should be developed alongside local communities in order to best manage the trade-offs between biodiversity, carbon storage, and livelihoods.
+
+Our results make one thing clear: if cropland abandonment continues to be as short-lived as we show here, the large potential benefits of regenerating habitats to both store carbon and sustain biodiversity will remain an untapped opportunity.
+
+# Materials and Methods {#methods}
+
+```{r methods-outline, include = FALSE}
+# ## Outline
+# 
+# - Definitions of abandonment
+# - Describe abandonment map data
+#     - statement about R versions
+# - Data processing & filtering steps
+#     - important filtering steps include a) removing non-abandonment pixels, and b) passing a temporal filter to remove instances of recultivation that last only 1 year.
+#     - tracking abandonment trajectories
+# - Modeling abandonment decay
+#     - why/motivation
+#     - modeling approach, diagnostic steps, etc. mostly pointing towards the SI
+#     - translating the decay models into a modified prediction of mean length abandoned
+# - Spatial predictors
+#     - what factors are investigated
+#     - modeling approach, short paragraph
+# - R packages used that we didn't already specifically mention
+# 
+# 
+# This is the code used for data processing, and should be a good reference for remembering what I did. Probably a good idea to narratively write down what I did in the code, and which SLURM scripts I used, even if just to put in one of the .Rmd analysis documents. 
+# ~/Google_Drive/_Projects/abandonment_trajectories/scripts/cluster/analyze_all_sites.R
+```
+
+## Abandonment maps
+
+We use annual land cover maps with 30-m resolution from 1987-2017 [@Yin2020], derived from publicly available Landsat satellite imagery, mapping four land cover classes: 1) cropland, 2) herbaceous vegetation (e.g. grassland), 3) woody vegetation (e.g. forests), and 4) non-vegetation (e.g. water, urban, or barren land).
+Our eleven sites were mapped with high accuracy (average overall accuracy $85\pm4$%) and provide broad coverage of different continents and ecosystems (Figure \@ref(fig:maps-abn-duration)).
+We focused exclusively on cropland abandonment, because pasture abandonment is very difficult to discern from satellite imagery and is not captured in our data.
+Yin et al. [@Yin2020] selected sites where recent abandonment was documented and likely due to socioeconomic, political, or environmental factors.
+Thus, while our results are likely representative of those areas that have recently experienced abandonment, they are not a representative sample for the globe, and overestimate the overall prevalence of abandonment.
+
+## Defining abandonment
+
+Differentiating abandonment from short-term fallowing or crop rotations is difficult because agricultural practices can vary widely by region, and studies use many different definitions [@Yin2020].
+Here, we define "abandonment" as cropland that is no longer under active cultivation for at least five years, and is left free of direct human influence, therefore excluding, for example, conversion to urban land use.
+To exclude short-term fallowing, we define croplands as abandoned when they remain uncultivated for five or more consecutive years, following FAO [@FAO2016].
+Recognizing that longer abandonment thresholds may be more appropriate in certain contexts, we performed a sensitivity analysis by varying our abandonment definition (Section \@ref(abn-thresholds)) and found that, as expected, longer definitions resulted in less abandonment over all, longer average abandonment durations (Figure \@ref(fig:abn-thresholds-mean-duration)), and lower recultivation rates (Figure \@ref(fig:recult-by-threshold)).
+However, even when only considering abandonment longer than 10 years, we still observed between `r recult_stats$min_10`% and `r recult_stats$max_10`% recultivation across our sites (at `r recult_stats$min_10_site`/Shanxi [China] and `r recult_stats$max_10_site` [Russia] respectively), enough to substantially curtail regeneration and any associated benefits.
+
+## Data processing
+
+We processed and analyzed abandonment map data in RStudio version `r rstudioapi::versionInfo()$version` [-@RStudio], using `r R.Version()$version.string`, primarily with the `raster` [@R-raster], `data.table` [@R-data.table], and `tidyverse` [@R-tidyverse] packages.
+
+```{r prop-non-veg, include = FALSE}
+# ----------------------------------------------------------- #
+# Proportion of each site's area in non-vegetated land
+# ----------------------------------------------------------- #
+prop_non_veg <- area_dat %>% 
+  filter(lc %in% c("Non-veg.", "Woody veg.", "Cropland", "Grassland"), year == 2017) %>%
+  group_by(site) %>%
+  summarise(total_site_area_ha = sum(area_ha)) %>% 
+  left_join(area_dat, ., by = c("site")) %>% 
+  mutate(prop_total_area = area_ha/total_site_area_ha)
+
+max_prop_non_veg <- prop_non_veg %>%
+  group_by(site, lc) %>%
+  summarise(max_prop_in_non_veg = max(prop_total_area)) %>%
+  arrange(max_prop_in_non_veg) %>%
+  filter(., lc == "Non-veg.")  #%>%
+
+
+non_veg_stats <- list(
+  site1 = max_prop_non_veg %>% filter(max_prop_in_non_veg > 0.1) %>% .[1, ] %>% .$site %>% capwords(),
+  site1_p = max_prop_non_veg %>% filter(max_prop_in_non_veg > 0.1) %>% .[1, ] %>% .$max_prop_in_non_veg %>% round(., digits = 4)*100,
+  site2 = max_prop_non_veg %>% filter(max_prop_in_non_veg > 0.1) %>% .[2, ] %>% .$site %>% capwords(),
+  site2_p = max_prop_non_veg %>% filter(max_prop_in_non_veg > 0.1) %>% .[2, ] %>% .$max_prop_in_non_veg %>% round(., digits = 4)*100
+)
+
+# prop_non_veg %>% filter(lc == "Non-veg.", year %in% c(1987, 2017)) %>% print(n = 22)
+
+
+# # plot
+#   ggplot(data = prop_non_veg %>% filter(., lc == "Non-veg.")) +
+#     theme_classic() +
+#     labs(y = expression("Area  (10"^{6}*" ha)"), x = "Year", 
+#          title = "Area by Land Cover, with Abandonment",
+#          color = NULL) + 
+#     geom_line(mapping = aes(x = year, y = prop_total_area, #area_ha / (10^6), # convert to millions of ha
+#                             group = lc, color = fct_reorder(lc, lc, .desc = TRUE)),
+#               size = 1.5) + 
+#     theme(legend.position = "bottom",
+#           legend.title = element_text(size = 10)) +
+#     guides(color = guide_legend(nrow = 2, ncol = 3)) +
+#     
+#     scale_color_manual(values = plot_cols) + 
+#   facet_wrap(vars(site))
+```
+
+We identified periods of cropland abandonment by tracking each pixel's land cover through time and looking for land-cover changes that indicated transitions between agricultural activity and abandonment.
+We classified a pixel as "abandoned" anytime it transitioned from cropland to either herbaceous or woody vegetation (collectively referred to as "non-cropland") and subsequently remained classified as non-cropland for five or more consecutive years.
+We considered an abandoned pixel to be "recultivated" when it transitioned from abandoned to cropland.
+Pixels that transitioned from cropland to the non-vegetation class were not considered "abandoned," and were excluded from our analysis.
+Non vegetated land consisted of <10% of total site area at all sites except `r non_veg_stats$site1` (`r non_veg_stats$site1_p`%) and `r non_veg_stats$site2` (`r non_veg_stats$site2_p`%), and remained stable or declined over time at all eleven sites.
+
+We implemented five- and eight-year moving window temporal filters to smooth land-cover trajectories and address land-cover changes that are temporally unlikely (Section \@ref(methods-si)).
+Together with our five-year abandonment threshold, these temporal filters address very short-term misclassifications that might otherwise look like recultivation.
+
+## Calculating abandonment duration
+
+We calculated abandonment duration as the number of years that elapse between the initial transition from cropland to non-cropland, and either recultivation or the end of the time series.
+Our abandonment definition implies a minimum abandonment duration of five years.
+Because a pixel may be abandoned and recultivated multiple times throughout the time series, we calculated the mean abandonment duration in two ways: 1) across all periods of abandonment, and 2) across only the longest period of abandonment experienced by each pixel (Figure \@ref(fig:mean-abn-duration)).
+
+## Modeling abandonment decay
+
+Because some abandonment periods are limited by the length of the time series, we modeled recultivation of abandoned croplands as a function of time since initial abandonment.
+We tracked recultivation ("decay") by calculating the proportion of each cohort of pixels abandoned in a given year that remain abandoned in each year following abandonment.
+We parameterized linear models predicting the proportion of abandoned cropland in each cohort remaining abandoned as a function of time since initial abandonment.
+We tested a range of  model specifications, including linear and log transformations of both *proportion* and *time*, and multiple *time* predictor terms.
+Importantly, we included *site* and *cohort* level fixed effects, fitting unique coefficients for each cohort at each site.
+
+We selected the highest performing model based on Akaike Information Criterion values (AIC; Figure \@ref(fig:AIC)).
+For cohorts of abandonment initially abandoned in years $y = 1988 ... 2013$, our model predicted the proportion $p$ of each cohort $y$ remaining abandoned as a function of time $t$ (i.e. the number of years following initial abandonment), with one log-transformed and one linear term of time (Equation \@ref(eq:mod-spec)).
+
+\begin{equation}
+p_{y} = 1 + \beta_{1,y} log(t + 1) + \beta_{2,y} t (\#eq:mod-spec)
+\end{equation}
+
+Where $\beta_{1,y}$ and $\beta_{2,y}$ represent the regression coefficients on the log and linear terms of time $t$, respectively, for cohort $y$.
+Model assumptions were tested through visual inspection of diagnostic plots (Figures \@ref(fig:diag-resid-fitted) and \@ref(fig:diag-qq)).
+See full details in Section \@ref(decay-models-si).
+We calculated each site's mean recultivation trend by taking the mean of the model coefficients across all cohorts (Figure \@ref(fig:mean-abn-duration)).
+Modeled decay trajectories are shown for one example site, Shaanxi/Shanxi (China), in Figure \@ref(fig:abn-decay-s), and model coefficients for all sites in Figure \@ref(fig:decay-mod-coef).
+
+To estimate changes in persistence over time, we calculated the time required for half of a given cohort to be recultivated based on the modeled recultivation trajectory of each cohort. 
+We parameterized a linear model on this value for each cohort to identify temporal changes in recultivation patterns at each site (Section \@ref(section-methods-rate-of-change)).
+Trends were considered statistically significant when the 95% confidence interval for model coefficients did not include zero (Figure \@ref(fig:decay-rate-of-change)).
+
+(ref:caption-abn-decay-s) Decay of abandoned land in Shaanxi/Shanxi (China), showing the proportion of each cohort of abandoned land (i.e. all pixels abandoned in a given year) remaining abandoned over time. Points represent actual observations by cohort, dashed green lines represent linear model predictions for each cohort as a function of time (including a linear and lagarithmic term of time), and the solid purple line represents the mean trend across all cohorts (calculated by taking the mean of each time coefficient value across all cohorts). For similar results for our other sites, see Figures \@ref(fig:decay-model-grid) and \@ref(fig:decay-model-indiv-site-b)-\@ref(fig:decay-model-indiv-site-w).
+
+```{r abn-decay-s, fig.cap = '(ref:caption-abn-decay-s)', out.width = "8.7cm", echo=FALSE}
+# knitr::include_graphics(path = paste0(p_plots, run_label, "persistence_proportion", run_label, "_s.png"))
+knitr::include_graphics(
+  path = paste0(p_plots, "fig4.pdf"
+                # run_label, "/decay/ms_fig_l3_cohort", run_label, "_s.pdf"
+                                 ))
+```
+
+### Extrapolation
+
+Based on our modeled decay rates, we forecast abandonment and recultivation in the future, based on two assumptions: (1) a constant amount of cropland is newly abandoned each year, based on the mean area of cropland abandoned each year at each site (Figure \@ref(fig:turnover-grid)); (2) all abandoned croplands are recultivated at the mean predicted rate for each site (Figure \@ref(fig:decay-curves-by-site)). 
+Total abandonment in our extrapolation remained below the total cropland extent at each site.
+We also considered an alternative assumption in which annual abandonment linearly declined to 0 between 2017 and 2050, but found similarly short mean abandonment durations (below 37 years at all sites by 2050; see Figures \@ref(fig:extrapolation2-combo) and \@ref(fig:extrapolation2-area-by-age)).
+While mean age of abandoned land increased through time after 2017 (and most dramatically after 2050), it remained below 37 years at all sites by 2050.
+Increases in mean abandonment duration were offset by recultivation, and total area abandoned declined quickly after 2020 at most sites.
+See details in Section \@ref(section-extrapolation-si).
+
+
+# Data Availability Statement
+
+Code to replicate these analyses will be available on GitHub at [https://github.com/chriscra/abandonment_trajectories](https://github.com/chriscra/abandonment_trajectories), and will be archived at [Zenodo (TBD)](https://doi.org/).
+
+\showacknow
+
+\newpage
+
+# References
+
+::: {#refs}
+:::
+
+\newpage
+
+\beginsupplement
+
+\onecolumn
+
+```{r update-chunk-opts, include = FALSE}
+# set default chunk options
+knitr::opts_chunk$set(
+  out.width = "1\\textwidth",  # if compiling a pdf, include this option
+  # comment = NA,
+  # fig.width=6, fig.height=6, 
+  echo = FALSE # the code itself will NOT be printed with results
+  )
+
+```
+
+# Supporting Information
+
+\listoffigures
+
+# Extended results {#results-si}
+
+(ref:caption-global-map) The locations of our 11 sites, from @Yin2020.
+
+```{r global-map, fig.cap = '(ref:caption-global-map)', echo=FALSE}
+# just plain site locations
+knitr::include_graphics(path = paste0(p_plots, "fig0.pdf"))
+```
+
+Cropland abandonment at individual sites ranged between `r area_abn_stats$min` ha (`r area_abn_stats$min_site`) and `r area_abn_stats$max` ha (`r area_abn_stats$max_site`) as of 2017 (Figure \@ref(fig:area-abn-by-age-class)), and because our sites varied in size, this corresponded to between `r area_abn_stats$min_area_as_prop_site`% (`r area_abn_stats$min_area_as_prop_site_site`) and `r area_abn_stats$max_area_as_prop_site`% (`r area_abn_stats$max_area_as_prop_site_site`) of the total area of each site (Figure \@ref(fig:area-abn-panel)).
+
+We report the standard deviation of mean abandonment durations across our 11 sites (`r abn_duration_stats$sd_of_mean_duration` years).
+We also calculated the mean standard deviation of abandonment durations across our sites, which was `r abn_duration_stats$mean_of_sds_duration` years.
+The former is a measure of spread of mean abandonment lengths across the 11 sites, whereas the later is a measure of the average spread of abandonment lengths at each site.
+
+The area abandoned at each site is shown in Figure \@ref(fig:area-abn-panel). 
+Area by land cover class is shown for each site in Figure \@ref(fig:area-by-lc), and the area abandoned is shared by age class in Figure \@ref(fig:area-abn-by-age-class). 
+
+We also find that a significant area of abandoned croplands were recultivated by the end of our time series (Figure \@ref(fig:recult-by-threshold)).
+
+<!-- (Previously in Main Text Results) -->
+The timing of abandonment varied across sites (Figure \@ref(fig:area-abn-by-age-class)), with some sites showing more abandonment earlier in the time series (e.g. Iraq; Bosnia & Herzegovina; Volgograd, Russia; Nebraska/Wyoming, USA; & Mato Grosso, Brazil), some showing consistent abandonment over time (e.g. Vitebsk, Belarus/Smolensk, Russia; Goiás, Brazil; and Wisconsin, USA), and others showing abandonment increasing later in the time series (e.g. sites in Shaanxi/Shanxi and Chongqing, China).
+
+(ref:caption-area-abn-by-age-class) Cumulative area abandoned at each site through time, according to age class (in years).
+<!-- ^[Previously included in main text, and can be moved back if there is room.] -->
+
+```{r area-abn-by-age-class, fig.cap = '(ref:caption-area-abn-by-age-class)'}
+knitr::include_graphics(path = paste0(p_plots, run_label, "/abn_area_by_age_grid", run_label, ".pdf"))
+```
+
+(ref:caption-area-abn-panel) Area abandoned a) as of 2017, b) at any point between 1987-2017, c) as a proportion of the total site area, and d) as a proportion of the total cropland area in 1987. Note that sites are shown in ascending order of area as a proportion of total site area.
+
+```{r area-abn-panel, fig.cap = '(ref:caption-area-abn-panel)'}
+knitr::include_graphics(path = paste0(p_plots, run_label, "/area_abn_panel", run_label, ".pdf"))
+```
+
+(ref:caption-area-by-lc) Area in each land cover class at each site through time. Land cover classes are cropland, grassland, woody vegetation, non-vegetation, and abandoned (for at least 5 years).
+
+```{r area-by-lc, fig.cap = '(ref:caption-area-by-lc)'}
+knitr::include_graphics(path = paste0(p_plots, run_label, "/area_by_lc_grid", run_label, ".pdf"))
+```
+
+(ref:caption-turnover-grid) Annual turnover of abandoned croplands at each site, showing the annual gain (dark green) and annual loss (i.e. recultivation, light green) and net change (black line) of abandoned croplands.
+
+```{r turnover-grid, fig.cap = '(ref:caption-turnover-grid)'}
+knitr::include_graphics(path = paste0(p_plots, run_label, "/turnover_grid", run_label, ".pdf"))
+```
+
+Land-cover outcomes are shown in Figure \@ref(fig:abn-prop-lc).
+
+(ref:caption-abn-prop-lc) Proportion of abandoned cropland in each land cover class as of 2017.
+
+```{r abn-prop-lc, fig.cap = '(ref:caption-abn-prop-lc)', echo=FALSE}
+knitr::include_graphics(path = paste0(p_plots, run_label, "/abn_prop_lc_2017", run_label, ".pdf"))
+```
+
+## Limited abandonment at Mato Grosso {#mato-grosso}
+
+Mato Grosso was the only site that did not experience significant amounts of cropland abandonment during our time series; unsurprising given the recent history of agriculturally-drive land-use change over the last few decades.
+As a result, we interpret the trends we see in Mato Grosso regarding abandonment persistence and decay with caution.  
+<!-- (Previously in Main Text Results) -->
+Mato Grosso also showed relatively more durable abandonment, requiring `r decay_stats$mg_0.5` years to decline by half and `r decay_stats$mg_0` years for complete turnover. 
+However, because Mato Grosso showed large amounts of new cultivation over the source of our time series and relatively little abandonment (`r area_abn_stats$mg` ha, or `r area_abn_stats$mg_abn_as_percent`% of total site area, as of 2017), these results should be interpreted with care.
+
+## Biomes
+
+Some ecosystems and biomes seem to recover more quickly and successfully than others, namely in relatively higher latitudes, relatively colder climates, and in relatively more humid biomes [@Prach2018].
+Our sites cover a range of biomes, including Temperate Broadleaf and Mixed Forests (Vitebsk Belarus/Smolensk, Russia; Bosnia & Herzegovina; Wisconsin, USA), Temperate Grasslands, Savannas, and Shrublands (Nebraska/Wyoming, USA; Orenburg, Russia/Oral, Kazakhstan; Volgograd, Russia), and Tropical Grassland (Goiás and Mato Grosso, Brazil), Tropical Moist Broadleaf Forests (Chongqing, China; Mato Grosso, Brazil), Montane Grassland and Shrublands (Shaanxi/Shanxi, China), and Deserts & Xeric Shrublands (Iraq) (Figure \@ref(fig:site-biomes)).
+Land cover outcomes for abandoned croplands showed wide variation across sites, with most abandonment in Wisconsin being classified as forest by 2017 (`r lc_stats$forest_max`% forest, `r lc_stats$forest_max_grassland`% grassland), but remaining mostly in grassland elsewhere (Figure \@ref(fig:abn-prop-lc)).
+This limited woody vegetation regrowth may be a product of the biome or simply insufficient time for woody biomass to develop, and land cover alone cannot confidently serve as a proxy for ecosystem recovery.
+
+(ref:caption-site-biomes) Site biomes, using biome classifications from The Nature Conservancy's Terrestrial Ecoregions of The World (TEOW) database, derived from @Olson2001 and @Olson2002.
+
+```{r site-biomes, fig.cap = '(ref:caption-site-biomes)', echo=FALSE}
+# just plain site locations
+knitr::include_graphics(path = paste0(p_plots, "biomes_by_site.pdf"))
+# plot(cars)
+```
+
+
+## The effect of varying abandonment definitions {#abn-thresholds}
+
+- Abandonment threshold, including a higher threshold (something like 6 or 10 years), along with how thresholds change total pixels/area.
+
+
+```{r, include = FALSE}
+
+# mean_length_df %>% filter(length_type == "all") %>% arrange(site)
+
+overall_means <- mean_length_df %>%
+  group_by(abn_threshold, length_type) %>%
+  summarise(overall_mean = mean(mean_duration, na.rm = TRUE)) %>% ungroup()
+
+
+threshold_stats <- list(
+  one = overall_means %>% filter(abn_threshold == 1, length_type == "all") %>% .$overall_mean %>% round(digits = 0),
+  three = overall_means %>% filter(abn_threshold == 3, length_type == "all") %>% .$overall_mean %>% round(digits = 0),
+  five = overall_means %>% filter(abn_threshold == 5, length_type == "all") %>% .$overall_mean %>% round(digits = 0),
+  ten = overall_means %>% filter(abn_threshold == 10, length_type == "all") %>% .$overall_mean %>% round(digits = 0)
+)
+```
+
+A relatively short-term definition of abandonment might result in an overestimation of recultivation, because short term abandonment may be better understood as cyclical fallow periods, not true abandonment. 
+Because fallow periods may vary around the world, we tested multiple abandonment thresholds, and mean abandonment duration across our sites increased accordingly, ranging between `r threshold_stats$one` (no threshold) and `r threshold_stats$ten` (10 years) years.
+The proportion of abandoned croplands that were recultivated by the end of the time series also responded to our abandonment threshold, but even at the longest abandonment definition (10 years), we still saw that between 10 and 30% of abandoned croplands were recultivated by the end of the time series.
+This indicates that the abandonment and recultivation we observe is not merely a function of our five year abandonment definition.
+
+(ref:caption-abn-thresholds-mean-duration) Mean abandonment lengths shown for various abandonment thresholds.
+
+```{r abn-thresholds-mean-duration, fig.cap = '(ref:caption-abn-thresholds-mean-duration)'}
+knitr::include_graphics(path = paste0(p_output, "plots/", run_label, "/mean_lengths_by_threshold", run_label, ".png"))
+# plot(cars)
+
+```
+
+Like the mean duration of abandonment, the amount of recultivation depends on our definition of abandonment (Figure \@ref(fig:recult-by-threshold)). We find that the mean area of abandoned croplands that get recultivated by the end of the time series declines from `r recult_stats$mean_thr_5`% with a 5 year threshold to `r recult_stats$mean_thr_7`% with a 7 year threshold, and `r recult_stats$mean_thr_10`% with a 10 year threshold. 
+
+(ref:caption-recult-by-threshold) Recultivation rates shown for various abandonment thresholds.
+
+```{r recult-by-threshold, fig.cap = '(ref:caption-recult-by-threshold)'}
+knitr::include_graphics(path = paste0(p_output, "plots/", run_label, "/recultivation_rates_by_threshold", run_label, ".pdf"))
+# plot(cars)
+
+```
+
+
+## Comparing our annual identification of abandonment with a two-year method {#twoyr-vs-annual}
+
+In order to understand the potential for an over- or under-estimation of abandonment when using a shorter time-series or two snapshots in time, we used our land cover maps to simply identify those areas identified as cropland in 1987 that are not cropland in 2017. 
+
+\newpage
+
+```{r twoyr-diff-table, echo = FALSE}
+abn_2yr_overestimation_char %>% 
+  select(description, area_ha_cc, area_2yr, percent_diff, jaccard) %>%
+
+  knitr::kable(., 
+             col.names = c("Site", "Area (annual, as of 2017)", "Area (2017-1987)", 
+                           "Percent Difference", "Jaccard Similarity"),
+             align = "r", format = "simple",
+             caption = "Cropland abandonment (in Mha) as of 2017 as identified using a) our annual time series and a five-year abandonment definition and b) the difference between only two years."
+             )
+
+```
+
+\newpage
+
+## Maps of abandonment duration as of 2017 and maximum duration during time series
+
+(ref:caption-map-abn-age-max) Maximum duration of cropland abandonment (in years) at each pixel between 1987-2017.
+
+```{r map-abn-age-max, fig.cap = '(ref:caption-map-abn-age-max)'}
+knitr::include_graphics(path = paste0(p_plots, run_label, "/maps/max_age_maps.pdf"))
+# plot(cars)
+```
+
+<!-- We can also include maps for each site of both a) abandonment *age in 2017* (e.g. Figure \@ref(fig:map-abn-age-2017-s)) and b) *max age* (e.g. Figure \@ref(fig:map-abn-age-max-s)) for all sites. -->
+
+<!-- See function `cc_age_levelplot_hist()` to produce these side by side, with site name in the title -->
+
+<!-- (ref:caption-map-abn-age-2017-s) Duration of abandonment (in years) as of 2017, `r site_df$description[9]`. -->
+
+<!-- ```{r map-abn-age-2017-s, fig.cap = '(ref:caption-map-abn-age-2017-s)'} -->
+<!-- knitr::include_graphics(path = paste0(p_plots, run_label, "/spatial_reg/age_duration_2017_w_dist", run_label, site_df$label[9], ".pdf")) -->
+
+<!-- # plot(cars) -->
+<!-- ``` -->
+
+<!-- (ref:caption-map-abn-age-max-s) Maximum duration of abandonment (in years), `r site_df$description[9]`. -->
+
+<!-- ```{r map-abn-age-max-s, fig.cap = '(ref:caption-map-abn-age-max-s)'} -->
+<!-- knitr::include_graphics(path = paste0(p_plots, run_label, "/spatial_reg/age_duration_max_w_dist", run_label, site_df$label[9], ".pdf")) -->
+
+<!-- # plot(cars) -->
+<!-- ``` -->
+
+
+<!-- ### Summary composite figures -->
+
+<!-- (ref:caption-abn-panel-s) Abandonment at a single site (Shaanxi/Shanxi, China), showing a) accumulation of abandoned land by age class, b) decay of abandoned land by year abandoned, c) the area in each land cover class through time (including both land that has been abandoned for five or more years, as well as any land abandoned for 1 or more years, therefore including short-term fallows), and d) the annual turnover of abandoned land through time. Corresponding results for our other sites are shown in Figures \@ref(fig:panel-b)-\@ref(fig:panel-w). -->
+
+<!-- ```{r abn-panel-s, fig.cap = '(ref:caption-abn-panel-s)', echo=FALSE} -->
+<!-- # note: this the results panel figure of just Shaanxi province, as an example I had previously intended to have in the main text. -->
+<!-- knitr::include_graphics(path = paste0(p_plots, run_label, "/ms_panel", run_label, "_s.png")) -->
+<!-- ``` -->
+
+\newpage
+
+# Extended Methods {#methods-si}
+
+As previously noted, we build on annual land cover maps for 1987-2017 developed by @Yin2020.
+The following supplement outlines our methodological steps in more specific detail than was possible in the main text.
+We processed and analyzed our abandonment map data in RStudio version `r rstudioapi::versionInfo()$version` [-@RStudio], using `r R.Version()$version.string`, relying heavily on the `raster` [@R-raster], `terra` [@R-terra], `data.table` [@R-data.table], and `tidyverse` [@R-tidyverse] packages.
+
+## Classifying abandonment
+Pixels that remained in cropland or non-cropland classes throughout the entire time series were excluded, as were periods of non-cropland that began in the first year of the time series, even if that pixel was later classified as cropland and subsequently abandoned (leaving only periods of abandonment that we could verify had followed agricultural activity during our time series).
+
+As noted, pixels that transitioned from cropland to the non-vegetation class were not considered "abandoned," and therefore we excluded all non-vegetation pixels from our analysis.
+These pixels represent a very small portion of our dataset, and non-vegetated land remained about constant or declined over time at most sites.
+See Figure \@ref(fig:area-by-lc).
+
+Restricting the mean abandonment duration to account for only those pixels that are both abandoned and recultivated within the time series would exclude a large portion of our data, and may underestimate the eventual lengths of many periods of abandonment that begin close to the end of our time series.
+(Note: assessing temporal changes in mean length abandoned would involve looking at the mean length of time abandoned at each year of Figure \@ref(fig:panel-s)a).
+
+All area calculations were performed using the `raster::area()` function.
+
+
+## Temporal filters {#temporal-filters}
+
+In order to address potential classification errors in a single year, we implemented a series of temporal filters intended to smooth the trajectories in our time series by looking for short-term land-cover changes that are temporally unlikely.
+We applied five-year and eight-year moving window filters designed to search for short periods of land cover classifications that do not match those immediately before and after, and subsequently update them to match the surrounding classifications.
+Specifically, the five-year filter searched for one year periods that did not match the two years immediately before and after (i.e. patterns of 11011, where 1 represents non-cropland and 0 represents cropland), and our eight-year filter searched for two year periods that did not match the three years before and after (i.e. 11100111). 
+The central classifications were then updated to match the classes on either end.
+We also considered applying modified versions of these moving window filters to the start of the time series, but decided against it, for the sake of consistency and parsimony.
+
+```{r unused-edge-filter-text, include = FALSE, eval = FALSE}
+# To be more conservative about the identification of abandonment, we also applied modified versions of these five- and eight-year moving window filters to the start of the times series. 
+# By conservatively assuming the years immediately prior to our time series to be classified as non-cropland, we are able to use our moving window filters to exclude additional cases where a one or two year period of cropland may not represent stable cultivation (e.g. reading from left to right, starting in 1987: 011, 1011, 00111, 100111, and 1100111). 
+# Non-cropland periods that follow potentially misclassified cropland would more accurately reflect a continuation of existing non-cropland, rather than cropland abandonment.
+# 
+# This has the effect of applying a three-year threshold on the number of consecutive years of cropland required at the start of the time series in order to confidently signify agricultural activity that could be subsequently abandoned.^[Where 1 represents non-cropland and 0 represents cropland:  
+# 87__88__89__90__91__92__93__94  
+# 0___1___1___1___1___1___1___1 - caught by edge filter (011)  
+# 0___0___1___1___1___1___1___1 - caught by edge filter (00111)  
+# 0___0___0___1___1___1___1___1 - Age count starts in '90, classified as abandoned in '94
+# ]
+# 
+# Collectively, these filters mean that the first year a piece of land could be abandoned is 1990, as long as it remains consecutively uncultivated at least through 1994.
+# These edge patterns were uncommon, however, with the edge filtering at the beginning of the time series affecting fewer than 7% of pixels at each site. *^[Should this be relative to all pixels, or those that experience some abandonment?]* See Figure 
+# 
+# No special actions were taken on the end of the time series, with the possible effect of including erroneous recultivation at the end of the time series, making our estimates of the length of time abandoned conservative (i.e. shorter). 
+# We decided to only address the edge cases at the start of the time series because we prefer to be conservative by excluding lands that may be consistently noncrop lands from our estimate of abandonment.
+# In contrast, edge cases at the end of the time series only affect our estimate of the length of time abandoned, because one or two year periods of cropland, if misclassified, may erroneously mark recultivation in the final years of the time series.
+# However, we decline to address any potential misclassifications at the end of the time series in order to take the more conservative approach with regards to recultivation.
+
+knitr::include_graphics(path = paste0(p_plots, run_label, "/temp_filter_counts_plot_full.png"))
+
+# plot(cars)
+```
+
+## Modeling abandonment decay {#decay-models-si}
+
+<!-- From methods in main text -->
+The mean abandonment duration tells us about the general persistence of abandoned croplands throughout the time series. 
+However, this value is limited by the time series length, and does not account for when the majority of the abandonment took place at a site, nor whether a period of abandonment ends as a results of recultivation or the end of the time series.
+As a result, the mean abandonment duration does not tell us how long to expect a piece of land to remain abandoned, nor how abandonment length varies through time.
+To address this constraint, we track the trajectory of each pixel through time following its initial abandonment, grouping pixels abandoned in a given year into "cohorts."
+
+Decay rates provide information about how long it takes for land to be recultivated, complementing the mean abandonment length and providing a more nuanced story about how long to expect abandonment to last. 
+
+For example, a site may have a relatively short mean length of abandonment (e.g. Shaanxi/Shanxi [China], with a mean abandonment length of 13 years; see Figure \@ref(fig:maps-abn-duration)), but also have a gradual decay rate, indicating that land should stay abandoned for a relatively longer amount of time. 
+This may result from more abandonment occurring towards the end of the time series; this land simply does not have as long to age and shows up as younger in our data, regardless of how long it may last.
+
+Looking at abandonment decay rates for each cohort individually allows us to produce a decay rate for each site in general in a way that accounts for when during the time series a piece of land was abandoned (i.e. giving us a sense of how long to expect a given piece of land to remain abandoned, even into the future).
+
+(Note: the following three sentences may be redundant.)
+For example, imagine two fields, one abandoned in 1990 and the other abandoned in 2010.
+They may both end up remaining abandoned for 15 years, but the second field will show up as having an age of 7 at the end of our time series (which ends in 2017), regardless of how long it lasts.
+One way we could deal with this is to only look at land that was affirmatively recultivated; another is to look at decay rates for each cohort, over time.
+
+### Model selection and diagnostics
+
+We then ran linear models (using the `stats::lm()` function in R's core statistics package), predicting the proportion of abandoned cropland in each cohort remaining abandoned as a function of time since initial abandonment.
+We tested a range of  model specifications, including linear and log transformations of both *proportion* and *time*.
+Importantly, we also include *cohort* fixed effects, allowing for the estimation of unique coefficients for each cohort of abandoned land.
+Due to a linear relationship between model residuals and time when including only one term for *time*, we also tested models containing multiple *time* predictor terms, including both log and linear terms.
+
+We chose a model with the following specifications shown in Equation \@ref(eq:mod-spec-SI).
+For cohorts of abandonment initially abandoned in years $y = 1988 ... 2013$, we estimate the proportion $p$ of each cohort $y$ remaining abandoned as a function of time $t$ (i.e. based on the number of years after initial abandonment).
+
+\begin{equation}
+p_{y} = 1 + \beta_{1,y} log(t + 1) + \beta_{2,y} t (\#eq:mod-spec-SI)
+\end{equation}
+
+Where $\beta_{1,y}$ represents the regression coefficient on the log term of time $t$ for cohort $y$, and $\beta_{2,y}$ represents the regression coefficient on the linear term of time $t$ for cohort $y$.
+We allow for site and cohort level fixed effects, fitting unique coefficients for each cohort at each site.
+
+This corresponds to a `stats::lm()` call of `lm(formula = I(proportion - 1)  ~ 0 + log(time + 1):cohort:site + I(time):cohort:site)`
+
+Model selection was done based on Akaike Information Criterion (AIC) values (Figure \@ref(fig:AIC)).
+We checked linear model assumptions through visual inspection of both residuals vs. fitted plots (Figure \@ref(fig:diag-resid-fitted)) and Q-Q plots (Figure \@ref(fig:diag-qq)).
+
+<!-- See also Figure \@ref(fig:diag-combo) to see diagnostic plots for the full model, including all sites. -->
+
+(ref:caption-AIC) Akaike Information Criterion (AIC) values for various model specifications for each site. More negative AIC values indicate a better model fit.
+
+```{r AIC, fig.cap = '(ref:caption-AIC)', fig.width = 7.5}
+knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "mod_AIC_plot", run_label, ".pdf"))
+# plot(cars)
+
+```
+
+(ref:caption-diag-resid-fitted) Residuals vs. fitted diagnostic plots for each site.
+
+```{r diag-resid-fitted, fig.cap = '(ref:caption-diag-resid-fitted)'}
+knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "l3_cohort_diag_resid_v_fitted", run_label, ".png"))
+# plot(cars)
+```
+
+(ref:caption-diag-qq) QQ plots for each site, calculated using the `car` package (@R-car).
+
+```{r diag-qq, fig.cap = '(ref:caption-diag-qq)'}
+knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "l3_cohort_diag_qq_subset", run_label, ".png"))
+# plot(cars)
+
+```
+
+<!-- <!-- Possibly remove --> -->
+<!-- (ref:caption-AIC-mega) Akaike Information Criterion (AIC) values for various model specifications, calculated for models including all sites together. More negative AIC values indicate a better model fit. -->
+
+<!-- ```{r AIC-mega, fig.cap = '(ref:caption-AIC-mega)', fig.width = 7.5} -->
+<!-- knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "mod_AIC_mega_plot", run_label, ".png")) -->
+<!-- ``` -->
+
+<!-- <!-- Possibly remove --> -->
+<!-- (ref:caption-diag-combo) Diagnostic plots for all sites together. -->
+
+<!-- ```{r diag-combo, fig.cap = '(ref:caption-diag-combo)'} -->
+<!-- knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "l3_cohort_diag_combo", run_label, ".png")) -->
+<!-- ``` -->
+
+### Decay model results
+
+(ref:caption-decay-model-grid) Decay model results for all sites, showing raw data (green points) and modeled abandonment trajectories for individual years (green lines). The mean decay trajectory for the site is calculated as the mean of the coefficients for each cohort (solid blue line). Larger model results are shown in Figures \@ref(fig:decay-model-indiv-site-b)-\@ref(fig:decay-model-indiv-site-w).
+
+```{r decay-model-grid, fig.cap = '(ref:caption-decay-model-grid)', echo = FALSE}
+knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "decay_mod_grid", run_label, ".pdf"))
+# plot(cars)
+
+
+```
+
+Model results:
+
+- Decay rate rate of change for each site, in four quadrants, with linear regression coefficients (Figure \@ref(fig:decay-rate-of-change))
+- Projected proportions remaining after set periods of time (10 years, 20 years, 30 years, etc.)
+- Decay curves with model fitted values for each site. (Figure \@ref(fig:decay-rate-of-change), and individual models )
+- an alternative representation of the mean decay rate (Figure \@ref(fig:decay-time-to-range))
+
+
+(ref:caption-decay-mod-coef) Mean decay model coefficients across cohorts at each site. The left panel shows the mean coefficient on the log(time) terms and the right shows the site mean coefficient on the linear time terms. These mean coefficients are used to plot the mean decay trajectories shown in Figure \@ref(fig:decay-curves-by-site).
+
+```{r decay-mod-coef, fig.cap = '(ref:caption-decay-mod-coef)', echo = FALSE}
+knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "l3_cohort_coefs_by_site", run_label, ".png"))
+# plot(cars)
+
+```
+
+
+\newpage
+
+## Change in recultivation rates over time {#section-methods-rate-of-change}
+
+We examined the rate of change of recultivation rates by calculating the time required for 50% of each cohort to be recultivated and running a simple linear regression on these values as a function of time, using the `stats::lm()` function in R's core statistics package. 
+We estimate the time required for half (50%) of a given cohort of abandoned cropland to be recultivated, $t_{half,s}$, as a function of the year of initial abandonment ($yearabn_{s}$), at each site $s$.
+This model is shown in Equation \@ref(eq:rate-of-change-lm).
+
+\begin{equation}
+t_{half,s} = \beta_{0,s} + \beta_{1,s} yearabn_{s} (\#eq:rate-of-change-lm)
+\end{equation}
+
+Where $\beta_{1,s}$ represents the regression slope on the year abandoned for site $s$ ($yearabn_{s}$), and $\beta_{0,s}$ represents the intercept.
+This corresponds to a `lm()` call of `lm(formula = t_half ~ year_abandoned)` run for each site individually.
+Results are shown in Figure \@ref(fig:decay-rate-of-change).
+
+We confirmed that model assumptions were met through visual inspection of residuals vs. fitted plots (Figure \@ref(fig:rate-of-change-diag-resid-fitted)) and Q-Q plots (Figure \@ref(fig:rate-of-change-diag-qq)).
+
+(ref:caption-decay-rate-of-change) The rate of change of decay rates (measured by the time required for 50% of each cohort to be recultivated) at each site over the course of the time series. Individual site trends are shown in the grid at left. Solid lines show simple linear regressions, the slopes of which are shown at right. Gray bands around the linear trends at left and the error bars on slope estimates at the right both represent 95% confidence intervals.
+
+```{r decay-rate-of-change, fig.cap = '(ref:caption-decay-rate-of-change)', echo=FALSE}
+knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/rate_of_change_recultivation_speed_combo", "_indiv", run_label, ".pdf"))
+
+# plot(cars)
+
+
+# if I go with the linear combination:
+# knitr::include_graphics(path = paste0(p_plots, run_label,
+#                                       "/decay/rate_of_change_recultivation_speed_combo", 
+#                                       "_lincom", run_label, ".pdf"))
+
+
+# old confidence intervals
+# knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/rate_of_change_recultivation_speed_combo",
+#                                       "_old", run_label, ".pdf"))
+
+
+# old version, with quadrants, and old CIs
+# knitr::include_graphics(path = paste0(p_plots, run_label, "/presentation/rate_of_change_recultivation_speed", run_label, ".pdf"))
+# knitr::include_graphics(path = paste0(p_plots, run_label, "/presentation/rate_of_change_recultivation_speed_old", run_label, ".pdf"))
+```
+
+(ref:caption-rate-of-change-diag-resid-fitted) Residuals vs. fitted diagnostic plots for each site, for simple `lm` call corresponding to Eq. \@ref(eq:rate-of-change-lm).
+
+```{r rate-of-change-diag-resid-fitted, fig.cap = '(ref:caption-rate-of-change-diag-resid-fitted)'}
+knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "rate_of_change_l3_diag_ind_resid_v_fitted", run_label, ".png"))
+# plot(cars)
+
+```
+
+(ref:caption-rate-of-change-diag-qq) QQ plots for each site, calculated using the `car` package (@R-car).
+
+```{r rate-of-change-diag-qq, fig.cap = '(ref:caption-rate-of-change-diag-qq)'}
+knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "rate_of_change_l3_diag_ind_qq_car", run_label, ".png"))
+# plot(cars)
+
+```
+
+(ref:caption-decay-time-to-range) An alternative representation of the mean decay rate for each site (also shown in Figure \@ref(fig:decay-curves-by-site)). The color of each dot corresponds to the proportion remaining after a given amount of time.
+
+```{r decay-time-to-range, fig.cap = '(ref:caption-decay-time-to-range)', echo=FALSE}
+# (ref:caption-decay-time-to-range) Sites included in this study, from @Yin2020.
+# cite inline using the following  \@ref(fig:decay-time-to-range)
+
+# switch between 1-0 and 1-0.5 by adding or removing all
+show_all <- TRUE
+
+knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/time_to_range", ifelse(show_all, "_all", ""), "_l3", run_label, ".pdf"))
+
+# plot(cars)
+
+```
+
+
+\newpage
+
+## Extrapolating abandonment duration {#section-extrapolation-si}
+
+(ref:caption-extrapolation-combo) The results of our simple extrapolation, including a) the mean age of abandonment, and b) the total area abandoned into the future. Colors corresponding to each site are consistent across the three panels. These extrapolation assume recultivation based on the mean decay trend for each site Figure \@ref(fig:decay-curves-by-site) and annual new abandonment based on the mean annual gain in abandonment shown in Figure \@ref(fig:turnover-grid) (dark green bars).
+
+```{r extrapolation-combo, fig.cap = '(ref:caption-extrapolation-combo)', echo=FALSE}
+knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "extrapolation1_SI", run_label, ".pdf"))
+
+# plot(cars)
+
+```
+
+(ref:caption-extrapolation-area-by-age) Extrapolating area by age bin, assuming a 1) each site follows the mean recultivation ("decay") rate, and 2) a constant area abandoned each year (based on the mean annual area abandoned at each site).
+
+```{r extrapolation-area-by-age, fig.cap = '(ref:caption-extrapolation-area-by-age)', echo=FALSE}
+knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "extrapolation1_ages", run_label, ".pdf"))
+# plot(cars)
+
+```
+
+### Alternative assumptions about annual additional abandonment
+
+As noted above, we make two simple assumptions in our extrapolation of abandonment and recultivation: specifically, that 1) recultivation rates remain the same (based on mean recultivation trends at each site, shown in Figure \@ref(fig:decay-curves-by-site), and that 2) a constant amount of cropland is newly abandoned each year, based on the mean annual gain in abandonment shown in Figure \@ref(fig:turnover-grid) (dark green bars).
+
+However, the second assumption, that a constant amount of cropland is newly abandoned indefinitely is almost certainly unrealistic.
+We also considered an alternative assumption, in which annual abandonment linearly declined to 0 between 2017 and 2050 (see Figures \@ref(fig:extrapolation2-combo) and \@ref(fig:extrapolation2-area-by-age)).
+While mean age of abandoned land increased through time after 2017 (and most dramatically after 2050), it remained below 37 years at all sites by 2050.
+Increases in mean abandonment duration were offset by recultivation, and total area abandoned declined quickly after 2020 at most sites.
+
+The mean abandonment duration increases as annual abandonment declines, as the total pool of abandoned land grows older and is gradually recultivated.
+
+
+(ref:caption-extrapolation2-combo) The results of our second extrapolation, including a) the mean age of abandonment, and b) the total area abandoned into the future. Colors corresponding to each site are consistent across the three panels. These extrapolation assume recultivation based on the mean decay trend for each site Figure \@ref(fig:decay-curves-by-site) and annual new abandonment based on the mean annual gain in abandonment shown in Figure \@ref(fig:turnover-grid) (dark green bars).
+
+```{r extrapolation2-combo, fig.cap = '(ref:caption-extrapolation2-combo)', echo=FALSE}
+knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "extrapolation2_SI", run_label, ".pdf"))
+
+# plot(cars)
+
+```
+
+(ref:caption-extrapolation2-area-by-age) Extrapolating area by age bin, assuming a 1) each site follows the mean recultivation ("decay") rate, and 2) a constant area abandoned each year until 2017 (based on the mean annual area abandoned at each site), followed by a linearly declining area abandoned each year until reaching 0 in 2050.
+
+```{r extrapolation2-area-by-age, fig.cap = '(ref:caption-extrapolation2-area-by-age)', echo=FALSE}
+
+# knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "extrapolation2_ages", run_label, ".pdf"))
+knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "extrapolation2_ages_const", run_label, ".pdf"))
+# plot(cars)
+
+```
+
+(ref:caption-mean-duration-2050) Comparing the mean duration of abandonment at our 11 sites observed between 1987 and 2017 with the extrapolated mean duration as of 2050 for our two extrapolations.
+
+```{r mean-duration-2050, fig.cap = '(ref:caption-mean-duration-2050)', echo=FALSE}
+
+# assumption 1 - constant initial area abandoned
+
+mean_age_in_2050 <- mean_length_df %>% filter(abn_threshold == 5, length_type == "all") %>%
+  select(site, mean_age_obs = mean_duration) %>%
+  left_join(., extrapolate_df_l3 %>% filter(year == 2050) %>% select(site, mean_age_extrap1 = mean_age), by = "site") %>%
+  left_join(., extrapolate_df_l3_a2 %>% filter(year == 2050) %>% select(site, mean_age_extrap2 = mean_age), by = "site") %>%
+  arrange(mean_age_obs)
+   
+mean_age_in_2050 %>%
+  pivot_longer(cols = c(2:4), names_to = "variable") %>%
+  ggplot(data = ., mapping = aes(x = fct_reorder(site, value), y = value, fill = variable)) + 
+  labs(x = "Site", y = "Mean abandonment duration (years)") +
+  geom_col(position = position_dodge()) + coord_flip() + 
+  scale_fill_discrete(name = "Mean duration type: ", 
+                      labels = c(mean_age_obs = "Observed (1987-2017)", 
+                                 mean_age_extrap1 = "Extrapolation 1 (2050)",
+                                 mean_age_extrap2 = "Extrapolation 2 (2050)")) +
+  scale_x_discrete(labels = c("belarus" = "Vitebsk, Belarus /\n Smolensk, Russia",
+                              "bosnia_herzegovina" = "Bosnia & Herzegovina",
+                              "chongqing" = "Chongqing, China",
+                              "goias" = "Goiás, Brazil",
+                              "iraq" = "Iraq",
+                              "mato_grosso" = "Mato Grosso, Brazil",
+                              "nebraska" = "Nebraska/Wyoming, USA",
+                              "orenburg" = "Orenburg, Russia /\n Uralsk, Kazakhstan",
+                              "shaanxi" = "Shaanxi/Shanxi, China",
+                              "volgograd" = "Volgograd, Russia",
+                              "wisconsin" = "Wisconsin, USA")) +
+  theme_classic()
+
+```
+
+<!-- #### (*REMOVE*) Alternative mean decay rates -->
+
+<!-- Currently, to get the mean decay rate for each site, I simply average each coefficient (for the log and the linear terms) across all cohorts, and then use these two mean values as the coefficients for the mean site trend (the solid blue lines in Figure \@ref(fig:decay-model-grid)). -->
+<!-- I think this makes sense, because it treats each cohort of abandonment equally (rather than giving more weight to cohorts with more observations, i.e. older cohorts).  -->
+<!-- Having cohort fixed effects allows for a unique decay rate for each year of abandonment, which makes the models fit very well.  -->
+<!-- But, the fits for the recent cohorts with few observations are quite straight.  -->
+
+<!-- Alternatively, however, I can also just run a single regression without the cohort fixed effects, which produces a single estimate for the log and linear coefficients, weighting all points equally (therefore giving more weight to older cohorts with more points; the dashed blue lines in Figure \@ref(fig:decay-model-grid)). -->
+
+<!-- I can then conduct the extrapolation based on the decay rates derived from that single linear regression for each site (in other words, across all cohorts of abandonment). -->
+<!-- These extrapolation results are shown below in Figures \@ref(fig:extrapolation-combo-no-fe) and \@ref(fig:extrapolation-area-by-age-no-fe). -->
+
+<!-- However, as you can see, some of the sites have a decay curve that clearly doesn't make sense when extrapolated out (eventually curving upwards over time).  -->
+<!-- As a result, I think we should stick with our original method of calculating the mean trend at each site (averaging across the coefficients for each cohort), but I just wanted to call it to your attention. -->
+
+<!-- (ref:caption-extrapolation-combo-no-fe) The results of our simple extrapolation, but assuming a decay trend for each site calculated without cohort fixed effects (a), resulting in b) the mean age of abandonment, and c) the total area abandoned into the future. Colors corresponding to each site are consistent across the three panels. -->
+
+<!-- ```{r extrapolation-combo-no-fe, fig.cap = '(ref:caption-extrapolation-combo-no-fe)', echo=FALSE} -->
+<!-- knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/",  -->
+<!--                                      "extrapolation_combo_no_fe_tall", run_label, ".pdf")) -->
+<!-- ``` -->
+
+<!-- (ref:caption-extrapolation-area-abn-no-fe) Extrapolating total area abandoned, using site decay rates that do not allow for abandonment cohort fixed effects. -->
+
+<!-- ```{r extrapolation-area-abn-no-fe, fig.cap = '(ref:caption-extrapolation-area-abn-no-fe)', include = FALSE, echo=FALSE} -->
+<!-- knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/",  -->
+<!--                                       "extrapolate_area_abn_no_fe", run_label, ".png")) -->
+<!-- ``` -->
+
+<!-- (ref:caption-extrapolation-mean-age-no-fe) Extrapolating area by age bin, no fixed effects. -->
+
+<!-- ```{r extrapolation-mean-age-no-fe, fig.cap = '(ref:caption-extrapolation-mean-age-no-fe)', include = FALSE, echo=FALSE} -->
+<!-- knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/",  -->
+<!--                                       "extrapolate_mean_age_no_fe", run_label, ".png")) -->
+<!-- ``` -->
+
+<!-- (ref:caption-extrapolation-area-by-age-no-fe) Extrapolating area by age bin, assuming site decay rates derived from linear models that do not use cohort fixed effects (treating each observation equally). -->
+
+<!-- ```{r extrapolation-area-by-age-no-fe, fig.cap = '(ref:caption-extrapolation-area-by-age-no-fe)', echo=FALSE} -->
+<!-- knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/",  -->
+<!--                                       "extrapolate_age_by_age_bin_no_fe", run_label, ".pdf")) -->
+<!-- ``` -->
+
+\newpage
+
+# Expanded Site-specific Results
+
+## Composite Results Figures
+
+(ref:caption-panel-b) Abandonment patterns for `r site_df$description[1]`, showing a) accumulation of abandoned land by age class, b) decay of abandoned land by year abandoned, c) the area in each land cover class through time (including both land that has been abandoned for five or more years, as well as any land abandoned for 1 or more years, therefore including short-term fallows), d) the annual turnover of abandoned land through time, and e) the distribution of abandonment duration for all periods of cropland abandonment (top) and the maximum duration of abandonment at each pixel (bottom).
+(ref:caption-panel-bh) Abandonment patterns for `r site_df$description[2]`, following Figure \@ref(fig:panel-b).
+(ref:caption-panel-c) Abandonment patterns for `r site_df$description[3]`, following Figure \@ref(fig:panel-b).
+(ref:caption-panel-g) Abandonment patterns for `r site_df$description[4]`, following Figure \@ref(fig:panel-b).
+(ref:caption-panel-i) Abandonment patterns for `r site_df$description[5]`, following Figure \@ref(fig:panel-b).
+(ref:caption-panel-mg) Abandonment patterns for `r site_df$description[6]`, following Figure \@ref(fig:panel-b).
+(ref:caption-panel-n) Abandonment patterns for `r site_df$description[7]`, following Figure \@ref(fig:panel-b).
+(ref:caption-panel-o) Abandonment patterns for `r site_df$description[8]`, following Figure \@ref(fig:panel-b).
+(ref:caption-panel-s) Abandonment patterns for `r site_df$description[9]`, following Figure \@ref(fig:panel-b).
+(ref:caption-panel-v) Abandonment patterns for `r site_df$description[10]`, following Figure \@ref(fig:panel-b).
+(ref:caption-panel-w) Abandonment patterns for `r site_df$description[11]`, following Figure \@ref(fig:panel-b).
+
+```{r panel-b, fig.cap = '(ref:caption-panel-b)', echo=FALSE}
+# list.files(path = p_plots)
+
+si_panel_figs <- list.files(paste0(p_plots, run_label), pattern = "si_panel", full.names = TRUE)
+# grep("_b.png", si_panel_figs, value = TRUE)
+
+knitr::include_graphics(path = si_panel_figs[1])
+# plot(cars)
+
+```
+
+```{r panel-bh, fig.cap = '(ref:caption-panel-bh)', echo=FALSE}
+knitr::include_graphics(path = si_panel_figs[2])
+# plot(cars)
+
+```
+
+```{r panel-c, fig.cap = '(ref:caption-panel-c)', echo=FALSE}
+knitr::include_graphics(path = si_panel_figs[3])
+# plot(cars)
+
+```
+
+```{r panel-g, fig.cap = '(ref:caption-panel-g)', echo=FALSE}
+knitr::include_graphics(path = si_panel_figs[4])
+# plot(cars)
+
+```
+
+```{r panel-i, fig.cap = '(ref:caption-panel-i)', echo=FALSE}
+knitr::include_graphics(path = si_panel_figs[5])
+# plot(cars)
+
+```
+
+```{r panel-mg, fig.cap = '(ref:caption-panel-mg)', echo=FALSE}
+knitr::include_graphics(path = si_panel_figs[6])
+# plot(cars)
+
+```
+
+```{r panel-n, fig.cap = '(ref:caption-panel-n)', echo=FALSE}
+knitr::include_graphics(path = si_panel_figs[7])
+# plot(cars)
+
+```
+
+```{r panel-o, fig.cap = '(ref:caption-panel-o)', echo=FALSE}
+knitr::include_graphics(path = si_panel_figs[8])
+# plot(cars)
+
+```
+
+```{r panel-s, fig.cap = '(ref:caption-panel-s)', echo=FALSE}
+knitr::include_graphics(path = si_panel_figs[9])
+# plot(cars)
+
+```
+
+```{r panel-v, fig.cap = '(ref:caption-panel-v)', echo=FALSE}
+knitr::include_graphics(path = si_panel_figs[10])
+# plot(cars)
+
+```
+
+```{r panel-w, fig.cap = '(ref:caption-panel-w)', echo=FALSE}
+knitr::include_graphics(path = si_panel_figs[11])
+# plot(cars)
+
+```
+
+\newpage
+
+## Individual Decay Model Results
+
+(ref:caption-decay-model-indiv-site-b) Decay model results for Vitebsk, Belarus and Smolensk, Russia, showing raw data (green points), modeled abandonment trajectories for individual years (green lines), and the mean decay trajectory for the site as a whole (blue lines). The mean decay trajectory is calculated in two ways: 1) from the mean of the coefficients for each cohort (solid blue line), and 2) as a single linear regression without cohort-level fixed effects (F.E.; dashed blue line).
+
+(ref:caption-decay-model-indiv-site-bh) Decay model results for Bosnia & Herzegovina, following Figure \@ref(fig:decay-model-indiv-site-b).
+
+(ref:caption-decay-model-indiv-site-c) Decay model results for Chongqing (China), following Figure \@ref(fig:decay-model-indiv-site-b).
+
+(ref:caption-decay-model-indiv-site-g) Decay model results for Goiás, Brazil, following Figure \@ref(fig:decay-model-indiv-site-b).
+
+(ref:caption-decay-model-indiv-site-i) Decay model results for Iraq, following Figure \@ref(fig:decay-model-indiv-site-b).
+
+(ref:caption-decay-model-indiv-site-mg) Decay model results for Mato Grosso, Brazil, following Figure \@ref(fig:decay-model-indiv-site-b).
+
+(ref:caption-decay-model-indiv-site-n) Decay model results for Nebraska, USA, following Figure \@ref(fig:decay-model-indiv-site-b).
+
+(ref:caption-decay-model-indiv-site-o) Decay model results for Orenburg, Russia, following Figure \@ref(fig:decay-model-indiv-site-b).
+
+(ref:caption-decay-model-indiv-site-s) Decay model results for Shaanxi/Shanxi (China), following Figure \@ref(fig:decay-model-indiv-site-b).
+
+(ref:caption-decay-model-indiv-site-v) Decay model results for Volgograd, Russia, following Figure \@ref(fig:decay-model-indiv-site-b).
+
+(ref:caption-decay-model-indiv-site-w) Decay model results for Wisconsin, USA, following Figure \@ref(fig:decay-model-indiv-site-b).
+
+```{r decay-model-indiv-site-b, fig.cap = '(ref:caption-decay-model-indiv-site-b)', echo = FALSE}
+decay_model_figs <- list.files(paste0(p_plots, run_label, "/decay"), 
+                               pattern = paste0("^l3_cohort_plus", run_label), full.names = TRUE)
+# note - you can include just the mean trend (with FE) by removing the "_plus" in the file paths
+
+knitr::include_graphics(path = decay_model_figs[1])
+# plot(cars)
+```
+
+
+```{r decay-model-indiv-site-bh, fig.cap = '(ref:caption-decay-model-indiv-site-bh)', echo=FALSE}
+knitr::include_graphics(path = decay_model_figs[2])
+# plot(cars)
+
+```
+
+```{r decay-model-indiv-site-c, fig.cap = '(ref:caption-decay-model-indiv-site-c)', echo=FALSE}
+knitr::include_graphics(path = decay_model_figs[3])
+# plot(cars)
+
+```
+
+```{r decay-model-indiv-site-g, fig.cap = '(ref:caption-decay-model-indiv-site-g)', echo=FALSE}
+knitr::include_graphics(path = decay_model_figs[4])
+# plot(cars)
+
+```
+
+```{r decay-model-indiv-site-i, fig.cap = '(ref:caption-decay-model-indiv-site-i)', echo=FALSE}
+knitr::include_graphics(path = decay_model_figs[5])
+# plot(cars)
+
+```
+
+```{r decay-model-indiv-site-mg, fig.cap = '(ref:caption-decay-model-indiv-site-mg)', echo=FALSE}
+knitr::include_graphics(path = decay_model_figs[6])
+# plot(cars)
+
+```
+
+```{r decay-model-indiv-site-n, fig.cap = '(ref:caption-decay-model-indiv-site-n)', echo=FALSE}
+knitr::include_graphics(path = decay_model_figs[7])
+# plot(cars)
+
+```
+
+```{r decay-model-indiv-site-o, fig.cap = '(ref:caption-decay-model-indiv-site-o)', echo=FALSE}
+knitr::include_graphics(path = decay_model_figs[8])
+# plot(cars)
+
+```
+
+```{r decay-model-indiv-site-s, fig.cap = '(ref:caption-decay-model-indiv-site-s)', echo=FALSE}
+knitr::include_graphics(path = decay_model_figs[9])
+# plot(cars)
+
+```
+
+```{r decay-model-indiv-site-v, fig.cap = '(ref:caption-decay-model-indiv-site-v)', echo=FALSE}
+knitr::include_graphics(path = decay_model_figs[10])
+# plot(cars)
+
+```
+
+```{r decay-model-indiv-site-w, fig.cap = '(ref:caption-decay-model-indiv-site-w)', echo=FALSE}
+knitr::include_graphics(path = decay_model_figs[11])
+# plot(cars)
+
+```
+
+
+
+<!-- Leave these lines as they are at the end of your .Rmd file to ensure placement of methods & acknowledgements sections before the references-->
+\showmatmethods
+\showacknow
+\pnasbreak

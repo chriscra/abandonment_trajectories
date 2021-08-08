@@ -20,6 +20,7 @@ needed_packages <- c(
   "tidyverse", "lobstr", "pryr", "reshape2", "rlang",
   # tidyverse includes ggplot2, dplyr, tidyr, readr, purrr, tibble, stringr, and forcats
   
+  "rticles",
   "XML",
   
   # modeling:
