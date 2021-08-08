@@ -999,7 +999,7 @@ To estimate changes in persistence over time, we calculated the time required fo
 We parameterized a linear model on this value for each cohort to identify temporal changes in recultivation patterns at each site (Section \@ref(section-methods-rate-of-change)).
 Trends were considered statistically significant when the 95% confidence interval for model coefficients did not include zero (Figure \@ref(fig:decay-rate-of-change)).
 
-(ref:caption-abn-decay-s) Decay of abandoned land in Shaanxi/Shanxi (China), showing the proportion of each cohort of abandoned land (i.e. all pixels abandoned in a given year) remaining abandoned over time. Points represent actual observations by cohort, dashed green lines represent linear model predictions for each cohort as a function of time (including a linear and lagarithmic term of time), and the solid purple line represents the mean trend across all cohorts (calculated by taking the mean of each time coefficient value across all cohorts). For similar results for our other sites, see Figures \@ref(fig:decay-model-grid) and \@ref(fig:decay-model-indiv-site-b)-\@ref(fig:decay-model-indiv-site-w).
+(ref:caption-abn-decay-s) Recultivation (decay) of abandoned land in Shaanxi/Shanxi (China), showing the proportion of each cohort of abandoned land (i.e. all pixels abandoned in a given year) remaining abandoned over time. Points represent actual observations by cohort, dashed green lines represent linear model predictions for each cohort as a function of time (including a linear and lagarithmic term of time), and the solid purple line represents the mean trend across all cohorts (calculated by taking the mean of each time coefficient value across all cohorts). See Figure \@ref(fig:decay-model-grid) for model results for all sites.
 
 ```{r abn-decay-s, fig.cap = '(ref:caption-abn-decay-s)', echo=FALSE}
 # knitr::include_graphics(path = paste0(p_plots, run_label, "persistence_proportion", run_label, "_s.png"))
@@ -1377,7 +1377,6 @@ We checked linear model assumptions through visual inspection of both residuals 
 ### Recultivation ("decay") model results
 
 The observed data, fitted values from these linear models, and mean decay rates for each site, are shown in Figure \@ref(fig:decay-model-grid).
-Larger model results are shown in Figures \@ref(fig:decay-model-indiv-site-b)-\@ref(fig:decay-model-indiv-site-w).
 
 In order to calculate the mean decay trajectory at each site (as shown in Figure \@ref(fig:decay-curves-by-site)), we took the mean of the linear and the log coefficients respectively across all cohorts at each site, shown in Figure \@ref(fig:decay-mod-coef).
 We then used these mean coefficient values to define a new function describing the mean recultivation (or decay) trajectory at each site.
@@ -1417,7 +1416,7 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "l3_cohort_
 knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "l3_cohort_diag_qq_subset", run_label, ".png"))
 ```
 
-(ref:caption-decay-model-grid) Decay model results for all sites, showing raw data (green points) and modeled abandonment trajectories for individual years (green lines). The mean decay trajectory for the site is calculated as the mean of the coefficients for each cohort (solid blue line). Larger model results are shown in Figures \@ref(fig:decay-model-indiv-site-b)-\@ref(fig:decay-model-indiv-site-w).
+(ref:caption-decay-model-grid) Decay model results for all sites, showing raw data (green points) and modeled abandonment trajectories for individual years (green lines). The mean decay trajectory for the site is calculated as the mean of the coefficients for each cohort (solid blue line).
 
 ```{r decay-model-grid, fig.cap = '(ref:caption-decay-model-grid)', echo = FALSE}
 knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "decay_mod_grid", run_label, ".pdf"))
@@ -1616,80 +1615,4 @@ knitr::include_graphics(path = si_panel_figs[10])
 
 ```{r panel-w, fig.cap = '(ref:caption-panel-w)', echo=FALSE}
 knitr::include_graphics(path = si_panel_figs[11])
-```
-
-\newpage
-
-## Individual Decay Model Results
-
-(ref:caption-decay-model-indiv-site-b) Decay model results for Vitebsk, Belarus and Smolensk, Russia, showing raw data (green points), modeled abandonment trajectories for individual years (green lines), and the mean decay trajectory for the site as a whole (blue lines). The mean decay trajectory is calculated in two ways: 1) from the mean of the coefficients for each cohort (solid blue line), and 2) as a single linear regression without cohort-level fixed effects (F.E.; dashed blue line).
-
-(ref:caption-decay-model-indiv-site-bh) Decay model results for Bosnia & Herzegovina, following Figure \@ref(fig:decay-model-indiv-site-b).
-
-(ref:caption-decay-model-indiv-site-c) Decay model results for Chongqing (China), following Figure \@ref(fig:decay-model-indiv-site-b).
-
-(ref:caption-decay-model-indiv-site-g) Decay model results for Goiás, Brazil, following Figure \@ref(fig:decay-model-indiv-site-b).
-
-(ref:caption-decay-model-indiv-site-i) Decay model results for Iraq, following Figure \@ref(fig:decay-model-indiv-site-b).
-
-(ref:caption-decay-model-indiv-site-mg) Decay model results for Mato Grosso, Brazil, following Figure \@ref(fig:decay-model-indiv-site-b).
-
-(ref:caption-decay-model-indiv-site-n) Decay model results for Nebraska, USA, following Figure \@ref(fig:decay-model-indiv-site-b).
-
-(ref:caption-decay-model-indiv-site-o) Decay model results for Orenburg, Russia, following Figure \@ref(fig:decay-model-indiv-site-b).
-
-(ref:caption-decay-model-indiv-site-s) Decay model results for Shaanxi/Shanxi (China), following Figure \@ref(fig:decay-model-indiv-site-b).
-
-(ref:caption-decay-model-indiv-site-v) Decay model results for Volgograd, Russia, following Figure \@ref(fig:decay-model-indiv-site-b).
-
-(ref:caption-decay-model-indiv-site-w) Decay model results for Wisconsin, USA, following Figure \@ref(fig:decay-model-indiv-site-b).
-
-```{r decay-model-indiv-site-b, fig.cap = '(ref:caption-decay-model-indiv-site-b)', echo = FALSE}
-decay_model_figs <- list.files(paste0(p_plots, run_label, "/decay"), 
-                               pattern = paste0("^l3_cohort_plus", run_label), full.names = TRUE)
-
-# note - you can include just the mean trend (with FE) by removing the "_plus" in the file paths
-
-knitr::include_graphics(path = decay_model_figs[1])
-```
-
-
-```{r decay-model-indiv-site-bh, fig.cap = '(ref:caption-decay-model-indiv-site-bh)', echo=FALSE}
-knitr::include_graphics(path = decay_model_figs[2])
-```
-
-```{r decay-model-indiv-site-c, fig.cap = '(ref:caption-decay-model-indiv-site-c)', echo=FALSE}
-knitr::include_graphics(path = decay_model_figs[3])
-```
-
-```{r decay-model-indiv-site-g, fig.cap = '(ref:caption-decay-model-indiv-site-g)', echo=FALSE}
-knitr::include_graphics(path = decay_model_figs[4])
-```
-
-```{r decay-model-indiv-site-i, fig.cap = '(ref:caption-decay-model-indiv-site-i)', echo=FALSE}
-knitr::include_graphics(path = decay_model_figs[5])
-```
-
-```{r decay-model-indiv-site-mg, fig.cap = '(ref:caption-decay-model-indiv-site-mg)', echo=FALSE}
-knitr::include_graphics(path = decay_model_figs[6])
-```
-
-```{r decay-model-indiv-site-n, fig.cap = '(ref:caption-decay-model-indiv-site-n)', echo=FALSE}
-knitr::include_graphics(path = decay_model_figs[7])
-```
-
-```{r decay-model-indiv-site-o, fig.cap = '(ref:caption-decay-model-indiv-site-o)', echo=FALSE}
-knitr::include_graphics(path = decay_model_figs[8])
-```
-
-```{r decay-model-indiv-site-s, fig.cap = '(ref:caption-decay-model-indiv-site-s)', echo=FALSE}
-knitr::include_graphics(path = decay_model_figs[9])
-```
-
-```{r decay-model-indiv-site-v, fig.cap = '(ref:caption-decay-model-indiv-site-v)', echo=FALSE}
-knitr::include_graphics(path = decay_model_figs[10])
-```
-
-```{r decay-model-indiv-site-w, fig.cap = '(ref:caption-decay-model-indiv-site-w)', echo=FALSE}
-knitr::include_graphics(path = decay_model_figs[11])
 ```
