@@ -2966,7 +2966,7 @@ dev.off()
 
 ```{r l3-roc-lincom}
 # Discussion with Oscar, May 18, 2021
-# Oscar's recommendation of how to do the linear combination with "car" - but it requires filling out the hypothesis.matrix, which I don't entirely know how to do. So, I ended up doing the lienar combination using multcomp
+# Oscar's recommendation of how to do the linear combination with "car" - but it requires filling out the hypothesis.matrix, which was unclear. So, I ended up doing the linear combination using multcomp
 library(car)
 linearHypothesis(lm_coef_l3, c("year_abn + year_abn:sitewisconsin = 0"))
 
@@ -3057,6 +3057,7 @@ glht(lm_coef_l3, linfct = c("year_abn + year_abn:sitebosnia_herzegovina = 0")) %
 ```
 
 ```{r l3-roc-indiv}
+
 # create list of linear models for each site individually
 lm_rate_of_change_ind <- lapply(1:11, function(i) {
   lm(time_to_0.5 ~ year_abn, data = filter(coef_df_wide_l3, site == site_df$site[i], !is.na(time_to_0.5)))
@@ -3092,7 +3093,20 @@ gg_roc_indiv <-
   labs(y = NULL, #"Site", 
        x = "Rate of change of recultivation speed \n(slope of time to 50% recultivation, \nin terms of years per year)") + 
   theme(legend.position = "none",
-        plot.margin = unit(c(0.4, 0.6, 0.2, 0.2), "cm"))
+        plot.margin = unit(c(0.4, 0.6, 0.2, 0.2), "cm")) + 
+  scale_y_discrete(expand = c(0.02, 0),
+                   labels = c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
+                              "bosnia_herzegovina" = "Bosnia &\n Herzegovina",
+                              "chongqing" = "Chongqing, China",
+                              "goias" = "Goiás, Brazil",
+                              "iraq" = "Iraq",
+                              "mato_grosso" = "Mato Grosso,\nBrazil",
+                              "nebraska" = "Nebraska /\nWyoming, USA",
+                              "orenburg" = "Orenburg, Russia /\nUralsk, Kazakhstan",
+                              "shaanxi" = "Shaanxi/Shanxi,\nChina",
+                              "volgograd" = "Volgograd, Russia",
+                              "wisconsin" = "Wisconsin, USA"))
+  
 
 gg_roc_lincom
 gg_roc_indiv
@@ -3103,7 +3117,8 @@ gg_coef_rate_change_by_site_l3_vert # old, to compare
 # for SI ------------------------- #
 ggsave(plot = plot_grid(gg_cohort_coefs_grid,
                         gg_roc_indiv,
-                        ncol = 2, rel_widths = c(1, 0.6), align = "h", axis = "b"),
+                        ncol = 2, rel_widths = c(1, 0.6), align = "h", axis = "b",
+                        labels = "auto"),
        filename = paste0(p_plots, run_label, "/decay/", "rate_of_change_recultivation_speed_combo", 
                          "_indiv", run_label, ".pdf"), 
        width = 11, height = 6, units = "in")

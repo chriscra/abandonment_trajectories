@@ -1321,17 +1321,14 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/temp_filter_counts_p
 
 ## Modeling abandonment decay {#decay-models-si}
 
-<!-- From methods in main text -->
 The mean abandonment duration tells us about the general persistence of abandoned croplands throughout the time series. 
 However, this value is limited by the time series length, and does not account for when the majority of the abandonment took place at a site, nor whether a period of abandonment ends as a results of recultivation or the end of the time series.
 As a result, the mean abandonment duration does not tell us how long to expect a piece of land to remain abandoned, nor how abandonment length varies through time.
 To address this constraint, we track the trajectory of each pixel through time following its initial abandonment, grouping pixels abandoned in a given year into "cohorts."
-
 Decay rates provide information about how long it takes for land to be recultivated, complementing the mean abandonment length and providing a more nuanced story about how long to expect abandonment to last. 
 
 For example, a site may have a relatively short mean length of abandonment (e.g. Shaanxi/Shanxi [China], with a mean abandonment length of 13 years; see Figure \@ref(fig:maps-abn-duration)), but also have a gradual decay rate, indicating that land should stay abandoned for a relatively longer amount of time. 
 This may result from more abandonment occurring towards the end of the time series; this land simply does not have as long to age and shows up as younger in our data, regardless of how long it may last.
-
 Looking at abandonment decay rates for each cohort individually allows us to produce a decay rate for each site in general in a way that accounts for when during the time series a piece of land was abandoned (i.e. giving us a sense of how long to expect a given piece of land to remain abandoned, even into the future).
 
 (Note: the following three sentences may be redundant.)
@@ -1406,10 +1403,8 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "l3_cohort_
 
 ```{r decay-model-grid, fig.cap = '(ref:caption-decay-model-grid)', echo = FALSE}
 knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "decay_mod_grid", run_label, ".pdf"))
-# plot(cars)
-
-
 ```
+
 
 Model results:
 
