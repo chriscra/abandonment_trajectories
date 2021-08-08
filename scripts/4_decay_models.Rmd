@@ -9,19 +9,6 @@ source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectori
 source(paste0(p_proj, "scripts/util/_util_master.R"))
 ```
 
-
-```{r regression-packages}
-regression_packages <- c("VIF", "nlme", "MASS", "spdep")
-install_missing_packages(regression_packages)
-library(VIF) # for selecting models for a linear model. Recommended by Liang.
-
-# gls model - spatial autocorrelation
-# spdep has lots of functions for assessing spatial autocorrelation.
-
-
-```
-
-
 # Decay Models
 
 Reminder of the framework for the first paper: characterizing abandonment trajectories & recultivation
@@ -248,7 +235,6 @@ dat_l <- left_join(dat_l,
          cohort = factor(year_abn)) %>% 
   mutate(site = as_factor(site)) %>% filter(!is.na(proportion)) # remove all na proportions
 
-dat_l_0 <- select(dat_l, site, time_1, age, initial_area_abn, cohort, year_abn) # for predictions
 ```
 
 
@@ -457,6 +443,7 @@ cc_save_decay_model_plots()
 
 # save plots
 lapply(1:11, function(i) cc_save_decay_model_plots(site_index = i, add_no_cohort = FALSE))
+
 lapply(1:11, function(i) cc_save_decay_model_plots(site_index = i, add_no_cohort = TRUE))
 ```
 
@@ -508,11 +495,11 @@ gg_fig4 <- ggplot(data = filter(dat_l, site == site_df$site[9]),
   geom_hline(yintercept = 0.5, linetype = "dashed") + 
   labs(x = "Time since initial abandonment (years)", 
        y = "Proportion of abandoned land remaining",
-       color = "Cohort (Year \nFirst Abandoned)\n",
+       color = "Cohort (Year\nFirst Abandoned)\n",
        linetype = NULL) + 
   
   guides(color = guide_legend(order = 1,
-                              override.aes = list(size = 5, linetype = NULL))) +
+                              override.aes = list(size = 4, linetype = NULL))) +
   scale_alpha_manual(name = NULL,
                      values = c(1), # breaks = c(0, "Fitted"),
                      guide = guide_legend(
@@ -522,20 +509,34 @@ gg_fig4 <- ggplot(data = filter(dat_l, site == site_df$site[9]),
                          # linetype = 6, size = 1.15, #
                          color = brewer_pal(palette = "Greens")(6)[6]
                        ))) + 
-    theme(legend.position = c(0.87, 0.70),
+    theme(legend.position = c(0.87, 0.7),
         legend.background = element_rect(fill = "transparent"),
         # legend.box.background = element_rect(fill = "transparent"),
         # legend.key.size = unit(8, 'mm'),
         legend.spacing.y = unit(-2, "mm")
         )
 
+ggsave(plot = gg_fig4 + 
+         scale_color_viridis(discrete = TRUE) + 
+        # labs(color = "Cohort (Year First Abandoned)") + 
+         theme(legend.title.align = 0, legend.title = element_text(size = 10)
+               ), 
+       filename = paste0(p_plots, "fig4.pdf"), 
+       width = 4.49, height = 4.25, 
+       # width = 3.42, height = 3.4, 
+       units = "in")
+
 gg_fig4
 
 show_col(colours = brewer_pal(palette = "Greens")(6))
 show_col(colours = brewer_pal(palette = "Greens")(6)[6])
 
-ggsave(plot = gg_fig4, filename = paste0(p_plots, "fig4.pdf"), 
+
+ggsave(plot = gg_fig4, filename = paste0(p_plots, "fig4_green.pdf"), 
        width = 5, height = 4.5, units = "in")
+
+
+
 
 # -------------------------------------------------------- #
 # continous color scheme:
@@ -1555,7 +1556,7 @@ gg_decay_mega <-
         legend.spacing = unit(2, units = "mm"),
         legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
   coord_cartesian(ylim = c(0.3, 1)) +
-  facet_wrap(vars(site), nrow = 2)
+  facet_wrap(vars(site), nrow = 3)
 
   
 # --------------------------------------------------------------- #
@@ -1566,8 +1567,8 @@ ggsave(plot = gg_decay_mega_plus,
 
 
 ggsave(plot = gg_decay_mega, 
-       filename = paste0(p_plots, run_label, "/decay/", "decay_mod_grid_wider", run_label, ".pdf"), 
-    width = 9, height = 5, units = "in")
+       filename = paste0(p_plots, run_label, "/decay/", "decay_mod_grid", run_label, ".pdf"), 
+    width = 8, height = 8, units = "in")
 
 
 # ---------------------------------------------------- #
@@ -1860,7 +1861,7 @@ png(filename = paste0(p_plots, run_label, "/decay/", "l3_cohort_diag_qq_subset",
 par(mfrow = c(3, 4))
 for (i in 1:11) {
   qqPlot(lm(formula = I(proportion - 1) ~ 0 + log(time + 1):cohort + I(time):cohort, 
-        data = filter(dat_l, year_abn < 2011, site == site_names[i])),
+        data = filter(dat_l, year_abn < 2011, site == site_df$site[i])),
        ylab = "Sample Quantiles",
        main = paste0("QQ: ", site_df$site[i]))
 }
@@ -2704,7 +2705,7 @@ mean_coef_df_l3
 lm_lin_log_lin_l$shaanxi
 dat_l
 
-# make a data.frame with fitted values for the mean coef
+# make a data.frame with fitted values for the mean coefs for each site's mean decay trend
 fitted_df_l3 <- lapply(site_df$site, FUN = function(x) {
   data.frame(site = x,
              time = 1:150 - 1,
@@ -2742,7 +2743,7 @@ gg_model_curves_by_site_l3 <-
        x = "Time since initial abandonment (years)", 
        y = "Proportion of abandoned land remaining",
        color = "Site") + 
-  theme(legend.background = element_blank()) + 
+  # theme(legend.background = element_blank()) + 
   scale_color_discrete(labels = c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
                               "bosnia_herzegovina" = "Bosnia &\nHerzegovina",
                               "chongqing" = "Chongqing, China",
@@ -2781,11 +2782,20 @@ ggsave(plot =
          theme(legend.position = c(0.76, 0.76),
                # legend.spacing.y = unit(4, 'mm')
                # legend.key.size = unit(7, 'mm')
+               legend.background = element_blank()
                ),
-       filename = paste0(p_plots, "/fig3.pdf"),
+       filename = paste0(p_plots, "/fig3_tall.pdf"),
          # old path name
          # paste0(p_plots, run_label, "/decay/", "mean_decay_curves", run_label, ".pdf"), 
        width = 7, height = 4, units = "in", dpi = 400)
+
+ggsave(plot =
+         gg_model_curves_by_site_l3 + 
+         labs(caption = NULL) +
+         scale_x_continuous(n.breaks = 15) + 
+         theme(legend.position = c(0.76, 0.70)),
+       filename = paste0(p_plots, "/fig3.pdf"),
+       width = 7, height = 3.5, units = "in", dpi = 400)
 
 
 
@@ -3258,17 +3268,18 @@ We make two simple assumptions in our extrapolation of abandonment and recultiva
 2) a constant amount of cropland is newly abandoned each year, based on the mean annual gain in abandonment at each site.
 
 However, this second assumption is almost certainly unrealistic.
-Three alternative assumptions include:
+Two alternative assumptions include:
 
-2. We could alternatively assume that the amount of abandoned land each year would be more likely to gradually decline, so that less and less land is abandoned each year.
+2.2) We could alternatively assume that the amount of abandoned land each year would be more likely to gradually decline, so that less and less land is abandoned each year.
 - Linear decline in area abandoned over 30 years, so that 0 ha are abandoned in 2050
 
-3. Limit how much total area can be abandoned, based on the maximum extent of cropland at each site. 
+2.3) Limit how much total area can be abandoned, based on the maximum extent of cropland at each site. 
 - There is a constant amount of newly abandoned land each year, based on the same assumption (mean annual gain in abandonment at each site). 
 - But, the amount of abandoned cropland can never exceed the maximum extent of cropland over the course of the time series.
 - So, once the amount of abandoned land reaches the maximum extent of cropland at that site, the new annual gain in abandonment is set to equal the amount that is recultivated each year, based on the recultivation rates.
 
-4. Or, finally, we could base this on the trend in abandoned land each year (running a regression on the gain columns in part d of the main results panel figures).
+[There are a range of other extrapolations we could also carry out (noted below), but we stick to these.]
+2.4) Or, finally, we could base this on the trend in abandoned land each year (running a regression on the gain columns in part d of the main results panel figures).
 - There amount of newly abandoned land is based on the trend in the gain in abandonment each year. Conservatively, we assume this to be either declining, or staying constant. Sites where the gain in abandonment each year is increasing is conservatively assumed to be constant through time.
 
 - Constant recultivation rate at each site. 
@@ -3453,14 +3464,18 @@ mean_initial_area_abn <- dat_l %>% filter(age == 5) %>%
   summarise(mean_area_abn = mean(initial_area_abn))
 
 mean_initial_area_abn
+area_summary_df %>% names
 
-site_df_w_size # likely in km2
-# 100 h in km2
+select(site_df_w_size, site, area_ha)
 
-mean_initial_area_abn <- mean_initial_area_abn %>% 
-  left_join(. , select(mutate(site_df_w_size, area_ha = area*100),
-                       site, area_ha)) %>%
-  mutate(percent_of_total = 100*mean/area_ha)
+mean_initial_area_abn <- 
+  mean_initial_area_abn %>% 
+  left_join(., 
+            area_summary_df %>% select(site, total_site_area_ha_2017, total_crop_extent_ha)
+            # or # select(site_df_w_size, site, area_ha)
+            ) %>%
+  mutate(percent_of_total = 100 * mean_area_abn / total_site_area_ha_2017,
+         percent_of_total_crop_extent = 100 * mean_area_abn / total_crop_extent_ha)
 
 mean_initial_area_abn %>% 
 left_join(., filter(area_dat, lc == "Cropland", year == 1987) %>% 
@@ -3573,15 +3588,15 @@ area_dat %>% select(lc) %>% unique()
 # ----------------------------------------------------------------------- #
 
 cc_extrapolate_abn <- function(extrapolate_to_year = 2100, 
-                                    summarize_area = TRUE, 
-                                    fitted_values_df,
-                                    site_ = "shaanxi") {
+                               summarize_area = TRUE, 
+                               fitted_values_df = fitted_df_l3,
+                               site_ = "shaanxi") {
   
   future_df <- tibble(
     site = site_,
     year = extrapolate_to_year,
     year_abn = 1988:extrapolate_to_year,
-    mean_initial_area_abn = mean_initial_area_abn %>% filter(site == site_) %>% .$mean_area_abn, 
+    mean_initial_area_abn = mean_initial_area_abn %>% filter(site == site_) %>% .$mean_area_abn, # constant area abandoned each year
     age = extrapolate_to_year - year_abn + 1) %>%
     
     # match with fitted values (expected proportions)
@@ -3602,10 +3617,13 @@ cc_extrapolate_abn <- function(extrapolate_to_year = 2100,
   
   future_df
 }
+
 ```
 
 
 ```{r extrapolate-future-df}
+# fitted_df_l3 <- read_csv(file = paste0(p_dat_derived, run_label, "/decay_mod_fitted_df_l3", run_label, ".csv"))
+
 # ----------------------------------------------------------------------- #
 # produce future extrapolation data.frame
 # ----------------------------------------------------------------------- #
@@ -3616,8 +3634,10 @@ future_df_l3 <-
                               summarize_area = FALSE,
                               fitted_values_df = fitted_df_l3,
                               site_ = y)
-      }) %>% bind_rows() %>% filter(!is.na(exp_proportion))
-    })  %>% bind_rows() %>%
+      }) %>% 
+      bind_rows() %>% filter(!is.na(exp_proportion))
+    }) %>% 
+  bind_rows() %>%
   filter(exp_area_ha > 0)
 
 future_df_l3 %>% filter(site == "shaanxi") %>% arrange(desc(year), desc(year_abn))
@@ -3650,157 +3670,87 @@ extrapolate_df_l3 <- extrapolate_df_l3 %>%
   mutate(max_mean_age = max(mean_age, na.rm = T)) %>%
   arrange(max_mean_age)
 
-
-
 # save extrapolate_df_l3
 write_csv(extrapolate_df_l3, file = paste0(p_dat_derived, run_label, "/extrapolate_df_l3", run_label, ".csv"))
 ```
 
 
-```{r plot-extrapolations}
+```{r plot-extrapolations-main-figs}
 extrapolate_df_l3 <- read_csv(file = paste0(p_dat_derived, run_label, "/extrapolate_df_l3", run_label, ".csv"))
+
+max_age_extrapolation <- future_df_l3 %>% 
+  filter(exp_area_ha > 0) %>% 
+  group_by(site) %>%
+  summarise(max_age = max(age, na.rm = TRUE)) %>%
+  arrange(max_age)
+
+
+exp_area_in_2150_a1 <- extrapolate_df_l3 %>% 
+           left_join(., filter(extrapolate_df_l3, year == 2150) %>%
+                       select(site, exp_area_in_2150 = exp_total_area_abn), 
+                   by = c("site")) %>%
+  select(site, exp_area_in_2150) %>% unique() %>% arrange(exp_area_in_2150)
+
+
 # ----------------------------------------------------------------------- #
 # plot the mean age through time:
 # ----------------------------------------------------------------------- #
-
 gg_extrapolate_mean_age <-
-  ggplot(data = extrapolate_df_l3 %>% filter(year < 2122), 
-       mapping = aes(x = year, y = mean_age, 
-                     color = fct_reorder(site, max_mean_age))) + 
+  ggplot(data = extrapolate_df_l3 %>% 
+           left_join(max_age_extrapolation, by = "site") %>% 
+           filter(year < 2122), 
+       mapping = aes(x = year, y = mean_age, color = fct_reorder(site, max_mean_age))) + 
   geom_line(size = 1) + 
   theme_classic() + 
-  labs(x = "Year", y = "Mean age of abanandoned lands (years)",
+  labs(x = "Year", y = "Mean duration of abanandonment (years)",
        #title = "Mean age of abandoned land through time",
        color = "Site"
        ) + 
   scale_x_continuous(breaks = seq(from = 2000, to = 2120, by = 20)) + 
   guides(color = guide_legend(reverse = TRUE)) #+ geom_vline(xintercept = 2125)
 
-
-png(filename = paste0(p_plots, run_label, "/decay/", "extrapolate_mean_age", run_label, ".png"), 
-    width = 6, height = 4.5, units = "in", res = 400)
-print(gg_extrapolate_mean_age)
-dev.off()
-
 # ----------------------------------------------------------------------- #
 # plot the expected area through time:
 # ----------------------------------------------------------------------- #
 gg_extrapolate_area_abn <-
-  ggplot(data = extrapolate_df_l3 %>% filter(year < 2122) %>%
-         left_join(., filter(extrapolate_df_l3, year == 2150) %>%
-                     select(site, exp_area_in_ = exp_total_area_abn), 
-                   by = c("site")), 
+  ggplot(data = extrapolate_df_l3 %>% 
+           left_join(max_age_extrapolation, by = "site") %>% 
+           filter(year < 2122), 
        mapping = aes(x = year, y = exp_total_area_abn/10^3, 
-                     color = fct_reorder(site, exp_area_in_))) + 
+                     color = fct_reorder(site, max_mean_age))) + 
   geom_line(size = 1) + 
   theme_classic() + 
   labs(x = "Year", y = expression("Area abandoned (10"^{3}*" ha)"),
        # title = "Extrapolated accumulation of abandoned land over time",
        color = "Site") + 
-  scale_x_continuous(breaks = seq(from = 2000, to = 2120, by = 20)) + 
-  guides(color = guide_legend(reverse = TRUE)) #+ geom_vline(xintercept = 2125)
+  scale_x_continuous(breaks = seq(from = 2000, to = 2120, by = 20)) +
+  scale_color_discrete(breaks = exp_area_in_2150_a1$site) + # to reorder the legend
+  guides(color = guide_legend(reverse = TRUE))
 
-png(filename = paste0(p_plots, run_label, "/decay/", "extrapolate_area_abn", run_label, ".png"), 
-    width = 6, height = 4.5, units = "in", res = 400)
-print(gg_extrapolate_area_abn)
-dev.off()
 
+
+# ------------------------------------------------------------------ #
+# Save two panel SI figure
+ggsave(
+  plot = plot_grid(
+    gg_extrapolate_mean_age + 
+      scale_x_continuous(breaks = seq(from = 2000, to = 2120, by = 40)), 
+    gg_extrapolate_area_abn + 
+      scale_x_continuous(breaks = seq(from = 2000, to = 2120, by = 40)),
+    labels = "auto", ncol = 2),
+  filename = paste0(p_plots, run_label, "/decay/", "extrapolation1_SI", run_label, ".pdf"),
+  width = 9, height = 3.75, units = "in", dpi = 400
+)
 ```
 
-
-```{r plot-obs-v-exp-abn}
-# ----------------------------------------------------------------------- #
-# Produce a data.frame of extrapolated (expected) area abandoned in each year
-# ----------------------------------------------------------------------- #
-extrapolated_df_s <- filter(dat_l, site == "shaanxi") %>% group_by(year) %>% 
-  summarise(site = unique(site), observed = sum(area_ha)) %>% 
-  mutate(
-    expected = sapply(year, FUN = function(i) {
-      cc_estimate_area_abn(year = i, summarize_area = TRUE)
-      }),
-    expected_mean = sapply(year, FUN = function(i) {
-      cc_extrapolate_abn(extrapolate_to_year = i, summarize_area = TRUE,
-                              fitted_values_df = fitted_df_l3) %>% 
-        select(exp_total_area_abn) %>% as.numeric()
-      })
-    ) %>%
-  pivot_longer(cols = c("observed", "expected", "expected_mean"),
-               names_to = "estimate",
-               values_to = "area_ha")
-
-# for all sites, 
-
-extrapolated_df_s %>% print(n = 30)
-
-
-# ----------------------------------------------------------------------- #
-# plot the area, by age class, 
-# along with the abandoned area predicted by mean decay rate at that site,
-# with both accurate and average initial area abandoned:
-# ----------------------------------------------------------------------- #
-
-ggplot(data = filter(dat_l, site == "shaanxi"),
-       mapping = aes(x = year, y = area_ha / 10^3, 
-                           fill = cut(age, breaks = 5, right = TRUE))) + 
-    theme_classic() +
-    labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
-         x = "Year", 
-         title = "Area of Abandoned Land, by Age Class",
-         fill = "Age",
-         color = "Area Estimate Type") +
-    geom_col(position = position_stack(reverse = FALSE)) + 
-    scale_fill_brewer(palette = "Greens", direction = 1) + 
-  scale_y_continuous(n.breaks = 15) + scale_x_continuous(n.breaks = 6) + 
-  geom_line(data = extrapolated_df_s, 
-            mapping = aes(x = year, y = area_ha/10^3, color = estimate), inherit.aes = FALSE,
-            size = 1) +
-  scale_color_manual(values = c("observed" = "black", 
-                                "expected" = "red", 
-                                "expected_mean" = "blue"),
-                     labels = c(#"value" = "label"
-                       "observed" = "Observed", 
-                       "expected" = "Mean decay rate, \naccurate initial area abn", 
-                       "expected_mean" = "Mean decay rate, \nmean initial area abn"
-    ))
-
-
-
-# next steps: I think this is working... but I need to double check that the expected area calculation is correct. And then I need to figure out a way to extrapolate the initial_area_abn, so I can carry out the extrapolation farther into the future.
-
-# rather than the fitted_df, calculate the expected proportion directly from the coef.
-
-# ..... ? need to figure out a good way to add the average initial_area_abn to the df, and then recalculate the exp_proportion directly from the coef, and then calculate the sum.
-```
-
-
-```{r plot-extrapolated-area-by-age-bin}
+```{r si-fig-extrapolated-area-by-age-bin}
 # ----------------------------------------------------------------------- #
 # Plot extrapolated area by age bin
 # ----------------------------------------------------------------------- #
-future_df_l3 %>% filter(exp_area_ha > 0) %>% arrange(desc(age))
-future_df_l3 %>% select(age) %>% max() %>% signif(2) / 9
-
-# Proportion of land that is over 30 years old far into the extrapolation:
-future_df_l3 %>% mutate(
-  age_bin = cut(age, breaks = seq(from = 0, to = 140, by = 15), right = TRUE)) %>%
-  filter(year == 2120) %>% 
-  group_by(site) %>%
-  summarise(total_abn_in_2120 = sum(exp_area_ha)) %>% 
-  left_join(., 
-            future_df_l3 %>% mutate(
-              age_bin = cut(age, breaks = seq(from = 0, to = 140, by = 15), right = TRUE)) %>%
-              filter(year == 2120, age > 30) %>% 
-              group_by(site) %>%
-              summarise(over_30 = sum(exp_area_ha)),
-            by = "site") %>%
-  mutate(prop = 100 * over_30/total_abn_in_2120)
-
-
 
 gg_extrapolated_area_by_age_bin <-
   ggplot(data = future_df_l3 %>% 
-           filter(year <= 2120#, site == "shaanxi"
-                                        ) %>%
+           filter(year <= 2120) %>%
          mutate(age_bin = cut(age, breaks = seq(from = 0, to = 140, by = 15), right = TRUE)),
        mapping = aes(x = year, y = exp_area_ha / 10^3, 
                      fill = age_bin)) + 
@@ -3817,15 +3767,45 @@ gg_extrapolated_area_by_age_bin <-
             color = "gray50", inherit.aes = FALSE) +
   theme(legend.position = c(0.85, 0.10), 
         legend.spacing = unit(2, units = "mm"), 
-        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) + 
-  guides(fill = guide_legend(ncol = 2)) + 
-  facet_wrap(vars(site), scales = "free_y", nrow = 4, ncol = 3)
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
+  guides(fill = guide_legend(ncol = 2)) +
+  facet_wrap(vars(site), scales = "free_y", 
+             nrow = 4, ncol = 3, labeller = as_labeller(cap_update_labels))
 
-  
 
-ggsave(plot = gg_extrapolated_area_by_age_bin, 
-       filename = paste0(p_plots, run_label, "/decay/", "extrapolate_age_by_age_bin_tall", run_label, ".pdf"), 
+# ----------------------------------------------------------------------- #
+# Plots
+# ----------------------------------------------------------------------- #
+
+# final version for the SI
+ggsave(plot = gg_extrapolated_area_by_age_bin + 
+         labs(title = "Extrapolation 1",
+              subtitle = "Assuming i) mean decay rates and ii) constant area abandoned each year.") + 
+         facet_wrap(vars(site), nrow = 4, ncol = 3, 
+                    labeller = as_labeller(cap_update_labels)), 
+       filename = paste0(p_plots, run_label, "/decay/", "extrapolation1_ages", run_label, ".pdf"), 
        width = 7, height = 8, units = "in")
+
+
+# with title, and total crop extent
+ggsave(plot = gg_extrapolated_area_by_age_bin + 
+         labs(title = "Extrapolation 1",
+              subtitle = "Assuming i) mean decay rates and ii) constant area abandoned each year.") + 
+         
+         # with max cropland extent for context:
+         geom_hline(data = select(area_summary_df, site, total_crop_extent_ha),
+             mapping = aes(yintercept = total_crop_extent_ha / 10^3, 
+             linetype = "Max. Crop Extent"),
+             color = "red"), 
+       filename = paste0(p_plots, run_label, "/decay/", "extrapolation1_ages_w_crop_extent", run_label, ".pdf"), 
+       width = 7, height = 8.75, units = "in")
+
+# constant scales
+ggsave(plot = gg_extrapolated_area_by_age_bin, 
+       filename = paste0(p_plots, run_label, "/decay/", "extrapolation1_ages_free_y", run_label, ".pdf"), 
+       width = 7, height = 8, units = "in")
+
+
 
 
  
@@ -3835,11 +3815,33 @@ ggsave(plot = gg_extrapolated_area_by_age_bin +
          theme(legend.position = c(0.88, 0.12),
                legend.spacing = unit(0.5, units = "mm"),
                legend.background = element_rect(fill = "transparent")),
-       filename = paste0(p_plots, run_label, "/presentation/", "extrapolate_age_by_age_bin_wider", run_label, ".pdf"),
+       filename = paste0(p_plots, run_label, "/decay/", "extrapolate_age_by_age_bin_wider", run_label, ".pdf"),
        width = 8, height = 5, units = "in", dpi = 400
 )
 
+```
 
+```{r extra-extrapolation-plots}
+# ------------------------------------------------------------------ #
+# extra plots: not necessary
+# ------------------------------------------------------------------ #
+# save individual plots:
+
+png(filename = paste0(p_plots, run_label, "/decay/", "extrapolate_mean_age", run_label, ".png"), 
+    width = 6, height = 4.5, units = "in", res = 400)
+print(gg_extrapolate_mean_age)
+dev.off()
+
+png(filename = paste0(p_plots, run_label, "/decay/", "extrapolate_area_abn", run_label, ".png"), 
+    width = 6, height = 4.5, units = "in", res = 400)
+print(gg_extrapolate_area_abn)
+dev.off()
+
+
+
+
+
+# unused plots
 # ---------------------------------------------------------- #
 # how much of the abandoned land is older than 50 years old?
 # ---------------------------------------------------------- #
@@ -3850,18 +3852,6 @@ old_abn_df <- future_df_l3 %>% filter(age > 50#, exp_area_ha > 0
 
 old_abn_df
 
-future_df_l3 %>% filter(age > 50, exp_area_ha > 0) %>%
-  select(site) %>% unique()
-
-max_age_extrapolation <- future_df_l3 %>% 
-  filter(exp_area_ha > 0) %>% 
-  group_by(site) %>%
-  summarise(max_age = max(age, na.rm = TRUE)) %>%
-  arrange(max_age)
-
-ggplot(data = max_age_extrapolation,
-       mapping = aes(y = reorder(site, desc(max_age)), x = max_age)) +
-  geom_point() + theme_classic()
 
 # only some sites have land over 50 years old:
 old_abn_df %>% filter(exp_area_over_50 > 0) %>%
@@ -3905,23 +3895,12 @@ ggplot(data = future_df_l3 %>% filter(site == "shaanxi", year == 2121),
 
 
 
-```
 
-```{r extrapolation-panel}
-
-max_age_extrapolation <- future_df_l3 %>% 
-  filter(exp_area_ha > 0) %>% 
-  group_by(site) %>%
-  summarise(max_age = max(age, na.rm = TRUE)) %>%
-  arrange(max_age)
-
-extrapolate_df_l3 %>% left_join(max_age_extrapolation, by = "site")
-fitted_df_l3 %>% left_join(max_age_extrapolation, by = "site")
 
 # ----------------------------------------------------------------------- #
 # site decay trend
 # ----------------------------------------------------------------------- #
-gg_extrapolation_panel_trend_a <-
+gg_extrapolation_mean_trend <-
   ggplot(data = fitted_df_l3 %>% 
            left_join(max_age_extrapolation, by = "site") %>% 
            filter(age < 140),
@@ -3939,70 +3918,24 @@ gg_extrapolation_panel_trend_a <-
   scale_x_continuous(breaks = seq(from = 0, to = 140, by = 20))
 
 
-exp_area_in_2150 <- extrapolate_df_l3 %>% 
-           left_join(., filter(extrapolate_df_l3, year == 2150) %>%
-                       select(site, exp_area_in_2150 = exp_total_area_abn), 
-                   by = c("site")) %>%
-  select(site, exp_area_in_2150) %>% unique() %>% arrange(exp_area_in_2150)
-
-# ----------------------------------------------------------------------- #
-# plot the expected area through time:
-# ----------------------------------------------------------------------- #
-gg_extrapolation_panel_area_c <-
-  ggplot(data = extrapolate_df_l3 %>% 
-           left_join(max_age_extrapolation, by = "site") %>% 
-           filter(year < 2122), 
-       mapping = aes(x = year, y = exp_total_area_abn/10^3, 
-                     color = fct_reorder(site, max_age))) + 
-  geom_line(size = 1) + 
-  theme_classic() + 
-  labs(x = "Year", y = expression("Area abandoned (10"^{3}*" ha)"),
-       # title = "Extrapolated accumulation of abandoned land over time",
-       color = "Site") + 
-  scale_x_continuous(breaks = seq(from = 2000, to = 2120, by = 20)) +
-  scale_color_discrete(breaks = exp_area_in_2150$site) + # to reorder the legend
-  guides(color = guide_legend(reverse = TRUE))
-
-# ----------------------------------------------------------------------- #
-# mean age through time
-# ----------------------------------------------------------------------- #
-gg_extrapolation_panel_age_b <-
-  ggplot(data = extrapolate_df_l3 %>% 
-           left_join(max_age_extrapolation, by = "site") %>% 
-           filter(year < 2122), 
-       mapping = aes(x = year, y = mean_age, color = fct_reorder(site, max_age))) + 
-  geom_line(size = 1) + 
-  theme_classic() + 
-  labs(x = "Year", y = "Mean duration of abanandonment (years)",
-       #title = "Mean age of abandoned land through time",
-       color = "Site"
-       ) + 
-  scale_x_continuous(breaks = seq(from = 2000, to = 2120, by = 20)) + 
-  guides(color = guide_legend(reverse = TRUE)) #+ geom_vline(xintercept = 2125)
-
-
-
-# save
-
+# extras, not necessary:
 ggsave(plot = plot_grid(
-  plot_grid(gg_extrapolation_panel_trend_a + theme(legend.position = "none"),
-            gg_extrapolation_panel_age_b, ncol = 2, rel_widths = c(1, 1.2),
+  plot_grid(gg_extrapolation_mean_trend + theme(legend.position = "none"),
+            gg_extrapolate_mean_age, ncol = 2, rel_widths = c(1, 1.2),
             labels = c("a", "b")),
-  gg_extrapolation_panel_area_c, labels = c("", "c"),
+  gg_extrapolate_area_abn, labels = c("", "c"),
   nrow = 1, ncol = 2, rel_widths = c(1.75, 1)
   ), 
   filename = paste0(p_plots, run_label, "/decay/", "extrapolation_combo", run_label, ".pdf"), 
     width = 13, height = 4, units = "in"
 )
 
-
-
 # the tall combo
 ggsave(plot = 
          plot_grid(
-           gg_extrapolation_panel_trend_a, 
-           plot_grid(gg_extrapolation_panel_age_b, 
-                     gg_extrapolation_panel_area_c,
+           gg_extrapolation_mean_trend, 
+           plot_grid(gg_extrapolate_mean_age, 
+                     gg_extrapolate_area_abn,
                      ncol = 2, #rel_widths = c(1, 1.2),
                      labels = c("b", "c")),
            labels = c("a", ""),
@@ -4013,22 +3946,478 @@ ggsave(plot =
 )
 
 
-# ------------------------------------------------------------------ #
-# just b and c, for SI
-ggsave(plot = 
-         plot_grid(
-           gg_extrapolation_panel_age_b + 
-             scale_x_continuous(breaks = seq(from = 2000, to = 2120, by = 40)), 
-           gg_extrapolation_panel_area_c + 
-             scale_x_continuous(breaks = seq(from = 2000, to = 2120, by = 40)),
-           labels = "auto", ncol = 2),
-       filename = paste0(p_plots, run_label, "/decay/", "extrapolation_combo_SI", run_label, ".pdf"),
-       width = 9, height = 3.75, units = "in", dpi = 400
+```
+
+
+```{r plot-obs-v-exp-abn}
+# ----------------------------------------------------------------------- #
+# Produce a data.frame of extrapolated (expected) area abandoned in each year
+# ----------------------------------------------------------------------- #
+extrapolated_df_s <- filter(dat_l, site == "shaanxi") %>% group_by(year) %>% 
+  summarise(site = unique(site), observed = sum(area_ha)) %>% 
+  mutate(
+    expected = sapply(year, FUN = function(i) {
+      cc_estimate_area_abn(year = i, summarize_area = TRUE)
+      }),
+    expected_mean = sapply(year, FUN = function(i) {
+      cc_extrapolate_abn(extrapolate_to_year = i, summarize_area = TRUE,
+                              fitted_values_df = fitted_df_l3) %>% 
+        select(exp_total_area_abn) %>% as.numeric()
+      })
+    ) %>%
+  pivot_longer(cols = c("observed", "expected", "expected_mean"),
+               names_to = "estimate",
+               values_to = "area_ha")
+
+# for all sites, 
+
+extrapolated_df_s %>% print(n = 30)
+
+
+# ----------------------------------------------------------------------- #
+# plot the area, by age class, 
+# along with the abandoned area predicted by mean decay rate at that site,
+# with both accurate and average initial area abandoned:
+# ----------------------------------------------------------------------- #
+
+ggplot(data = filter(dat_l, site == "shaanxi"),
+       mapping = aes(x = year, y = area_ha / 10^3, 
+                           fill = cut(age, 
+                                      breaks = c(5, 10, 15, 20, 25, 30),
+                                      # breaks = 5, 
+                                      right = TRUE, include.lowest = TRUE)
+                     
+                     )) + 
+    theme_classic() +
+    labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
+         x = "Year", 
+         title = "Area of Abandoned Land, by Age Class",
+         fill = "Age",
+         color = "Area Estimate Type") +
+    geom_col(position = position_stack(reverse = FALSE)) + 
+    scale_fill_brewer(palette = "Greens", direction = 1) + 
+  scale_y_continuous(n.breaks = 15) + scale_x_continuous(n.breaks = 6) + 
+  geom_line(data = obs_v_expected_df %>% filter(site == "shaanxi"),#extrapolated_df_s, 
+            mapping = aes(x = year, y = area_ha/10^3, color = estimate), inherit.aes = FALSE,
+            size = 1) +
+  scale_color_manual(values = c("observed" = "black", 
+                                "expected" = "red", 
+                                "expected_mean" = "blue"),
+                     labels = c(#"value" = "label"
+                       "observed" = "Observed", 
+                       "expected" = "Mean decay rate, \naccurate initial area abn", 
+                       "expected_mean" = "Mean decay rate, \nmean initial area abn"
+    ))
+
+
+
+# next steps: I think this is working... but I need to double check that the expected area calculation is correct. And then I need to figure out a way to extrapolate the initial_area_abn, so I can carry out the extrapolation farther into the future.
+
+# rather than the fitted_df, calculate the expected proportion directly from the coef.
+
+# ..... ? need to figure out a good way to add the average initial_area_abn to the df, and then recalculate the exp_proportion directly from the coef, and then calculate the sum.
+
+obs_v_expected_df <- 
+  lapply(1:11, function(i) {
+    my_site <- site_df$site[i]
+    
+    dat_l %>% filter(site == my_site) %>% group_by(year) %>% 
+      summarise(site = unique(site), observed = sum(area_ha)) %>% 
+      mutate(
+        expected = 
+          sapply(year, FUN = function(i) {
+            cc_estimate_area_abn(year = i, summarize_area = TRUE, site_ = my_site)
+            }),
+        expected_mean = 
+          sapply(year, FUN = function(i) {
+            cc_extrapolate_abn(extrapolate_to_year = i, summarize_area = TRUE,
+                               fitted_values_df = fitted_df_l3,
+                               site_ = my_site) %>% 
+              select(exp_total_area_abn) %>% as.numeric()
+            })
+        ) %>%
+      pivot_longer(cols = c("observed", "expected", "expected_mean"),
+                   names_to = "estimate",
+                   values_to = "area_ha")
+    }) %>% bind_rows()
+
+
+
+dat_l$age %>% cut(breaks = 5, right = T, include.lowest = T)
+min(dat_l$age)
+sort(dat_l$age)
+
+# all sites:
+
+gg_obs_v_exp <- ggplot(data = dat_l,
+       mapping = aes(x = year, y = area_ha / 10^3, 
+                           fill = cut(age, breaks = seq(5,30,5), 
+                                      right = TRUE, include.lowest = TRUE))) + 
+    theme_classic() +
+    labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
+         x = "Year", 
+         title = "Area of Abandoned Land, by Age Class",
+         fill = "Age",
+         color = "Area Estimate Type") +
+    geom_col(position = position_stack(reverse = FALSE)) + 
+    scale_fill_brewer(palette = "Greens", direction = 1) + 
+  # scale_y_continuous(n.breaks = 15) + scale_x_continuous(n.breaks = 6) + 
+  geom_line(data = obs_v_expected_df, 
+            mapping = aes(x = year, y = area_ha/10^3, color = estimate), 
+            inherit.aes = FALSE,
+            size = 1) +
+  scale_color_manual(values = c("observed" = "black", 
+                                "expected" = "red", 
+                                "expected_mean" = "blue"),
+                     labels = c(#"value" = "label"
+                       "observed" = "Observed", 
+                       "expected" = "Mean decay rate, \naccurate initial area abn", 
+                       "expected_mean" = "Mean decay rate, \nmean initial area abn"
+    )) + 
+  facet_wrap(vars(site), scales = "free", labeller = as_labeller(cap_update_labels))
+
+
+# save
+ggsave(plot = gg_obs_v_exp,
+       filename = paste0(p_plots, run_label,
+       "/obs_v_expected_area_abn", run_label, ".pdf"),
+       width = 9, height = 6, units = "in", dpi = 400
 )
 
 ```
 
-## Extrapolating site mean decay without cohort f.e. (l3)
+## Extrapolation 2 and 3
+
+In order to change the second assumption, we need to alter the "mean_initial_area_abn" parameter.
+
+```{r assumption-2}
+# 2.2) We could alternatively assume that the amount of abandoned land each year would be more likely to gradually decline, so that less and less land is abandoned each year.
+# - Linear decline in area abandoned over 30 years, so that 0 ha are abandoned in 2050
+
+# Everything starts in 2017. 
+dat_l %>% filter(site == "shaanxi", year == 2017) %>%
+  select(site, year, year_abn, area_ha, initial_area_abn)
+
+
+# linear decline by 2050.
+mean_initial_area_abn %>% filter(site == site_) %>% .$mean_area_abn / (2050-2017)
+
+initial_area_abn_2 <- 
+  c(mean_initial_area_abn %>% filter(site == site_) %>% .$mean_area_abn)
+
+year <- 2055
+
+if_else(year <= 2017, mean_initial_area_abn_value,
+        if_else(year <= 2050, mean_initial_area_abn_value - 
+                  (year - 2017) * 
+                  (mean_initial_area_abn_value / (2050-2017)), # incremental decline each year
+                0 # no abandonment beyond 2050
+          ))
+
+tibble(
+    site = site_,
+    year = extrapolate_to_year,
+    year_abn = 1988:extrapolate_to_year,
+    initial = if_else(year_abn <= 2017, mean_initial_area_abn_value,
+        if_else(year_abn <= 2050, mean_initial_area_abn_value - 
+                  (year_abn - 2017) * 
+                  (mean_initial_area_abn_value / (2050-2017)), # incremental decline each year
+                0 # no abandonment beyond 2050
+          )),
+    age = extrapolate_to_year - year_abn + 1) %>% print(n = 150)
+
+
+# ---------------------------------------------------------------- #
+# write new function, to implement updated assumption:
+# ---------------------------------------------------------------- #
+
+cc_extrapolate_abn_a2 <- function(extrapolate_to_year = 2050, 
+                               summarize_area = TRUE, 
+                               fitted_values_df = fitted_df_l3,
+                               site_ = "shaanxi") {
+  
+  mean_initial_area_abn_value <- mean_initial_area_abn %>% filter(site == site_) %>% .$mean_area_abn
+  
+  future_df <- tibble(
+    site = site_,
+    year = extrapolate_to_year,
+    year_abn = 1988:extrapolate_to_year,
+    initial_area_abn = if_else(year_abn <= 2017, mean_initial_area_abn_value,
+                               if_else(year_abn <= 2050, mean_initial_area_abn_value - 
+                                         (year_abn - 2017) * # number of years past end of original time series
+                                         (mean_initial_area_abn_value / (2050-2017)), # incremental decline each year
+                                       0 # no abandonment beyond 2050
+                                       )),    
+    age = extrapolate_to_year - year_abn + 1) %>%
+    
+    # match with fitted values (expected proportions)
+    left_join(.,
+              filter(fitted_values_df, site == site_) %>% 
+                select(age, exp_proportion = fitted),
+              by = c("age")) %>% 
+    
+    mutate(exp_area_ha = initial_area_abn * exp_proportion)
+  
+  if(summarize_area) {
+    future_df <- future_df %>% 
+    summarise(exp_total_area_abn = sum(exp_area_ha, na.rm = TRUE),
+              mean_age = 
+                sum(age*exp_area_ha, na.rm = TRUE) /
+                sum(exp_area_ha, na.rm = TRUE))
+  }
+  
+  future_df
+}
+
+
+# ----------------------------------------------------------------------- #
+# produce future extrapolation data.frame, for assumption 2
+# ----------------------------------------------------------------------- #
+future_df_l3_a2 <- 
+  lapply(site_df$site, function(y) {
+    lapply(1987:2200, function(x) {
+      cc_extrapolate_abn_a2(extrapolate_to_year = x,
+                            summarize_area = FALSE,
+                            fitted_values_df = fitted_df_l3,
+                            site_ = y)
+      }) %>% 
+      bind_rows() %>% filter(!is.na(exp_proportion))
+    }) %>% 
+  bind_rows() %>%
+  filter(exp_area_ha > 0) 
+
+
+
+future_df_l3_a2 %>% filter(site == "shaanxi") %>% arrange(desc(year), desc(year_abn)) %>% print(n = 50)
+future_df_l3 %>% filter(site == "shaanxi") %>% arrange(desc(year), desc(year_abn)) %>% print(n = 50)
+
+
+# save future_df_l3
+write_csv(future_df_l3_a2, file = paste0(p_dat_derived, run_label, "/future_df_l3_a2", run_label, ".csv"))
+# future_df_l3_a2 <- read_csv(file = paste0(p_dat_derived, run_label, "/future_df_l3_a2", run_label, ".csv"))
+
+# ----------------------- #
+# calculate the mean age
+# ----------------------- #
+
+extrapolate_df_l3_a2 <- future_df_l3_a2 %>% 
+  group_by(site, year) %>%
+  summarise(exp_total_area_abn = sum(exp_area_ha, na.rm = TRUE),
+            mean_age = 
+              sum(age*exp_area_ha, na.rm = TRUE) /
+              sum(exp_area_ha, na.rm = TRUE)
+            )
+
+extrapolate_df_l3_a2 <- bind_rows(extrapolate_df_l3_a2, tibble(site = site_df$site,
+       year = 1991, 
+       exp_total_area_abn = 0,
+       mean_age = NA))
+
+# max mean age:
+extrapolate_df_l3_a2 <- extrapolate_df_l3_a2 %>% 
+  group_by(site) %>% 
+  mutate(max_mean_age = max(mean_age, na.rm = T)) %>%
+  arrange(max_mean_age)
+
+# save extrapolate_df_l3_a2
+write_csv(extrapolate_df_l3_a2, file = paste0(p_dat_derived, run_label, "/extrapolate_df_l3_a2", run_label, ".csv"))
+# extrapolate_df_l3_a2 <- read_csv(file = paste0(p_dat_derived, run_label, "/extrapolate_df_l3_a2", run_label, ".csv"))
+
+
+
+
+# ----------------------------------------------------------------------------------- #
+# plots
+# ----------------------------------------------------------------------------------- #
+
+max_age_extrapolation_a2 <- future_df_l3_a2 %>% 
+  filter(exp_area_ha > 0) %>% 
+  group_by(site) %>%
+  summarise(max_age = max(age, na.rm = TRUE)) %>%
+  arrange(max_age)
+
+
+exp_area_in_2050_a2 <- extrapolate_df_l3_a2 %>% 
+           left_join(., filter(extrapolate_df_l3_a2, year == 2050) %>%
+                       select(site, exp_area_in_2050 = exp_total_area_abn), 
+                   by = c("site")) %>%
+  select(site, exp_area_in_2050) %>% unique() %>% arrange(exp_area_in_2050)
+
+
+# ----------------------------------------------------------------------- #
+# plot the mean age through time:
+# ----------------------------------------------------------------------- #
+gg_extrapolate_mean_age_a2 <-
+  ggplot(data = extrapolate_df_l3_a2 %>% 
+           left_join(max_age_extrapolation_a2, by = "site") %>% 
+           filter(year < 2075
+                  ), 
+       mapping = aes(x = year, y = mean_age, color = fct_reorder(site, max_mean_age))) + 
+  geom_line(size = 1) + 
+  theme_classic() + 
+  labs(x = "Year", y = "Mean duration of abanandonment (years)",
+       #title = "Mean age of abandoned land through time",
+       color = "Site"
+       ) + 
+  # scale_x_continuous(breaks = seq(from = 2000, to = 2120, by = 20)) + 
+    scale_x_continuous(n.breaks = 5) +
+  guides(color = guide_legend(reverse = TRUE)) #+ geom_vline(xintercept = 2125)
+
+  
+# ----------------------------------------------------------------------- #
+# plot the expected area through time:
+# ----------------------------------------------------------------------- #
+gg_extrapolate_area_abn_a2 <-
+  ggplot(data = extrapolate_df_l3_a2 %>% 
+           left_join(max_age_extrapolation_a2, by = "site") %>% 
+           filter(year < 2075
+                  ), 
+       mapping = aes(x = year, y = exp_total_area_abn/10^3, 
+                     color = fct_reorder(site, max_mean_age))) + 
+  geom_line(size = 1) + 
+  theme_classic() + 
+  labs(x = "Year", y = expression("Area abandoned (10"^{3}*" ha)"),
+       # title = "Extrapolated accumulation of abandoned land over time",
+       color = "Site") + 
+  # scale_x_continuous(breaks = seq(from = 2000, to = 2120, by = 20)) +
+  scale_x_continuous(n.breaks = 5) +
+  scale_color_discrete(breaks = exp_area_in_2050_a2$site) + # to reorder the legend
+  guides(color = guide_legend(reverse = TRUE))
+
+
+
+# ------------------------------------------------------------------ #
+# Save two panel SI figure
+ggsave(
+  plot = plot_grid(
+    gg_extrapolate_mean_age_a2, 
+    gg_extrapolate_area_abn_a2,
+    labels = "auto", ncol = 2),
+  filename = paste0(p_plots, run_label, "/decay/", "extrapolation2_SI", run_label, ".pdf"),
+  width = 9, height = 3.75, units = "in", dpi = 400
+)
+
+# ----------------------------------------------------------------------- #
+# Plot extrapolated area by age bin
+# ----------------------------------------------------------------------- #
+
+gg_extrapolated_area_by_age_bin_a2 <-
+  ggplot(data = future_df_l3_a2 %>% 
+           filter(#year <= 2120
+                  ) %>%
+         mutate(age_bin = cut(age, breaks = seq(from = 0, to = 140, by = 20), right = TRUE)),
+       mapping = aes(x = year, y = exp_area_ha / 10^3, 
+                     fill = age_bin)) + 
+    theme_classic() +
+    labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
+         x = "Year", fill = "Age", linetype = NULL) +
+    geom_col(position = position_stack(reverse = FALSE)) + 
+    scale_fill_brewer(palette = "Greens", direction = 1) +
+    
+  geom_line(data = extrapolate_df_l3_a2 %>% filter(#year <= 2120#, site == "shaanxi"
+                                                ),
+            mapping = aes(x = year, y = exp_total_area_abn / 10^3,
+                          linetype = "Total Area Abandoned"),
+            color = "gray50", inherit.aes = FALSE) +
+  theme(legend.position = c(0.85, 0.10), 
+        legend.spacing = unit(2, units = "mm"), 
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) + 
+  guides(fill = guide_legend(ncol = 2)) + 
+  facet_wrap(vars(site), scales = "free_y",
+             nrow = 4, ncol = 3, labeller = as_labeller(cap_update_labels))
+
+
+# final version for the SI
+ggsave(plot = gg_extrapolated_area_by_age_bin_a2 + 
+         labs(title = "Extrapolation 2",
+              subtitle = "Assuming i) mean decay rates and ii) constant area abandoned each year until 2017, \nthen linear decline in area abandoned each year until reaching 0 in 2050."), 
+       filename = paste0(p_plots, run_label, "/decay/", "extrapolation2_ages", run_label, ".pdf"), 
+       width = 7, height = 8, units = "in")
+
+
+# all constant scales:
+ggsave(plot = gg_extrapolated_area_by_age_bin_a2 + 
+         facet_wrap(vars(site), #scales = "free_y",
+                    nrow = 4, ncol = 3, labeller = as_labeller(cap_update_labels)) + 
+         labs(title = "Extrapolation 2",
+              subtitle = "Assuming i) mean decay rates and ii) constant area abandoned each year until 2017, \nthen linear decline in area abandoned each year until reaching 0 in 2050."), 
+       filename = paste0(p_plots, run_label, "/decay/", "extrapolation2_ages_const", run_label, ".pdf"), 
+       width = 7, height = 8, units = "in")
+
+
+```
+
+```{r assumption-3}
+# 2.3) Limit how much total area can be abandoned, based on the maximum extent of cropland at each site. 
+# - There is a constant amount of newly abandoned land each year, based on the same assumption (mean annual gain in abandonment at each site). 
+# - But, the amount of abandoned cropland can never exceed the maximum extent of cropland over the course of the time series.
+# - So, once the amount of abandoned land reaches the maximum extent of cropland at that site, the new annual gain in abandonment is set to equal the amount that is recultivated each year, based on the recultivation rates.
+
+
+area_summary_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", "area_summary_df", run_label, ".csv"))
+
+area_summary_df %>%
+  select(site, total_crop_extent_ha)
+
+# visualize the total extent of cropland in context with the extrapolated area abandoned
+
+gg_extrapolated_area_by_age_bin + 
+  labs(title = "Extrapolation 1",
+       subtitle = "Assuming i) mean decay rates and ii) constant area abandoned each year.") + 
+  geom_hline(data = select(area_summary_df, site, total_crop_extent_ha), # with max cropland extent for context:
+             mapping = aes(yintercept = total_crop_extent_ha / 10^3, 
+                           linetype = "Max. Crop Extent"),
+             color = "red")
+
+ggsave(plot = gg_extrapolated_area_by_age_bin + 
+         labs(title = "Extrapolation 1",
+              subtitle = "Assuming i) mean decay rates and ii) constant area abandoned each year.") + 
+         
+         # with max cropland extent for context:
+         geom_hline(data = select(area_summary_df, site, total_crop_extent_ha),
+             mapping = aes(yintercept = total_crop_extent_ha / 10^3, 
+             linetype = "Max. Crop Extent"),
+             color = "red"), 
+       filename = paste0(p_plots, run_label, "/decay/", "extrapolation1_ages_w_crop_extent", run_label, ".pdf"), 
+       width = 7, height = 8.75, units = "in")
+
+
+
+
+```
+
+
+
+```{r mean-age-abn-in-2050}
+# ----------------------------------------------------------------------------------- #
+# mean age of abandoned land in 2050
+# ----------------------------------------------------------------------------------- #
+
+# assumption 1 - constant initial area abandoned
+
+mean_age_in_2050 <- mean_length_df %>% filter(abn_threshold == 5, length_type == "all") %>%
+  select(site, mean_age_obs = mean_duration) %>%
+  left_join(., extrapolate_df_l3 %>% filter(year == 2050) %>% select(site, mean_age_extrap1 = mean_age), by = "site") %>%
+  left_join(., extrapolate_df_l3_a2 %>% filter(year == 2050) %>% select(site, mean_age_extrap2 = mean_age), by = "site") %>%
+  arrange(mean_age_obs)
+   
+mean_age_in_2050 %>%
+  pivot_longer(cols = c(2:4), names_to = "variable") %>%
+  ggplot(data = ., mapping = aes(x = fct_reorder(site, value), y = value, fill = variable)) + 
+  geom_col(position = position_dodge()) + coord_flip() + 
+  theme_classic()
+
+mean_length_df %>% filter(abn_threshold == 5, length_type == "all") 
+
+extrapolate_df_l3 %>% filter(year == 2050) %>% arrange(desc(year)) %>% print(n = 50)
+
+extrapolate_df_l3_a2 %>% filter(year == 2050) %>% arrange(desc(year)) %>% print(n = 50)
+
+
+```
+
+
+## Extrapolating without cohort f.e. (l3)
 
 ```{r extrapolating-l3-no-cohort}
 

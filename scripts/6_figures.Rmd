@@ -191,6 +191,7 @@ animate(bt, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
         breaks = c(0, plot_cols$breaks), col = plot_cols$color)
 
 ```
+# Global Site Map
 
 ```{r global-site-map}
 lc
@@ -219,12 +220,13 @@ dev.off()
 plot(site_sf$geometry)
 
 # basemap
-world <- ne_countries(scale = "small", returnclass = "sf") # can set returnclass to sf or sp.
-world_10 <- ne_countries(scale = "large", returnclass = "sf") # can set returnclass to sf or sp.
-world_states <- ne_states(returnclass = "sf")
+world <- ne_countries(scale = "small", returnclass = "sf") #%>% st_make_valid() # can set returnclass to sf or sp.
+world_10 <- ne_countries(scale = "large", returnclass = "sf") %>% st_make_valid() # can set returnclass to sf or sp.
+world_states <- ne_states(returnclass = "sf") %>% st_make_valid()
+
 
 # set crs for site_sf 
-st_crs(site_sf) <- st_crs(world$geometry)
+st_crs(site_sf) <-  "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
 
 # -------------------------------------------------------------------- #
 # save site_sf
@@ -232,13 +234,15 @@ st_write(site_sf, dsn = paste0(p_dat_derived, "site_sf.shp"), append = FALSE)
 
 # load back in:
 site_sf <- st_read(paste0(p_dat_derived, "site_sf.shp"))
-
+st_crs(site_sf) <-  "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+site_sf <- site_sf %>% st_make_valid()
 # bind sf with df
 left_join(site_sf, site_df, by = site)
 site_sf$site[9] == site_df$site[9]
 
 # -------------------------------------------------------------------- #
-gg_globe <- ggplot() + 
+gg_globe <-
+  ggplot() + 
   theme_classic() +
   geom_sf(data = world %>% filter(continent != "Antarctica"), fill = NA, color = "gray") +
   geom_sf(data = site_sf, mapping = aes(fill = desc)) + 
@@ -316,19 +320,93 @@ ggsave(plot = gg_site_locations_long,
 
 # just chinese sites
 ggplot() + 
-  # coord_sf(CRS = st_crs("+proj=eck4")) + 
   geom_sf(data = filter(world, name %in% c("China")), fill = NA, color = "gray") +
-  geom_sf(data = site_sf %>% filter(site %in% c("shaanxi", "chongqing")), mapping = aes(fill = site)) + 
-  geom_sf_label(data = site_sf, aes(label = site)) + 
-  labs(subtitle = paste0("Map projection: ", proj_text)) +
-    theme_classic() +
+  geom_sf(data = site_sf %>% filter(site %in% c("shaanxi", "chongqing")), mapping = aes(fill = site)) +
+  # geom_sf_label(data = site_sf, aes(label = site)) + 
+  labs(subtitle = paste0("Map projection: ", "natearth2")) +
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "natearth2"))) + 
+
+  theme_classic() +
   theme(legend.position = "bottom")
+
+
+
+
+
+
+
+# just a simple map
+
+my_width_s <- 8.7
+my_width_m <- 11.4
+my_width_l <- 17.8
+sf_width <- 0.25
+sf_width2 <- 0.1
+
+gg_simple_globe <- ggplot() + 
+  # theme_classic() +
+  theme_minimal() +
+  geom_sf(data = world %>% filter(continent != "Antarctica"), 
+          fill = NA, color = "gray50", size = sf_width) +
+  geom_sf(data = site_sf, mapping = aes(fill = desc), size = sf_width2) + 
+  labs(#subtitle = "Map projection: longlat", 
+       x = NULL, y = NULL) +
+  theme(legend.position = "none") + 
+  geom_label_repel(data = site_sf,
+                   aes(label = label, geometry = geometry),
+                   stat = "sf_coordinates",
+                   min.segment.length = 0.0, segment.alpha = 1,
+                   point.padding = 0.2, box.padding = 0.2,
+                   label.size = 0.3, color = "black") + 
+      coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "eqearth")))
+
+
+
+ggsave(plot = gg_simple_globe,
+       filename = paste0(p_plots, "fig0_small.pdf"),
+       width = 11.4, height = 11.4 * 3/5, units = "cm")
+
+ggsave(plot = gg_simple_globe,
+       filename = paste0(p_plots, "fig0.pdf"),
+       width = 17.8, height = 17.8 * 3/5, units = "cm")
 
 
 ```
 
+```{r crop-world}
+
+# cropping the map:
+world %>% st_make_valid
+world_crop <- st_crop(st_make_valid(world), extent(site_sf) )#+ c(50, 20))
+
+# errors!!!
+
+# gg_world_crop <-
+  ggplot() + 
+  theme_classic() +
+  geom_sf(data = world, 
+          fill = NA, color = "gray") +
+  geom_sf(data = site_sf, mapping = aes(fill = desc)) + 
+  labs(x = NULL, y = NULL) +
+  theme(legend.position = "bottom") + 
+  geom_label_repel(data = site_sf,
+                   aes(label = label, geometry = geometry),
+                   stat = "sf_coordinates",
+                   min.segment.length = 0.0, segment.alpha = 1,
+                   point.padding = 0.2, box.padding = 0.2,
+                   label.size = 0.3, color = "black") + 
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "natearth2"))) +
+  # coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "eqearth"))) +
+  theme(legend.position = "none",
+        plot.margin = margin(0, 0, 0, 0, "mm"))
 
 
+gg_world_crop
+
+plot_grid
+```
+
+# Explore
 
 ```{r exploratory-stats}
 # explore some stats:
@@ -1939,7 +2017,10 @@ lapply(1:11, function(i) {
 })
 ```
 
-```{r loop-save-comp-panels}
+```{r save-si_panel-composite-figs}
+
+# save "si_panel" composite figures
+
 lapply(1:11, function(i) {
   cc_4_panel_plots(
     input_path = paste0(p_dat_derived, run_label), 
@@ -2293,6 +2374,205 @@ ggsave(plot = gg_turnover_facet_grid,
 )
 ```
 
+# Maps
+
+
+```{r load-age-rasters, include = FALSE}
+
+# abandonment age maps (produced by Chris)
+age_files <- list.files(paste0(p_dat_derived, "age_rasters/", run_label), 
+                        full.names = TRUE) %>%
+  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
+
+age_r <- lapply(seq_along(age_files), function(i) {rast(age_files[i])})
+names(age_r) <- site_df$site
+for (i in seq_along(age_r)) {names(age_r[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
+
+```
+
+```{r load-max-age-rasters}
+max_age_files <- list.files(paste0(p_dat_derived, "max_age/", run_label), full.names = TRUE) %>% 
+  grep(".tif", ., value = TRUE)
+max_age_r <- lapply(seq_along(max_age_files), function(i) {
+  # tmp <- 
+    brick(max_age_files[i])
+    # tmp <- rast(max_age_files[i]) # load as SpatRasters
+# 
+#   names(tmp) <- "max_age"
+#   tmp
+  })
+
+names(max_age_r) <- site_df$site
+
+# SpatRaster
+max_age_t <- lapply(seq_along(max_age_files), function(i) {rast(max_age_files[i])})
+names(max_age_t) <- site_df$site
+for (i in seq_along(max_age_t)) {names(max_age_t[[i]]) <- "max_age"} # remember: these are just 1987:2017
+
+
+max_age_r
+
+plot(max_age_r$shaanxi)
+abn_bin_r_all <- max_age_r$shaanxi
+abn_bin_r <- max_age_r$shaanxi
+
+# optional: make a binary "abandoned or not" layer, 
+# though this can probably more easily and flexibly done with data.table
+abn_bin_r_all[abn_bin_r_all > 0] <- 1
+
+abn_bin_r[abn_bin_r < 5] <- 0 # exclude short-term fallowing:
+abn_bin_r[abn_bin_r < 5] <- NA
+hist(values(abn_bin_r))
+
+abn_bin_r[abn_bin_r >= 5] <- 1
+
+plot(max_age_r$shaanxi)
+
+hist(values(max_age_r$shaanxi))
+hist(values(abn_bin_r))
+
+
+hist(values(max_age_r$shaanxi))
+plot(abn_bin_r_all)
+plot(abn_bin_r)
+
+
+
+plot(abn_bin_r)
+```
+
+```{r age-levelplots}
+max_age_rs <- max_age_r$shaanxi
+max_age_rs[max_age_rs < 5] <- NA # exclude short-term fallowing:
+
+age_in_2017_s <- age_r$shaanxi$y2017
+age_in_2017_s[age_in_2017_s < 5] <- NA
+
+# removing the large white space around the plots
+lattice.options(
+  layout.heights=list(bottom.padding=list(x=0), top.padding=list(x = 0)),
+  layout.widths=list(left.padding=list(x=0), right.padding=list(x=0))
+)
+dev.off()
+levelplot(max_age_rs, margin = list(FUN = 'median'), #contour=TRUE, 
+          par.settings = viridisTheme)
+
+levelplot(max_age_rs, margin = list(FUN = 'mean'), #contour=TRUE, 
+          par.settings = RdBuTheme)
+levelplot(max_age_rs, margin = list(FUN = 'mean'), #contour=TRUE, 
+          par.settings = infernoTheme)
+levelplot(max_age_rs, margin = list(FUN = 'mean'), #contour=TRUE, 
+          par.settings = plasmaTheme)
+
+p1 <- levelplot(max_age_rs, margin = list(FUN = 'mean'), #contour=TRUE, 
+          par.settings = YlOrRdTheme,
+          main = "Max. abandonment duration")
+
+
+p_2017 <- levelplot(age_in_2017_s, margin = list(FUN = 'mean'), #contour=TRUE, 
+          par.settings = YlOrRdTheme,
+          main = "Abandonment length as of 2017")
+
+levelplot(max_age_r$shaanxi, margin = list(FUN = 'mean'), #contour=TRUE, 
+          par.settings = YlOrRdTheme,
+          main = "Max. abandonment duration", maxpixels = 1e6)
+
+levelplot(max_age_r$shaanxi, margin = F, #contour=TRUE, 
+          par.settings = YlOrRdTheme,
+          main = "Max. abandonment duration",
+          # xscale.components = xscale.raster,
+          # yscale.components = yscale.raster,
+          maxpixels = 1e6)
+
+plot(max_age_r$shaanxi)
+levelplot(SISmm, layers = 1, margin = list(FUN = 'median'), contour=TRUE)
+
+
+
+
+max_age_values <- values(max_age_rs) %>% 
+  as_tibble() %>% 
+  filter(!is.na(max_age)) %>% 
+  group_by(max_age) %>% summarise(freq = n())
+
+age_in_2017_values <- values(age_in_2017_s) %>% 
+  as_tibble() %>% 
+  filter(!is.na(value)) %>% 
+  group_by(value) %>% summarise(freq = n())
+
+p_hist_max <- ggplot(data = max_age_values, aes(max_age)) + 
+  geom_col(mapping = aes(x = max_age, y = freq), fill = "gray70") + 
+  theme_classic()
+
+p_hist_2017 <- ggplot(data = age_in_2017_values, aes(value)) + 
+  geom_col(mapping = aes(x = value, y = freq), fill = "gray70") + 
+  theme_classic()
+
+ggsave(plot = plot_grid(p1, p_hist_max, ncol = 1, nrow = 2, rel_heights = c(1, 0.4)),
+       filename = paste0(p_plots, run_label, "/spatial_reg/", 
+                         "max_age_duration_w_dist", run_label, site_df$label[9], ".pdf"), 
+       width = 6, height = 8.5, units = "in")
+
+ggsave(plot = plot_grid(p_2017, p_hist_2017, ncol = 1, nrow = 2, rel_heights = c(1, 0.4)),
+       filename = paste0(p_plots, run_label, "/spatial_reg/", 
+                         "age_in_2017_duration_w_dist", run_label, site_df$label[9], ".pdf"), 
+       width = 6, height = 8.5, units = "in")
+
+
+hist(values(max_age_rs), main = "Abandonment length distribution", xlab = "Abandonment duration (years)")
+
+levelplot(max_age_rs, margin = list(FUN = 'mean'), #contour=TRUE, 
+          par.settings = BuRdTheme)
+levelplot(max_age_rs, margin = list(FUN = 'mean'), #contour=TRUE, 
+          par.settings = RdBuTheme)
+levelplot(max_age_rs, margin = list(FUN = 'mean'), #contour=TRUE, 
+          par.settings = GrTheme)
+levelplot(max_age_rs, margin = list(FUN = 'mean'), #contour=TRUE, 
+          par.settings = BTCTheme)#(rev = TRUE))
+
+
+levelplot(max_age_rs, #margin = list(FUN = 'mean'), #contour=TRUE, 
+          par.settings = rev(brewer.pal(n = 9, 'YlGnBu')))
+dev.off()
+display.brewer.all()
+
+summary(values(max_age_rs))
+
+
+levelplot(site_r$shaanxi[[1:8]])
+
+lattice.options(
+    layout.heights=list(bottom.padding=list(x=0), top.padding=list(x = 0)),  
+    layout.widths=list(left.padding=list(x=0), right.padding=list(x=0))
+  )
+  
+  # make level plot
+  myTheme <- viridisTheme()
+  myTheme$regions$col <- viridis(n = 100, direction = -1)
+  myTheme$panel.background$col = 'gray95' 
+  
+    levelplot(max_age_rs, margin = list(FUN = 'mean'), #contour=TRUE, 
+              par.settings = myTheme, #YlOrRdTheme,
+              main = "Test")
+  
+levelplot(max_age_rs)
+
+plot(max_age_rs)
+
+# as a function, for each site:
+year_or_max <- 2015
+site_index <- 9
+
+cc_age_levelplot_hist()
+# test it out
+for(i in 9) {cc_age_levelplot_hist(site_index = i, year_or_max = "max")}
+
+for(i in 1:11) {cc_age_levelplot_hist(site_index = i, year_or_max = "max")}
+for(i in 1:11) {cc_age_levelplot_hist(site_index = i, year_or_max = "2017")}
+
+env_size(ls())
+```
+
 
 ```{r abn-age-maps-2017}
 # load in the data.tables
@@ -2499,7 +2779,7 @@ for (i in 1:11) {
 
 # map of site locations:
 gg_site_locations <- gg_globe +
-  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "natearth2"))) +
   theme(legend.position = "none",
         plot.margin = margin(0, 0, 0, 0, "cm"))
 
@@ -2583,7 +2863,7 @@ for (i in 1:11) {
 }
 
 gg_site_locations <- gg_globe +
-  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "natearth2"))) +
   theme(legend.position = "none",
         plot.margin = margin(0, 0, 2, 0, "mm"))
 
@@ -2655,7 +2935,7 @@ ggsave(plot =
 
 ```
 
-```{r fig1-terra}
+```{r fig1-testing}
 age_r[[i]][["y2017"]]
 
 # load the rasters with terra
@@ -2677,16 +2957,10 @@ for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # reme
 # ------------------------------------------------------------------- #
 
 
-plot(age_t$shaanxi$y2017, type = "interval", breaks = seq(from = 5, to = 30, by = 5), col = viridis(n = 5), bg = "dark gray")
-
-tt <- classify(age_t$shaanxi$y2017, seq(from = 5, to = 30, by = 5), right = FALSE)
-ttr <- classify(age_t$shaanxi$y2017, seq(from = 5, to = 30, by = 5), right = TRUE)
-
-levels(tt)
-levels(ttr)
-
-plot(tt)
-plot(ttr, col = viridis(n = 5, direction = -1))
+plot(age_t$shaanxi$y2017, 
+     type = "interval", 
+     breaks = seq(from = 5, to = 30, by = 5), 
+     col = viridis(n = 5, direction = -1), colNA = "gray95")
 
 
 plot(age_t$shaanxi$y2017, type = "interval", breaks = seq(from = 5, to = 30, by = 5),
@@ -2700,11 +2974,10 @@ freq(age_t$shaanxi$y2017)
 # ------------------------------------------------------------------- #
 # rasterVis
 # ------------------------------------------------------------------- #
-
 levelplot(age_r$shaanxi$y2017,
           main = site_sf$lab_desc[9],
           colorkey = TRUE, scales=list(draw=TRUE),
-          par.settings = myTheme,
+          # par.settings = myTheme,
           at = seq(5, 30, by = 1), 
           xlab = NULL, ylab = NULL, margin = FALSE,
           # shrink = c(1.5, 1.5)
@@ -2765,40 +3038,13 @@ ggplot() +
                    min.segment.length = 0.0, segment.alpha = 1,
                    point.padding = 0.2, box.padding = 0.2,
                    label.size = 0.3, color = "black") +
-  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "natearth2"))) +
   theme(legend.position = "none",
         plot.margin = margin(0, 0, 2, 0, "mm"))
 ```
 
 
-```{r crop-world}
-# cropping the map:
 
-world_crop <- st_crop(world, extent(site_sf) + c(50, 20))
-
-gg_world_crop <-
-  ggplot() + 
-  theme_classic() +
-  geom_sf(data = world_crop, 
-          fill = NA, color = "gray") +
-  geom_sf(data = site_sf, mapping = aes(fill = desc)) + 
-  labs(x = NULL, y = NULL) +
-  theme(legend.position = "bottom") + 
-  geom_label_repel(data = site_sf,
-                   aes(label = label, geometry = geometry),
-                   stat = "sf_coordinates",
-                   min.segment.length = 0.0, segment.alpha = 1,
-                   point.padding = 0.2, box.padding = 0.2,
-                   label.size = 0.3, color = "black") + 
-  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
-  theme(legend.position = "none",
-        plot.margin = margin(0, 0, 0, 0, "mm"))
-
-
-gg_world_crop
-
-plot_grid
-```
 
 
 ```{r ggdraw}
@@ -2822,48 +3068,464 @@ ggsave(plot = ggdraw() +
 ```
 
 
+```{r sort-out-which-maps-to-plot}
+# Question: how does terra make its bins for plotting?
+
+
+# load rasters:
+age_files <- list.files(paste0(p_dat_derived, "age_rasters/", run_label), 
+                        full.names = TRUE) %>%
+  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
+
+# raster
+age_r <- lapply(seq_along(age_files), function(i) {rast(age_files[i])})
+names(age_r) <- site_df$site
+for (i in seq_along(age_r)) {names(age_r[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
+
+# SpatRaster
+age_t <- lapply(seq_along(age_files), function(i) {rast(age_files[i])})
+names(age_t) <- site_df$site
+for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
+
+freq(age_t$shaanxi$y2017)
+
+
+# reclassification tibble:
+rcl_df <-
+  tibble("is" = 0:30) %>% 
+  mutate(becomes = cut(is, breaks = seq(from = 5, to = 30, by = 5), include.lowest = TRUE, labels = FALSE),
+         interval = cut(is, breaks = seq(from = 5, to = 30, by = 5), include.lowest = TRUE),
+         labels = case_when(
+           is %in% 5:10 ~ "5-10",
+           is %in% 11:15 ~ "11-15",
+           is %in% 16:20 ~ "16-20",
+           is %in% 21:25 ~ "21-25",
+           is %in% 26:30 ~ "26-30")) 
+
+plot(st, type = "classes", levels = rcl_df$labels %>% unique() %>% .[-1])
+
+
+# reclassify into bins
+s_rcl <- terra::classify(
+  age_t[[9]]$y2017,
+  rcl = select(rcl_df, is, becomes), 
+  filename = paste0(p_dat_derived, "age_rasters/2017_bins/", site_df$site[9], "_y2017_bins.tif"),
+  overwrite = TRUE)
+
+plot(s_rcl)
+plot(s_rcl, type = "classes",
+     levels = rcl_df$labels %>% unique() %>% .[-1],
+     col = viridis(n = 5, direction = -1), colNA = "gray95",
+     main = inset_map_titles[9],
+     legend = FALSE)
+
+
+
+# save reclassified raster as pdf
+pdf(file = paste0(p_dat_derived, "age_rasters/2017_bins/", site_df$site[9], "_y2017_bins.pdf"),
+    width = 4.5, height = 4.5)
+par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
+plot(s_rcl, type = "classes",
+     levels = rcl_df$labels %>% unique() %>% .[-1],
+     col = viridis(n = 5, direction = -1), colNA = "gray95",
+     main = inset_map_titles[9],
+     legend = TRUE)
+dev.off()
+
+
+# base r plot with terra
+pdf(file = paste0(p_dat_derived, "age_rasters/2017_bins/", site_df$site[9], "_y2017_interval.pdf"),
+    width = 4.5, height = 4.5)
+par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
+plot(age_t$shaanxi$y2017, type = "interval", 
+     breaks = seq(from = 5, to = 30, by = 5), 
+     col = viridis(n = 5, direction = -1), colNA = "gray95",
+     main = "interval terra", legend = TRUE)
+dev.off()
+
+
+pdf(file = paste0(p_dat_derived, "age_rasters/2017_bins/", site_df$site[9], "_y2017_interval_man.pdf"),
+    width = 4.5, height = 4.5)
+par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
+plot(age_t$shaanxi$y2017, type = "interval", 
+     breaks = c(4.99, 10, 15, 20, 25, 30), 
+     col = viridis(n = 5, direction = -1), colNA = "gray95",
+     main = "interval terra manual", legend = TRUE)
+dev.off()
+
+pdf(file = paste0(p_dat_derived, "age_rasters/2017_bins/", site_df$site[9], "_y2017_interval_man2.pdf"),
+    width = 4.5, height = 4.5)
+par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
+plot(age_t$shaanxi$y2017, type = "interval", 
+     breaks = c(5, 11, 16, 21, 26, 30), 
+     col = viridis(n = 5, direction = -1), colNA = "gray95",
+     main = "interval terra manual 2", legend = TRUE)
+dev.off()
+
+
+# based on this exploration, I now know that breaks c(5, 10, 15, 20, 25, 30) results in 
+# intervals that are closed on the left (including 10, but not 15, for example). strange!
+
+
+plot(s_rcl, type = "classes",
+     levels = rcl_df$labels %>% unique() %>% .[-1],
+     col = viridis(n = 5, direction = -1), colNA = "gray95",
+     main = inset_map_titles[9],
+     legend = TRUE)
+
+tt <- classify(age_t$shaanxi$y2017, seq(from = 5, to = 30, by = 5), right = FALSE, include.lowest = TRUE) # right = logical, indicating if the intervals should be closed on the right (and open on the left) or vice versa. The default is TRUE. A special case is to use right=NA. In this case both the left and right intervals are open.
+
+ttr <- classify(age_t$shaanxi$y2017, c(0, seq(from = 5, to = 30, by = 5)), 
+                right = TRUE, include.lowest = TRUE, othersNA = TRUE)
+
+levels(tt)
+levels(ttr)
+
+
+plot(ttr, col = viridis(n = 5, direction = -1), colNA = "gray95")
+plot(tt, col = viridis(n = 5, direction = -1), colNA = "gray95")
+
+
+
+# trying to figure out the plotting... are the intervals open on the left and closed on the right (5, 10] {i.e. not including 5, but including 10},  or vice versa.
+persistence_dat %>% print(n = 30)
+
+plot(age_t$shaanxi$y2017, type = "interval", 
+     breaks = seq(from = 5, to = 30, by = 5), 
+     col = viridis(n = 5, direction = -1), bg = "dark gray")
+
+plot(age_t$shaanxi$y2017, type = "interval", 
+     breaks = seq(from = 5, to = 30, by = 5), 
+     col = viridis(n = 6, direction = -1), bg = "dark gray")
+
+plot(age_t$shaanxi$y2017, type = "interval", 
+     breaks = seq(from = 5, to = 30, by = 5), 
+     col = viridis(n = 6, direction = -1)[2:6], bg = "dark gray")
+
+
+
+# ok - the plan is to simply reclassify the age data into bins, so that I know exactly what's being plotted.
+
+```
+
+```{r classify-into-bins}
+
+# load rasters:
+age_files <- list.files(paste0(p_dat_derived, "age_rasters/", run_label), 
+                        full.names = TRUE) %>%
+  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
+
+# SpatRaster
+age_t <- lapply(seq_along(age_files), function(i) {rast(age_files[i])})
+names(age_t) <- site_df$site
+for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
+
+
+# reclassification tibble:
+rcl_df <-
+  tibble("is" = 0:30) %>% 
+  mutate(becomes = cut(is, breaks = seq(from = 5, to = 30, by = 5), include.lowest = TRUE, labels = FALSE),
+         interval = cut(is, breaks = seq(from = 5, to = 30, by = 5), include.lowest = TRUE),
+         labels = case_when(
+           is %in% 5:10 ~ "5-10",
+           is %in% 11:15 ~ "11-15",
+           is %in% 16:20 ~ "16-20",
+           is %in% 21:25 ~ "21-25",
+           is %in% 26:30 ~ "26-30")) 
+
+
+# reclassify into bins (age rasters)
+age_t_bins <- lapply(1:11, function(i) {
+  terra::classify(
+  age_t[[i]]$y2017,
+  rcl = select(rcl_df, is, becomes), 
+  filename = paste0(p_dat_derived, "age_rasters/2017_bins/", site_df$site[i], "_y2017_bins.tif"),
+  overwrite = TRUE)
+}
+)
+names(age_t_bins) <- site_df$site
+
+
+# reclassify into bins (max_age rasters)
+max_age_t_bins <- lapply(1:11, function(i) {
+  terra::classify(
+  max_age_t[[i]],
+  rcl = select(rcl_df, is, becomes), 
+  filename = paste0(p_dat_derived, "max_age/bins/", site_df$site[i], "_max_age_bins.tif"),
+  overwrite = TRUE)
+}
+)
+
+names(max_age_t_bins) <- site_df$site
+plot(max_age_t_bins[[1]])
+
+max_age_t
+
+
+
+
+plot(age_t_bins[[9]])
+
+plot(age_t_bins[[9]], type = "classes",
+     levels = rcl_df$labels %>% unique() %>% .[-1],
+     col = viridis(n = 5, direction = -1), colNA = "gray95",
+     main = inset_map_titles[9],
+     legend = FALSE)
+
+
+
+# save reclassified raster as pdf
+pdf(file = paste0(p_dat_derived, "age_rasters/2017_bins/", site_df$site[9], "_y2017_bins.pdf"),
+    width = 4.5, height = 4.5)
+par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
+plot(s_rcl, type = "classes",
+     levels = rcl_df$labels %>% unique() %>% .[-1],
+     col = viridis(n = 5, direction = -1), colNA = "gray95",
+     main = inset_map_titles[9],
+     legend = TRUE)
+dev.off()
+
+```
+
+```{r simplify-states}
+install.packages("rmapshaper")
+library(rmapshaper)
+
+world_states
+world_10
+
+object_size(world_states)
+object_size(world_10)
+
+plot(world_10_simple)
+
+world_states_simple <- ms_simplify(world_states, keep = 0.1,
+                                   keep_shapes = FALSE)
+
+world_10_simple <- ms_simplify(world_10, keep = 0.1,
+                               keep_shapes = FALSE)
+
+world_states_simple <- st_make_valid(world_states_simple)
+world_10_simple <- st_make_valid(world_10_simple)
+
+world_states_simple %>% st_drop_geometry() %>% as_tibble()
+
+names(world_states_simple)
+world_states_simple$type_en %>% unique
+
+
+world_states_simple %>% st_drop_geometry() %>% as_tibble() %>% select(name, name_alt, type_en, adm0_label, adm0_a3, geonunit)
+
+
+states_union <- world_states_simple %>% 
+  group_by(geonunit) %>%
+  summarise(dissolved = "what") %>% st_cast()
+
+states_union %>% filter(geonunit == "Afghanistan") %>% st_geometry() %>% plot()
+world_states_simple %>% filter(geonunit == "Afghanistan") %>% st_geometry() %>% plot()
+
+states_union %>% filter(geonunit == "Bosnia and Herzegovina") %>% st_geometry() %>% plot()
+world_states_simple %>% filter(geonunit == "Bosnia and Herzegovina") %>% st_geometry() %>% plot()
+world_states %>% filter(geonunit == "Bosnia and Herzegovina") %>% st_geometry() %>% plot()
+world_10 %>% filter(name_en == "Bosnia and Herzegovina") %>% st_geometry() %>% plot()
+
+states_union$geonunit
+```
+
+```{r fig1-final}
+
+inset_map_titles <- paste0("(", gsub("_", "", site_df$label), ") ", site_df$description)
+
+new_titles <- inset_map_titles
+new_titles[1] <- "(b) Vitebsk, Belarus /\nSmolensk, Russia"
+new_titles[8] <- "(o) Orenburg, Russia /\nUralsk, Kazakhstan"
+
+age_t_bins <- lapply(1:11, function(i) {rast(paste0(p_dat_derived, "age_rasters/2017_bins/", site_df$site[i], "_y2017_bins.tif"))})
+
+names(age_t_bins) <- site_df$site
+
+
+
+# ----------------------------------------------------- #
+# horizontal
+# ----------------------------------------------------- #
+mval <- 1
+include_borders <- TRUE
+
+{
+  pdf(file = paste0(p_output, "plots/fig1", 
+                    if(include_borders) {"_borders_simple2"},
+                    ".pdf"),
+    width = 7, height = 6)
+par(mfrow = c(3, 4), 
+    # mar=c(0,0,0,0), 
+    oma=c(1,1,0,0), 
+    adj = 0,
+    cex.main = 1#,
+    # tcl = -0.2
+    )
+
+for (i in 1:11) {
+  terra::plot(age_t_bins[[i]], type = "classes",
+     levels = rcl_df$labels %>% unique() %>% .[-1],
+     col = viridis(n = 5, direction = -1), colNA = "gray95",
+     main = new_titles[i], #inset_map_titles[i],
+     legend = FALSE,
+     mar = c(mval+0.5, mval, mval + 1.2, mval) # bltr     
+     )
+  
+  if(include_borders) {
+    plot(world_states_simple %>%
+           {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
+           st_geometry(), add = T, border = "gray50")
+    
+    plot(states_union %>%
+           {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
+           st_geometry(), add = T, border = "black")
+    }
+
+}
+
+plot.new()
+plot(age_t_bins[[i]], type = "classes",
+     levels = rcl_df$labels %>% unique() %>% .[-1],
+       legend = "left", legend.shrink = 5,
+       plg = list(cex = 2),
+       col = viridis(n = 5, direction =  -1), colNA = "gray95",
+     legend.only = TRUE)
+
+dev.off()
+
+
+}
+
+
+# ----------------------------------------------------- #
+# vertical
+# ----------------------------------------------------- #
+
+pdf(file = paste0(p_dat_derived, "age_rasters/2017_bins/fig1_y2017_composite_v.pdf"),
+    width = 7.5, height = 10)
+par(mfrow = c(4, 3), mar=c(0,0,0,0), oma=c(0,0,0,0))
+
+for (i in 1:11) {
+  plot(age_t_bins[[i]], type = "classes",
+     levels = rcl_df$labels %>% unique() %>% .[-1],
+     col = viridis(n = 5, direction = -1), colNA = "gray95",
+     main = new_titles[i],
+     legend = FALSE)
+}
+dev.off()
+
+
+
+```
+
+```{r fig1-max-age-maps}
+include_borders <- FALSE
+
+{
+  pdf(file = paste0(p_output, "plots/", run_label, "/maps/max_age_maps", 
+                    if(include_borders) {"_borders"},
+                    ".pdf"),
+    width = 8, height = 6.6)
+par(mfrow = c(3, 4), 
+    # mar=c(0,0,0,0), 
+    oma=c(1,1,0,0), 
+    # adj = 0,
+    cex.main = 0.9#,
+    # tcl = -0.2
+    )
+
+for (i in 1:11) {
+  terra::plot(max_age_t_bins[[i]], type = "classes",
+     levels = rcl_df$labels %>% unique() %>% .[-1],
+     col = viridis(n = 5, direction = -1), colNA = "gray95",
+     main = inset_map_titles[i],
+     legend = FALSE,
+     mar = c(mval+0.5, mval, mval + 1.2, mval) # bltr     
+     )
+  
+  if(include_borders) {
+    plot(world_states %>%
+           {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
+           st_geometry(), add = T, border = "gray50")
+    
+    plot(world_10 %>%
+           {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
+           st_geometry(), add = T, border = "black")
+    }
+
+}
+
+plot.new()
+plot(max_age_t_bins[[i]], type = "classes",
+     levels = rcl_df$labels %>% unique() %>% .[-1],
+       legend = "right", legend.shrink = 5,
+       plg = list(cex = 2.5),
+       col = viridis(n = 5, direction =  -1), colNA = "gray95",
+     legend.only = TRUE)
+
+dev.off()
+}
+
+```
+
+
+
 ```{r generate-age-maps-thumb}
 
 i <- 9
 
 # titles
-inset_map_titles <- paste0("(", gsub("_", "", site_df$label), ") ", site_df$description) 
+inset_map_titles <- paste0("(", gsub("_", "", site_df$label), ") ", site_df$description)
 
 
 # ------------------------------------------------------------------ #
-# base terra plot
+# base terra plot, with bins
+plot(age_t_bins[[9]])
 # ------------------------------------------------------------------ #
-
-# save as pdf
-for (i in 1:11) {
-
-  pdf(file = paste0(p_output, "plots/fig1/fig1_inset_borders", site_df$label[i], ".pdf"),
-    width = 4.5, height = 4.5
-    )
+cc_save_fig1_inset <- function(i, include_borders = FALSE, titles_vector = inset_map_titles, maxpixels = 5e6,
+                               myh = 4.5, myw = 4.5) {
+ pdf(file = paste0(p_output, "plots/fig1/x", 
+                    if(!include_borders) {"fig1_inset"} else {"fig1_inset_borders"}, 
+                    site_df$label[i], ".pdf"),
+    width = myw, height = myh)
   
   # png(filename = paste0(p_output, "plots/fig1/fig1_inset", site_df$label[i], ".png"), 
   #   width = 4.5, height = 4.5, units = "in", res = 400)
 
-  par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
+  par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0), adj = 0)
 
-  plot(age_t[[i]]$y2017, 
-       type = "interval", 
-       breaks = seq(from = 5, to = 30, by = 5),
-       legend = FALSE,
-       col = viridis(n = 5), colNA = "gray95",
-     # mar = c(2.1, 2.1, 4.1, 1.1),
-     main = inset_map_titles[i])
-  
-  plot(world_states %>% 
-         {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>% 
-         st_geometry(), add = T, border = "gray50")
 
-  plot(world_10 %>% 
-         {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>% 
-         st_geometry(), add = T, border = "black")
+  plot(age_t_bins[[i]], type = "classes",
+     levels = rcl_df$labels %>% unique() %>% .[-1],
+     col = viridis(n = 5, direction = -1), colNA = "gray95",
+     main = titles_vector[i],
+     legend = FALSE, #maxcell = maxpixels
+     mar = c(1.5, 1.5, 1.5, 0.5) # bltr     
+     )
 
-  dev.off()
+  if(include_borders) {
+    plot(world_states %>%
+           {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
+           st_geometry(), add = T, border = "gray50")
+    
+    plot(world_10 %>%
+           {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
+           st_geometry(), add = T, border = "black")
+    }
+
+  dev.off() 
 }
+
+cc_save_fig1_inset(i = 8, myh = 4.25, myw = 4.25)
+
+
+lapply(1:11, function(i) cc_save_fig1_inset(i = i, myh = 4.25, myw = 4.25))
+
+
+
 
 # ------------------------------------------------------------------ #
 # Save legend
@@ -2874,16 +3536,31 @@ pdf(file = paste0(p_output, "plots/fig1/fig1_inset_legends.pdf"),
 plot.new()
 par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
 
-plot(age_t[[i]]$y2017, 
-       type = "interval", 
-       breaks = seq(from = 5, to = 30, by = 5),
+plot(age_t_bins[[i]], type = "classes",
+     levels = rcl_df$labels %>% unique() %>% .[-1],
        legend = "right", legend.shrink = 2, 
        plg = list(cex = 3),
-       col = viridis(n = 5), colNA = "gray95",
+       col = viridis(n = 5, direction =  -1), colNA = "gray95",
      legend.only = TRUE)
 
 dev.off()
   
+
+{
+pdf(file = paste0(p_output, "plots/fig1/fig1_inset_legends_test.pdf"), 
+    width = 4, height = 5)
+plot.new()
+par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
+
+plot(age_t_bins[[i]], type = "classes",
+     levels = rcl_df$labels %>% unique() %>% .[-1],
+       legend = "right", legend.shrink = 5, 
+       plg = list(cex = 3),
+       col = viridis(n = 5, direction =  -1), colNA = "gray95",
+     legend.only = TRUE)
+dev.off()
+}
+
 
 
 # ------------------------------------------------------------------ #
@@ -2921,7 +3598,7 @@ for (i in 1:11) {
         # main = inset_map_titles[i],
         colorkey = include_legend,
         scales=list(draw=TRUE),
-        maxpixels = max_pixels,
+        # maxpixels = max_pixels,
         par.settings = myTheme,
         at = seq(5, 30, by = 5),
         xlab = NULL, ylab = NULL,
@@ -3208,7 +3885,7 @@ for (i in 1:11) {
 }
 
 gg_site_locations <- gg_globe +
-  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "natearth2"))) +
   theme(legend.position = "none",
         plot.margin = margin(0, 0, 0, 0, "cm"))
 
@@ -3251,6 +3928,10 @@ tmpFiles(current=TRUE,
          old=TRUE, 
          remove=TRUE)
 
+tmpFiles(current=TRUE,
+         orphan=FALSE, 
+         old=TRUE)
+warnings()
 ```
 
 
