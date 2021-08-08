@@ -1553,54 +1553,9 @@ mean_age_in_2050 %>%
 
 ```
 
-<!-- #### (*REMOVE*) Alternative mean decay rates -->
-
-<!-- Currently, to get the mean decay rate for each site, I simply average each coefficient (for the log and the linear terms) across all cohorts, and then use these two mean values as the coefficients for the mean site trend (the solid blue lines in Figure \@ref(fig:decay-model-grid)). -->
-<!-- I think this makes sense, because it treats each cohort of abandonment equally (rather than giving more weight to cohorts with more observations, i.e. older cohorts).  -->
-<!-- Having cohort fixed effects allows for a unique decay rate for each year of abandonment, which makes the models fit very well.  -->
-<!-- But, the fits for the recent cohorts with few observations are quite straight.  -->
-
-<!-- Alternatively, however, I can also just run a single regression without the cohort fixed effects, which produces a single estimate for the log and linear coefficients, weighting all points equally (therefore giving more weight to older cohorts with more points; the dashed blue lines in Figure \@ref(fig:decay-model-grid)). -->
-
-<!-- I can then conduct the extrapolation based on the decay rates derived from that single linear regression for each site (in other words, across all cohorts of abandonment). -->
-<!-- These extrapolation results are shown below in Figures \@ref(fig:extrapolation-combo-no-fe) and \@ref(fig:extrapolation-area-by-age-no-fe). -->
-
-<!-- However, as you can see, some of the sites have a decay curve that clearly doesn't make sense when extrapolated out (eventually curving upwards over time).  -->
-<!-- As a result, I think we should stick with our original method of calculating the mean trend at each site (averaging across the coefficients for each cohort), but I just wanted to call it to your attention. -->
-
-<!-- (ref:caption-extrapolation-combo-no-fe) The results of our simple extrapolation, but assuming a decay trend for each site calculated without cohort fixed effects (a), resulting in b) the mean age of abandonment, and c) the total area abandoned into the future. Colors corresponding to each site are consistent across the three panels. -->
-
-<!-- ```{r extrapolation-combo-no-fe, fig.cap = '(ref:caption-extrapolation-combo-no-fe)', echo=FALSE} -->
-<!-- knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/",  -->
-<!--                                      "extrapolation_combo_no_fe_tall", run_label, ".pdf")) -->
-<!-- ``` -->
-
-<!-- (ref:caption-extrapolation-area-abn-no-fe) Extrapolating total area abandoned, using site decay rates that do not allow for abandonment cohort fixed effects. -->
-
-<!-- ```{r extrapolation-area-abn-no-fe, fig.cap = '(ref:caption-extrapolation-area-abn-no-fe)', include = FALSE, echo=FALSE} -->
-<!-- knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/",  -->
-<!--                                       "extrapolate_area_abn_no_fe", run_label, ".png")) -->
-<!-- ``` -->
-
-<!-- (ref:caption-extrapolation-mean-age-no-fe) Extrapolating area by age bin, no fixed effects. -->
-
-<!-- ```{r extrapolation-mean-age-no-fe, fig.cap = '(ref:caption-extrapolation-mean-age-no-fe)', include = FALSE, echo=FALSE} -->
-<!-- knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/",  -->
-<!--                                       "extrapolate_mean_age_no_fe", run_label, ".png")) -->
-<!-- ``` -->
-
-<!-- (ref:caption-extrapolation-area-by-age-no-fe) Extrapolating area by age bin, assuming site decay rates derived from linear models that do not use cohort fixed effects (treating each observation equally). -->
-
-<!-- ```{r extrapolation-area-by-age-no-fe, fig.cap = '(ref:caption-extrapolation-area-by-age-no-fe)', echo=FALSE} -->
-<!-- knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/",  -->
-<!--                                       "extrapolate_age_by_age_bin_no_fe", run_label, ".pdf")) -->
-<!-- ``` -->
-
 \newpage
 
 # Expanded Site-specific Results
-
-## Composite Results Figures
 
 (ref:caption-panel-b) Abandonment patterns for `r site_df$description[1]`, showing a) accumulation of abandoned land by age class, b) decay of abandoned land by year abandoned, c) the area in each land cover class through time (including both land that has been abandoned for five or more years, as well as any land abandoned for 1 or more years, therefore including short-term fallows), d) the annual turnover of abandoned land through time, and e) the distribution of abandonment duration for all periods of cropland abandonment (top) and the maximum duration of abandonment at each pixel (bottom).
 (ref:caption-panel-bh) Abandonment patterns for `r site_df$description[2]`, following Figure \@ref(fig:panel-b).
@@ -1621,68 +1576,46 @@ si_panel_figs <- list.files(paste0(p_plots, run_label), pattern = "si_panel", fu
 # grep("_b.png", si_panel_figs, value = TRUE)
 
 knitr::include_graphics(path = si_panel_figs[1])
-
-
 ```
 
 ```{r panel-bh, fig.cap = '(ref:caption-panel-bh)', echo=FALSE}
 knitr::include_graphics(path = si_panel_figs[2])
-
-
 ```
 
 ```{r panel-c, fig.cap = '(ref:caption-panel-c)', echo=FALSE}
 knitr::include_graphics(path = si_panel_figs[3])
-
-
 ```
 
 ```{r panel-g, fig.cap = '(ref:caption-panel-g)', echo=FALSE}
 knitr::include_graphics(path = si_panel_figs[4])
-
-
 ```
 
 ```{r panel-i, fig.cap = '(ref:caption-panel-i)', echo=FALSE}
 knitr::include_graphics(path = si_panel_figs[5])
-
-
 ```
 
 ```{r panel-mg, fig.cap = '(ref:caption-panel-mg)', echo=FALSE}
 knitr::include_graphics(path = si_panel_figs[6])
-
-
 ```
 
 ```{r panel-n, fig.cap = '(ref:caption-panel-n)', echo=FALSE}
 knitr::include_graphics(path = si_panel_figs[7])
-
-
 ```
 
 ```{r panel-o, fig.cap = '(ref:caption-panel-o)', echo=FALSE}
 knitr::include_graphics(path = si_panel_figs[8])
-
-
 ```
 
 ```{r panel-s, fig.cap = '(ref:caption-panel-s)', echo=FALSE}
 knitr::include_graphics(path = si_panel_figs[9])
-
-
 ```
 
 ```{r panel-v, fig.cap = '(ref:caption-panel-v)', echo=FALSE}
 knitr::include_graphics(path = si_panel_figs[10])
-
-
 ```
 
 ```{r panel-w, fig.cap = '(ref:caption-panel-w)', echo=FALSE}
 knitr::include_graphics(path = si_panel_figs[11])
-
-
 ```
 
 \newpage
@@ -1718,66 +1651,45 @@ decay_model_figs <- list.files(paste0(p_plots, run_label, "/decay"),
 # note - you can include just the mean trend (with FE) by removing the "_plus" in the file paths
 
 knitr::include_graphics(path = decay_model_figs[1])
-
 ```
 
 
 ```{r decay-model-indiv-site-bh, fig.cap = '(ref:caption-decay-model-indiv-site-bh)', echo=FALSE}
 knitr::include_graphics(path = decay_model_figs[2])
-
-
 ```
 
 ```{r decay-model-indiv-site-c, fig.cap = '(ref:caption-decay-model-indiv-site-c)', echo=FALSE}
 knitr::include_graphics(path = decay_model_figs[3])
-
-
 ```
 
 ```{r decay-model-indiv-site-g, fig.cap = '(ref:caption-decay-model-indiv-site-g)', echo=FALSE}
 knitr::include_graphics(path = decay_model_figs[4])
-
-
 ```
 
 ```{r decay-model-indiv-site-i, fig.cap = '(ref:caption-decay-model-indiv-site-i)', echo=FALSE}
 knitr::include_graphics(path = decay_model_figs[5])
-
-
 ```
 
 ```{r decay-model-indiv-site-mg, fig.cap = '(ref:caption-decay-model-indiv-site-mg)', echo=FALSE}
 knitr::include_graphics(path = decay_model_figs[6])
-
-
 ```
 
 ```{r decay-model-indiv-site-n, fig.cap = '(ref:caption-decay-model-indiv-site-n)', echo=FALSE}
 knitr::include_graphics(path = decay_model_figs[7])
-
-
 ```
 
 ```{r decay-model-indiv-site-o, fig.cap = '(ref:caption-decay-model-indiv-site-o)', echo=FALSE}
 knitr::include_graphics(path = decay_model_figs[8])
-
-
 ```
 
 ```{r decay-model-indiv-site-s, fig.cap = '(ref:caption-decay-model-indiv-site-s)', echo=FALSE}
 knitr::include_graphics(path = decay_model_figs[9])
-
-
 ```
 
 ```{r decay-model-indiv-site-v, fig.cap = '(ref:caption-decay-model-indiv-site-v)', echo=FALSE}
 knitr::include_graphics(path = decay_model_figs[10])
-
-
 ```
 
 ```{r decay-model-indiv-site-w, fig.cap = '(ref:caption-decay-model-indiv-site-w)', echo=FALSE}
 knitr::include_graphics(path = decay_model_figs[11])
-
-
 ```
