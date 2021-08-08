@@ -1485,7 +1485,7 @@ car::qqPlot(lm(log(proportion) ~ 0 + log(time + 1):cohort:site,
 
 ```
 
-```{r decay-facet-grid}
+```{r decay-mod-facet-grid}
 
 
 # plots ------------------------------------------------ #
@@ -1494,7 +1494,8 @@ car::qqPlot(lm(log(proportion) ~ 0 + log(time + 1):cohort:site,
 # gg_decay_mega_plus <-
   ggplot(data = dat_l, 
        mapping = aes(x = age, y = proportion, 
-                     group = year_abn, color = year_abn)) + 
+                     group = year_abn, 
+                     color = year_abn)) + 
     theme_classic() + 
     geom_point() + scale_color_distiller(palette = "Greens") + 
     scale_x_continuous(n.breaks = 6) +
@@ -1528,8 +1529,23 @@ car::qqPlot(lm(log(proportion) ~ 0 + log(time + 1):cohort:site,
 gg_decay_mega <-
   ggplot(data = dat_l, 
        mapping = aes(x = age, y = proportion, 
-                     group = year_abn, color = year_abn)) + 
+                     group = year_abn, 
+                     # color = year_abn
+                     color = cut(year_abn, 
+                                   breaks = c(1988, 1990, 1995, 2000, 2005, 2010, 2013),
+                                   labels = c("1988-1990", "1991-1995", "1996-2000",
+                                              "2001-2005", "2006-2010", "2011-2013"),
+                                   include.lowest = TRUE))) + 
     theme_classic() + 
+  
+  geom_line(data = fitted_l3_mega %>% filter(mod == "l3"), 
+            mapping = aes(x = age, y = proportion, linetype = mod),
+              # color = brewer_pal(palette = "PiYG")(11)[2], # dark pink
+              color = "black",
+              size = 1, inherit.aes = FALSE) +
+  scale_linetype_discrete(label = c("l3" = "Mean Decay Rate\n(Across Cohorts)",
+                                      "l3_no_cohort" = "Decay Rate (No F.E.)")) + 
+  
     geom_point(size = 0.8) + scale_color_distiller(palette = "Greens") + 
     scale_x_continuous(n.breaks = 6) +
     geom_hline(yintercept = 0.5, linetype = "dashed") + 
@@ -1545,20 +1561,30 @@ gg_decay_mega <-
                             proportion = .fitted + 1,
                             year_abn = as.numeric(levels(cohort))[cohort])) +
 
-  geom_line(data = fitted_l3_mega %>% filter(mod == "l3"), 
-            mapping = aes(x = age, y = proportion, linetype = mod),
-              # color = brewer_pal(palette = "PiYG")(11)[2], # dark pink
-              color = "blue",
-              size = 1, inherit.aes = FALSE) +
-  scale_linetype_discrete(label = c("l3" = "Mean Decay Rate\n(Across Cohorts)",
-                                      "l3_no_cohort" = "Decay Rate (No F.E.)")) + 
-  theme(legend.position = c(0.93, 0.2),
-        legend.spacing = unit(2, units = "mm"),
+  theme(legend.position = c(0.9, 0.13),
+        legend.spacing = unit(-2, units = "mm"), legend.background = element_blank(),
         legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
   coord_cartesian(ylim = c(0.3, 1)) +
-  facet_wrap(vars(site), nrow = 3)
+  facet_wrap(vars(site), nrow = 3,
+             labeller = as_labeller(cap_update_labels)) + 
+  guides(color = guide_legend(order = 1,
+                              override.aes = list(size = 5, linetype = NULL)))
 
-  
+
+ggsave(plot = gg_decay_mega + scale_color_viridis(discrete = TRUE), 
+       filename = paste0(p_plots, run_label, "/decay/", "decay_mod_grid", run_label, ".pdf"), 
+    width = 8, height = 8, units = "in")
+
+
+ggsave(plot = gg_decay_mega, 
+       filename = paste0(p_plots, run_label, "/decay/", "decay_mod_grid_green", run_label, ".pdf"), 
+    width = 8, height = 8, units = "in")
+
+ggsave(plot = gg_decay_mega + scale_color_viridis(discrete = FALSE), 
+       filename = paste0(p_plots, run_label, "/decay/", "decay_mod_grid_cont", run_label, ".pdf"), 
+    width = 8, height = 8, units = "in")
+
+
 # --------------------------------------------------------------- #
 
 ggsave(plot = gg_decay_mega_plus, 
@@ -1566,9 +1592,6 @@ ggsave(plot = gg_decay_mega_plus,
     width = 8, height = 8, units = "in")
 
 
-ggsave(plot = gg_decay_mega, 
-       filename = paste0(p_plots, run_label, "/decay/", "decay_mod_grid", run_label, ".pdf"), 
-    width = 8, height = 8, units = "in")
 
 
 # ---------------------------------------------------- #

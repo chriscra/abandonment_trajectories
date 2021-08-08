@@ -1416,7 +1416,7 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "l3_cohort_
 knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "l3_cohort_diag_qq_subset", run_label, ".png"))
 ```
 
-(ref:caption-decay-model-grid) Decay model results for all sites, showing raw data (green points) and modeled abandonment trajectories for individual years (green lines). The mean decay trajectory for the site is calculated as the mean of the coefficients for each cohort (solid blue line).
+(ref:caption-decay-model-grid) Decay model results for all sites, showing raw data (colored points) and modeled abandonment trajectories for individual years (colored lines). The mean decay trajectory for the site is calculated as the mean of the coefficients for each cohort (solid black line).
 
 ```{r decay-model-grid, fig.cap = '(ref:caption-decay-model-grid)', echo = FALSE}
 knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "decay_mod_grid", run_label, ".pdf"))
@@ -1489,6 +1489,7 @@ While mean age of abandoned land increased through time after 2017 (and most dra
 Increases in mean abandonment duration were offset by recultivation, and total area abandoned declined quickly after 2020 at most sites.
 
 The mean abandonment duration increases as annual abandonment declines, as the total pool of abandoned land grows older and is gradually recultivated.
+
 
 
 (ref:caption-extrapolation-combo) The results of our simple extrapolation, including a) the mean age of abandonment, and b) the total area abandoned into the future. Colors corresponding to each site are consistent across the three panels. These extrapolation assume recultivation based on the mean decay trend for each site Figure \@ref(fig:decay-curves-by-site) and annual new abandonment based on the mean annual gain in abandonment shown in Figure \@ref(fig:turnover-grid) (dark green bars).
