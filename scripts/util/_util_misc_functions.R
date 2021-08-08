@@ -106,7 +106,11 @@ cap_update_labels <- function(string) {
                                 gsub("goias", "Goiás", string),
                                 ifelse(grepl("shaanxi", string, ignore.case = TRUE),
                                        gsub("shaanxi", "Shaanxi/Shanxi", string),
-                                       gsub("_", " ", string))))))
+                                       ifelse(grepl("nebraska", string, ignore.case = TRUE),
+                                              gsub("nebraska", "Nebraska/Wyoming", string),
+                                              ifelse(grepl("orenburg", string, ignore.case = TRUE),
+                                                     gsub("orenburg", "Orenburg/Uralsk", string),
+                                                     gsub("_", " ", string))))))))
 }
 # for use in facet_wrap(labeller = as_labeller(cap_update_labels))
 

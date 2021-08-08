@@ -3,10 +3,11 @@
 data_alias/
 data_derived/
 output/
-writing/
 scripts/cluster/old/
 scripts/cluster/slurm/
+scripts/misc_ref/
 wc0.5/
+writing/
 
 
 # other random files

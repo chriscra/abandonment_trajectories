@@ -12,3 +12,4 @@ p_bel_tiles <- "/Users/christophercrawford/Google_Drive/_Projects/data/Abandonme
 
 p_dat_derived <- paste0(p_proj, "data_derived/")
 p_output <- paste0(p_proj, "output/")
+p_plots <- paste0(p_output, "plots/")

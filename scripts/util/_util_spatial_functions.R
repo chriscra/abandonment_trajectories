@@ -49,7 +49,8 @@ plot_cols <- c("gray80",
 names(plot_cols) <- c("Non-veg.", "Woody veg.", "Cropland", "Grassland", 
                       "Abandoned (>=5)", "Abandoned (>1)")
 as_factor(plot_cols)
-# fct_relevel(plot_cols, order(names(plot_cols), decreasing = TRUE))
+plot_cols <- plot_cols[order(names(plot_cols), decreasing = FALSE)]
+# fct_relevel(plot_cols, order(names(plot_cols), decreasing = FALSE))
 
 # visualize them
 # show_col(plot_cols$color) # (topleft = 1, topright = 2, bottomleft = 3, bottomright = 4)

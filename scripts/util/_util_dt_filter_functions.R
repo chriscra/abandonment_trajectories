@@ -2442,8 +2442,9 @@ cc_4_panel_plots <- function(input_path,
     ggplot(data = filter(length_distill_df, site == input_site,# site_df$site[i], 
                          length > 0)) + 
     theme_classic() +
-    labs(color = "Mean") +
-    xlab("Time abandoned (years)") + ylab(expression("Count  (10"^{6}*" pixels)")) +
+    labs(linetype = "", x = "Time abandoned (years)", 
+           y = expression("Count  (10"^{6}*" pixels)"),
+           color = "Mean") +
     geom_col(mapping = aes(x = length, y = freq/(10^6)), fill = "gray70") +
     facet_grid(rows = vars(length_type), scales = "free",
                labeller = labeller(length_type = c(all = "all abn. periods", #old = "new",
@@ -2451,13 +2452,18 @@ cc_4_panel_plots <- function(input_path,
     # means
     geom_vline(data = filter(mean_length_df, site == input_site, #site_df$site[i], 
                              abn_threshold != 3), 
-               mapping = aes(xintercept = mean_duration, color = as_factor(abn_threshold)#, linetype = "mean (>1)"
+               mapping = aes(xintercept = mean_duration, 
+                             color = as_factor(abn_threshold)#, linetype = "mean (>1)"
                              ),
                show.legend = TRUE, size = 1, linetype = "dashed"
                ) + 
-    
-    scale_color_manual(values = c("5" = "#C51B7D", "1" = "#F1B6DA"), 
-                       labels = c("5" = "Mean (>=5)", "1" = "Mean (>1)")) +
+      
+      scale_color_manual(values = viridis(n = 4), #c("5" = "#C51B7D", "1" = "#F1B6DA"),
+                         labels = c("5" = "Mean (\u2265 5)", "1" = "Mean (\u2265 1)",
+                                    "7" = "Mean (\u2265 7)", "10" = "Mean (\u2265 10)")) +
+    # 
+    # scale_color_manual(values = c("5" = "#C51B7D", "1" = "#F1B6DA"), 
+    #                    labels = c("5" = "Mean (>=5)", "1" = "Mean (>1)")) +
     
     theme(#legend.position = c(0.85, 0.95)
           )
@@ -3204,9 +3210,13 @@ cc_age_levelplot_hist <- function(site_index, year_or_max = "max") {
   )
   
   # make level plot
+  myTheme <- viridisTheme()
+  myTheme$regions$col <- viridis(n = 100, direction = -1)
+  myTheme$panel.background$col = 'gray95' 
+  
   p_levelplot <- 
     levelplot(tmp_raster, margin = list(FUN = 'mean'), #contour=TRUE, 
-              par.settings = YlOrRdTheme,
+              par.settings = myTheme, #YlOrRdTheme,
               main = map_title)
   
   # make histogram
@@ -3225,7 +3235,7 @@ cc_age_levelplot_hist <- function(site_index, year_or_max = "max") {
   # save plot_grid
   ggsave(plot = plot_grid(p_levelplot, p_hist, ncol = 1, nrow = 2, rel_heights = c(1, 0.4),
                           labels = "auto"),
-         filename = paste0(p_plots, run_label, "/spatial_reg/", 
+         filename = paste0(p_plots, run_label, "/maps/", 
                            "age_duration_", year_or_max, "_w_dist", run_label, site_df$label[site_index], ".pdf"), 
          width = 6, height = 8.5, units = "in")
   

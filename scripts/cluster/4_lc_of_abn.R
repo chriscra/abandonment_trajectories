@@ -80,7 +80,7 @@ abn_prop_lc_2017 <- abn_lc_count_2017 %>%
               group_by(site) %>%
               summarise(abn_freq = sum(N))) %>%
   mutate(prop_lc = lc_freq/abn_freq) %>% ungroup() %>%
-  left_join(., filter(temp, lc_2017 == 4) %>% arrange(prop_lc) %>% mutate(order = 1:n()) %>% select(site, order))
+  left_join(., filter(., lc_2017 == 4) %>% arrange(prop_lc) %>% mutate(order = 1:n()) %>% select(site, order))
 
 # save:
 write_csv(abn_prop_lc_2017, file = paste0(p_dat_derived, run_label, "/", "abn_prop_lc_2017", run_label, ".csv"))

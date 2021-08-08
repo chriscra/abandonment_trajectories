@@ -1,23 +1,57 @@
 ---
-title: "Preliminary Results"
-output: html_notebook
+title: "Results Sandbox"
 editor_options: 
   chunk_output_type: console
+output:
+  bookdown::pdf_document2:
+    keep_tex: true
+  bookdown::word_document2:
+    reference_docx: /Users/christophercrawford/Google_Drive/_Projects/writing/scripts/word_style_ref.docx
+    number_sections: false
+  bookdown::html_document2:
+    toc: true
 ---
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 
-```{r start}
-source("scripts/0_start.R")
-p_dat_derived
+```{r start, include = FALSE}
+source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
+run_label <- "_2021_03_13"
 
-p_plots <- "/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots_loop/"
+site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
+
+
+options(knitr.table.format = function() {
+  if (knitr::is_latex_output())
+    "latex" else "pipe"
+})
+
 ```
 
 
-(ref:caption-bd-inputs-1) Raw Biodiversity inputs, 1 km$^2$ resolution
+```{r 2yr-diff, include = FALSE}
+library(kableExtra)
 
-```{r bd-inputs-1, fig.cap = '(ref:caption-bd-inputs-1)', echo=FALSE}
-
-knitr::include_graphics(fp(p_plots, "ms_v5/bd_input_maps_runs_1.png"))
+abn_2yr_overestimation <- 
+  read_csv(file = paste0(p_dat_derived, run_label, "/", 
+                         "abn_2yr_overestimation", run_label, ".csv")) %>%  
+  arrange(percent_diff) %>% 
+  mutate(area_ha_cc = area_ha_cc %>% round(digits = 0) %>% prettyNum(big.mark = ","),
+         area_2yr = area_2yr %>% round(digits = 0) %>% prettyNum(big.mark = ","),
+         percent_diff = percent_diff %>% round(digits = 2) %>% paste0(., "%"),
+         jaccard = jaccard %>% round(digits = 2)) %>% 
+  left_join(., site_df %>% select(site, description), by = "site")
 ```
+
+```{r echo = FALSE}
+abn_2yr_overestimation %>% 
+  select(description, area_ha_cc, area_2yr, percent_diff, jaccard) %>%
+
+  knitr::kable(., 
+               col.names = c("Site", "Area (annual)", "Area (2017-1987)", 
+                             "Percent Difference", "Jaccard Similarity"),
+               align = "lrrrr", format = "simple",
+               caption = "Cropland abandonment as of 2017 as identified using a) our annual time series and b) the difference between only two years.") %>% 
+  kableExtra::kable_styling(latex_options = "scale_down") 
+```
+
