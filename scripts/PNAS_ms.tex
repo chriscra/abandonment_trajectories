@@ -1,4 +1,4 @@
-\documentclass[9pt,twocolumn,twoside,]{pnas-new}
+\documentclass[9pt,twocolumn,twoside,lineno]{pnas-new}
 
 %% Some pieces required from the pandoc template
 \providecommand{\tightlist}{%
@@ -142,12 +142,14 @@ Together, these results highlight the temporal nature of cropland abandonment an
 Cropland abandonment was widespread across our eleven study sites.
 We detected 5.73 million ha (Mha) of abandoned croplands across our eleven sites as of 2017 (Figure \ref{fig:maps-abn-duration}).\footnote{\emph{As a reminder, this is the total abandonment \textbf{as of 2017}. I report the area that was abandoned at least once during the time series below (8.32 Mha), but please let me know if you think I should change the order in which the numbers are reported. I could also update the percentages to reflect the ``total area ever abandoned'' number.}}
 This corresponds to 24.15\% of the total cropland extent, 23.74 Mha (i.e.~all lands that were cultivated at some point during the time series).
-Cropland abandonment at individual sites as of 2017 ranged from 17.86\% (Nebraska) to 41.06\% (Bosnia \& Herzegovina) of the total cropland extent (Figures \ref{fig:area-abn-by-age-class} and \ref{fig:area-abn-panel}\footnote{Note: figure numbers above 4 will be updated to read ``Fig. S1,'' etc. in the final version.}), except for Mato Grosso, where only 0.47\% was abandoned as of 2017 (see Section \ref{mato-grosso}).
+Cropland abandonment at individual sites as of 2017 ranged from 17.86\% (Nebraska) to 41.06\% (Bosnia \& Herzegovina) of the total cropland extent (Figures \ref{fig:area-abn-panel} and \ref{fig:area-abn-by-age-class}\footnote{Note: figure numbers above 4 will be updated to read ``Fig. S1,'' etc. in the final version.}), except for Mato Grosso, where only 0.47\% was abandoned as of 2017 (see Section \ref{mato-grosso}).
 
 However, we also found that many of these abandoned croplands were recultivated: 37.77\% of abandoned area on average (SD = 8.9\%; Figure \ref{fig:recult-by-threshold}).
 In fact, 8.36 Mha of croplands were abandoned at least once during our time series.
 Accordingly, the mean duration of abandonment across all sites was short: 14.42 years (SD = 1.52), ranging from 12.86 years (Orenburg) to 17.7 years (Bosnia \& Herzegovina; Figure \ref{fig:mean-abn-duration}).
 Abandonment duration also varied substantially within sites, with individual site standard deviations ranging between 6.95 (Orenburg) and 9.21 years (Mato Grosso) (for an average of 7.78 years across all sites).
+
+
 
 \begin{figure}
 \centering
@@ -322,7 +324,7 @@ Because some abandonment periods are limited by the length of the time series, w
 We tracked recultivation (``decay'') by calculating the proportion of each cohort of pixels abandoned in a given year that remain abandoned in each year following abandonment.
 We parameterized linear models predicting the proportion of abandoned cropland in each cohort remaining abandoned as a function of time since initial abandonment.
 We tested a range of model specifications, including linear and log transformations of both \emph{proportion} and \emph{time}, and multiple \emph{time} predictor terms.
-Importantly, we included \emph{site} and \emph{cohort} level fixed effects, fitting unique coefficients for each cohort at each site.
+Importantly, we included \emph{cohort} level fixed effects, fitting unique coefficients for each cohort at each site.
 
 We selected the highest performing model based on Akaike Information Criterion values (AIC; Figure \ref{fig:AIC}).
 For cohorts of abandonment initially abandoned in years \(y = 1988 ... 2013\), our model predicted the proportion \(p\) of each cohort \(y\) remaining abandoned as a function of time \(t\) (i.e.~the number of years following initial abandonment), with one log-transformed and one linear term of time (Equation \eqref{eq:mod-spec}).
@@ -344,7 +346,7 @@ Trends were considered statistically significant when the 95\% confidence interv
 
 
 \begin{figure}
-\includegraphics[width=8.7cm]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/fig4} \caption{Decay of abandoned land in Shaanxi/Shanxi (China), showing the proportion of each cohort of abandoned land (i.e.~all pixels abandoned in a given year) remaining abandoned over time. Points represent actual observations by cohort, dashed green lines represent linear model predictions for each cohort as a function of time (including a linear and lagarithmic term of time), and the solid purple line represents the mean trend across all cohorts (calculated by taking the mean of each time coefficient value across all cohorts). For similar results for our other sites, see Figures \ref{fig:decay-model-grid} and \ref{fig:decay-model-indiv-site-b}-\ref{fig:decay-model-indiv-site-w}.}\label{fig:abn-decay-s}
+\includegraphics[width=8.7cm]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/fig4} \caption{Recultivation (decay) of abandoned land in Shaanxi/Shanxi (China), showing the proportion of each cohort of abandoned land (i.e.~all pixels abandoned in a given year) remaining abandoned over time. Points represent actual observations by cohort, dashed green lines represent linear model predictions for each cohort as a function of time (including a linear and lagarithmic term of time), and the solid purple line represents the mean trend across all cohorts (calculated by taking the mean of each time coefficient value across all cohorts). See Figure \ref{fig:decay-model-grid} for model results for all sites.}\label{fig:abn-decay-s}
 \end{figure}
 
 \hypertarget{extrapolation}{%
@@ -360,7 +362,7 @@ See details in Section \ref{section-extrapolation-si}.
 \hypertarget{data-availability-statement}{%
 \section{Data Availability Statement}\label{data-availability-statement}}
 
-Code to replicate these analyses will be available on GitHub at \url{https://github.com/chriscra/abandonment_trajectories}, and will be archived at \href{https://doi.org/}{Zenodo (TBD)}.
+Code to replicate these analyses is available on GitHub at \url{https://github.com/chriscra/abandonment_trajectories}, and is archived at \href{https://doi.org/}{Zenodo (TBD)}.
 
 \showacknow
 
@@ -603,12 +605,16 @@ Code to replicate these analyses will be available on GitHub at \url{https://git
 \CSLLeftMargin{58. }
 \CSLRightInline{Olson DM, Dinerstein E (2002) {The Global 200: Priority ecoregions for global conservation}. \emph{Annals of the Missouri Botanical Garden} 89(2):199--224.}
 
-\leavevmode\hypertarget{ref-R-terra}{}%
+\leavevmode\hypertarget{ref-Legendre2012}{}%
 \CSLLeftMargin{59. }
+\CSLRightInline{Legendre P, Legendre L (2012) \emph{{Numerical ecology}} (Boston: Elsevier). 3rd Ed.}
+
+\leavevmode\hypertarget{ref-R-terra}{}%
+\CSLLeftMargin{60. }
 \CSLRightInline{Hijmans RJ (2021) \emph{Terra: Spatial data analysis} Available at: \url{https://rspatial.org/terra}.}
 
 \leavevmode\hypertarget{ref-R-car}{}%
-\CSLLeftMargin{60. }
+\CSLLeftMargin{61. }
 \CSLRightInline{Fox J, Weisberg S, Price B (2021) \emph{Car: Companion to applied regression} Available at: \url{https://CRAN.R-project.org/package=car}.}
 
 \end{CSLReferences}
@@ -630,32 +636,59 @@ Code to replicate these analyses will be available on GitHub at \url{https://git
 
 
 \begin{figure}
-\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/fig0} \caption{The locations of our 11 sites, from (25).}\label{fig:global-map}
+\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/fig0} \caption{The locations of our 11 sites, from Yin et al. (25).}\label{fig:global-map}
 \end{figure}
 
 Cropland abandonment at individual sites ranged between 314,374.8 ha (Shaanxi) and 930,424 ha (Orenburg) as of 2017 (Figure \ref{fig:area-abn-by-age-class}), and because our sites varied in size, this corresponded to between 7.91\% (Nebraska) and 19.91\% (Shaanxi) of the total area of each site (Figure \ref{fig:area-abn-panel}).
 
-We report the standard deviation of mean abandonment durations across our 11 sites (1.52 years).
-We also calculated the mean standard deviation of abandonment durations across our sites, which was 7.78 years.
-The former is a measure of spread of mean abandonment lengths across the 11 sites, whereas the later is a measure of the average spread of abandonment lengths at each site.
+On average, we found that cropland abandonment lasted for only 14.42 years (SD = 1.52 years) across our time series at our eleven sites.
+Note, however, that these summary statistics are calculated based on the mean abandonment duration at each site, to account for different site sizes.
+The summary statistics reported are therefore the mean of the mean abandonment duration at each of our eleven sites, and the standard deviation of the mean abandonment duration at each of our eleven sites.
+
+We also calculated the mean standard deviation of abandonment duration across our sites, which was 7.78 years.
+The former is a measure of spread of mean abandonment lengths across the 11 sites, whereas the latter is a measure of the average spread of abandonment lengths at each site.
+See Table \ref{tab:summary-stats-table}.
+
+\begin{longtable}[]{@{}rrrr@{}}
+\caption{\label{tab:summary-stats-table}Summary statistics describing the duration of abandonment (in years) at our eleven sites between 1987 and 2017, using a five year abandonment definition, and incorporating all periods of abandonment (allowing for multiple per pixel).}\tabularnewline
+\toprule
+Site & Mean & Median & Standard Deviation \\
+\midrule
+\endfirsthead
+\toprule
+Site & Mean & Median & Standard Deviation \\
+\midrule
+\endhead
+Vitebsk, Belarus / Smolensk, Russia & 13.87 & 12 & 7.60 \\
+Bosnia \& Herzegovina & 17.70 & 18 & 8.36 \\
+Chongqing, China & 12.92 & 11 & 7.32 \\
+Goiás, Brazil & 13.61 & 12 & 7.42 \\
+Iraq & 15.72 & 13 & 8.78 \\
+Mato Grosso, Brazil & 15.30 & 11 & 9.21 \\
+Nebraska/Wyoming, USA & 15.32 & 14 & 8.04 \\
+Orenburg, Russia / Uralsk, Kazakhstan & 12.86 & 11 & 6.95 \\
+Shaanxi/Shanxi, China & 13.00 & 11 & 7.15 \\
+Volgograd, Russia & 13.33 & 12 & 7.01 \\
+Wisconsin, USA & 15.00 & 14 & 7.78 \\
+\bottomrule
+\end{longtable}
 
 The area abandoned at each site is shown in Figure \ref{fig:area-abn-panel}.
-Area by land cover class is shown for each site in Figure \ref{fig:area-by-lc}, and the area abandoned is shared by age class in Figure \ref{fig:area-abn-by-age-class}.
+The area abandoned at each site, by age class, is shown in Figure \ref{fig:area-abn-by-age-class}, and the area in each land cover class at each site is shown in Figure \ref{fig:area-by-lc}.
+Figure \ref{fig:area-abn-by-age-class} shows that the timing of abandonment varied across sites; some sites showed more abandonment earlier in the time series (e.g.~Iraq; Bosnia \& Herzegovina; Volgograd, Russia; Nebraska/Wyoming, USA; \& Mato Grosso, Brazil), some showed consistent abandonment over time (e.g.~Vitebsk, Belarus/Smolensk, Russia; Goiás, Brazil; and Wisconsin, USA), and others showed increasing abandonment later on in the time series (e.g.~sites in Shaanxi/Shanxi and Chongqing, China).
 
-We also find that a significant area of abandoned croplands were recultivated by the end of our time series (Figure \ref{fig:recult-by-threshold}).
-
-The timing of abandonment varied across sites (Figure \ref{fig:area-abn-by-age-class}), with some sites showing more abandonment earlier in the time series (e.g.~Iraq; Bosnia \& Herzegovina; Volgograd, Russia; Nebraska/Wyoming, USA; \& Mato Grosso, Brazil), some showing consistent abandonment over time (e.g.~Vitebsk, Belarus/Smolensk, Russia; Goiás, Brazil; and Wisconsin, USA), and others showing abandonment increasing later in the time series (e.g.~sites in Shaanxi/Shanxi and Chongqing, China).
-
-
-
-\begin{figure}
-\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/abn_area_by_age_grid_2021_03_13} \caption{Cumulative area abandoned at each site through time, according to age class (in years).}\label{fig:area-abn-by-age-class}
-\end{figure}
+Furthermore, Figure \ref{fig:turnover-grid} shows the annual gain, loss, and net change in the area of abandoned croplands abandoned at each site.
 
 
 
 \begin{figure}
 \includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/area_abn_panel_2021_03_13} \caption{Area abandoned a) as of 2017, b) at any point between 1987-2017, c) as a proportion of the total site area, and d) as a proportion of the total cropland area in 1987. Note that sites are shown in ascending order of area as a proportion of total site area.}\label{fig:area-abn-panel}
+\end{figure}
+
+
+
+\begin{figure}
+\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/abn_area_by_age_grid_2021_03_13} \caption{Cumulative area abandoned at each site through time, according to age class (in years).}\label{fig:area-abn-by-age-class}
 \end{figure}
 
 
@@ -670,18 +703,11 @@ The timing of abandonment varied across sites (Figure \ref{fig:area-abn-by-age-c
 \includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/turnover_grid_2021_03_13} \caption{Annual turnover of abandoned croplands at each site, showing the annual gain (dark green) and annual loss (i.e.~recultivation, light green) and net change (black line) of abandoned croplands.}\label{fig:turnover-grid}
 \end{figure}
 
-Land-cover outcomes are shown in Figure \ref{fig:abn-prop-lc}.
-
-
-
-\begin{figure}
-\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/abn_prop_lc_2017_2021_03_13} \caption{Proportion of abandoned cropland in each land cover class as of 2017.}\label{fig:abn-prop-lc}
-\end{figure}
-
 \hypertarget{mato-grosso}{%
-\subsection{Limited abandonment at Mato Grosso}\label{mato-grosso}}
+\subsection{Limited abandonment in Mato Grosso}\label{mato-grosso}}
 
-Mato Grosso was the only site that did not experience significant amounts of cropland abandonment during our time series; unsurprising given the recent history of agriculturally-drive land-use change over the last few decades.
+Mato Grosso, Brazil, was the only site that did not experience significant amounts of cropland abandonment during our time series.
+This is unsurprising given the recent history of agriculturally-drive land-use change over the last few decades.
 As a result, we interpret the trends we see in Mato Grosso regarding abandonment persistence and decay with caution.\\
 Mato Grosso also showed relatively more durable abandonment, requiring 25 years to decline by half and 110 years for complete turnover.
 However, because Mato Grosso showed large amounts of new cultivation over the source of our time series and relatively little abandonment (9,006 ha, or 0.47\% of total site area, as of 2017), these results should be interpreted with care.
@@ -689,29 +715,53 @@ However, because Mato Grosso showed large amounts of new cultivation over the so
 \hypertarget{biomes}{%
 \subsection{Biomes}\label{biomes}}
 
-Some ecosystems and biomes seem to recover more quickly and successfully than others, namely in relatively higher latitudes, relatively colder climates, and in relatively more humid biomes (56).
-Our sites cover a range of biomes, including Temperate Broadleaf and Mixed Forests (Vitebsk Belarus/Smolensk, Russia; Bosnia \& Herzegovina; Wisconsin, USA), Temperate Grasslands, Savannas, and Shrublands (Nebraska/Wyoming, USA; Orenburg, Russia/Oral, Kazakhstan; Volgograd, Russia), and Tropical Grassland (Goiás and Mato Grosso, Brazil), Tropical Moist Broadleaf Forests (Chongqing, China; Mato Grosso, Brazil), Montane Grassland and Shrublands (Shaanxi/Shanxi, China), and Deserts \& Xeric Shrublands (Iraq) (Figure \ref{fig:site-biomes}).
+Some ecosystems and biomes seem to recover more quickly than others, namely in relatively higher latitudes, relatively colder climates, and in relatively more humid biomes (56).
+Our sites cover a range of biomes (Figure \ref{fig:site-biomes}), including:
+
+\begin{itemize}
+\tightlist
+\item
+  Temperate Broadleaf and Mixed Forests (Vitebsk Belarus/Smolensk, Russia; Bosnia \& Herzegovina; Wisconsin, USA),
+\item
+  Temperate Grasslands, Savannas, and Shrublands (Nebraska/Wyoming, USA; Orenburg, Russia/Oral, Kazakhstan; Volgograd, Russia),
+\item
+  Tropical Grassland (Goiás and Mato Grosso, Brazil),
+\item
+  Tropical Moist Broadleaf Forests (Chongqing, China; Mato Grosso, Brazil),
+\item
+  Montane Grassland and Shrublands (Shaanxi/Shanxi, China), and
+\item
+  Deserts \& Xeric Shrublands (Iraq).
+\end{itemize}
+
+The long-term land-cover outcomes for abandoned croplands are shown (as of 2017) in Figure \ref{fig:abn-prop-lc}.
 Land cover outcomes for abandoned croplands showed wide variation across sites, with most abandonment in Wisconsin being classified as forest by 2017 (60\% forest, 40\% grassland), but remaining mostly in grassland elsewhere (Figure \ref{fig:abn-prop-lc}).
-This limited woody vegetation regrowth may be a product of the biome or simply insufficient time for woody biomass to develop, and land cover alone cannot confidently serve as a proxy for ecosystem recovery.
+This limited woody vegetation regrowth may be a product of the biome, but it may simply be a result of insufficient time for woody biomass to develop.
+Land cover alone cannot confidently serve as a proxy for ecosystem recovery.
 
 
 
 \begin{figure}
-\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/biomes_by_site} \caption{Site biomes, using biome classifications from The Nature Conservancy's Terrestrial Ecoregions of The World (TEOW) database, derived from (57) and (58).}\label{fig:site-biomes}
+\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/abn_prop_lc_2017_2021_03_13} \caption{Proportion of abandoned cropland in each land cover class as of 2017.}\label{fig:abn-prop-lc}
+\end{figure}
+
+
+
+\begin{figure}
+\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/biomes_by_site} \caption{Site biomes, using biome classifications from The Nature Conservancy's Terrestrial Ecoregions of The World (TEOW) database, derived from Olson et al. (57) and Olson and Dinerstein (58).}\label{fig:site-biomes}
 \end{figure}
 
 \hypertarget{abn-thresholds}{%
 \subsection{The effect of varying abandonment definitions}\label{abn-thresholds}}
 
-\begin{itemize}
-\tightlist
-\item
-  Abandonment threshold, including a higher threshold (something like 6 or 10 years), along with how thresholds change total pixels/area.
-\end{itemize}
+A relatively short-term definition of abandonment might result in an overestimation of recultivation, because short term abandonment may be better understood as cyclical fallow periods, not true abandonment (20).
+Because fallow periods may vary around the world, we tested multiple abandonment thresholds in order to test the sensitivity of our results to our choice of a five-year abandonment definition, following the FAO (51).
+As our abandonment threshold increased in length, the mean abandonment duration across our sites increased accordingly, ranging between 7 years (no threshold) and 19 years (10-year threshold).
+As expected, using a longer abandonment definition reduced the amount of cropland abandonment we detected, as shown by the different colored age classes in Figure \ref{fig:area-abn-by-age-class}.
 
-A relatively short-term definition of abandonment might result in an overestimation of recultivation, because short term abandonment may be better understood as cyclical fallow periods, not true abandonment.
-Because fallow periods may vary around the world, we tested multiple abandonment thresholds, and mean abandonment duration across our sites increased accordingly, ranging between 7 (no threshold) and 19 (10 years) years.
-The proportion of abandoned croplands that were recultivated by the end of the time series also responded to our abandonment threshold, but even at the longest abandonment definition (10 years), we still saw that between 10 and 30\% of abandoned croplands were recultivated by the end of the time series.
+The proportion of abandoned croplands that were recultivated by the end of the time series also responded to our abandonment threshold, with less recultivation for longer abandonment thresholds (Figure \ref{fig:recult-by-threshold}).
+However, even at the longest abandonment definition (10 years), we still saw that between 10\% and 30\% of abandoned croplands were recultivated by the end of the time series.
+We find that the mean area of abandoned croplands that get recultivated by the end of the time series declines from 37.77\% with a 5 year threshold to 30.93\% with a 7 year threshold, and 22.83\% with a 10 year threshold.
 This indicates that the abandonment and recultivation we observe is not merely a function of our five year abandonment definition.
 
 
@@ -720,8 +770,6 @@ This indicates that the abandonment and recultivation we observe is not merely a
 \includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/mean_lengths_by_threshold_2021_03_13} \caption{Mean abandonment lengths shown for various abandonment thresholds.}\label{fig:abn-thresholds-mean-duration}
 \end{figure}
 
-Like the mean duration of abandonment, the amount of recultivation depends on our definition of abandonment (Figure \ref{fig:recult-by-threshold}). We find that the mean area of abandoned croplands that get recultivated by the end of the time series declines from 37.77\% with a 5 year threshold to 30.93\% with a 7 year threshold, and 22.83\% with a 10 year threshold.
-
 
 
 \begin{figure}
@@ -729,11 +777,19 @@ Like the mean duration of abandonment, the amount of recultivation depends on ou
 \end{figure}
 
 \hypertarget{twoyr-vs-annual}{%
-\subsection{Comparing our annual identification of abandonment with a two-year method}\label{twoyr-vs-annual}}
+\subsection{Comparing annual and two-year estimates of abandonment}\label{twoyr-vs-annual}}
 
-In order to understand the potential for an over- or under-estimation of abandonment when using a shorter time-series or two snapshots in time, we used our land cover maps to simply identify those areas identified as cropland in 1987 that are not cropland in 2017.
+Some studies estimate cropland abandonment by simply looking for areas where land cover is classified as ``cultivated'' in one year, but not in a subsequent year (e.g.~1992 and 2015 in Næss et al. (4)).
+In order to understand the magnitude of the differences that could result from using this two-year approach, we estimated cropland abandonment by simply identifying areas that were classified as ``cropland'' in 1987 and classified as either ``woody vegetation'' or ``herbaceous vegetation'' in 2017 (i.e.~excluding ``non-vegetation'').
 
-\newpage
+Table \ref{tab:twoyr-diff-table} shows the area of abandoned croplands as identified using a five-year abandonment definition and the full annual time series (column 2), and the area of abandoned croplands identified using only the difference between 2017 and 1987.
+These two methods produced abandonment area estimates that ranged between 39.75\% lower (Goiás, Brazil) and 83.29\% higher (Mato Grosso, Brazil) than the abandoned area identified using the full time series.
+Not only do these methods produce different area estimates, but they also differ in the location of the abandonment they identify, with spatial agreement of only 28.08\% (Mato Grosso, Brazil) to 66.3\% (Bosnia \& Herzegovina) (see Table \ref{tab:twoyr-diff-table}, Section \ref{twoyr-vs-annual}).
+We measure spatial agreement using the Jaccard similarity index {[}Legendre2012{]}, a measure of overlap between two sets, defined as the proportion of shared elements, or the intersection divided by the union (Equation \eqref{eq:jaccard-equation}) (59):
+
+\begin{equation}
+J(a,b) = \frac{a\cap b}{a\cup b} \label{eq:jaccard-equation}
+\end{equation}
 
 \begin{longtable}[]{@{}rrrrr@{}}
 \caption{\label{tab:twoyr-diff-table}Cropland abandonment (in Mha) as of 2017 as identified using a) our annual time series and a five-year abandonment definition and b) the difference between only two years.}\tabularnewline
@@ -759,8 +815,6 @@ Mato Grosso, Brazil & 9,006 & 16,507 & 83.29\% & 0.28 \\
 \bottomrule
 \end{longtable}
 
-\newpage
-
 \hypertarget{maps-of-abandonment-duration-as-of-2017-and-maximum-duration-during-time-series}{%
 \subsection{Maps of abandonment duration as of 2017 and maximum duration during time series}\label{maps-of-abandonment-duration-as-of-2017-and-maximum-duration-during-time-series}}
 
@@ -775,62 +829,54 @@ Mato Grosso, Brazil & 9,006 & 16,507 & 83.29\% & 0.28 \\
 \hypertarget{methods-si}{%
 \section{Extended Methods}\label{methods-si}}
 
-As previously noted, we build on annual land cover maps for 1987-2017 developed by (25).
-The following supplement outlines our methodological steps in more specific detail than was possible in the main text.
-We processed and analyzed our abandonment map data in RStudio version 1.4.1717 (52), using R version 4.1.0 (2021-05-18), relying heavily on the \texttt{raster} (53), \texttt{terra} (59), \texttt{data.table} (54), and \texttt{tidyverse} (55) packages.
+As noted in our main text, we build on annual land cover maps for 1987-2017 developed by (25).
+The following section outlines our data processing and analytical methods in more specific detail than was possible in the main text.
+We processed and analyzed our abandonment map data in RStudio version 1.4.1717 (52), using R version 4.1.0 (2021-05-18), relying heavily on the \texttt{\{raster\}} (53), \texttt{\{terra\}} (60), \texttt{\{data.table\}} (54), and \texttt{\{tidyverse\}} (55) packages.
 
 \hypertarget{classifying-abandonment}{%
 \subsection{Classifying abandonment}\label{classifying-abandonment}}
 
-Pixels that remained in cropland or non-cropland classes throughout the entire time series were excluded, as were periods of non-cropland that began in the first year of the time series, even if that pixel was later classified as cropland and subsequently abandoned (leaving only periods of abandonment that we could verify had followed agricultural activity during our time series).
+Pixels that remained in cropland or non-cropland classes throughout the entire time series were excluded, as were periods of non-cropland that began in the first year of the time series, even if that pixel was later classified as cropland and subsequently abandoned.
+In effect, we only counted periods of abandonment that we could verify had followed agricultural activity during our time series.
 
-As noted, pixels that transitioned from cropland to the non-vegetation class were not considered ``abandoned,'' and therefore we excluded all non-vegetation pixels from our analysis.
-These pixels represent a very small portion of our dataset, and non-vegetated land remained about constant or declined over time at most sites.
+As noted, pixels that transitioned from cropland to the non-vegetation land cover class were not considered ``abandoned,'' and therefore we excluded all non-vegetation pixels from our entire analysis.
+These pixels accounted for \textless10\% of total site area at all sites except Shaanxi (12.7\%) and Iraq (52.8\%), and remained stable or declined over time at all eleven sites.
 See Figure \ref{fig:area-by-lc}.
 
-Restricting the mean abandonment duration to account for only those pixels that are both abandoned and recultivated within the time series would exclude a large portion of our data, and may underestimate the eventual lengths of many periods of abandonment that begin close to the end of our time series.
-(Note: assessing temporal changes in mean length abandoned would involve looking at the mean length of time abandoned at each year of Figure \ref{fig:panel-s}a).
-
-All area calculations were performed using the \texttt{raster::area()} function.
+All area calculations were performed using the \texttt{\{terra\}} package's \texttt{cellSize()} function, which calculates the spherical area of each cell as defined by its four corners (60).
 
 \hypertarget{temporal-filters}{%
 \subsection{Temporal filters}\label{temporal-filters}}
 
-In order to address potential classification errors in a single year, we implemented a series of temporal filters intended to smooth the trajectories in our time series by looking for short-term land-cover changes that are temporally unlikely.
-We applied five-year and eight-year moving window filters designed to search for short periods of land cover classifications that do not match those immediately before and after, and subsequently update them to match the surrounding classifications.
-Specifically, the five-year filter searched for one year periods that did not match the two years immediately before and after (i.e.~patterns of 11011, where 1 represents non-cropland and 0 represents cropland), and our eight-year filter searched for two year periods that did not match the three years before and after (i.e.~11100111).
+In order to address potential classification errors in a single year, we implemented a series of temporal filters designed to smooth trajectories by looking for short-term land-cover changes that are temporally unlikely.
+We applied five-year and eight-year moving-window filters that searched for short periods of land cover classifications that do not match those immediately before and after, and subsequently updated them to match the surrounding classifications.
+Specifically, the five-year filter searched for one year periods that did not match the two years immediately before and after (i.e.~patterns of \texttt{11011}, where \texttt{1} represents non-cropland and \texttt{0} represents cropland), and our eight-year filter searched for two year periods that did not match the three years before and after (i.e.~\texttt{11100111}).
 The central classifications were then updated to match the classes on either end.
 We also considered applying modified versions of these moving window filters to the start of the time series, but decided against it, for the sake of consistency and parsimony.
 
 \hypertarget{decay-models-si}{%
 \subsection{Modeling abandonment decay}\label{decay-models-si}}
 
-The mean abandonment duration tells us about the general persistence of abandoned croplands throughout the time series.
+Our mean abandonment duration metric tells us about the general persistence of abandoned croplands throughout the time series.
 However, this value is limited by the time series length, and does not account for when the majority of the abandonment took place at a site, nor whether a period of abandonment ends as a results of recultivation or the end of the time series.
 As a result, the mean abandonment duration does not tell us how long to expect a piece of land to remain abandoned, nor how abandonment length varies through time.
 To address this constraint, we track the trajectory of each pixel through time following its initial abandonment, grouping pixels abandoned in a given year into ``cohorts.''
-
 Decay rates provide information about how long it takes for land to be recultivated, complementing the mean abandonment length and providing a more nuanced story about how long to expect abandonment to last.
 
 For example, a site may have a relatively short mean length of abandonment (e.g.~Shaanxi/Shanxi {[}China{]}, with a mean abandonment length of 13 years; see Figure \ref{fig:maps-abn-duration}), but also have a gradual decay rate, indicating that land should stay abandoned for a relatively longer amount of time.
 This may result from more abandonment occurring towards the end of the time series; this land simply does not have as long to age and shows up as younger in our data, regardless of how long it may last.
-
 Looking at abandonment decay rates for each cohort individually allows us to produce a decay rate for each site in general in a way that accounts for when during the time series a piece of land was abandoned (i.e.~giving us a sense of how long to expect a given piece of land to remain abandoned, even into the future).
-
-(Note: the following three sentences may be redundant.)
-For example, imagine two fields, one abandoned in 1990 and the other abandoned in 2010.
-They may both end up remaining abandoned for 15 years, but the second field will show up as having an age of 7 at the end of our time series (which ends in 2017), regardless of how long it lasts.
-One way we could deal with this is to only look at land that was affirmatively recultivated; another is to look at decay rates for each cohort, over time.
 
 \hypertarget{model-selection-and-diagnostics}{%
 \subsubsection{Model selection and diagnostics}\label{model-selection-and-diagnostics}}
 
-We then ran linear models (using the \texttt{stats::lm()} function in R's core statistics package), predicting the proportion of abandoned cropland in each cohort remaining abandoned as a function of time since initial abandonment.
+We fit linear models using the \texttt{lm()} function in R's core statistics package \texttt{\{stats\}}, predicting the proportion of abandoned cropland in each cohort remaining abandoned as a function of time since initial abandonment at each site.
+The proportion of abandoned cropland remaining abandoned is measured relative to the area abandoned 5 years following the year of initial abandonment, as dictated by our five year abandonment definition.
+
 We tested a range of model specifications, including linear and log transformations of both \emph{proportion} and \emph{time}.
-Importantly, we also include \emph{cohort} fixed effects, allowing for the estimation of unique coefficients for each cohort of abandoned land.
 Due to a linear relationship between model residuals and time when including only one term for \emph{time}, we also tested models containing multiple \emph{time} predictor terms, including both log and linear terms.
 
-We chose a model with the following specifications shown in Equation \eqref{eq:mod-spec-SI}.
+We chose a model with the following specifications shown in Equation \eqref{eq:mod-spec} and reproduced here in Equation \eqref{eq:mod-spec-SI}.
 For cohorts of abandonment initially abandoned in years \(y = 1988 ... 2013\), we estimate the proportion \(p\) of each cohort \(y\) remaining abandoned as a function of time \(t\) (i.e.~based on the number of years after initial abandonment).
 
 \begin{equation}
@@ -838,12 +884,36 @@ p_{y} = 1 + \beta_{1,y} log(t + 1) + \beta_{2,y} t \label{eq:mod-spec-SI}
 \end{equation}
 
 Where \(\beta_{1,y}\) represents the regression coefficient on the log term of time \(t\) for cohort \(y\), and \(\beta_{2,y}\) represents the regression coefficient on the linear term of time \(t\) for cohort \(y\).
-We allow for site and cohort level fixed effects, fitting unique coefficients for each cohort at each site.
-
+We allow for \emph{cohort} level fixed effects, fitting unique coefficients for each cohort at each site.
 This corresponds to a \texttt{stats::lm()} call of \texttt{lm(formula\ =\ I(proportion\ -\ 1)\ \ \textasciitilde{}\ 0\ +\ log(time\ +\ 1):cohort:site\ +\ I(time):cohort:site)}
 
 Model selection was done based on Akaike Information Criterion (AIC) values (Figure \ref{fig:AIC}).
 We checked linear model assumptions through visual inspection of both residuals vs.~fitted plots (Figure \ref{fig:diag-resid-fitted}) and Q-Q plots (Figure \ref{fig:diag-qq}).
+
+\hypertarget{recultivation-decay-model-results}{%
+\subsubsection{Recultivation (``decay'') model results}\label{recultivation-decay-model-results}}
+
+The observed data, fitted values from these linear models, and mean decay rates for each site, are shown in Figure \ref{fig:decay-model-grid}.
+
+In order to calculate the mean decay trajectory at each site (as shown in Figure \ref{fig:decay-curves-by-site}), we took the mean of the linear and the log coefficients respectively across all cohorts at each site, shown in Figure \ref{fig:decay-mod-coef}.
+We then used these mean coefficient values to define a new function describing the mean recultivation (or decay) trajectory at each site.
+An alternative representation of the mean recultivation rate is shown in Figure \ref{fig:decay-time-to-range}.
+
+\hypertarget{section-methods-rate-of-change}{%
+\subsection{Change in recultivation rates over time}\label{section-methods-rate-of-change}}
+
+We examined the rate of change of recultivation rates by calculating the time required for 50\% of each cohort to be recultivated and parameterizing a simple linear model on these values as a function of time, using the \texttt{stats::lm()} function in R's core statistics package \texttt{\{stats\}}.
+We estimate the time required for half (50\%) of a given cohort of abandoned cropland to be recultivated, \(t_{half,s}\), as a function of the year of initial abandonment (\(yearabn_{s}\)), at each site \(s\), as shown in Equation \eqref{eq:rate-of-change-lm}.
+
+\begin{equation}
+t_{half,s} = \beta_{0,s} + \beta_{1,s} yearabn_{s} \label{eq:rate-of-change-lm}
+\end{equation}
+
+Where \(\beta_{1,s}\) represents the regression slope on the year abandoned for site \(s\) (\(yearabn_{s}\)), and \(\beta_{0,s}\) represents the intercept.
+This corresponds to a \texttt{stats::lm()} call of \texttt{lm(formula\ =\ t\_half\ \textasciitilde{}\ year\_abandoned)} run for each site individually.
+Results are shown in Figure \ref{fig:decay-rate-of-change}.
+
+We confirmed that model assumptions were met through visual inspection of residuals vs.~fitted plots (Figure \ref{fig:rate-of-change-diag-resid-fitted}) and Q-Q plots (Figure \ref{fig:rate-of-change-diag-qq}).
 
 
 
@@ -860,77 +930,19 @@ We checked linear model assumptions through visual inspection of both residuals 
 
 
 \begin{figure}
-\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/l3_cohort_diag_qq_subset_2021_03_13} \caption{QQ plots for each site, calculated using the \texttt{car} package ((60)).}\label{fig:diag-qq}
+\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/l3_cohort_diag_qq_subset_2021_03_13} \caption{QQ plots for each site, calculated using the \texttt{\{car\}} package (61).}\label{fig:diag-qq}
 \end{figure}
-
---\textgreater{}
-
---\textgreater{}
-
-\hypertarget{decay-model-results}{%
-\subsubsection{Decay model results}\label{decay-model-results}}
 
 
 
 \begin{figure}
-\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/decay_mod_grid_2021_03_13} \caption{Decay model results for all sites, showing raw data (green points) and modeled abandonment trajectories for individual years (green lines). The mean decay trajectory for the site is calculated as the mean of the coefficients for each cohort (solid blue line). Larger model results are shown in Figures \ref{fig:decay-model-indiv-site-b}-\ref{fig:decay-model-indiv-site-w}.}\label{fig:decay-model-grid}
+\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/decay_mod_grid_2021_03_13} \caption{Decay model results for all sites, showing raw data (colored points) and modeled abandonment trajectories for individual years (colored lines). The mean decay trajectory for the site is calculated as the mean of the coefficients for each cohort (solid black line).}\label{fig:decay-model-grid}
 \end{figure}
-
-Model results:
-
-\begin{itemize}
-\tightlist
-\item
-  Decay rate rate of change for each site, in four quadrants, with linear regression coefficients (Figure \ref{fig:decay-rate-of-change})
-\item
-  Projected proportions remaining after set periods of time (10 years, 20 years, 30 years, etc.)
-\item
-  Decay curves with model fitted values for each site. (Figure \ref{fig:decay-rate-of-change}, and individual models )
-\item
-  an alternative representation of the mean decay rate (Figure \ref{fig:decay-time-to-range})
-\end{itemize}
 
 
 
 \begin{figure}
 \includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/l3_cohort_coefs_by_site_2021_03_13} \caption{Mean decay model coefficients across cohorts at each site. The left panel shows the mean coefficient on the log(time) terms and the right shows the site mean coefficient on the linear time terms. These mean coefficients are used to plot the mean decay trajectories shown in Figure \ref{fig:decay-curves-by-site}.}\label{fig:decay-mod-coef}
-\end{figure}
-
-\newpage
-
-\hypertarget{section-methods-rate-of-change}{%
-\subsection{Change in recultivation rates over time}\label{section-methods-rate-of-change}}
-
-We examined the rate of change of recultivation rates by calculating the time required for 50\% of each cohort to be recultivated and running a simple linear regression on these values as a function of time, using the \texttt{stats::lm()} function in R's core statistics package.
-We estimate the time required for half (50\%) of a given cohort of abandoned cropland to be recultivated, \(t_{half,s}\), as a function of the year of initial abandonment (\(yearabn_{s}\)), at each site \(s\).
-This model is shown in Equation \eqref{eq:rate-of-change-lm}.
-
-\begin{equation}
-t_{half,s} = \beta_{0,s} + \beta_{1,s} yearabn_{s} \label{eq:rate-of-change-lm}
-\end{equation}
-
-Where \(\beta_{1,s}\) represents the regression slope on the year abandoned for site \(s\) (\(yearabn_{s}\)), and \(\beta_{0,s}\) represents the intercept.
-This corresponds to a \texttt{lm()} call of \texttt{lm(formula\ =\ t\_half\ \textasciitilde{}\ year\_abandoned)} run for each site individually.
-Results are shown in Figure \ref{fig:decay-rate-of-change}.
-
-We confirmed that model assumptions were met through visual inspection of residuals vs.~fitted plots (Figure \ref{fig:rate-of-change-diag-resid-fitted}) and Q-Q plots (Figure \ref{fig:rate-of-change-diag-qq}).
-
-
-
-\begin{figure}
-\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/rate_of_change_recultivation_speed_combo_indiv_2021_03_13} \caption{The rate of change of decay rates (measured by the time required for 50\% of each cohort to be recultivated) at each site over the course of the time series. Individual site trends are shown in the grid at left. Solid lines show simple linear regressions, the slopes of which are shown at right. Gray bands around the linear trends at left and the error bars on slope estimates at the right both represent 95\% confidence intervals.}\label{fig:decay-rate-of-change}
-\end{figure}
-
-
-
-\begin{figure}
-\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/rate_of_change_l3_diag_ind_resid_v_fitted_2021_03_13} \caption{Residuals vs.~fitted diagnostic plots for each site, for simple \texttt{lm} call corresponding to Eq. \eqref{eq:rate-of-change-lm}.}\label{fig:rate-of-change-diag-resid-fitted}
-\end{figure}
-
-
-
-\begin{figure}
-\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/rate_of_change_l3_diag_ind_qq_car_2021_03_13} \caption{QQ plots for each site, calculated using the \texttt{car} package ((60)).}\label{fig:rate-of-change-diag-qq}
 \end{figure}
 
 
@@ -939,10 +951,44 @@ We confirmed that model assumptions were met through visual inspection of residu
 \includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/time_to_range_all_l3_2021_03_13} \caption{An alternative representation of the mean decay rate for each site (also shown in Figure \ref{fig:decay-curves-by-site}). The color of each dot corresponds to the proportion remaining after a given amount of time.}\label{fig:decay-time-to-range}
 \end{figure}
 
+
+
+\begin{figure}
+\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/rate_of_change_recultivation_speed_combo_indiv_2021_03_13} \caption{The rate of change of decay rates (measured by the time required for 50\% of each cohort to be recultivated) at each site over the course of the time series. Individual site trends are shown in panel a. Solid lines show simple linear regressions, the slopes of which are shown in panel b. Gray bands around the linear trends in panel a and the error bars on slope estimates in panel b both represent 95\% confidence intervals.}\label{fig:decay-rate-of-change}
+\end{figure}
+
+
+
+\begin{figure}
+\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/rate_of_change_l3_diag_ind_resid_v_fitted_2021_03_13} \caption{Residuals vs.~fitted diagnostic plots for each site, for simple \texttt{lm} call corresponding to Eq. \eqref{eq:rate-of-change-lm}, in which the time required for half (50\%) of a given cohort of abandoned cropland to be recultivated is modeled as a function of the year of initial abandonment.}\label{fig:rate-of-change-diag-resid-fitted}
+\end{figure}
+
+
+
+\begin{figure}
+\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/rate_of_change_l3_diag_ind_qq_car_2021_03_13} \caption{QQ plots for each site, calculated using the \texttt{car} package ((61)).}\label{fig:rate-of-change-diag-qq}
+\end{figure}
+
 \newpage
 
 \hypertarget{section-extrapolation-si}{%
 \subsection{Extrapolating abandonment duration}\label{section-extrapolation-si}}
+
+The results of the extrapolation highlighted in the main text (``Extrapolation 1'') are shown in Figure \ref{fig:extrapolation-combo} and Figure \ref{fig:extrapolation-area-by-age}.
+As noted above, we make two simple assumptions in our extrapolation of abandonment and recultivation: specifically, that 1) recultivation rates remain the same (based on mean recultivation trends at each site, shown in Figure \ref{fig:decay-curves-by-site}, and that 2) a constant amount of cropland is newly abandoned each year, based on the mean annual gain in abandonment shown in Figure \ref{fig:annual-gain-trend}b (note: the annual gain in abandonment in Figure \ref{fig:annual-gain-trend}a corresponds to the dark green bars in Figure \ref{fig:turnover-grid}).
+
+Given that abandonment may not continue indefinitely, we also explore an alternative to our second assumption about the amount of additional abandonment each year.
+In this alternative assumption (``Extrapolation 2''), the area abandoned each year is the same as ``Extrapolation 1'' from 1987-2017, based on the mean annual gain in abandonment (Figure \ref{fig:annual-gain-trend}b), but linearly declines between 2017-2050, reaching 0 ha at each site in 2050 (see Figures \ref{fig:extrapolation2-combo} and \ref{fig:extrapolation2-area-by-age}).
+
+While mean age of abandoned land increased through time after 2017 (and most dramatically after 2050), it remained below 37 years at all sites by 2050.
+Increases in mean abandonment duration were offset by recultivation, and total area abandoned declined quickly after 2020 at most sites.
+The mean abandonment duration increases as annual abandonment declines, as the total pool of abandoned land grows older and is gradually recultivated.
+
+
+
+\begin{figure}
+\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/annual_gain_trend_2021_03_13} \caption{Annual gain in newly abandoned cropland at our eleven sites. Panel a shows the trend in annual abandonment over time at each site (in \(10^3\) ha), and Panel b shows the mean annual abandonment (in \(10^3\) ha) at each site. The mean values in panel b feed into the extrapolations. Note that the annual gain in abandonment corresponds to the dark green bars in Figure \ref{fig:turnover-grid}).}\label{fig:annual-gain-trend}
+\end{figure}
 
 
 
@@ -955,18 +1001,6 @@ We confirmed that model assumptions were met through visual inspection of residu
 \begin{figure}
 \includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/extrapolation1_ages_2021_03_13} \caption{Extrapolating area by age bin, assuming a 1) each site follows the mean recultivation (``decay'') rate, and 2) a constant area abandoned each year (based on the mean annual area abandoned at each site).}\label{fig:extrapolation-area-by-age}
 \end{figure}
-
-\hypertarget{alternative-assumptions-about-annual-additional-abandonment}{%
-\subsubsection{Alternative assumptions about annual additional abandonment}\label{alternative-assumptions-about-annual-additional-abandonment}}
-
-As noted above, we make two simple assumptions in our extrapolation of abandonment and recultivation: specifically, that 1) recultivation rates remain the same (based on mean recultivation trends at each site, shown in Figure \ref{fig:decay-curves-by-site}, and that 2) a constant amount of cropland is newly abandoned each year, based on the mean annual gain in abandonment shown in Figure \ref{fig:turnover-grid} (dark green bars).
-
-However, the second assumption, that a constant amount of cropland is newly abandoned indefinitely is almost certainly unrealistic.
-We also considered an alternative assumption, in which annual abandonment linearly declined to 0 between 2017 and 2050 (see Figures \ref{fig:extrapolation2-combo} and \ref{fig:extrapolation2-area-by-age}).
-While mean age of abandoned land increased through time after 2017 (and most dramatically after 2050), it remained below 37 years at all sites by 2050.
-Increases in mean abandonment duration were offset by recultivation, and total area abandoned declined quickly after 2020 at most sites.
-
-The mean abandonment duration increases as annual abandonment declines, as the total pool of abandoned land grows older and is gradually recultivated.
 
 
 
@@ -986,13 +1020,10 @@ The mean abandonment duration increases as annual abandonment declines, as the t
 \includegraphics[width=1\textwidth]{PNAS_ms_files/figure-latex/mean-duration-2050-1} \caption{Comparing the mean duration of abandonment at our 11 sites observed between 1987 and 2017 with the extrapolated mean duration as of 2050 for our two extrapolations.}\label{fig:mean-duration-2050}
 \end{figure}
 
-\newpage
-
 \hypertarget{expanded-site-specific-results}{%
 \section{Expanded Site-specific Results}\label{expanded-site-specific-results}}
 
-\hypertarget{composite-results-figures}{%
-\subsection{Composite Results Figures}\label{composite-results-figures}}
+Expanded site-specific results are shown in Figures \ref{fig:panel-b}-\ref{fig:panel-w}.
 
 
 
@@ -1048,77 +1079,6 @@ The mean abandonment duration increases as annual abandonment declines, as the t
 
 \begin{figure}
 \includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/si_panel_2021_03_13_w} \caption{Abandonment patterns for Wisconsin, USA, following Figure \ref{fig:panel-b}.}\label{fig:panel-w}
-\end{figure}
-
-\newpage
-
-\hypertarget{individual-decay-model-results}{%
-\subsection{Individual Decay Model Results}\label{individual-decay-model-results}}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-\begin{figure}
-\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/l3_cohort_plus_2021_03_13_b} \caption{Decay model results for Vitebsk, Belarus and Smolensk, Russia, showing raw data (green points), modeled abandonment trajectories for individual years (green lines), and the mean decay trajectory for the site as a whole (blue lines). The mean decay trajectory is calculated in two ways: 1) from the mean of the coefficients for each cohort (solid blue line), and 2) as a single linear regression without cohort-level fixed effects (F.E.; dashed blue line).}\label{fig:decay-model-indiv-site-b}
-\end{figure}
-
-\begin{figure}
-\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/l3_cohort_plus_2021_03_13_bh} \caption{Decay model results for Bosnia \& Herzegovina, following Figure \ref{fig:decay-model-indiv-site-b}.}\label{fig:decay-model-indiv-site-bh}
-\end{figure}
-
-\begin{figure}
-\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/l3_cohort_plus_2021_03_13_c} \caption{Decay model results for Chongqing (China), following Figure \ref{fig:decay-model-indiv-site-b}.}\label{fig:decay-model-indiv-site-c}
-\end{figure}
-
-\begin{figure}
-\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/l3_cohort_plus_2021_03_13_g} \caption{Decay model results for Goiás, Brazil, following Figure \ref{fig:decay-model-indiv-site-b}.}\label{fig:decay-model-indiv-site-g}
-\end{figure}
-
-\begin{figure}
-\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/l3_cohort_plus_2021_03_13_i} \caption{Decay model results for Iraq, following Figure \ref{fig:decay-model-indiv-site-b}.}\label{fig:decay-model-indiv-site-i}
-\end{figure}
-
-\begin{figure}
-\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/l3_cohort_plus_2021_03_13_mg} \caption{Decay model results for Mato Grosso, Brazil, following Figure \ref{fig:decay-model-indiv-site-b}.}\label{fig:decay-model-indiv-site-mg}
-\end{figure}
-
-\begin{figure}
-\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/l3_cohort_plus_2021_03_13_n} \caption{Decay model results for Nebraska, USA, following Figure \ref{fig:decay-model-indiv-site-b}.}\label{fig:decay-model-indiv-site-n}
-\end{figure}
-
-\begin{figure}
-\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/l3_cohort_plus_2021_03_13_o} \caption{Decay model results for Orenburg, Russia, following Figure \ref{fig:decay-model-indiv-site-b}.}\label{fig:decay-model-indiv-site-o}
-\end{figure}
-
-\begin{figure}
-\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/l3_cohort_plus_2021_03_13_s} \caption{Decay model results for Shaanxi/Shanxi (China), following Figure \ref{fig:decay-model-indiv-site-b}.}\label{fig:decay-model-indiv-site-s}
-\end{figure}
-
-\begin{figure}
-\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/l3_cohort_plus_2021_03_13_v} \caption{Decay model results for Volgograd, Russia, following Figure \ref{fig:decay-model-indiv-site-b}.}\label{fig:decay-model-indiv-site-v}
-\end{figure}
-
-\begin{figure}
-\includegraphics[width=1\textwidth]{/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/_2021_03_13/decay/l3_cohort_plus_2021_03_13_w} \caption{Decay model results for Wisconsin, USA, following Figure \ref{fig:decay-model-indiv-site-b}.}\label{fig:decay-model-indiv-site-w}
 \end{figure}
 
 \showmatmethods

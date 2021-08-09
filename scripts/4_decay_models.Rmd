@@ -3534,6 +3534,8 @@ gg_mean_area_by_site <- ggplot(data = mean_initial_area_abn,
        title = "Additional area abandoned each year, on average")
 
 
+
+
 # as a percentage of the total area of each site
 ggplot(data = mean_initial_area_abn, 
        mapping = aes(y = fct_reorder(site, desc(mean_area_abn)), x = 100*mean_area_abn/area_ha)) + 
@@ -3571,20 +3573,70 @@ ggplot(data = test1, #%>% filter(site== "belarus"),
 
 ```{r trend-in-annual-gain-area-abn}
 
-gg_trend_in_new_abn <- 
-  ggplot(data = turnover_dat %>% filter(change == "gain"), 
+turnover_dat %>% left_join(., select(mean_initial_area_abn, site, mean_area_abn), by = "site")
+
+gg_trend_in_new_abn <-
+  ggplot(data = turnover_dat %>% 
+           left_join(., select(mean_initial_area_abn, site, mean_area_abn), by = "site") %>%
+           filter(change == "gain") %>% 
+           mutate(site = fct_reorder(site, desc(mean_area_abn))), 
        mapping = aes(x = year, y = area_ha / (1e3))) + 
   theme_classic() +
     geom_col() + 
-  labs(y = "Area (10^3 ha)", title = "Trend in newly abandoned cropland each year") +
+  labs(y = expression("Annual area abandoned (10"^{3}*" ha)"),
+       x = "Year",
+       # title = "Trend in newly abandoned cropland each year"
+       ) +
   geom_smooth(method = "lm", se = 0.95) + 
-  facet_wrap(vars(site), scales = "free_y")
-
+  facet_wrap(vars(site), scales = "free_y", labeller = as_labeller(cap_update_labels))
 
 # Save: 
 ggsave(plot = gg_trend_in_new_abn,
        filename = paste0(p_plots, "_2021_03_13/decay/trend_in_new_abn.pdf"),
-       width = 8, height = 5, units = "in", dpi = 400)
+       width = 7, height = 5, units = "in", dpi = 400)
+
+
+# add the mean abandonment each year on the side
+gg_mean_area_by_site <- ggplot(data = mean_initial_area_abn, 
+       mapping = aes(y = fct_reorder(site, mean_area_abn), x = mean_area_abn / (1e3))) + 
+  geom_point(size = 2) + theme_classic() +
+  labs(x = expression("Mean area abandoned annually (10"^{3}*" ha)            "),
+       y = NULL,
+       # title = "Additional area abandoned each year, on average"
+       ) + 
+  theme(legend.position = "none",
+        plot.margin = unit(c(0.4, 0.6, 0.2, 0.4), "cm")) + 
+  scale_y_discrete(expand = c(0.02, 0),
+                   labels = c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
+                              "bosnia_herzegovina" = "Bosnia &\n Herzegovina",
+                              "chongqing" = "Chongqing, China",
+                              "goias" = "Goiás, Brazil",
+                              "iraq" = "Iraq",
+                              "mato_grosso" = "Mato Grosso,\nBrazil",
+                              "nebraska" = "Nebraska /\nWyoming, USA",
+                              "orenburg" = "Orenburg, Russia /\nUralsk, Kazakhstan",
+                              "shaanxi" = "Shaanxi/Shanxi,\nChina",
+                              "volgograd" = "Volgograd, Russia",
+                              "wisconsin" = "Wisconsin, USA"))
+
+
+# for SI ------------------------- #
+ggsave(plot = plot_grid(gg_trend_in_new_abn,
+                        gg_mean_area_by_site,
+                        ncol = 2, rel_widths = c(1, 0.5), align = "h", axis = "b",
+                        labels = "auto"),
+       filename = paste0(p_plots, run_label, "/decay/", "annual_gain_trend", run_label, ".pdf"), 
+       width = 10, height = 5, units = "in")
+
+
+
+
+
+
+
+
+
+
 
 # ---------------------------------------------------------------------- #
 # ---------------------------------------------------------------------- #

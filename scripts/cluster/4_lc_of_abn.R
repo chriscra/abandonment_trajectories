@@ -97,11 +97,23 @@ gg_prop_lc_2017 <- ggplot(data = abn_prop_lc_2017,
   labs(x = "Proportion of abandoned cropland in \neach land cover class (2017)", y = "Site",
        fill = "Land cover class") + 
   scale_fill_manual(values = c("#276419", "#7FBC41"), labels = c("Forest", "Grassland")) +
-  theme_classic() + theme(legend.position = "top")
+  theme_classic() + theme(legend.position = "top") + 
+  scale_y_discrete(#expand = c(0.02, 0),
+                   labels = c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
+                              "bosnia_herzegovina" = "Bosnia &\n Herzegovina",
+                              "chongqing" = "Chongqing, China",
+                              "goias" = "Goiás, Brazil",
+                              "iraq" = "Iraq",
+                              "mato_grosso" = "Mato Grosso,\nBrazil",
+                              "nebraska" = "Nebraska /\nWyoming, USA",
+                              "orenburg" = "Orenburg, Russia /\nUralsk, Kazakhstan",
+                              "shaanxi" = "Shaanxi/Shanxi,\nChina",
+                              "volgograd" = "Volgograd, Russia",
+                              "wisconsin" = "Wisconsin, USA"))
 
 ggsave(plot = gg_prop_lc_2017,
        filename = paste0(p_plots, run_label, "/abn_prop_lc_2017", run_label, ".pdf"), 
-       width = 4.5, height = 4, units = "in")
+       width = 4.5, height = 4.5, units = "in")
 
 # ----------------------------------------------------------------------------- #
 # Part II: At what age does abandoned land transition from grassland to forest?

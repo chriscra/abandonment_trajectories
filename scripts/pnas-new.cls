@@ -1,5 +1,5 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% pnas-new.cls, v1.44, 2018/05/06
+% pnas-new.cls, v1.45, 2019/04/29
 %
 % This class file enables authors to prepare research 
 % articles for submission to PNAS.
@@ -23,7 +23,7 @@
 % to produce the PDF, not dvis -> ps -> pdf nor dvipdf
 % 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesClass{pnas-new}[2018/05/06, v1.44]
+\ProvidesClass{pnas-new}[2019/04/29, v1.45]
 \AtEndOfClass{\RequirePackage{microtype}}
 % Option for line numbers
 \newif\if@pnaslineno
@@ -169,7 +169,8 @@
 }
 \renewcommand{\bibsection}{} % Remove header
 \renewcommand\bibfont{\normalfont\sffamily\fontsize{6}{8}\selectfont} % set font to be sans serif
-
+%% April 29, 2019: abbreviate journal names
+\RequirePackage{jabbrv}
  
 \renewcommand\@biblabel[1]{ #1.} % Remove brackets from label
 \def\tagform@#1{\maketag@@@{\bfseries(\ignorespaces#1\unskip\@@italiccorr)}}

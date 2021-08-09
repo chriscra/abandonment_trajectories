@@ -1017,7 +1017,19 @@ area_a <-
   theme_classic() + 
   labs(#x = expression("Area abandoned ">="5 years \nas of 2017 (10"^{3}*" ha)"),
     x = "Area abandoned as of 2017\n(10\u00b3 ha)",
-       y = "Site")
+       y = "Site") + 
+  scale_y_discrete(expand = c(0.02, 0),
+                   labels = c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
+                              "bosnia_herzegovina" = "Bosnia &\n Herzegovina",
+                              "chongqing" = "Chongqing, China",
+                              "goias" = "Goiás, Brazil",
+                              "iraq" = "Iraq",
+                              "mato_grosso" = "Mato Grosso,\nBrazil",
+                              "nebraska" = "Nebraska /\nWyoming, USA",
+                              "orenburg" = "Orenburg, Russia /\nUralsk, Kazakhstan",
+                              "shaanxi" = "Shaanxi/Shanxi,\nChina",
+                              "volgograd" = "Volgograd, Russia",
+                              "wisconsin" = "Wisconsin, USA"))
 
 # plot area abandoned at any point between 1987-2017 (thousands ha):
 area_b <-
@@ -1065,7 +1077,7 @@ ggsave(plot = plot_grid(area_a, area_b, area_c, area_d,
                         labels = "auto"
                         ),
        filename = paste0(p_plots, run_label, "/area_abn_panel", run_label, ".pdf"), 
-    width = 10, height = 3, units = "in"
+    width = 10, height = 4, units = "in"
 )
 
 ```
