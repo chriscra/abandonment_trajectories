@@ -496,8 +496,8 @@ gg_mean_length_ridges <-
                filter(abn_threshold == "5"),
              mapping = aes(xintercept = overall_mean, 
                            col = length_type, 
-                           linetype = "Mean\nAcross    \nSites")) + 
-  scale_linetype_manual(values = c("Mean\nAcross    \nSites" = "dashed")) +
+                           linetype = "Mean\nacross\nall sites")) + 
+  scale_linetype_manual(values = c("Mean\nacross\nall sites" = "dashed")) +
   
   geom_point(data = mean_length_df %>%
            filter(abn_threshold == "5"),
@@ -505,8 +505,8 @@ gg_mean_length_ridges <-
                            x = mean_duration, 
                            color = length_type),
              size = 3, alpha = 0.85) + 
-  scale_color_discrete(labels = c(all = "All periods",
-                                   max = "Maximum\nlength per pixel")) +
+  scale_color_discrete(labels = c(all = "All abandonment periods",
+                                   max = "Maximum duration\nper pixel")) +
   scale_y_discrete(expand = c(0.02, 0),
                    labels = c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
                               "bosnia_herzegovina" = "Bosnia &\n Herzegovina",
@@ -524,8 +524,9 @@ gg_mean_length_ridges <-
   
   scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30), expand = c(0, 0)) + 
   theme_classic() +
-  labs(y = "Site", x = "Mean abandonment duration (years)",
-       color = "Mean\nof:", linetype = NULL) + 
+  labs(y = "Proportion of all abandonment periods in each age class", 
+       x = "Abandonment duration (years) ",
+       color = "Site-level \nmean of:", linetype = NULL) + 
   theme(legend.position = "bottom", #c(0,0.3), #
         legend.margin=margin(),
         axis.text.y = element_text(vjust = 0),
@@ -537,9 +538,12 @@ gg_mean_length_ridges <-
 
 
 ggsave(plot = gg_mean_length_ridges + 
-         labs(x = "Mean abandonment duration (years)          ") + 
          theme(legend.spacing.x = unit(0.5, "mm"),
                # legend.justification = 0, 
+               legend.position = c(0.17, -0.18), legend.direction = "horizontal", 
+               legend.box = "horizontal",
+               plot.margin = margin(5, 5, 45, 5),
+               legend.box.just = "left",
                legend.text.align = 0, #legend.margin = c(0,0),
                legend.title.align = 1),
        filename = paste0(p_plots, "/fig2.pdf"), 
