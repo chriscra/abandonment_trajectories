@@ -3347,7 +3347,7 @@ names(age_t_bins) <- site_df$site
 # horizontal
 # ----------------------------------------------------- #
 mval <- 1
-include_borders <- TRUE
+include_borders <- FALSE
 
 {
   pdf(file = paste0(p_output, "plots/fig1", 
@@ -3366,7 +3366,8 @@ include_borders <- TRUE
   for (i in 1:11) {
     terra::plot(age_t_bins[[i]], type = "classes",
        levels = rcl_df$labels %>% unique() %>% .[-1],
-       col = viridis(n = 5, direction = -1), colNA = "gray95",
+       col = viridis(n = 5, direction = -1), 
+       colNA = "gray95",
        main = new_titles[i], #inset_map_titles[i],
        legend = FALSE,
        mar = c(mval+0.5, mval, mval + 1.2, mval) # bltr     
@@ -3387,13 +3388,13 @@ include_borders <- TRUE
   plot.new()
   plot(age_t_bins[[i]], type = "classes",
        levels = rcl_df$labels %>% unique() %>% .[-1],
-         legend = "left", legend.shrink = 5,
-         plg = list(cex = 2),
+         legend = "left", #legend.shrink = 5,
+         plg = list(cex = 1.5, title = "Abandonment\nDuration (Years)", title.adj = 0),
          col = viridis(n = 5, direction =  -1), colNA = "gray95",
-       legend.only = TRUE)
+       legend.only = TRUE
+       )
   
   dev.off()
-
 
 }
 
@@ -3419,6 +3420,25 @@ dev.off()
 
 ```
 
+```{r expanding-map}
+par(bg = 'blue')
+dev.off()
+ 
+par(panel.background = list(col="skyblue"))
+plot(age_t_bins$iraq)
+
+dims <- lapply(1:11, function(i) {
+  tibble(site = site_df$site[i],
+         x = dim(age_t_bins[[i]])[2],
+         y = dim(age_t_bins[[i]])[1])
+}) %>% bind_rows() %>%
+  mutate(ratio = y/x)
+
+dims
+
+```
+
+
 ```{r fig1-max-age-maps}
 max_age_t_bins <- lapply(1:11, function(i) {rast(paste0(p_dat_derived, "max_age/bins/", site_df$site[i], "_max_age_bins.tif"))})
 names(max_age_t_bins) <- site_df$site
@@ -3430,7 +3450,7 @@ mval <- 1
 include_borders <- FALSE
 
 {
-  pdf(file = paste0(p_output, "plots/", run_label, "/maps/max_age_maps", 
+  pdf(file = paste0(p_output, "plots/fig1_max", #run_label, "/maps/max_age_maps", 
                     if(include_borders) {"_borders"},
                     ".pdf"),
     width = 7, height = 6)
@@ -3468,8 +3488,8 @@ include_borders <- FALSE
   plot.new()
   plot(max_age_t_bins[[i]], type = "classes",
        levels = rcl_df$labels %>% unique() %>% .[-1],
-         legend = "left", legend.shrink = 5,
-         plg = list(cex = 2),
+         legend = "bottomleft", legend.shrink = 5,
+         plg = list(cex = 1.5, title = "Max. Abandonment\nDuration (Years)", title.adj = 0),
          col = viridis(n = 5, direction =  -1), colNA = "gray95",
        legend.only = TRUE)
   
