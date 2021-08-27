@@ -405,27 +405,64 @@ for (i in 1:11) {
 
 ```
 
-```{r violin}
+```{r vt}
+# create distribution of points for violin plots, density plots, histograms, etc.
 
-# alternative plot, with violin plots? or point clouds?
 vt <- length_distill_df %>% as_tibble() %>% 
     filter(length >= 5,
            # site == "shaanxi",
            length_type == "all") %>% # to filter by length # this is important for max, since some pixels have max length of 0 
-  mutate(fr = round(freq/10000
-                    , 
+  mutate(fr = round(freq/10000, 
                     digits = 0)) %>% 
   group_by(site) %>%
   summarise(site = unique(site), 
             length = rep(length, fr),
             mean = mean(length))
 
-# rm(vt)
+# vt <- vt %>%
+#   left_join(., vt %>% ungroup() %>%
+#               arrange(mean) %>% select(site, mean) %>% unique() %>%
+#               mutate(order = 1:n()))
 
+# adding order based on site-level mean abandonment duration (all periods)
 vt <- vt %>%
-  left_join(., vt %>% ungroup() %>%
-              arrange(mean) %>% select(site, mean) %>% unique() %>%
-              mutate(order = 1:n()))
+  left_join(., mean_length_df %>% 
+              filter(abn_threshold == "5", length_type == "all") %>% 
+              arrange(length_type, mean_duration) %>% 
+              mutate(order = 1:n()) %>% select(site, order),
+            by = "site")
+
+
+
+# -------------------------------------------------------------- #
+# the same as vt, but with just the maximum periods, not all periods
+# -------------------------------------------------------------- #
+vt_max <- length_distill_df %>% as_tibble() %>% 
+    filter(length >= 5, length_type == "max") %>% # to filter by length # this is important for max, since some pixels have max length of 0 
+  mutate(fr = round(freq/10000, digits = 0)) %>% 
+  group_by(site) %>%
+  summarise(site = unique(site), 
+            length = rep(length, fr),
+            mean = mean(length))
+
+# vt_max <- vt_max %>%
+#   left_join(., vt_max %>% ungroup() %>%
+#               arrange(mean) %>% select(site, mean) %>% unique() %>%
+#               mutate(order = 1:n()))
+
+
+# adding order based on site-level mean abandonment duration (max length per pixel)
+
+vt_max <- vt_max %>%
+  left_join(., mean_length_df %>% 
+              filter(abn_threshold == "5", length_type == "max") %>% 
+              arrange(length_type, mean_duration) %>% 
+              mutate(order = 1:n()) %>% select(site, order),
+            by = "site")
+```
+
+
+```{r violin}
 
 # Fancy violin plots
 
@@ -476,10 +513,9 @@ ggsave(plot = gg_mean_w_violin,
 ```
 
 ```{r fig2-ridges}
-install.packages("ggridges")
-library(ggridges)
-
 vt
+
+show_col(hue_pal()(3)[1]) # default ggplot colors
 
 gg_mean_length_ridges <-
   ggplot() +
@@ -487,7 +523,85 @@ gg_mean_length_ridges <-
   geom_density_ridges2(
     data = vt, 
     mapping = aes(y = fct_reorder(site, desc(order)), x = length, group = site),
-    stat = "binline", bins = 26,
+    stat = "binline", bins = 26, 
+    scale = 0.95) + 
+  
+  geom_vline(data = mean_length_df %>% 
+               group_by(abn_threshold, length_type) %>%
+               summarise(overall_mean = mean(mean_duration, na.rm = TRUE)) %>% 
+               filter(abn_threshold == "5", length_type == "all"),
+             mapping = aes(xintercept = overall_mean, 
+                           # col = length_type, 
+                           linetype = "Mean across all sites"),
+             color = hue_pal()(3)[1]) + 
+  scale_linetype_manual(values = c("Mean across all sites" = "dashed")) +
+  
+  geom_point(data = mean_length_df %>%
+           filter(abn_threshold == "5", length_type == "all"),
+             mapping = aes(y = fct_reorder(site, desc(order)),
+                           x = mean_duration, 
+                           color = length_type),
+             size = 3, alpha = 0.85) + 
+  scale_color_discrete(labels = c(all = "Site-level mean",
+                                   max = "Maximum duration\nper pixel")) +
+  scale_y_discrete(expand = c(0.02, 0),
+                   labels = c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
+                              "bosnia_herzegovina" = "Bosnia &\n Herzegovina",
+                              "chongqing" = "Chongqing, China",
+                              "goias" = "Goiás, Brazil",
+                              "iraq" = "Iraq",
+                              "mato_grosso" = "Mato Grosso,\nBrazil",
+                              "nebraska" = "Nebraska /\nWyoming, USA",
+                              "orenburg" = "Orenburg, Russia /\nUralsk, Kazakhstan",
+                              "shaanxi" = "Shaanxi/Shanxi,\nChina",
+                              "volgograd" = "Volgograd, Russia",
+                              "wisconsin" = "Wisconsin, USA")) +
+  
+  scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30), expand = c(0, 0)) + 
+  theme_classic() +
+  labs(y = "Proportion of abandonment periods of a given duration", # of a given duration
+       x = "Abandonment duration (years) ",
+       color = NULL, linetype = NULL) + 
+  theme(legend.position = "bottom", #c(0,0.3), #
+        legend.margin=margin(),
+        axis.text.y = element_text(vjust = 0, size=8
+                                   ),
+        panel.grid.major.x = element_line()) + 
+  guides(color = guide_legend(order = 1, nrow = 1, override.aes = list(linetype = 0)), 
+         linetype = guide_legend(order = 2, nrow = 1#, label.vjust = 0
+                                 )) + 
+  coord_cartesian(clip = "off")
+
+
+# gg_mean_length_ridges
+
+# save plot
+ggsave(plot = 
+         gg_mean_length_ridges + 
+         theme(legend.spacing.x = unit(0.5, "mm"),
+               legend.position = c(0.36, -0.13), legend.direction = "horizontal",
+               legend.box = "horizontal",
+               plot.margin = margin(5, 5, 27, 5),
+               legend.box.just = "left",
+               legend.text.align = 0,
+               legend.title.align = 1)
+         ,
+       
+       filename = paste0(p_plots, "/fig2.pdf"), 
+    width = 3.42, height = 5, units = "in")
+```
+
+```{r fig2-ridges-w-max}
+
+vt_max
+
+gg_mean_length_ridges_w_max <-
+  ggplot() +
+  
+  geom_density_ridges2(
+    data = vt_max, 
+    mapping = aes(y = fct_reorder(site, desc(order)), x = length, group = site),
+    stat = "binline", bins = 26, 
     scale = 0.95) + 
   
   geom_vline(data = mean_length_df %>% 
@@ -519,62 +633,50 @@ gg_mean_length_ridges <-
                               "shaanxi" = "Shaanxi/Shanxi,\nChina",
                               "volgograd" = "Volgograd, Russia",
                               "wisconsin" = "Wisconsin, USA")) +
-  # scale_y_discrete(breaks = site_df$site, 
-  #                  labels = site_df$description) + 
-  
+    
   scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30), expand = c(0, 0)) + 
   theme_classic() +
-  labs(y = "Proportion of all abandonment periods in each age class", 
+  labs(y = "Relative proportion of maximum abandonment \nlengths in each age class", 
        x = "Abandonment duration (years) ",
        color = "Site-level \nmean of:", linetype = NULL) + 
   theme(legend.position = "bottom", #c(0,0.3), #
         legend.margin=margin(),
-        axis.text.y = element_text(vjust = 0),
+        axis.text.y = element_text(vjust = 0, size=8
+                                   ),
         panel.grid.major.x = element_line()) + 
   guides(color = guide_legend(order = 1, nrow = 2, override.aes = list(linetype = 0)), 
          linetype = guide_legend(order = 2, label.vjust = 0)) + 
-  
   coord_cartesian(clip = "off")
 
 
-ggsave(plot = gg_mean_length_ridges + 
+gg_mean_length_ridges_w_max
+
+# save plot
+ggsave(plot = gg_mean_length_ridges_w_max + 
          theme(legend.spacing.x = unit(0.5, "mm"),
-               # legend.justification = 0, 
-               legend.position = c(0.17, -0.18), legend.direction = "horizontal", 
+               legend.position = c(0.19, -0.18), legend.direction = "horizontal", 
                legend.box = "horizontal",
                plot.margin = margin(5, 5, 45, 5),
                legend.box.just = "left",
-               legend.text.align = 0, #legend.margin = c(0,0),
+               legend.text.align = 0, 
                legend.title.align = 1),
-       filename = paste0(p_plots, "/fig2.pdf"), 
-         # paste0(p_plots, run_label, "/mean_lengths_w_ridges_hist", run_label, ".pdf"), 
+       filename = paste0(p_plots, "/fig2_w_max.pdf"), 
     width = 3.42, height = 5, units = "in")
-
-
-gg_mean_length_ridges
-
-
-ggsave(plot = gg_mean_length_ridges,
-       filename = paste0(p_plots, "/fig2_large.pdf"), 
-         # paste0(p_plots, run_label, "/mean_lengths_w_ridges_hist", run_label, ".pdf"), 
-    width = 4.75, height = 6, units = "in")
-
-
-
-
 
 ```
 
-```{r histograms}
 
-gg_raw_hist <-
-  ggplot(data = filter(length_distill_df, #site == site_df$site[9], 
-                     length_type == "all",
-                     length >= 5)) + 
+```{r histograms}
+# gg_raw_hist <-
+  ggplot(data = length_distill_df %>% 
+           filter(#site == site_df$site[9], 
+             length_type == "all",
+             length >= 5) %>%
+           left_join(., vt %>% select(site, order) %>% unique(), by = "site")) + 
     theme_classic() +
     xlab("Time abandoned (years)") + ylab(expression("Count  (10"^{6}*" pixels)")) +
     geom_col(mapping = aes(x = length, y = freq/(10^6))) +
-    facet_grid(rows = vars(site), scales = "free") +
+    facet_grid(rows = vars(fct_reorder(site, order)), scales = "free") +
     
     theme(#legend.position = c(0.85, 0.95)
           ) + 
@@ -584,17 +686,144 @@ ggsave(plot = gg_raw_hist,
        filename = paste0(p_plots, run_label, "/mean_lengths_default_hist", run_label, ".pdf"), 
     width = 5, height = 8, units = "in")
 
+
+
+# testing the density plots
 ggplot() +
-  geom_density_ridges(
+  geom_density_ridges2(
     data = vt, 
-    mapping = aes(y = site, x = length, group = site),
+    mapping = aes(y = fct_reorder(site, desc(order)), x = length, group = site),
     stat = "binline", bins = 26,
     scale = 0.95,
-    draw_baseline	= FALSE
-    ) + 
-  theme_ridges()
+    panel_scaling = FALSE) + 
+  scale_y_discrete(position = "left"#, breaks = c(0, 0.1)
+                   ) + 
+  theme(axis.text.y = element_text(size=10,face="bold"))# + 
+  scale_y_continuous(breaks = c(0, 0.1), labels = c("0", "0.1"))
+  
+
+vt %>% select(site, order) %>% unique()
 
 
+ggplot(data = length_distill_df %>% 
+           filter(length_type == "all", length >= 5) %>%
+           left_join(., vt %>% select(site, order) %>% unique(), by = "site") %>%
+         left_join(., length_distill_df %>% 
+                     filter(length_type == "all", length >= 5) %>% 
+                     group_by(site) %>% summarise(sum = sum(freq)),
+                   by = "site")) + 
+    theme_classic() +
+    labs(x = "Time abandoned (years)", y = "Proportion of total") + 
+    geom_col(mapping = aes(x = length, y = freq/sum)) +
+    facet_grid(rows = vars(fct_reorder(site, order)), scales = "free_x") +
+  scale_x_continuous(breaks = seq(from = 5, to = 30, by = 5)) + 
+  scale_y_continuous(breaks = c(0, 0.1))
+
+
+irislabs1 <- levels(iris$Species)
+irislabs2 <- c("foo", "bar", "buzz")
+
+ggplot(iris, aes(Sepal.Length, as.numeric(Species))) +
+  geom_point() +
+  scale_y_continuous(breaks = 1:length(irislabs1),
+                     labels = irislabs1,
+                     sec.axis = sec_axis(~.,
+                                         breaks = 1:length(irislabs2),
+                                         labels = irislabs2))
+```
+
+
+```{r histograms-testing}
+# 
+font_size <- 14
+font_family <- ""
+line_size <- .5
+# grid <- TRUE
+if (TRUE) {
+    panel.grid.major <- element_line(colour = color, size = line_size)
+    axis.ticks       <- element_line(colour = color, size = line_size)
+    axis.ticks.y     <- axis.ticks
+  }  else {
+    panel.grid.major <- element_blank()
+    axis.ticks       <- element_line(colour = "black", size = line_size)
+    axis.ticks.y     <- element_blank()
+  }
+
+center_axis_labels <- FALSE
+if (center_axis_labels) {
+    axis_just <- 0.5
+    } else {
+    axis_just <- 1.0
+  }
+
+  half_line <- font_size / 2
+  small_rel <- 0.857
+  small_size <- small_rel * font_size
+  color <- "grey90"
+# 
+
+
+ggplot(data = length_distill_df %>% 
+           filter(length_type == "all", length >= 5) %>%
+           left_join(., vt %>% select(site, order) %>% unique(), by = "site") %>%
+         left_join(., length_distill_df %>% 
+                     filter(length_type == "all", length >= 5) %>% 
+                     group_by(site) %>% summarise(sum = sum(freq)),
+                   by = "site")) + 
+    theme_classic() +
+    labs(x = "Time abandoned (years)", y = "Proportion of total") + 
+    geom_col(mapping = aes(x = length, y = freq/sum)) +
+    facet_grid(rows = vars(fct_reorder(site, order)), scales = "free_x") +
+  scale_x_continuous(breaks = seq(from = 5, to = 30, by = 5)) + 
+theme_grey(base_size = font_size, base_family = font_family) %+replace%
+    theme(
+      rect              = element_rect(fill = "transparent", colour = NA, color = NA, size = 0, linetype = 0),
+      text              = element_text(family = font_family, face = "plain", colour = "black",
+                                       size = font_size, hjust = 0.5, vjust = 0.5, angle = 0, lineheight = .9,
+                                       margin = margin(), debug = FALSE),
+      axis.text         = element_text(colour = "black", size = small_size),
+      #axis.title        = element_text(face = "bold"),
+      axis.text.x       = element_text(margin = margin(t = small_size / 4), vjust = 1),
+      axis.text.y       = element_text(margin = margin(r = small_size / 4), hjust = 1, vjust = 0),
+      axis.title.x      = element_text(
+        margin = margin(t = small_size / 2, b = small_size / 4),
+        hjust = axis_just
+      ),
+      axis.title.y      = element_text(
+        angle = 90,
+        margin = margin(r = small_size / 2, l = small_size / 4),
+        hjust = axis_just
+      ),
+      axis.ticks        = axis.ticks,
+      axis.ticks.y      = axis.ticks.y,
+      axis.line         = element_blank(),
+      legend.key        = element_blank(),
+      legend.key.size   = grid::unit(1, "lines"),
+      legend.text       = element_text(size = rel(small_rel)),
+      legend.justification = c("left", "center"),
+      panel.background  = element_blank(),
+      panel.border      = element_blank(),
+      # make grid lines
+      panel.grid.major  = panel.grid.major,
+      panel.grid.minor  = element_blank(),
+      strip.text        = element_text(size = rel(small_rel)),
+      strip.background  = element_rect(fill = "grey80", colour = "grey50", size = 0),
+      plot.background   = element_blank(),
+      plot.title        = element_text(face = "bold",
+                                       size = font_size,
+                                       margin = margin(b = half_line), hjust = 0),
+      plot.subtitle     = element_text(size = rel(small_rel),
+                                       hjust = 0, vjust = 1,
+                                       margin = margin(b = half_line * small_rel)),
+      plot.caption      = element_text(size = rel(small_rel),
+                                       hjust = 1, vjust = 1,
+                                       margin = margin(t = half_line * small_rel)),
+      plot.margin       = margin(half_line, font_size, half_line, half_line),
+      complete = TRUE
+    )
+
+
+length_distill_df %>% filter(length_type == "all", length >= 5) %>% group_by(site) %>% summarise(sum = sum(freq))
 ```
 
 
@@ -858,9 +1087,12 @@ area_summary_df <- area_summary_df %>%
 # calculate area as various proportions
 names(area_summary_df)
 area_summary_df <- area_summary_df %>%
-  mutate(area_as_prop_site = area_abn_ha_2017/total_site_area_ha_2017,
-         area_as_prop_total_crop = area_abn_ha_2017/total_crop_extent_ha,
-         area_as_prop_crop87 = area_abn_ha_2017/cropland_area_1987)
+  mutate(area_2017_as_prop_site = area_abn_ha_2017/total_site_area_ha_2017,
+         area_2017_as_prop_total_crop = area_abn_ha_2017/total_crop_extent_ha,
+         area_2017_as_prop_crop87 = area_abn_ha_2017/cropland_area_1987,
+         area_ever_abn_as_prop_site = area_ever_abn_ha/total_site_area_ha_2017,
+         area_ever_abn_as_prop_total_crop = area_ever_abn_ha/total_crop_extent_ha,
+         area_ever_abn_as_prop_crop87 = area_ever_abn_ha/cropland_area_1987)
 
 # ----------------------------------------------------------- #
 # save the summary file
@@ -870,9 +1102,6 @@ write_csv(area_summary_df, file = paste0(p_dat_derived, run_label, "/", "area_su
 
 # area_summary_df_old_area <- read_csv(file = paste0(p_dat_derived, run_label, "_old_area", "/", "area_summary_df", run_label, ".csv"))
 ```
-
-
-
 
 
 
@@ -1107,9 +1336,12 @@ ggplot(data = area_summary_df,
 
 
 # averaging across site to be consistent with summary_stats_all_sites
+area_summary_df %>% select(site, proportion_recultivated) %>% arrange(proportion_recultivated)
 
 area_summary_df %>% 
   summarise(mean_proportion = mean(proportion_recultivated))
+
+
 ```
 
 
@@ -1119,14 +1351,13 @@ area_summary_df %>%
 # see chunk: area-abn-summary
 area_recultivated_df
 
-
 area_recult_threshold <- lapply(c(5, 7, 10), function(i) {
   persistence_dat %>% 
   left_join(.,
             persistence_dat %>% filter(age == i) %>% 
               select(site, year_abn, initial_area_abn_alt_thr = area_ha), 
             by = c("site", "year_abn")) %>%
-  filter(year == 2017, age >= i) %>%
+  filter(year == 2017, age >= i) %>% # this restricts to only land abandoned for at least 5, 7, or 10 years
   group_by(site) %>%
   summarise(total_area_abn_remaining_2017 = sum(area_ha),
             total_initial_area_abn = sum(initial_area_abn_alt_thr),
@@ -1144,11 +1375,48 @@ area_recult_threshold <- lapply(c(5, 7, 10), function(i) {
             )
 
 
+
+
+# summing up the total area abandoned as of 2017, and the total area abandoned at one point
+area_summary_df %>% select(site, area_abn_ha_2017, area_ever_abn_ha) %>%
+  summarise(total_area_abn_2017 = sum(area_abn_ha_2017),
+            total_area_ever_abn = sum(area_ever_abn_ha)) / 10^6
+
+# now, summing up the total cumulative area of all land remaining abandoned as of 2017.
+persistence_dat %>%
+  filter(year == 2017, age >= 5) %>%
+  group_by(site) %>%
+  summarise(total_area_abn_remaining_2017 = sum(area_ha)) %>% ungroup() %>%
+  summarise(sum_across_sites = sum(total_area_abn_remaining_2017)) # ok, this matches...
+
+area_dat %>% filter(lc == "Abandoned (>=5)", year == 2017) %>% .$area_ha %>% sum()
+            
+# note to future Chris: the sum of the "initial area abandoned" values is higher than the "area ever abandoned" because some pixels were abandoned multiple times, and therefore show up more than once in the intial area abandoned. 
+area_recult_threshold %>% 
+  group_by(abn_threshold) %>%
+  # filter(abn_threshold == 5) %>%
+  summarise(sum_abn_2017 = sum(total_area_abn_remaining_2017) / 10^6,
+            sum_init_abn = sum(total_initial_area_abn) / 10^6) 
+
+# area_summary_df %>% select(site, proportion_recultivated) %>% arrange(proportion_recultivated)
+
+
+round(area_summary_df %>% summarise(total_ever_abn_Mha = sum(area_ever_abn_ha)/1e6), digits = 2)
+
+
+
+
+
+
+
+
+
 # ----------------------------------------------------------- #
 # save the summary file
 # ----------------------------------------------------------- #
 write_csv(area_recult_threshold, file = paste0(p_dat_derived, run_label, "/", "area_recult_threshold", run_label, ".csv"))
 # area_recult_threshold <- read_csv(file = paste0(p_dat_derived, run_label, "/", "area_recult_threshold", run_label, ".csv"))
+
 
 
 # ----------------------------------------------------------- #
