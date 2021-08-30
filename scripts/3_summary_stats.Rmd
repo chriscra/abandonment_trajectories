@@ -559,8 +559,8 @@ gg_mean_length_ridges <-
   
   scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30), expand = c(0, 0)) + 
   theme_classic() +
-  labs(y = "Proportion of abandonment periods of a given duration", # of a given duration
-       x = "Abandonment duration (years) ",
+  labs(y = "Proportion", # of abandonment periods of a given duration",
+       x = "Abandonment duration (years)",
        color = NULL, linetype = NULL) + 
   theme(legend.position = "bottom", #c(0,0.3), #
         legend.margin=margin(),
@@ -636,8 +636,8 @@ gg_mean_length_ridges_w_max <-
     
   scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30), expand = c(0, 0)) + 
   theme_classic() +
-  labs(y = "Relative proportion of maximum abandonment \nlengths in each age class", 
-       x = "Abandonment duration (years) ",
+  labs(y = "Proportion", 
+       x = "Abandonment duration (years)",
        color = "Site-level \nmean of:", linetype = NULL) + 
   theme(legend.position = "bottom", #c(0,0.3), #
         legend.margin=margin(),
