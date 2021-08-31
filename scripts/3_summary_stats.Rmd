@@ -517,12 +517,28 @@ vt
 
 show_col(hue_pal()(3)[1]) # default ggplot colors
 
-gg_mean_length_ridges <-
+ggplot() + 
+  geom_density_ridges2(
+    data = vt, 
+    mapping = aes(y = as.numeric(fct_reorder(site, desc(order))), 
+                  x = length, group = site),
+    stat = "binline", bins = 26,
+    scale = 0.95,
+    panel_scaling = FALSE) + 
+  scale_y_continuous(breaks = 1:length(fig2_labels1),
+                     labels = NULL,
+                     sec.axis = sec_axis(~.,
+                                         breaks = 1:length(fig2_labels1),
+                                         labels = fig2_labels1)) + 
+  labs(y = "Proportion")
+
+# gg_mean_length_ridges <-
   ggplot() +
   
   geom_density_ridges2(
     data = vt, 
-    mapping = aes(y = fct_reorder(site, desc(order)), x = length, group = site),
+    mapping = aes(y = fct_reorder(site, desc(order)), 
+                  x = length, group = site),
     stat = "binline", bins = 26, 
     scale = 0.95) + 
   
@@ -546,7 +562,7 @@ gg_mean_length_ridges <-
                                    max = "Maximum duration\nper pixel")) +
   scale_y_discrete(expand = c(0.02, 0),
                    labels = c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
-                              "bosnia_herzegovina" = "Bosnia &\n Herzegovina",
+                              "bosnia_herzegovina" = "Bosnia &\nHerzegovina",
                               "chongqing" = "Chongqing, China",
                               "goias" = "Goiás, Brazil",
                               "iraq" = "Iraq",
@@ -555,11 +571,15 @@ gg_mean_length_ridges <-
                               "orenburg" = "Orenburg, Russia /\nUralsk, Kazakhstan",
                               "shaanxi" = "Shaanxi/Shanxi,\nChina",
                               "volgograd" = "Volgograd, Russia",
-                              "wisconsin" = "Wisconsin, USA")) +
+                              "wisconsin" = "Wisconsin, USA"),
+                   position = "right"#, breaks = c(0, 0.1)
+                   ) +
   
   scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30), expand = c(0, 0)) + 
   theme_classic() +
-  labs(y = "Proportion", # of abandonment periods of a given duration",
+  labs(
+    y = NULL,
+    #y = "Proportion", # of abandonment periods of a given duration",
        x = "Abandonment duration (years)",
        color = NULL, linetype = NULL) + 
   theme(legend.position = "bottom", #c(0,0.3), #
@@ -587,22 +607,150 @@ ggsave(plot =
                legend.title.align = 1)
          ,
        
-       filename = paste0(p_plots, "/fig2.pdf"), 
+       filename = paste0(p_plots, "/fig2_left.pdf"), 
     width = 3.42, height = 5, units = "in")
 ```
+
+```{r switch}
+# make labels
+fig2_labels1 <- levels(fct_reorder(vt$site, desc(vt$order)))
+fig2_labels_order <- sapply(1:11, function(i) {grep(fig2_labels1[i], site_df$site)})
+fig2_labels_long <- c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
+                  "bosnia_herzegovina" = "Bosnia &\nHerzegovina",
+                  "chongqing" = "Chongqing, China",
+                  "goias" = "Goiás, Brazil",
+                  "iraq" = "Iraq",
+                  "mato_grosso" = "Mato Grosso,\nBrazil",
+                  "nebraska" = "Nebraska /\nWyoming, USA",
+                  "orenburg" = "Orenburg, Russia /\nUralsk, Kazakhstan",
+                  "shaanxi" = "Shaanxi/Shanxi,\nChina",
+                  "volgograd" = "Volgograd, Russia",
+                  "wisconsin" = "Wisconsin, USA")
+
+
+gg_mean_length_ridges_switch <-
+  ggplot() +
+  
+  geom_density_ridges2(
+    data = vt, 
+    mapping = aes(y = as.numeric(fct_reorder(site, desc(order))), 
+                  x = length, group = site),
+    stat = "binline", bins = 26, 
+    scale = 0.95) + 
+  
+  scale_y_continuous(expand = c(0.02, 0),
+                     breaks = 1:length(fig2_labels1),
+                     labels = NULL,
+                     position = "left",
+                     sec.axis = 
+                       sec_axis(~.,
+                                breaks = 1:length(fig2_labels1),
+                                labels = fig2_labels_long[fig2_labels_order]
+                                         )) + 
+  
+  geom_vline(data = mean_length_df %>%
+               group_by(abn_threshold, length_type) %>%
+               summarise(overall_mean = mean(mean_duration, na.rm = TRUE)) %>%
+               filter(abn_threshold == "5", length_type == "all"),
+             mapping = aes(xintercept = overall_mean,
+                           linetype = "Mean across all sites"),
+             color = hue_pal()(3)[1]) +
+  
+  scale_linetype_manual(values = c("Mean across all sites" = "dashed")) +
+  
+  geom_point(data = mean_length_df %>%
+           filter(abn_threshold == "5", length_type == "all"),
+             mapping = aes(y = as.numeric(fct_reorder(site, desc(order))),
+                           x = mean_duration, 
+                           color = length_type),
+             size = 3, alpha = 0.85) + 
+  scale_color_discrete(labels = c(all = "Site-level mean",
+                                  max = "Maximum duration\nper pixel")) +
+  
+  scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30), expand = c(0, 0)) +
+  theme_classic() +
+  labs(y = "Proportion",
+       x = "Abandonment duration (years)",
+       color = NULL, linetype = NULL) + 
+  theme(legend.position = "bottom", #c(0,0.3), #
+        legend.margin=margin(),
+        axis.text.y = element_text(vjust = 0, size=8
+                                   ),
+        panel.grid.major.x = element_line()) + 
+  guides(color = guide_legend(order = 1, nrow = 1, 
+                              override.aes = list(linetype = 0)), 
+         linetype = guide_legend(order = 2, nrow = 1)) + 
+  coord_cartesian(clip = "off")
+
+
+
+# save plot
+ggsave(plot = 
+         gg_mean_length_ridges_switch + 
+         theme(legend.spacing.x = unit(0.5, "mm"),
+               legend.position = c(0.6, -0.13), 
+               legend.direction = "horizontal",
+               legend.box = "horizontal",
+               plot.margin = margin(5, 5, 27, 5),
+               legend.box.just = "left",
+               legend.text.align = 0,
+               legend.title.align = 1),
+       
+       filename = paste0(p_plots, "/fig2_right.pdf"), 
+    width = 3.42, height = 5, units = "in")
+```
+
 
 ```{r fig2-ridges-w-max}
 
 vt_max
+
+fig2_max_labels1 <- levels(fct_reorder(vt_max$site, desc(vt_max$order)))
+fig2_max_labels_order <- sapply(1:11, function(i) {grep(fig2_max_labels1[i], site_df$site)})
+fig2_max_labels_long <- c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
+                  "bosnia_herzegovina" = "Bosnia &\nHerzegovina",
+                  "chongqing" = "Chongqing, China",
+                  "goias" = "Goiás, Brazil",
+                  "iraq" = "Iraq",
+                  "mato_grosso" = "Mato Grosso,\nBrazil",
+                  "nebraska" = "Nebraska /\nWyoming, USA",
+                  "orenburg" = "Orenburg, Russia /\nUralsk, Kazakhstan",
+                  "shaanxi" = "Shaanxi/Shanxi,\nChina",
+                  "volgograd" = "Volgograd, Russia",
+                  "wisconsin" = "Wisconsin, USA")
 
 gg_mean_length_ridges_w_max <-
   ggplot() +
   
   geom_density_ridges2(
     data = vt_max, 
-    mapping = aes(y = fct_reorder(site, desc(order)), x = length, group = site),
+    mapping = aes(y = as.numeric(fct_reorder(site, desc(order))), 
+                  x = length, group = site),
     stat = "binline", bins = 26, 
     scale = 0.95) + 
+  
+  scale_y_continuous(expand = c(0.02, 0),
+                     breaks = 1:length(fig2_max_labels1),
+                     labels = NULL,
+                     position = "left",
+                     sec.axis = 
+                       sec_axis(~.,
+                                breaks = 1:length(fig2_max_labels1),
+                                labels = fig2_max_labels_long[fig2_max_labels_order]
+                                         )) +
+  
+  # scale_y_discrete(expand = c(0.02, 0),
+  #                  labels = c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
+  #                             "bosnia_herzegovina" = "Bosnia &\n Herzegovina",
+  #                             "chongqing" = "Chongqing, China",
+  #                             "goias" = "Goiás, Brazil",
+  #                             "iraq" = "Iraq",
+  #                             "mato_grosso" = "Mato Grosso,\nBrazil",
+  #                             "nebraska" = "Nebraska /\nWyoming, USA",
+  #                             "orenburg" = "Orenburg, Russia /\nUralsk, Kazakhstan",
+  #                             "shaanxi" = "Shaanxi/Shanxi,\nChina",
+  #                             "volgograd" = "Volgograd, Russia",
+  #                             "wisconsin" = "Wisconsin, USA")) +
   
   geom_vline(data = mean_length_df %>% 
                group_by(abn_threshold, length_type) %>%
@@ -615,24 +763,12 @@ gg_mean_length_ridges_w_max <-
   
   geom_point(data = mean_length_df %>%
            filter(abn_threshold == "5"),
-             mapping = aes(y = fct_reorder(site, desc(order)),
+             mapping = aes(y = as.numeric(fct_reorder(site, desc(order))),
                            x = mean_duration, 
                            color = length_type),
              size = 3, alpha = 0.85) + 
   scale_color_discrete(labels = c(all = "All abandonment periods",
                                    max = "Maximum duration\nper pixel")) +
-  scale_y_discrete(expand = c(0.02, 0),
-                   labels = c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
-                              "bosnia_herzegovina" = "Bosnia &\n Herzegovina",
-                              "chongqing" = "Chongqing, China",
-                              "goias" = "Goiás, Brazil",
-                              "iraq" = "Iraq",
-                              "mato_grosso" = "Mato Grosso,\nBrazil",
-                              "nebraska" = "Nebraska /\nWyoming, USA",
-                              "orenburg" = "Orenburg, Russia /\nUralsk, Kazakhstan",
-                              "shaanxi" = "Shaanxi/Shanxi,\nChina",
-                              "volgograd" = "Volgograd, Russia",
-                              "wisconsin" = "Wisconsin, USA")) +
     
   scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30), expand = c(0, 0)) + 
   theme_classic() +
@@ -644,23 +780,24 @@ gg_mean_length_ridges_w_max <-
         axis.text.y = element_text(vjust = 0, size=8
                                    ),
         panel.grid.major.x = element_line()) + 
-  guides(color = guide_legend(order = 1, nrow = 2, override.aes = list(linetype = 0)), 
+  guides(color = guide_legend(order = 1, nrow = 2, 
+                              override.aes = list(linetype = 0)), 
          linetype = guide_legend(order = 2, label.vjust = 0)) + 
   coord_cartesian(clip = "off")
 
 
-gg_mean_length_ridges_w_max
+# gg_mean_length_ridges_w_max
 
 # save plot
 ggsave(plot = gg_mean_length_ridges_w_max + 
          theme(legend.spacing.x = unit(0.5, "mm"),
-               legend.position = c(0.19, -0.18), legend.direction = "horizontal", 
+               legend.position = c(0.7, -0.17), legend.direction = "horizontal", 
                legend.box = "horizontal",
                plot.margin = margin(5, 5, 45, 5),
                legend.box.just = "left",
                legend.text.align = 0, 
                legend.title.align = 1),
-       filename = paste0(p_plots, "/fig2_w_max.pdf"), 
+       filename = paste0(p_plots, "/fig2_w_max_right.pdf"), 
     width = 3.42, height = 5, units = "in")
 
 ```
@@ -688,6 +825,25 @@ ggsave(plot = gg_raw_hist,
 
 
 
+
+fig2_labels1 <- levels(fct_reorder(vt$site, desc(vt$order)))
+
+
+ggplot() + 
+  geom_density_ridges2(
+    data = vt, 
+    mapping = aes(y = as.numeric(fct_reorder(site, desc(order))), 
+                  x = length, group = site),
+    stat = "binline", bins = 26,
+    scale = 0.95,
+    panel_scaling = FALSE) + 
+  scale_y_continuous(breaks = 1:length(fig2_labels1),
+                     labels = NULL,
+                     sec.axis = sec_axis(~.,
+                                         breaks = 1:length(fig2_labels1),
+                                         labels = fig2_labels1)) + 
+  labs(y = "Proportion")
+
 # testing the density plots
 ggplot() +
   geom_density_ridges2(
@@ -698,6 +854,7 @@ ggplot() +
     panel_scaling = FALSE) + 
   scale_y_discrete(position = "left"#, breaks = c(0, 0.1)
                    ) + 
+  labs(y = "Proportion") +
   theme(axis.text.y = element_text(size=10,face="bold"))# + 
   scale_y_continuous(breaks = c(0, 0.1), labels = c("0", "0.1"))
   
