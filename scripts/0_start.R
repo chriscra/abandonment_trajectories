@@ -50,7 +50,7 @@ needed_packages <- c(
   "landscapemetrics", "landscapetools",
   
   # rmarkdown
-  "rmarkdown", "bookdown", "knitr"
+  "rmarkdown", "bookdown", "knitr", "kableExtra"
   )
 
 extra_packages <- c("")
