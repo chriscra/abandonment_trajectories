@@ -39,6 +39,10 @@ source("/home/clc6/abandonment_trajectories/scripts/util/_util_dt_filter_functio
 args <- commandArgs(TRUE) # access the slurm array variable
 indx <- as.numeric(args[1])
 
+
+tic.clearlog()
+tic("full script")
+
 # set up parameters:
 # data.frame of all sites contains information about sites
 site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
@@ -76,12 +80,42 @@ toc(log = TRUE)
 
 # -------------------------------------------------------- #
 # 2. Convert raw rasters into data.tables (including renaming and recoding) ----
+tic("convert raw rasters into data.tables, including renaming and recoding")
 cat("2. Converting raw rasters into data.tables (including renaming and recoding): ", site, fill = TRUE)
 cc_r_to_dt(site = site, site_df = site_df,
            input_path = p_raw_rasters, # with the raw, merged raster files directly in the directory
            output_path = p_input_rasters # where the recoded .csv and .tif files will go
            )
+toc(log = TRUE)
 
 
+# To be added...
+# Save renamed and recoded input rasters as rasters, to serve as canonical inputs going forward.
+# This can be adapted from dt_age_to_raster.R
 
+p_input_rasters
+
+# load the data
+# -------------------------------------------------------- #
+tic("load data")
+dt <- fread(file = paste0(p_input_rasters, site, ".csv"))
+toc(log = TRUE)
+
+# convert age dt to raster
+tic("convert dt to raster")
+r <- dt_to_raster(dt, crs("+proj=longlat +datum=WGS84 +no_defs"))
+toc(log = TRUE)
+
+names(r)
+print(r)
+
+
+# write raster
+tic("write raster")
+writeRaster(r, filename = paste0(p_input_rasters, site, ".tif"))
+toc(log = TRUE)
+
+
+toc(log = TRUE) # final toc
+tic.log(format = TRUE) # print the tic log
 
