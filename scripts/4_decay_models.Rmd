@@ -461,7 +461,8 @@ mean_coef_tmp_l3_s <- tidy(lm_lin_log_lin_l[[9]]) %>%
 
 
 # categorical color scheme
-gg_fig4 <- ggplot(data = filter(dat_l, site == site_df$site[9]),
+gg_fig4 <-
+  ggplot(data = filter(dat_l, site == site_df$site[9]),
          mapping = aes(x = age, y = proportion, 
                        group = year_abn, 
                        color = cut(year_abn, 
@@ -492,7 +493,7 @@ gg_fig4 <- ggplot(data = filter(dat_l, site == site_df$site[9]),
             ) + 
   scale_color_brewer(palette = "Greens", direction = -1) +
   scale_x_continuous(n.breaks = 6) +
-  geom_hline(yintercept = 0.5, linetype = "dashed") + 
+  # geom_hline(yintercept = 0.5, linetype = "dashed") + 
   labs(x = "Time since initial abandonment (years)", 
        y = "Proportion of abandoned land remaining",
        color = "Cohort (Year\nFirst Abandoned)\n",
@@ -1490,7 +1491,7 @@ car::qqPlot(lm(log(proportion) ~ 0 + log(time + 1):cohort:site,
 
 # plots ------------------------------------------------ #
 
-
+# unused
 # gg_decay_mega_plus <-
   ggplot(data = dat_l, 
        mapping = aes(x = age, y = proportion, 
@@ -1515,7 +1516,7 @@ car::qqPlot(lm(log(proportion) ~ 0 + log(time + 1):cohort:site,
   geom_line(data = fitted_l3_mega, 
             mapping = aes(x = age, y = proportion, linetype = mod),
               # color = brewer_pal(palette = "PiYG")(11)[2], # dark pink
-              color = "blue",
+              color = "black",
               size = 1, inherit.aes = FALSE) +
   scale_linetype_discrete(label = c("l3" = "Mean Decay Rate\n(Across F.E.)",
                                       "l3_no_cohort" = "Decay Rate (No F.E.)")) + 
@@ -1525,6 +1526,8 @@ car::qqPlot(lm(log(proportion) ~ 0 + log(time + 1):cohort:site,
   coord_cartesian(ylim = c(0.3, 1)) +
   facet_wrap(vars(site))
 
+# ------------------------------------------------------ #
+# for SI
 
 gg_decay_mega <-
   ggplot(data = dat_l, 
@@ -1538,6 +1541,7 @@ gg_decay_mega <-
                                    include.lowest = TRUE))) + 
     theme_classic() + 
   
+    # mean trajectory
   geom_line(data = fitted_l3_mega %>% filter(mod == "l3"), 
             mapping = aes(x = age, y = proportion, linetype = mod),
               # color = brewer_pal(palette = "PiYG")(11)[2], # dark pink
@@ -1546,7 +1550,9 @@ gg_decay_mega <-
   scale_linetype_discrete(label = c("l3" = "Mean Decay Rate\n(Across Cohorts)",
                                       "l3_no_cohort" = "Decay Rate (No F.E.)")) + 
   
-    geom_point(size = 0.8) + scale_color_distiller(palette = "Greens") + 
+    geom_point(size = 0.8) + 
+    scale_color_viridis(discrete = TRUE) +
+    # scale_color_distiller(palette = "Greens", discrete = TRUE) + 
     scale_x_continuous(n.breaks = 6) +
     geom_hline(yintercept = 0.5, linetype = "dashed") + 
     labs(caption = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
@@ -1555,11 +1561,23 @@ gg_decay_mega <-
          color = "Cohort \n(Year Abandoned)",
          linetype = "") + 
   
+    # fitted lines
     geom_line(data = mutate(augment(lm_mega_lin_log_lin_l, se_fit = TRUE),
                             time = round(exp(`log(time + 1)`), digits = 0) - 1,
                             age = time + 5,
                             proportion = .fitted + 1,
-                            year_abn = as.numeric(levels(cohort))[cohort])) +
+                            year_abn = as.numeric(levels(cohort))[cohort]),
+              linetype = 5, #5, #"longdash"
+              aes(alpha = "Fitted")) +
+      scale_alpha_manual(name = NULL,
+                     values = c(1), # breaks = c(0, "Fitted"),
+                     guide = guide_legend(
+                       order = 2,
+                       override.aes = list(
+                         # size = 0.5, 
+                         # linetype = 6, size = 1.15, #
+                         # color = brewer_pal(palette = "Greens")(6)[6]
+                       ))) +
 
   theme(legend.position = c(0.9, 0.13),
         legend.spacing = unit(-2, units = "mm"), legend.background = element_blank(),

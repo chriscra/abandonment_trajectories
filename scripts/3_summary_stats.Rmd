@@ -872,9 +872,10 @@ ggplot(data = length_distill_df %>%
     theme_classic() +
     labs(x = "Time abandoned (years)", y = "Proportion of total") + 
     geom_col(mapping = aes(x = length, y = freq/sum)) +
+  geom_hline(yintercept = 0.13) + 
     facet_grid(rows = vars(fct_reorder(site, order)), scales = "free_x") +
   scale_x_continuous(breaks = seq(from = 5, to = 30, by = 5)) + 
-  scale_y_continuous(breaks = c(0, 0.1))
+  scale_y_continuous(breaks = c(0, 0.1, 0.13))
 
 
 irislabs1 <- levels(iris$Species)
