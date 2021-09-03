@@ -3335,7 +3335,7 @@ states_union$geonunit
 ```{r fig1-final}
 
 inset_map_titles <- paste0("(", gsub("_", "", site_df$label), ") ", site_df$description)
-
+# cat(inset_map_titles, sep = "; ")
 new_titles <- inset_map_titles
 new_titles[1] <- "(b) Vitebsk, Belarus /\nSmolensk, Russia"
 new_titles[8] <- "(o) Orenburg, Russia /\nUralsk, Kazakhstan"
