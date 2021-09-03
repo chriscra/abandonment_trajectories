@@ -1,22 +1,37 @@
 # abandonment_trajectories repo: gitignore file
 
+# directories to ignore
 data_alias/
 data_derived/
 output/
 scripts/cluster/old/
 scripts/cluster/slurm/
 scripts/misc_ref/
-wc0.5/
+scripts/PNAS_ms_files/
+scripts/PNAS_si_files/
 writing/
 
+# specific files to ignore
+scripts/tester.Rmd
 
-# other random files
+# latex files
+*.lof
+*.log
+*.lot
+*.toc
+*.synctex.gz
+*.bbl
+
+# other random files to ignore
 *.bib
+.DS_Store
+scripts/.DS_Store
+
 
 # knit output documents
 *.docx
 *.html
-*.pdf
+# *.pdf # actually, don't ignore these pdfs!
 
 # knit temp files - note, I do want to keep the .tex files
 *.log
