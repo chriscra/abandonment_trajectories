@@ -1,4 +1,5 @@
 # Trajectories of Abandonment
+## Investigating the timing, duration, and persistence of cropland abandonment
 
 This repository houses analysis scripts and documentation for:
 
