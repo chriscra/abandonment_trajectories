@@ -1402,7 +1402,7 @@ ggplot(data = area_summary_df,
 
 area_a <-
   ggplot(data = area_summary_df,
-       mapping = aes(y = fct_reorder(site, desc(area_as_prop_total_crop)), 
+       mapping = aes(y = fct_reorder(site, desc(area_2017_as_prop_total_crop)), 
                      x = area_abn_ha_2017/(10^3))) + 
   geom_col() +
   theme_classic() + 
@@ -1425,7 +1425,7 @@ area_a <-
 # plot area abandoned at any point between 1987-2017 (thousands ha):
 area_b <-
   ggplot(data = area_summary_df,
-       mapping = aes(y = fct_reorder(site, desc(area_as_prop_total_crop)), 
+       mapping = aes(y = fct_reorder(site, desc(area_2017_as_prop_total_crop)), 
                      x = area_ever_abn_ha/(10^3))) + 
   geom_col() +
   theme_classic() + 
@@ -1433,21 +1433,21 @@ area_b <-
   theme(axis.text.y = element_blank(), axis.title.y = element_blank(),
         plot.margin = margin(3, 8, 3, 15))
 
-# plot area abandoned as a proportion of the total cropland extent:
+# plot area ever abandoned as a proportion of the total cropland extent:
 area_c <- ggplot(data = area_summary_df,
-       mapping = aes(y = fct_reorder(site, desc(area_as_prop_total_crop)),
-                     x = area_as_prop_total_crop)) + 
+       mapping = aes(y = fct_reorder(site, desc(area_2017_as_prop_total_crop)),
+                     x = area_2017_as_prop_total_crop)) + 
   geom_col() +
   theme_classic() + 
   labs(x = "Area abandoned as of 2017 \n as a proportion of \ntotal cropland extent", y = "Site") + 
   theme(axis.text.y = element_blank(), axis.title.y = element_blank(),
         plot.margin = margin(3, 6, 3, 15))
 
-
+names(area_summary_df)
 # plot area abandoned as a proportion of the amount of cropland at the start of the time series:
 area_d <-
   ggplot(data = area_summary_df,
-       mapping = aes(y = fct_reorder(site, desc(area_as_prop_total_crop)), 
+       mapping = aes(y = fct_reorder(site, desc(area_2017_as_prop_total_crop)), 
                      x = area_ever_abn_ha/1e3)) + 
   geom_col() +
   theme_classic() + 
@@ -1460,15 +1460,16 @@ area_d <-
 
 # save panel plot
 
-ggsave(plot = plot_grid(area_a, area_b, area_c, area_d,
-                        nrow = 1, ncol = 4, 
+ggsave(plot = plot_grid(area_a, area_b, area_c, #area_d,
+                        nrow = 1, ncol = 3, #4, 
                         align = "h", axis = "l",
                         # hjust = 0,
-                        rel_widths = c(1.5, 1, 1, 1),
+                        rel_widths = c(1.5, 1, 1#, 1
+                                       ),
                         labels = "auto"
                         ),
        filename = paste0(p_plots, run_label, "/area_abn_panel", run_label, ".pdf"), 
-    width = 10, height = 4, units = "in"
+    width = 8, height = 4, units = "in"
 )
 
 ```
