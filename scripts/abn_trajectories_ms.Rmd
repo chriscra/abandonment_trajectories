@@ -298,31 +298,18 @@ mean_length_df %>% filter(abn_threshold == 5, length_type == "all") %>% summaris
 
 # Abstract {.unnumbered}
 
-Agricultural expansion is a major cause of land-use change globally, yet tens of millions of hectares of cropland have been abandoned since 1950 due to demographic, economic, and environmental changes.
-These abandoned croplands could be valuable for carbon sequestration and biodiversity restoration.
-However, their environmental value depends on the duration and persistence of abandonment, which is poorly known.
-Here, we quantify the duration and persistence of cropland abandonment at eleven sites on four continents using 30-m annual land cover maps for the years 1987 through 2017.
-We find that abandonment is generally fleeting, lasting on average only `r abn_duration_stats$mean_of_means_duration` years (SD = `r abn_duration_stats$sd_of_mean_duration`).
-<!-- [*Note: these summary statistics are calculated based on the mean abandonment duration at each site, and are therefore the mean of means, and the standard deviation of means. The mean standard deviation is now reported in the SI Section @ref(results-si).*] -->
-At most sites, we project that \>50% of abandoned croplands will be recultivated within 25 years, and sites in Eastern Europe, Russia, and the US show accelerating rates of recultivation.
-If current rates of abandonment and recultivation continue, the mean duration of abandonment at most sites will plateau between `r abn_duration_stats$extrapolation_low` and `r abn_duration_stats$extrapolation_high` years by 2040.
-Counter to optimistic assumptions, most abandonment is unlikely to be permanent and will produce limited benefits for carbon sequestration and biodiversity conservation.
-New policies and incentives are needed to lengthen the period of abandonment in order to generate such benefits.
-Until then, abandoned croplands will remain an untapped opportunity.
-
-# Significance Statement {.unnumbered}
-
-Demographic, economic, and environmental changes often cause cropland abandonment.
+Tens of millions of hectares of cropland have been abandoned since 1950 due to demographic, economic, and environmental changes.
 While sometimes a threat to food security and cultural landscapes, abandonment also provides a vast opportunity for carbon sequestration and habitat restoration.
-However, those environmental benefits depend on how long ecosystems are allowed to regenerate and accumulate carbon and biodiversity following abandonment.
-Existing studies have often relied on single snapshots in time to estimate abandonment, and ignore recultivation.
-Using annual land-cover maps, we tracked abandonment and recultivation at eleven sites across four continents.
-Abandonment was short-lived, with most abandoned croplands being recultivated within three decades.
+However, those environmental benefits depend on the duration and persistence of abandonment, which is poorly known.
+Here, we track abandonment and recultivation at eleven sites across four continents using annual land cover maps for 1987 through 2017. 
+Counter to optimistic assumptions, we find that abandonment is generally fleeting, lasting on average only `r abn_duration_stats$mean_of_means_duration` years (SD = `r abn_duration_stats$sd_of_mean_duration`).
+<!-- [*Note: these summary statistics are calculated based on the mean abandonment duration at each site, and are therefore the mean of means, and the standard deviation of means. The mean standard deviation is now reported in the SI Section @ref(results-si).*] -->
+At most sites, we project that \>50% of abandoned croplands will be recultivated within 25 years, limiting their ability to accumulate substantial amounts of carbon and biodiversity.
 Unless policymakers take steps to reduce recultivation or provide incentives for regeneration, abandonment will remain a missed opportunity to reduce biodiversity loss and climate change.
 
-## Keywords {.unnumbered}
+<!-- ## Keywords {.unnumbered} -->
 
-Agriculture, cropland abandonment, rural land abandonment, biodiversity conservation, secondary succession, carbon sequestration, land-cover mapping
+<!-- Agriculture, cropland abandonment, rural land abandonment, biodiversity conservation, secondary succession, carbon sequestration, land-cover mapping -->
 
 # Introduction {.unnumbered}
 
