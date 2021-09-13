@@ -4,6 +4,7 @@
 data_alias/
 data_derived/
 output/
+scripts/old/
 scripts/cluster/old/
 scripts/cluster/slurm/
 scripts/misc_ref/

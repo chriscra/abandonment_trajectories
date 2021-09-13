@@ -1094,7 +1094,6 @@ packageVersion("terra")
 
 reprex(venue = "so")
 
-
 ```
 
 
@@ -1724,6 +1723,7 @@ for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # reme
 
 # area in 2017
 freq(age_t$shaanxi$y2017)
+plot(age_t$shaanxi$y1988)
 
 # make abn mask
 abn_cc_2017_mask <- lapply(1:11, function(i) {
