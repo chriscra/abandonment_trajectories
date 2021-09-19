@@ -1096,6 +1096,25 @@ reprex(venue = "so")
 
 ```
 
+```{r}
+persistence_dat
+summary(persistence_dat)
+
+persistence_dat %>% 
+  group_by(site) %>%
+  summarise(site = unique(site),
+            n = n(),
+            mean_prop = mean(proportion, na.rm = TRUE))
+
+
+persistence_dat %>% 
+  group_by(site, cohort) %>%
+  summarise(site = unique(site),
+            n = n(),
+            mean_prop = mean(proportion, na.rm = TRUE))
+
+```
+
 
 ```{r area-abn-summary}
 
