@@ -1,5 +1,5 @@
 ---
-title: "Supplementary information for: Cropland abandonment is largely fleeting, limiting its potential environmental benefits"
+title: "Supplementary information for: Rural cropland abandonment is too ephemeral to benefit carbon sequestration or biodiversity conservation"
 author:
   - Christopher L. Crawford$^1$^[Corresponding Author, ccrawford@princeton.edu, Robertson Hall, Princeton University, Princeton, NJ]
   - He Yin$^2$
@@ -538,15 +538,22 @@ abn_2yr_stats <- list(
   jaccard_high = round(abn_2yr_overestimation %>% slice_max(jaccard) %>% .$jaccard, digits = 4) * 100,
   
   jaccard_low_site = abn_2yr_overestimation %>% slice_min(jaccard) %>% .$description,
-  jaccard_high_site = abn_2yr_overestimation %>% slice_max(jaccard) %>% .$description
+  jaccard_high_site = abn_2yr_overestimation %>% slice_max(jaccard) %>% .$description,
   
+  percent_area_below_5_low = round(abn_2yr_overestimation %>% filter(site != "mato_grosso") %>% slice_min(percent_2yr_abn_area_less_than_5yrs_old) %>% .$percent_2yr_abn_area_less_than_5yrs_old, digits = 2),
+  percent_area_below_5_high = round(abn_2yr_overestimation %>% filter(site != "mato_grosso") %>% slice_max(percent_2yr_abn_area_less_than_5yrs_old) %>% .$percent_2yr_abn_area_less_than_5yrs_old, digits = 2),
+  
+  percent_area_below_5_low_site = abn_2yr_overestimation %>% filter(site != "mato_grosso") %>% slice_min(percent_2yr_abn_area_less_than_5yrs_old) %>% .$description,
+  percent_area_below_5_high_site = abn_2yr_overestimation %>% slice_max(percent_2yr_abn_area_less_than_5yrs_old) %>% .$description
 )
 
 abn_2yr_overestimation_char <- abn_2yr_overestimation %>%
   mutate(jaccard = jaccard %>% round(digits = 2), 
          area_ha_cc = area_ha_cc %>% round(digits = 0) %>% prettyNum(big.mark = ","),
          area_2yr = area_2yr %>% round(digits = 0) %>% prettyNum(big.mark = ","),
-         percent_diff = percent_diff %>% round(digits = 2) %>% paste0(., "%"))
+         percent_diff = percent_diff %>% round(digits = 2) %>% paste0(., "%"),
+         percent_2yr_abn_area_less_than_5yrs_old = percent_2yr_abn_area_less_than_5yrs_old %>%
+           round(digits = 2) %>% paste0(., "%"))
 
 ```
 
@@ -686,6 +693,9 @@ We measure spatial agreement using the Jaccard similarity index [Legendre2012], 
 J(a,b) = \frac{a\cap b}{a\cup b} (\#eq:jaccard-equation)
 \end{equation}
 
+Additionally, a large portion of the "abandoned" area identified with the two-year method does not meet our five year abandonment definition, leading to an overestimate of true abandonment. 
+Column 6 in Table \@ref(tab:twoyr-diff-table) shows the percent of the "abandoned" area identified with the two-year method that has been abandoned for than 5 years, and therefore would not be considered "abandoned" by our definition.
+
 ## Maps of abandonment duration as of 2017 and maximum duration during time series
 
 As described in the main text, because a pixel may be abandoned and recultivated multiple times throughout the time series, we calculated the mean abandonment duration in two ways: 1) across all periods of abandonment (as shown in Figure 2), and 2) across only the longest period of abandonment experienced by each pixel. 
@@ -745,7 +755,8 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/temp_filter_counts_p
 Our mean abandonment duration metric tells us about the general persistence of abandoned croplands throughout the time series.
 However, this value is limited by the time series length, and does not account for when the majority of the abandonment took place at a site, nor whether a period of abandonment ends as a results of recultivation or the end of the time series.
 As a result, the mean abandonment duration does not tell us how long to expect a piece of land to remain abandoned, nor how abandonment length varies through time.
-To address this constraint, we track the trajectory of each pixel through time following its initial abandonment, grouping pixels abandoned in a given year into "cohorts." Decay rates provide information about how long it takes for land to be recultivated, complementing the mean abandonment length and providing a more nuanced story about how long to expect abandonment to last.
+To address this constraint, we track the trajectory of each pixel through time following its initial abandonment, grouping pixels abandoned in a given year into "cohorts."
+Decay rates provide information about how long it takes for land to be recultivated, complementing the mean abandonment length and providing a more nuanced story about how long to expect abandonment to last.
 
 For example, a site may have a relatively short mean length of abandonment (e.g., Shaanxi/Shanxi [China], with a mean abandonment length of 13 years; see Figure 1), but also have a gradual decay rate, indicating that land should stay abandoned for a relatively longer amount of time.
 This may result from more abandonment occurring towards the end of the time series; this land simply does not have as long to age and shows up as younger in our data, regardless of how long it may last.
@@ -753,7 +764,7 @@ Looking at abandonment decay rates for each cohort individually allows us to pro
 
 ### Model selection and diagnostics
 
-We fit linear models using the `lm()` function in R's core statistics package `{stats}`, predicting the proportion of abandoned cropland in each cohort remaining abandoned as a function of time since initial abandonment at each site.
+We fit linear models using the `lm()` function in R's core statistics package `{stats}`, predicting the proportion of abandoned cropland in each cohort remaining abandoned as a function of time since initial abandonment at each site (n = 351 observations for each of our 11 sites).
 The proportion of abandoned cropland remaining abandoned is measured relative to the area abandoned 5 years following the year of initial abandonment, as dictated by our five year abandonment definition.
 
 We tested a range of model specifications, including linear and log transformations of both *proportion* and *time*.
@@ -787,6 +798,7 @@ An alternative representation of the mean recultivation rate is shown in Figure 
 ## Change in recultivation rates over time {#section-methods-rate-of-change}
 
 We examined the rate of change of recultivation rates by calculating the half-life, $t_{half,s}$, defined as the time required for half (50%) of a given cohort of abandoned cropland to be recultivated, and parameterizing a simple linear model on these half-life values as a function of time, using the `stats::lm()` function in R's core statistics package `{stats}`.
+This resulted in *n* = 26 half-life values (one for each cohort) at each of our 11 sites.
 We estimate the half-life, $t_{half,s}$, as a function of the year of initial abandonment ($yearabn_{s}$), at each site $s$, as shown in Equation \@ref(eq:rate-of-change-lm).
 
 \begin{equation}
@@ -846,11 +858,13 @@ knitr::kable(summary_stats_table_df,
 
 ```{r twoyr-diff-table, echo = FALSE}
 abn_2yr_overestimation_char %>% 
-  select(description, area_ha_cc, area_2yr, percent_diff, jaccard) %>%
+  select(description, area_ha_cc, area_2yr, percent_diff, jaccard, percent_2yr_abn_area_less_than_5yrs_old) %>%
 
   knitr::kable(., 
-             col.names = c("Site", "Area (annual, as of 2017)", "Area (two year: 2017-1987)", 
-                           "Percent Difference", "Jaccard Similarity"),
+             col.names = c("Site", "Area (annual, as of 2017)", 
+                           "Area (two year: 2017-1987)", 
+                           "Percent Difference", "Jaccard Similarity",
+                           "Percent Area <5 Years Old (two year)"),
              align = "r", 
              format = "latex",
              booktabs = TRUE,
@@ -859,11 +873,12 @@ abn_2yr_overestimation_char %>%
   kableExtra::kable_styling(
     # latex_options = "scale_down"
     latex_options = "hold_position"
-    ) %>%
-  # column_spec(1, width = "6cm") %>%
-  column_spec(2:3, width = "2.6cm") %>%
+    )%>%
+  column_spec(1, width = "4.2cm") %>%
+  column_spec(c(2:3), width = "2cm") %>%
   # column_spec(3, width = "2cm") %>%
-  column_spec(4:5, width = "1.8cm")
+  column_spec(4:5, width = "1.7cm") %>%
+  column_spec(6, width = "2cm")
 ```
 
 \newpage

@@ -37,7 +37,7 @@
 \IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
 \IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
 \hypersetup{
-  pdftitle={Supplementary information for: Cropland abandonment is largely fleeting, limiting its potential environmental benefits},
+  pdftitle={Supplementary information for: Rural cropland abandonment is too ephemeral to benefit carbon sequestration or biodiversity conservation},
   pdfauthor={Christopher L. Crawford\^{}1; He Yin\^{}2; Volker C. Radeloff\^{}3; David S. Wilcove\^{}\{1,4\}},
   colorlinks=true,
   linkcolor=black,
@@ -88,6 +88,14 @@
 	\renewcommand{\thetable}{S\arabic{table}} 
 	\renewcommand\theequation{S\arabic{equation}}
 	}
+
+\renewcommand{\topfraction}{.95}
+\renewcommand{\bottomfraction}{.9}
+\renewcommand{\textfraction}{.05}
+\renewcommand{\floatpagefraction}{.66}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{3}
+\setcounter{totalnumber}{4}
 \usepackage{booktabs}
 \usepackage{longtable}
 \usepackage{array}
@@ -126,7 +134,7 @@
 \newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{#1}\break}
 \newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
 
-\title{Supplementary information for: Cropland abandonment is largely fleeting, limiting its potential environmental benefits}
+\title{Supplementary information for: Rural cropland abandonment is too ephemeral to benefit carbon sequestration or biodiversity conservation}
 \author{Christopher L. Crawford\(^1\)\footnote{Corresponding Author, \href{mailto:ccrawford@princeton.edu}{\nolinkurl{ccrawford@princeton.edu}}, Robertson Hall, Princeton University, Princeton, NJ} \and He Yin\(^2\) \and Volker C. Radeloff\(^3\) \and David S. Wilcove\(^{1,4}\)}
 \date{\(^1\)Princeton School of Public and International Affairs, Princeton University, Princeton, NJ\newline \(^2\)Department of Geography, Kent State University, Kent, OH\newline \(^3\)SILVIS Lab, Department of Forest \& Wildlife Ecology, University of Wisconsin - Madison, Madison, WI\newline \(^4\)Department of Ecology \& Evolutionary Biology, Princeton University, Princeton, NJ\newline \newline \today}
 
@@ -227,6 +235,9 @@ We measure spatial agreement using the Jaccard similarity index {[}Legendre2012{
 J(a,b) = \frac{a\cap b}{a\cup b} \label{eq:jaccard-equation}
 \end{equation}
 
+Additionally, a large portion of the ``abandoned'' area identified with the two-year method does not meet our five year abandonment definition, leading to an overestimate of true abandonment.
+Column 6 in Table \ref{tab:twoyr-diff-table} shows the percent of the ``abandoned'' area identified with the two-year method that has been abandoned for than 5 years, and therefore would not be considered ``abandoned'' by our definition.
+
 \hypertarget{maps-of-abandonment-duration-as-of-2017-and-maximum-duration-during-time-series}{%
 \subsection{Maps of abandonment duration as of 2017 and maximum duration during time series}\label{maps-of-abandonment-duration-as-of-2017-and-maximum-duration-during-time-series}}
 
@@ -268,7 +279,8 @@ The central classifications were then updated to match the classes on either end
 Our mean abandonment duration metric tells us about the general persistence of abandoned croplands throughout the time series.
 However, this value is limited by the time series length, and does not account for when the majority of the abandonment took place at a site, nor whether a period of abandonment ends as a results of recultivation or the end of the time series.
 As a result, the mean abandonment duration does not tell us how long to expect a piece of land to remain abandoned, nor how abandonment length varies through time.
-To address this constraint, we track the trajectory of each pixel through time following its initial abandonment, grouping pixels abandoned in a given year into ``cohorts.'' Decay rates provide information about how long it takes for land to be recultivated, complementing the mean abandonment length and providing a more nuanced story about how long to expect abandonment to last.
+To address this constraint, we track the trajectory of each pixel through time following its initial abandonment, grouping pixels abandoned in a given year into ``cohorts.''
+Decay rates provide information about how long it takes for land to be recultivated, complementing the mean abandonment length and providing a more nuanced story about how long to expect abandonment to last.
 
 For example, a site may have a relatively short mean length of abandonment (e.g., Shaanxi/Shanxi {[}China{]}, with a mean abandonment length of 13 years; see Figure 1), but also have a gradual decay rate, indicating that land should stay abandoned for a relatively longer amount of time.
 This may result from more abandonment occurring towards the end of the time series; this land simply does not have as long to age and shows up as younger in our data, regardless of how long it may last.
@@ -277,7 +289,7 @@ Looking at abandonment decay rates for each cohort individually allows us to pro
 \hypertarget{model-selection-and-diagnostics}{%
 \subsubsection{Model selection and diagnostics}\label{model-selection-and-diagnostics}}
 
-We fit linear models using the \texttt{lm()} function in R's core statistics package \texttt{\{stats\}}, predicting the proportion of abandoned cropland in each cohort remaining abandoned as a function of time since initial abandonment at each site.
+We fit linear models using the \texttt{lm()} function in R's core statistics package \texttt{\{stats\}}, predicting the proportion of abandoned cropland in each cohort remaining abandoned as a function of time since initial abandonment at each site (n = 351 observations for each of our 11 sites).
 The proportion of abandoned cropland remaining abandoned is measured relative to the area abandoned 5 years following the year of initial abandonment, as dictated by our five year abandonment definition.
 
 We tested a range of model specifications, including linear and log transformations of both \emph{proportion} and \emph{time}.
@@ -313,6 +325,7 @@ An alternative representation of the mean recultivation rate is shown in Figure 
 \subsection{Change in recultivation rates over time}\label{section-methods-rate-of-change}}
 
 We examined the rate of change of recultivation rates by calculating the half-life, \(t_{half,s}\), defined as the time required for half (50\%) of a given cohort of abandoned cropland to be recultivated, and parameterizing a simple linear model on these half-life values as a function of time, using the \texttt{stats::lm()} function in R's core statistics package \texttt{\{stats\}}.
+This resulted in \emph{n} = 26 half-life values (one for each cohort) at each of our 11 sites.
 We estimate the half-life, \(t_{half,s}\), as a function of the year of initial abandonment (\(yearabn_{s}\)), at each site \(s\), as shown in Equation \eqref{eq:rate-of-change-lm}.
 
 \begin{equation}
@@ -438,23 +451,23 @@ Wisconsin, USA & 15.00 & 14 & 7.78\\
 
 \caption{\label{tab:twoyr-diff-table}Cropland abandonment (in Mha) as of 2017 as identified using a) our annual time series and a five-year abandonment definition and b) a two year method taking the difference between land cover in 1987 and 2017.}
 \centering
-\begin{tabular}[t]{r>{\raggedleft\arraybackslash}p{2.6cm}>{\raggedleft\arraybackslash}p{2.6cm}>{\raggedleft\arraybackslash}p{1.8cm}>{\raggedleft\arraybackslash}p{1.8cm}}
+\begin{tabular}[t]{>{\raggedleft\arraybackslash}p{4.2cm}>{\raggedleft\arraybackslash}p{2cm}>{\raggedleft\arraybackslash}p{2cm}>{\raggedleft\arraybackslash}p{1.7cm}>{\raggedleft\arraybackslash}p{1.7cm}>{\raggedleft\arraybackslash}p{2cm}}
 \toprule
-Site & Area (annual, as of 2017) & Area (two year: 2017-1987) & Percent Difference & Jaccard Similarity\\
+Site & Area (annual, as of 2017) & Area (two year: 2017-1987) & Percent Difference & Jaccard Similarity & Percent Area <5 Years Old (two year)\\
 \midrule
-Goiás, Brazil & 530,252 & 319,499 & -39.75\% & 0.29\\
-Vitebsk, Belarus / Smolensk, Russia & 917,934 & 655,689 & -28.57\% & 0.51\\
-Chongqing, China & 382,125 & 273,839 & -28.34\% & 0.43\\
-Nebraska/Wyoming, USA & 351,006 & 274,133 & -21.9\% & 0.50\\
-Bosnia \& Herzegovina & 690,376 & 569,091 & -17.57\% & 0.66\\
+Goiás, Brazil & 530,252 & 319,499 & -39.75\% & 0.29 & 22.61\%\\
+Vitebsk, Belarus / Smolensk, Russia & 917,934 & 655,689 & -28.57\% & 0.51 & 16.71\%\\
+Chongqing, China & 382,125 & 273,839 & -28.34\% & 0.43 & 25.19\%\\
+Nebraska/Wyoming, USA & 351,006 & 274,133 & -21.9\% & 0.50 & 15.47\%\\
+Bosnia \& Herzegovina & 690,376 & 569,091 & -17.57\% & 0.66 & 10.18\%\\
 \addlinespace
-Wisconsin, USA & 411,833 & 358,420 & -12.97\% & 0.48\\
-Iraq & 368,103 & 348,152 & -5.42\% & 0.54\\
-Volgograd, Russia & 828,276 & 857,989 & 3.59\% & 0.47\\
-Orenburg, Russia / Uralsk, Kazakhstan & 930,424 & 975,131 & 4.8\% & 0.52\\
-Shaanxi/Shanxi, China & 314,375 & 355,581 & 13.11\% & 0.49\\
+Wisconsin, USA & 411,833 & 358,420 & -12.97\% & 0.48 & 28.32\%\\
+Iraq & 368,103 & 348,152 & -5.42\% & 0.54 & 22.7\%\\
+Volgograd, Russia & 828,276 & 857,989 & 3.59\% & 0.47 & 32.77\%\\
+Orenburg, Russia / Uralsk, Kazakhstan & 930,424 & 975,131 & 4.8\% & 0.52 & 28.81\%\\
+Shaanxi/Shanxi, China & 314,375 & 355,581 & 13.11\% & 0.49 & 27.21\%\\
 \addlinespace
-Mato Grosso, Brazil & 9,006 & 16,507 & 83.29\% & 0.28\\
+Mato Grosso, Brazil & 9,006 & 16,507 & 83.29\% & 0.28 & 0.52\%\\
 \bottomrule
 \end{tabular}
 \end{table}
