@@ -1696,9 +1696,9 @@ abn_2yr_mask <- lapply(1:11,
   mask <- classify(subtract, rcl = 
                      tribble(
                        ~"is", ~"becomes", 
-                       -1, NA_real_,
-                       0, NA_real_,
-                       1, 1),
+                       -1, NA_real_, # non-cropland in 1987 (0) but cropland in 2017 (1), 0-1 = -1
+                       0, NA_real_, # cropland (1) in both 1987 & 2017 or non-cropland (0) in both, 1-1 = 0-0 = 0
+                       1, 1), # cropland in 1987 (1) but not in 2017 (0), 1 - 0 = 1
                    filename = paste0(p_dat_derived, "abn_2yr/", site_df$site[i], "_abn_2yr_mask.tif"),
                    overwrite=TRUE
                    )
@@ -1713,6 +1713,13 @@ plot(abn_2yr_mask$shaanxi)
 # 6. calculate the area abandoned at each site
 # ---------------------------------------------------------------- #
 
+abn_2yr_mask <- lapply(1:11, function(i) {
+  rast(x = paste0(p_dat_derived, "abn_2yr/", site_df$site[i], "_abn_2yr_mask.tif"))
+  })
+
+names(abn_2yr_mask) <- site_df$site # (note that the layer name still have y1987, since it was calculated as y1987 - y2017)
+
+
 abn_2yr_area_ha <- sapply(1:11, 
                           function(i) {
   size <- cellSize(abn_2yr_mask[[i]], unit = "ha", mask = TRUE)
@@ -1720,8 +1727,6 @@ abn_2yr_area_ha <- sapply(1:11,
   area_ha <- global(size, fun = "sum", na.rm = TRUE)
   as.numeric(area_ha)
   })
-
-
 ```
 
 
@@ -1744,6 +1749,7 @@ for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # reme
 freq(age_t$shaanxi$y2017)
 plot(age_t$shaanxi$y1988)
 
+
 # make abn mask
 abn_cc_2017_mask <- lapply(1:11, function(i) {
   classify(age_t[[i]]$y2017, 
@@ -1752,6 +1758,11 @@ abn_cc_2017_mask <- lapply(1:11, function(i) {
            filename = paste0(p_dat_derived, "abn_cc/", site_df$site[i], "_abn_cc_2017_mask.tif"),
                    overwrite=TRUE)
            })
+
+# reload
+abn_cc_2017_mask <- lapply(1:11, function(i) {
+  rast(x = paste0(p_dat_derived, "abn_cc/", site_df$site[i], "_abn_cc_2017_mask.tif"))
+  })
 
 names(abn_cc_2017_mask) <- site_df$site
 plot(abn_cc_2017_mask$shaanxi)
@@ -1905,6 +1916,181 @@ abn_2yr_overestimation
 ```
 
 
+```{r prop-overlap-that-is-young}
+# load 2 yr mask (2017) rasters (produced up above):
+abn_2yr_mask <- lapply(1:11, function(i) {
+  rast(x = paste0(p_dat_derived, "abn_2yr/", site_df$site[i], "_abn_2yr_mask.tif"))
+  })
+
+names(abn_2yr_mask) <- site_df$site
+# (note that the layer name still have y1987, since it was calculated as y1987 - y2017)
+plot(abn_2yr_mask$shaanxi)
+freq(abn_2yr_mask$shaanxi)
+
+
+# load abandonment age rasters (produced by Chris)
+age_files <- list.files(paste0(p_dat_derived, "age_rasters/", run_label), 
+                        full.names = TRUE) %>%
+  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
+
+age_t <- lapply(seq_along(age_files), function(i) {rast(age_files[i])})
+names(age_t) <- site_df$site
+for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
+
+plot(age_t$shaanxi$y2017)
+
+
+
+# calculate the age of the "abandonment" identified in the 2-yr-mask (i.e. those pixels that were cropland in 1987 and non-crop in 2017)
+
+s_2yr_age2 <- terra::mask(x = age_t$shaanxi$y2017, mask = abn_2yr_mask$shaanxi, maskvalues = 1, inverse = TRUE)
+
+freq(abn_2yr_mask$shaanxi)
+
+
+test1 <- classify(abn_2yr_mask$shaanxi, 
+           # takes way longer to change values to 0 than to NA_real_
+           rcl = tribble(
+                       ~"is", ~"becomes", 
+                       NA_real_, 0,
+                       1, 1))
+
+plot(test1)
+
+freq(age_t$shaanxi$y2017)
+par(mfrow = c(2, 1))
+plot(is.na(age_t$shaanxi$y2017), main = "NA values in age raster")
+
+plot(is.na(abn_2yr_mask$shaanxi), main = "NA values in 2 year mask")
+
+
+test2 <- classify(age_t$shaanxi$y2017, 
+           # takes way longer to change values to 0 than to NA_real_
+           rcl = tribble(
+                       ~"is", ~"becomes", 
+                       NA_real_, 0,
+                       1, 1))
+
+plot(abn_2yr_mask$shaanxi)
+plot(age_t$shaanxi$y2017)
+plot(s_2yr_age)
+plot(s_2yr_age2)
+
+
+
+plot(s_2yr_age2>=0, col = "black")
+plot(abn_2yr_mask$shaanxi, col = "black")
+
+plot(abn_2yr_mask$shaanxi - s_2yr_age2 >= 0)
+
+
+freq(abn_2yr_mask$shaanxi)
+freq(s_2yr_age)
+freq(s_2yr_age>0)
+freq(s_2yr_age2>0)
+(5079796 - 4544511) / 5079796 * 100 # 10%!
+
+
+plot(abn_2yr_mask$shaanxi - age_t$shaanxi$y2017)
+
+ncell(abn_2yr_mask$shaanxi)
+ncell(age_t$shaanxi$y2017)
+
+
+
+# combine the 2yr mask (2017 - 1987) with the age of abandonment in 2017 
+# and the area of each pixel
+
+testb <- brick(brick(abn_2yr_mask$shaanxi), 
+               brick(age_t$shaanxi)[[31]],
+               brick(terra::cellSize(abn_2yr_mask$shaanxi, unit = "km")))
+names(testb) <- c("twoyr_2017", "age_2017", "area_km2")
+testb
+
+
+plot(testb$twoyr_2017)
+plot(testb$age_2017)
+
+# convert to data.table
+testdt <- as.data.table.raster(testb)
+object_size(testdt)
+testdt[twoyr_2017 > 0]
+
+# filter to those pixels that are counted as "abandonment" in the 2 year method (2017-1987), 
+# and count the number of pixels
+testdt[twoyr_2017 > 0, .(count = .N), by = age_2017][order(age_2017)]
+testdt[twoyr_2017 > 0, .(count = .N, sum_area_km2 = sum(area_km2)), by = age_2017][order(age_2017)]
+
+testdt[twoyr_2017 > 0, sum(area_km2)] # 3555.808 km2
+
+twoyr_age_df <- testdt[twoyr_2017 > 0, 
+                       .(count = .N, sum_area_km2 = sum(area_km2)), 
+                       by = age_2017
+                       ][order(age_2017)] %>%
+  as_tibble() %>% mutate(site = site_df$site[i])
+
+abn_2yr_mask[[9]]
+
+
+# calculate for all sites
+abn_2yr_ages_df <- lapply(1:11, FUN = function(i){
+  testb <- brick(brick(abn_2yr_mask[[i]]), 
+               brick(age_t[[i]])[[31]],
+               brick(terra::cellSize(abn_2yr_mask[[i]], unit = "km")))
+  
+  names(testb) <- c("twoyr_2017", "age_2017", "area_km2")
+  
+  # convert to data.table
+  testdt <- as.data.table.raster(testb)
+  
+  # calculate the sum of area, pixels, etc.
+  twoyr_age_df <- testdt[twoyr_2017 > 0, 
+                       .(count = .N, sum_area_km2 = sum(area_km2)), 
+                       by = age_2017
+                       ][order(age_2017)] %>%
+    as_tibble() %>% mutate(site = site_df$site[i])
+  
+  twoyr_age_df
+}) %>% bind_rows()
+
+# write to file:
+write_csv(abn_2yr_ages_df, 
+          file = paste0(p_dat_derived, run_label, "/derived_data/", "abn_2yr_ages_df", run_label, ".csv"))
+
+
+total_area_by_site <- 
+  abn_2yr_ages_df %>%
+  group_by(site) %>%
+  # filter(age_2017 > 0) %>%
+  summarise(total_pixels = sum(count),
+            total_area = sum(sum_area_km2)) #%>% as.numeric()
+
+abn_2yr_ages_summary_df <- 
+  abn_2yr_ages_df %>%
+  left_join(total_area_by_site, by = "site") %>%
+
+# abn_2yr_ages_df %>% 
+  mutate(#total_pixels = 5079796, total_area = 3555.808,
+         percent_px = 100 * count/total_pixels,
+         percent_area = 100 * sum_area_km2/total_area) %>%
+  filter(age_2017 < 5) %>%
+  group_by(site) %>%
+  summarise(sum_p_px = sum(percent_px),
+            percent_2yr_abn_area_less_than_5yrs_old = sum(percent_area)
+            )
+
+# why would there be values in the 2 year mask that have an NA value in the age mask?
+# The NA values are a mix of non abandonment, non-veg, etc. 
+# The two year method doesn't allow for some of the cleaning steps we took, like our 5- and 8-year moving windows.
+# 
+
+
+
+
+
+```
+
+
 ```{r 2yr-overestimation}
 abn_2yr_overestimation <- 
   data.frame(site = site_df$site,
@@ -1914,12 +2100,14 @@ abn_2yr_overestimation <-
   mutate(percent_diff = 100 * (area_2yr - area_ha_cc) / area_ha_cc,
          jaccard = jaccard_similarity)
 
+abn_2yr_overestimation <- abn_2yr_overestimation %>% 
+  left_join(select(abn_2yr_ages_summary_df, -sum_p_px), by = "site")
 
 
 # ----------------------------------------------------------- #
 # save the summary file
 # ----------------------------------------------------------- #
-write_csv(abn_2yr_overestimation, file = paste0(p_dat_derived, run_label, "/", "abn_2yr_overestimation", run_label, ".csv"))
+write_csv(abn_2yr_overestimation, file = paste0(p_dat_derived, run_label, "/derived_data/", "abn_2yr_overestimation", run_label, ".csv"))
 # abn_2yr_overestimation <- read_csv(file = paste0(p_dat_derived, run_label, "/", "abn_2yr_overestimation", run_label, ".csv"))
 
 ```
@@ -2011,7 +2199,5 @@ gtsave(gt_2yr, filename = paste0(p_plots, run_label, "/",
                          "table_1_abn_2yr_overestimation.png"))
 
 # webshot::install_phantomjs()
-
-
 ```
 
