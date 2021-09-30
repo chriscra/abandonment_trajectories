@@ -16,6 +16,7 @@ scripts/tester.Rmd
 scripts/tester.pdf
 
 # latex files
+*.csl
 *.lof
 *.log
 *.lot
