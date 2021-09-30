@@ -41,7 +41,7 @@ site_df_w_size <- read_csv(file = paste0(p_dat_derived, "site_df_w_size.csv"))
 # cc_summarize_abn_dts(), which is the meta function called
 # within the cluster script, "2_analyze_abn.R."
 
-# load combined persistence, area, and turnover datasets (see "3_summary_stats.Rmd"):
+# load combined persistence, area, and turnover datasets (see "1_summary_stats.Rmd"):
 
 area_dat <- read_csv(file = paste0(p_dat_derived, "area_dat", run_label, ".csv"))
 turnover_dat <- read_csv(file = paste0(p_dat_derived, "turnover_dat", run_label, ".csv"))
@@ -540,7 +540,7 @@ ggsave(plot = gg_turnover_facet_grid,
 
 
 ```{r decay-facet-grid}
-# See "4_decay_models.Rmd" chunk "decay-mod-facet-grid"
+# See "2_decay_models.Rmd" chunk "decay-mod-facet-grid"
 # File path: 
 paste0(p_plots, run_label, "/decay/", "decay_mod_grid", run_label, ".pdf")
 ```
@@ -803,7 +803,7 @@ lapply(1:11, function(i) {
 
 
 ```{r extrapolation-combo}
-# see chunk 'extrapolation-panel' in 4_decay_models.Rmd
+# see chunk 'extrapolation-panel' in 2_decay_models.Rmd
 # just b and c, for presentation
 ggsave(plot = 
          plot_grid(gg_extrapolation_panel_age_b + 
