@@ -5,18 +5,23 @@ editor_options:
   chunk_output_type: console
 ---
 
+# Figures and exploratory data analysis
+
+This document includes code for exploratory data analysis and the production of various figures for the Crawford, et al. See: https://github.com/chriscra/abandonment_trajectories. 
+
+Not all of the code is necessary, and this script is included largely for exploratory purposes.
+Chunks are meant to be walked through sequentially.
+
 ```{r initialize}
 source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
 ```
 
-```{r set-run_label}
-run_label <- "_2021_03_13" #"_2021-03-05"
-
+```{r load-data}
+run_label <- "_2021_03_13" 
+# run_label <- "_2021-03-05"
 # run_label <- "_b1"
 
-```
 
-```{r load-data}
 # for use on cluster:
 # p_dat <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
 # p_dat_derived <- "/scratch/network/clc6/abandonment_trajectories/data_derived/"
@@ -26,28 +31,50 @@ list.files(p_dat)
 
 site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
 
-0.0008
-1/60/60 * 3 # 3 arc seconds
-# This corresponds to about
-3* 1/60/60 * 110 * 1000
-bs
-res(b) * 110 * 1000
+site_df_w_size <- read_csv(file = paste0(p_dat_derived, "site_df_w_size.csv"))
 
 
+# -------------------------- load summarized data.frames --------------------------- #
+# load data, produced from the following functions:
+# cc_calc_persistence() # which is called within
+# cc_calc_persistence_all() # which is called within
+# cc_summarize_abn_dts(), which is the meta function called
+# within the cluster script, "2_analyze_abn.R."
+
+# load combined persistence, area, and turnover datasets (see "3_summary_stats.Rmd"):
+
+area_dat <- read_csv(file = paste0(p_dat_derived, "area_dat", run_label, ".csv"))
+turnover_dat <- read_csv(file = paste0(p_dat_derived, "turnover_dat", run_label, ".csv"))
+
+# ------------------------------------------ #
+# when reloading, must restructure factors:
+persistence_dat <- read_csv(file = paste0(p_dat_derived, "persistence_dat", run_label, ".csv")) %>%
+  mutate(site = as.factor(site),
+         bins = as.factor(bins),
+         year_abn_bins = as.factor(year_abn_bins),
+         cohort = as.factor(cohort))
+
+# when is the first year abandonment can take place?
+persistence_dat %>% filter(area_ha > 0) %>% group_by(site) %>% summarise(first_year = min(year_abn))
+
+
+```
+
+
+```{r load-rasters}
 # Land use class codes:
 #       1. Non-vegetated area (e.g. water, urban, barren land)
 #       2. Woody vegetation
 #       3. Cropland 
 #       4. Herbaceous land (e.g. grassland)
 
-# testers:
+# -------------------------- development rasters --------------------------- #
+# small testers:
 bs <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
 bt <- brick(paste0(p_dat_derived, "belarus_subset.tif"))
 names(bs) <- paste0("y", 1987:2017)
 names(bt) <- paste0("y", 1987:2017)
 
-
-# -------------------------- rasters --------------------------- #
 # raw rasters
 s <- brick(paste0(p_dat_derived, "input_rasters/shaanxi.tif"))
 b <- brick(paste0(p_dat_derived, "input_rasters/belarus.tif")) # merged version
@@ -67,11 +94,15 @@ names(s_age_r) <- paste0("y", 1987:2017)
 names(b_age_r) <- paste0("y", 1987:2017)
 
 
+# ------------------------------- load land cover maps --------------------------------------- #
 # prepared input rasters (derived by Chris)
 site_input_raster_files <- list.files(paste0(p_dat_derived, "input_rasters"), full.names = TRUE) %>%
   grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = TRUE)
 
-lc <- lapply(seq_along(site_input_raster_files), function(i) {brick(site_input_raster_files[i])})
+lc <- lapply(seq_along(site_input_raster_files), function(i) {
+  # raster::brick(site_input_raster_files[i]) # as rasters
+  terra::rast(site_input_raster_files[i]) # as SpatRasters
+  })
 names(lc) <- site_df$site
 
 # rename raster layers:
@@ -87,14 +118,23 @@ for (i in 1:11) {
     }}}
 
 
+
+# ----------------------------- load abandonment age rasters ---------------------------- #
 # abandonment age maps (produced by Chris)
 age_files <- list.files(paste0(p_dat_derived, "age_rasters/", run_label), 
                         full.names = TRUE) %>%
   grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
 
-age_r <- lapply(seq_along(age_files), function(i) {brick(age_files[i])})
+
+age_r <- lapply(seq_along(age_files), function(i) {raster::brick(age_files[i])})
 names(age_r) <- site_df$site
 for (i in seq_along(age_r)) {names(age_r[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
+
+
+age_t <- lapply(seq_along(age_files), function(i) {terra::rast(age_files[i])})
+names(age_t) <- site_df$site
+for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
+
 
 # load max age rasters
 max_age_files <- list.files(paste0(p_dat_derived, "max_age/", run_label), 
@@ -102,29 +142,36 @@ max_age_files <- list.files(paste0(p_dat_derived, "max_age/", run_label),
   grep(".tif", ., value = TRUE)
 
 max_age_r <- lapply(seq_along(max_age_files), function(i) {
-  rast(max_age_files[i]) # brick(max_age_files[i]) # to load as rasters, not SpatRasters
+  brick(max_age_files[i])
   })
 names(max_age_r) <- site_df$site
+
+max_age_t <- lapply(seq_along(max_age_files), function(i) {
+  rast(max_age_files[i])
+  })
+names(max_age_t) <- site_df$site
+for (i in seq_along(max_age_t)) {names(max_age_t[[i]]) <- "max_age"} # remember: these are just 1987:2017
+
 
 
 # year of first abandonment maps (from He)
 yoa_files <- list.files(paste0(p_dat, "Abandonment/year_of_abandonment/"))
+```
 
+
+```{r load-data.tables}
 # -------------------------- data.tables --------------------------- #
 b_age <- fread(input = paste0(p_dat_derived, "belarus_age.csv"))
 names(b_age)
 s_age <- fread(input = paste0(p_dat_derived, "shaanxi_age.csv"))
 
 
-b_length <- fread(input = paste0(p_dat_derived, "lengths/", "belarus_length_b1.csv"))
-s_length <- fread(input = paste0(p_dat_derived, "lengths/", "shaanxi_length_b1.csv"))
-
-b_max_length <- fread(input = paste0(p_dat_derived, "lengths/", "belarus_max_length_b1.csv"))
-s_max_length <- fread(input = paste0(p_dat_derived, "lengths/", "shaanxi_max_length_b1.csv"))
-
 # original data
 s_dt <- fread(input = paste0(p_dat_derived, "shaanxi.csv"))
 names(s_dt) <- gsub(pattern = "andcover", replacement = "y", names(s_dt))
+
+
+# input_data.tables folder contains the input land cover maps, as csv files
 
 b_dt <- fread(input = paste0(p_dat_derived, "input_data.tables/belarus.csv")) # caution - huge file! 8.4 GB at least. 
 b_dt <- fread(input = paste0(p_dat_derived, "input_data.tables/belarus.csv"),
@@ -132,27 +179,16 @@ b_dt <- fread(input = paste0(p_dat_derived, "input_data.tables/belarus.csv"),
               nrows = 200) # caution - huge file! 8.4 GB at least. 
 nrow(b_dt)
 
-env_size(ls())
-
-
-# -------------------------- summarized data.frames --------------------------- #
-indx <- 9
-site <- site_df$site[indx] # set site:
-site_label <- site_df$label[indx] # set label
-blip_label <- "_b1"
-load(file = paste0(p_output, "abn_dat_products", blip_label, site_label, ".rds"), verbose = TRUE)
-
-# loads:
-area_b1_s
-persistence_list_b1_s
-abn_area_change_b1_s
-
-# note, on 3/4/21 I made the following changes:
-# replace abn_area_change with turnover
-# replace abn_area_diff with abn_diff
-
-
+# length and data.tables for each site can be found: "data_derived/length"
 ```
+
+
+
+
+
+
+# Exploration and Development
+
 
 ```{r simple-plots}
 
@@ -191,1041 +227,21 @@ animate(bt, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
         breaks = c(0, plot_cols$breaks), col = plot_cols$color)
 
 ```
-# Global Site Map
 
-```{r global-site-map}
-lc
-age_r
-plot(lc$shaanxi$y1987)
-
-
-r_extent <- lapply(r, raster::extent)
-plot(r_extent$belarus)
-
-site_sf <- lapply(age_r, FUN = function(x) {
-  x %>% 
-    extent() %>% 
-    as(., 'SpatialPolygons') %>%
-    st_as_sf()
-  }) %>% 
-  bind_rows() %>% 
-  mutate(site = site_df$site, 
-         label = gsub("_", "", site_df$label),
-         lab_desc = paste0("(", label, ") ", site_df$description),
-         desc = site_df$description)
-
-
-dev.off()
-
-plot(site_sf$geometry)
-
-# basemap
-world <- ne_countries(scale = "small", returnclass = "sf") #%>% st_make_valid() # can set returnclass to sf or sp.
-world_10 <- ne_countries(scale = "large", returnclass = "sf") %>% st_make_valid() # can set returnclass to sf or sp.
-world_states <- ne_states(returnclass = "sf") %>% st_make_valid()
-
-
-# set crs for site_sf 
-st_crs(site_sf) <-  "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
-
-# -------------------------------------------------------------------- #
-# save site_sf
-st_write(site_sf, dsn = paste0(p_dat_derived, "site_sf.shp"), append = FALSE)
-
-# load back in:
-site_sf <- st_read(paste0(p_dat_derived, "site_sf.shp"))
-st_crs(site_sf) <-  "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
-site_sf <- site_sf %>% st_make_valid()
-# bind sf with df
-left_join(site_sf, site_df, by = site)
-site_sf$site[9] == site_df$site[9]
-
-# -------------------------------------------------------------------- #
-gg_globe <-
-  ggplot() + 
-  theme_classic() +
-  geom_sf(data = world %>% filter(continent != "Antarctica"), fill = NA, color = "gray") +
-  geom_sf(data = site_sf, mapping = aes(fill = desc)) + 
-  labs(#subtitle = "Map projection: longlat", 
-       x = NULL, y = NULL) +
-  theme(legend.position = "bottom") + 
-  geom_label_repel(data = site_sf,
-                   aes(label = label, geometry = geometry),
-                   stat = "sf_coordinates",
-                   min.segment.length = 0.0, segment.alpha = 1,
-                   point.padding = 0.2, box.padding = 0.2,
-                   label.size = 0.3, color = "black")
-
-
-gg_globe
-
-proj_text <- "moll"
-gg_globe1 <- gg_globe +
-  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
-  labs(subtitle = paste0("Map projection: ", proj_text))
-
-
-proj_text <- "eck4"
-gg_globe2 <- gg_globe +
-  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
-  labs(subtitle = paste0("Map projection: ", proj_text))
-
-# use this one:
-proj_text <- "eqearth"
-gg_globe3 <- gg_globe +
-  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
-  labs(subtitle = paste0("Map projection: ", proj_text))
-
-proj_text <- "natearth2"
-gg_globe4 <- gg_globe +
-  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
-  labs(subtitle = paste0("Map projection: ", proj_text))
-
-
-plot_grid(gg_globe, gg_globe1, gg_globe2, gg_globe3, gg_globe4)
-warnings()
-# -------------------------------------------------------------------- #
-# save map
-png(filename = paste0(p_output, "plots/site_locations_w_labels.png"), 
-    width = 9, height = 6, units = "in", res = 400)
-print(gg_globe4 + labs(subtitle = NULL))
-dev.off()
-
-
-# long labels:
-gg_site_locations_long <-
-  ggplot() + 
-  theme_classic() +
-  geom_sf(data = world %>% filter(continent != "Antarctica"), fill = NA, color = "gray") +
-  geom_sf(data = site_sf, mapping = aes(fill = lab_desc)) + 
-  labs(x = NULL, y = NULL, fill = "") +
-  theme(legend.position = "bottom") + 
-  geom_label_repel(data = site_sf,
-                   aes(label = desc,  
-                       # label = label, # use this for single letter code
-                       geometry = geometry),
-                   stat = "sf_coordinates",
-                   min.segment.length = 0.0, segment.alpha = 1,
-                   point.padding = 0.2, box.padding = 0.2,
-                   label.padding = 0.2,
-                   label.size = 0.2, color = "black", direction = "both") +
-  # labs(subtitle = paste0("Map projection: ", "natearth2")) + 
-  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "natearth2"))) + 
-  guides(fill = guide_legend(nrow = 4, ncol = 3))
-
-
-ggsave(plot = gg_site_locations_long, 
-       filename = paste0(p_output, "plots/site_locations_w_labels_long.png"),
-       width = 9, height = 5, units = "in", dpi = 400)
-
-# just chinese sites
-ggplot() + 
-  geom_sf(data = filter(world, name %in% c("China")), fill = NA, color = "gray") +
-  geom_sf(data = site_sf %>% filter(site %in% c("shaanxi", "chongqing")), mapping = aes(fill = site)) +
-  # geom_sf_label(data = site_sf, aes(label = site)) + 
-  labs(subtitle = paste0("Map projection: ", "natearth2")) +
-  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "natearth2"))) + 
-
-  theme_classic() +
-  theme(legend.position = "bottom")
-
-
-
-
-
-
-
-# just a simple map
-
-my_width_s <- 8.7
-my_width_m <- 11.4
-my_width_l <- 17.8
-sf_width <- 0.25
-sf_width2 <- 0.1
-
-gg_simple_globe <- ggplot() + 
-  # theme_classic() +
-  theme_minimal() +
-  geom_sf(data = world %>% filter(continent != "Antarctica"), 
-          fill = NA, color = "gray50", size = sf_width) +
-  geom_sf(data = site_sf, mapping = aes(fill = desc), size = sf_width2) + 
-  labs(#subtitle = "Map projection: longlat", 
-       x = NULL, y = NULL) +
-  theme(legend.position = "none") + 
-  geom_label_repel(data = site_sf,
-                   aes(label = label, geometry = geometry),
-                   stat = "sf_coordinates",
-                   min.segment.length = 0.0, segment.alpha = 1,
-                   point.padding = 0.2, box.padding = 0.2,
-                   label.size = 0.3, color = "black") + 
-      coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "eqearth")))
-
-
-
-ggsave(plot = gg_simple_globe,
-       filename = paste0(p_plots, "fig0_small.pdf"),
-       width = 11.4, height = 11.4 * 3/5, units = "cm")
-
-ggsave(plot = gg_simple_globe,
-       filename = paste0(p_plots, "fig0.pdf"),
-       width = 17.8, height = 17.8 * 3/5, units = "cm")
-
-
-```
-
-```{r crop-world}
-
-# cropping the map:
-world %>% st_make_valid
-world_crop <- st_crop(st_make_valid(world), extent(site_sf) )#+ c(50, 20))
-
-# errors!!!
-
-# gg_world_crop <-
-  ggplot() + 
-  theme_classic() +
-  geom_sf(data = world, 
-          fill = NA, color = "gray") +
-  geom_sf(data = site_sf, mapping = aes(fill = desc)) + 
-  labs(x = NULL, y = NULL) +
-  theme(legend.position = "bottom") + 
-  geom_label_repel(data = site_sf,
-                   aes(label = label, geometry = geometry),
-                   stat = "sf_coordinates",
-                   min.segment.length = 0.0, segment.alpha = 1,
-                   point.padding = 0.2, box.padding = 0.2,
-                   label.size = 0.3, color = "black") + 
-  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "natearth2"))) +
-  # coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "eqearth"))) +
-  theme(legend.position = "none",
-        plot.margin = margin(0, 0, 0, 0, "mm"))
-
-
-gg_world_crop
-
-plot_grid
-```
-
-# Explore
-
-```{r exploratory-stats}
-# explore some stats:
-s_length
-b_length
-s_length[, .N, by = length]
-b_length[, .N, by = length]
-
-```
-
-```{r calc-mean-length}
-# calculate mean length
-# -------------------------------------------------------------------- #
-# ----------------- use lapply() to calculate mean length ------------ #
-# -------------------------------------------------------------------- #
-s_max_length[, mean(max_length)]
-s_max_length[max_length > 0, mean(max_length)]
-s_length_distill
-
-
-mean_length_df <- lapply(site_df$site, FUN = function(x){
-  length <- fread(input = paste0(p_dat_derived, "lengths/", x, "_length", run_label, ".csv"))
-  max_length <- fread(input = paste0(p_dat_derived, "lengths/", x, "_max_length", run_label, ".csv"), 
-                      select = "max_length") # drop x and y, makes loading and calculating much faster
-
-  df <- data.frame(site = x,
-                   mean_length = length[, mean(length)], # mean of all lengths
-                   mean_length_thr3 = length[length >= 3, mean(length)], # mean length, assuming abandonment threshold of 5
-                   mean_length_thr5 = length[length >= 5, mean(length)], # mean length, assuming abandonment threshold of 5
-                   mean_length_max = max_length[max_length > 0, mean(max_length)], # mean of all lengths
-                   mean_length_max_thr3 = max_length[max_length >= 3, mean(max_length)], # mean length, assuming abandonment threshold of 5
-                   mean_length_max_thr5 = max_length[max_length >= 5, mean(max_length)] # mean length, assuming abandonment threshold of 5
-                   )
-  
-  df # return df
-  }
-  )
-
-# bind rows
-mean_length_df <- bind_rows(mean_length_df)
-
-# save site_df
-write_csv(mean_length_df, path = paste0(p_dat_derived, "mean_length_df", run_label, ".csv"))
-
-# re load
-mean_length_df <- read.csv(file = paste0(p_dat_derived, "mean_length_df.csv"))
-mean_length_df <- read.csv(file = paste0(p_dat_derived, "mean_length_df", run_label, ".csv"))
-
-
-
-
-
-
-# testing code, old:
-# ------------------------------------------ #
-# ----------------- mean length ------------ #
-# ------------------------------------------ #
-s_length[, site := "shaanxi"]
-b_length[, site := "belarus"]
-
-length_all <- rbindlist(list(s_length, b_length))
-object_size(length_all)
-
-dat_mean_length <- length_all[, .(mean_length = mean(length)), by = site]
-dat2_mean_length <- length_all[length >= 5, .(mean_length_thr5 = mean(length)), by = site]
-dat_mean_length <- merge(dat_mean_length, dat2_mean_length, by = "site", sort = FALSE)
-dat_mean_length
-
-# can also calculate the mean length from the distilled dat
-sum((b_distill$length * b_distill$freq)) / sum(b_distill$freq)
-
-# ------------------------------------ #
-# ----------- mean max length -------- #
-# ------------------------------------ #
-# max length, mean, etc.
-s_length
-s_max_length[, site := "shaanxi"]
-b_max_length[, site := "belarus"]
-
-max_length_all <- rbindlist(list(s_max_length, b_max_length))
-object_size(max_length_all)
-
-dat_mean_length_max <- max_length_all[, .(mean_length = mean(max_length)), by = site]
-dat2_mean_length_max <- max_length_all[max_length >= 5, .(mean_length_thr5 = mean(max_length)), by = site]
-dat_mean_length_max <- merge(
-  dat_mean_length_max, 
-  dat2_mean_length_max, by = "site", sort = FALSE)
-
-dat_mean_length_max
-dat_mean_length
-
-# save and reload
-save(dat_mean_length, dat_mean_length_max, 
-     file = paste0(p_output, "mean_lengths.rds"))
-
-load(file = paste0(p_output, "mean_lengths.rds"), 
-     verbose = TRUE)
-
-dat_mean_length
-dat_mean_length_max
-```
-
-
-```{r plot-mean-length}
-# -------------------------------------------------------------------- #
-# ----------------- plot mean length of time abandoned ---------------- #
-# -------------------------------------------------------------------- #
-
-mean_length_df <- read.csv(file = paste0(p_dat_derived, "mean_length_df.csv"))
-
-# pivot, add columns specifying abn threshold, all vs. max, etc.
-mean_length_df_pivot <- mean_length_df %>% 
-  pivot_longer(cols = starts_with("mean"), names_to = "col_names", values_to = "mean_length") %>%
-  mutate(length_type = ifelse(grepl("max", col_names), "max", "all"),
-         abn_threshold = ifelse(grepl("thr5", col_names), "5", 
-                                ifelse(grepl("thr3", col_names), "3",
-                                       "1")))
-
-# mean mean length
-mean_mean_df <- mean_length_df_pivot %>% 
-  group_by(abn_threshold, length_type) %>%
-  summarise(count = n(),
-            mean_mean = mean(mean_length, na.rm = TRUE))
-
-
-gg_mean_length <- 
-  ggplot(data = mean_length_df_pivot %>% filter(abn_threshold == "5"),
-         mapping = aes(x = fct_reorder2(site, abn_threshold, desc(mean_length)),
-                       y = mean_length, 
-                       color = length_type)) + 
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 330, vjust = 1, hjust = 0),
-        plot.caption = element_text(face = "italic")) +
-  labs(title = "Mean length of abandonment",
-       #caption = "Counting only recultivation of 2 or more continuous years",
-       linetype = NULL,
-       color = "Mean of:", 
-       y = "Mean length of time abandoned (years)", 
-       x = "Site") +
-  geom_point(size = 2) + 
-  geom_hline(data = mean_mean_df %>% filter(abn_threshold == "5"), 
-             mapping = aes(yintercept = mean_mean, 
-                           col = length_type, 
-                           linetype = "Overall \nMean")) + 
-  scale_linetype_manual(values = c("Overall \nMean" = "dashed")) + 
-    scale_colour_discrete(labels = c(all = "All periods", 
-                                     max = "Max. length \nper pixel")) +
-    guides(color = guide_legend(order = 1))
-    
-
-
-
-# -------------------------------------------------------------------- #
-# ----------------- save ---------------- #
-# -------------------------------------------------------------------- #
-
-png(filename = paste0(p_output, "plots/mean_lengths_b1.png"), 
-    width = 6, height = 5, units = "in", res = 400)
-print(gg_mean_length)
-dev.off()
-
-
-
-
-# ------------ multiple abandonment thresholds ------------ #
-gg_mean_length_all <- 
-  ggplot(data = mean_length_df_pivot,
-         mapping = aes(x = fct_reorder(site, mean_length), y = mean_length, fill = fct_reorder(site, mean_length))) + 
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0),
-        plot.caption = element_text(face = "italic")) +
-  labs(title = "Mean length of abandonment",
-       caption = "Counting only recultivation of 2 or more continuous years",
-       linetype = NULL,
-       fill = "Site", 
-       y = "Mean length of time abandoned (years)", 
-       x = "Site") +
-  geom_col(width = 0.75) + 
-  facet_grid(length_type ~ abn_threshold,
-             labeller = labeller(length_type = c(all = "all lengths", #old = "new",
-                                                 max = "max length per pixel"),
-                                 abn_threshold = c("1" = "abn threshold = 1",
-                                                   "3" = "abn threshold = 3",
-                                                   "5" = "abn threshold = 5"))) +
-  geom_hline(data = mean_mean_df, aes(yintercept = mean_mean, linetype = "mean"),
-             show.legend = TRUE,
-             # alternatively, just yintercept = 12
-             #linetype = "dashed",
-             color = "black", size = 0.75) + 
-  scale_linetype_manual(values = c("mean" = "dotted")) + 
-  guides(fill = guide_legend(override.aes = list(linetype = 0)))
-
-
-
-# -------------------------------------------------------------------- #
-# ----------------- save ---------------- #
-# -------------------------------------------------------------------- #
-
-png(filename = paste0(p_output, "plots/mean_lengths_all_grid_b1.png"), 
-    width = 8.5, height = 5, units = "in", res = 400)
-print(gg_mean_length_all)
-dev.off()
-
-
-
-```
-
-```{r distill-length-data}
-  
-# -------------------------------------------------------------------- #
-# ----------------- use lapply() to distill all sites ---------------- #
-# -------------------------------------------------------------------- #
-# now, using lapply to run for all sites
-# 2. Distill the length data, for use in histograms
-length_distill_df <- lapply(site_df$site, FUN = function(x){
-  length <- fread(input = paste0(p_dat_derived, "lengths/", x, "_length_b1.csv"))
-  max_length <- fread(input = paste0(p_dat_derived, "lengths/", x, "_max_length_b1.csv"),
-                      select = "max_length") # drop x and y, makes loading and calculating much faster
-
-  dt <- length[, .(freq = .N), by = length
-               ][, ':='(site = x, length_type = "all")]
-  dt_max <- max_length[, .(freq = .N), by = max_length
-                       ][order(max_length), 
-                         ][, ':='(site = x, length_type = "max")
-                           ][, length := max_length
-                             ][, max_length := NULL][]
-  dt <- bind_rows(dt, dt_max) # return dt
-  dt
-  }
-  )
-
-# bind rows
-length_distill_df <- bind_rows(length_distill_df) %>% as.data.frame()
-
-
-length_distill_df
-
-# save site_df
-write_csv(length_distill_df, path = paste0(p_dat_derived, "length_distill_df.csv"))
-
-# re load
-length_distill_df <- read.csv(file = paste0(p_dat_derived, "length_distill_df.csv"))
-
-
-
-
-
-
-
-
-
-
-# old:
-
-# testing code # 
-
-# to use with ggplot, first distill the data
-
-# regular, no thresholds
-b_length_distill <- b_length[, .(freq = .N), by = length]
-b_length_distill[, site := "belarus"]
-s_length_distill <- s_length[, .(freq = .N), by = length]
-s_length_distill[, site := "shaanxi"]
-
-length_distill <- rbind(b_length_distill, s_length_distill)
-
-# blip1
-b_length_blip1_distill <- b_length_blip1[, .(freq = .N), by = length]
-b_length_blip1_distill[, site := "belarus"]
-s_length_blip1_distill <- s_length_blip1[, .(freq = .N), by = length]
-s_length_blip1_distill[, site := "shaanxi"]
-
-length_blip1_distill <- rbind(b_length_blip1_distill, s_length_blip1_distill)
-
-# max_length
-
-b_max_length_distill <- b_max_length[, .(freq = .N), by = max_length]
-b_max_length_distill[, site := "belarus"]
-s_max_length_distill <- s_max_length[, .(freq = .N), by = max_length]
-s_max_length_distill[order(max_length),]
-
-s_max_length_distill[, site := "shaanxi"]
-max_length_distill <- rbind(b_max_length_distill, s_max_length_distill)
-
-t1 <- s_length_distill[, ':='(site = site, length_type = "all")]
-
-t2 <- s_max_length_distill[order(max_length), 
-                           ][, ':='(site = site, length_type = "max")
-                             ][, length := max_length
-                               ][, max_length := NULL][]
-t1
-t2
-bind_rows(t1, t2)
-
-```
-
-```{r histograms}
-
-length_distill_df <- read.csv(file = paste0(p_dat_derived, "length_distill_df.csv"))
-length_distill_df
-
-# -------------------------------------------------------------------- #
-# ----------------- plot histograms ---------------- #
-# -------------------------------------------------------------------- #
-
-length_distill_df %>% head()
-
-
-ggplot(data = filter(length_distill_df, site == site_df$site[9], length > 0)) + 
-  theme_classic() + 
-  labs(title = paste0(site_df$description[9], ": histogram of time abandoned"),
-       caption = "Recultivation threshold >= 2 years",
-       linetype = "") +
-  xlab("Time abandoned (years)") + ylab(expression("Count  (10"^{6}*" pixels)")) +
-  geom_col(mapping = aes(x = length, y = freq/(10^6)), fill = "gray50") +
-  facet_grid(rows = vars(length_type), scales = "free",
-             labeller = labeller(length_type = c(all = "all abn. periods", #old = "new",
-                                                 max = "max. length per pixel"))) +
-  geom_vline(data = filter(mean_length_df_pivot, 
-                           site == site_df$site[9],
-                           abn_threshold == 1), 
-             aes(xintercept = mean_length, linetype = "mean"),
-             show.legend = TRUE,
-             color = "darkblue", size = 0.75) + 
-  scale_linetype_manual(values = c("mean" = "dashed")) + 
-  theme(legend.position = c(0.85, 0.95), plot.caption = element_text(face = "italic"))
-
-# -------------------------------------------------------------------- #
-# ----------------- function ---------------- #
-# -------------------------------------------------------------------- #
-for (i in 1:11) {
-  gg_hist <- ggplot(data = filter(length_distill_df, site == site_df$site[i], length > 0)) + 
-    theme_classic() +
-    labs(title = paste0(site_df$description[i], ": histogram of time abandoned"),
-         caption = "Recultivation threshold >= 2 years",
-         linetype = "") +
-    xlab("Time abandoned (years)") + ylab(expression("Count  (10"^{6}*" pixels)")) +
-    geom_col(mapping = aes(x = length, y = freq/(10^6)), fill = "gray50") +
-    facet_grid(rows = vars(length_type), scales = "free",
-               labeller = labeller(length_type = c(all = "all abn. periods", #old = "new",
-                                                   max = "max. length per pixel"))) +
-    # geom_vline(xintercept = 5, linetype="dashed", color = "red", size = 0.75) +
-    # geom_vline(xintercept = 20, linetype="dashed", color = "forest green", size = 0.75) +
-    geom_vline(data = filter(mean_length_df_pivot,
-                             site == site_df$site[i],
-                             abn_threshold == 1), 
-               aes(xintercept = mean_length, linetype = "mean"),
-               show.legend = TRUE, color = "darkblue", size = 0.75) + 
-    scale_linetype_manual(values = c("mean" = "dashed")) +
-    theme(legend.position = c(0.85, 0.95), plot.caption = element_text(face = "italic"))
-    
-  
-  # save
-  png(filename = paste0(p_output, "plots/", "length_hist_b1", site_df$label[i], ".png"), 
-      width = 7, height = 5, units = "in", res = 400)
-  print(gg_hist)
-  dev.off()
-}
-
-
-
-
-# -------------------------------------------------------------------- #
-# both site histograms
-
-gg_length_hist_all_b1 <- ggplot(data = length_distill_df %>%
-                                  filter(site %in% c("belarus", "shaanxi"),
-                                         length_type == "all")) + 
-  labs(title = "Histogram of time abandoned across all individual periods of abandonment",
-       subtitle = "Recultivation threshold >= 2 years") +
-  xlab("Time abandoned (years)") + ylab(expression("Count  (10"^{6}*" pixels)")) +
-  geom_col(mapping = aes(x = length, y = freq/(10^6)), fill = "gray50") +
-  facet_grid(rows = vars(site), scales = "free") +
-  geom_vline(xintercept = 5, linetype="dashed", 
-             color = "red", size = 0.75) +
-  # geom_vline(xintercept = dat_mean_length$mean_length, linetype="dashed", color = "pink", size = 0.75,
-  #            show.legend = TRUE, le) +
-  geom_vline(xintercept = 20, linetype="dashed", color = "forest green", size = 0.75) +
-  theme_classic()
-
-
-
-# max_length
-gg_max_length_hist_all_b1 <- ggplot(data = length_distill_df %>%
-                                  filter(site %in% c("belarus", "shaanxi"),
-                                         length_type == "max",
-                                         length > 0)) + 
-  labs(title = "Histogram of maximum time abandoned per pixel",
-       subtitle = "Recultivation threshold >= 2 years") +
-  xlab("Maximum time abandoned (years)") + ylab(expression("Count  (10"^{6}*" pixels)")) + 
-  geom_col(mapping = aes(x = length, y = freq/(10^6)), fill = "gray50") +
-  facet_grid(rows = vars(site), scales = "free") +
-  geom_vline(xintercept = 5, linetype="dashed", color = "red", size = 0.75) +
-  geom_vline(xintercept = 20, linetype = "dashed", color = "forest green", size = 0.75) +
-  theme_classic()
-
-gg_length_hist_all_b1
-gg_max_length_hist_all_b1
-
-# save to file ---------------- #
-# all lengths
-png(filename = paste0(p_output, "plots/length_hist_all_b1.png"), 
-    width = 7, height = 5, units = "in", res = 400)
-print(gg_length_hist_all_b1)
-dev.off()
-
-# max lengths
-png(filename = paste0(p_output, "plots/max_length_hist_b1.png"), 
-    width = 7, height = 5, units = "in", res = 400)
-print(gg_max_length_hist_all_b1)
-dev.off()
-
-
-
-
-
-
-
-
-
-# old histograms
-# beware... because of the way the bins are determined, the default histogram automatically lumps 1 and 2 together. better to first distill the data and use ggplot 
-hist(s_length[[1]], main = "Histogram of Length of Time Abandoned \n Shaanxi/Shanxi Provinces, China", xlab = "Time (years)")
-
-hist(b_length[[1]])
-
-hist(length_all[site == "shaanxi", length], main = "Histogram of Abandonment Period Lengths \n Shaanxi/Shanxi Provinces, China", xlab = "Time (years)")
-
-hist(length_all[site == "belarus", length], main = "Histogram of Abandonment Period Lengths \n Belarus/Russia", xlab = "Time (years)")
-
-hist(b_length[[1]], main = "Histogram of Abandonment Period Lengths \n Belarus/Russia", xlab = "Time (years)")
-toc()
-
-hist(b_length[[1]], main = "right = TRUE")
-hist(b_length[[1]], right = FALSE, main = "right = FALSE")
-
-
-# just belarus
-ggplot(data = b_distill) + 
-  geom_col(mapping = aes(x = length, y = freq), fill = "black") +
-  theme_classic()
-
-ggplot(data = b_length, aes(length)) + 
-  geom_histogram() +
-  theme_classic() # took forever!! Beware...
-
-
-```
-
-```{r site-area}
-# see 2_data_processing.Rmd 
-site_df_w_size
-site_df
-
-gg_site_area
-
-
-
-
-```
-
-
-```{r lc-abn-area-over-time}
-s_dt[, .N, by = .(y1987)] #
-s_dt[, .N, by = .(y2017)] #
-
-s_dt[, .N, by = .(y1987, y1988)] #
-s_dt[, table(y1987)]
-
-grep("x$|y$", names(s_dt), value = TRUE, invert = TRUE)
-
-s_dt[, -c("x", "y")]
-s_dt[, .N, by = c(paste0("y", 1987:2017))] #
-
-s_dt[, .N, by = .(y1987)][order(get("y1987"))]
-DT <- s_dt[, .N, by = .(y1987)][order(get("y1987"))] %>% 
-  as_tibble()
-
-DT
-i <- "y1987"
-rename(DT, "lc" = i, 
-           eval(i) = "N")
-# s_dt[, c("i", "freq") := NULL]
-
-
-# ------------- calculate area raster ---------------- #
-s_area <- raster::area(s$y2017) # area in km2
-res(s_area)[1] * # resolution of the raster, in degrees (lat/long)
-  100 * # ~100-110 km per degree 
-  1000 # 1000 m/km = 26.95 m resolution
-
-plot(s_area)
-
-summary(getValues(s_area))
-median(getValues(s_area)) # 0.0006972 km2. 
-median(getValues(s_area)) * 100 / 1 # 100 ha/km2
-
-# median pixel size is 697 m2, 0.0697 ha, or 0.000697 km2. 
-median(getValues(s_area)) * # km2
-  100 * # 100 ha per km2 
-  10000 # m2 per ha
-
-# the difference between minimum and maximum cell size, in m2
-(max(getValues(s_area)) - 
-    min(getValues(s_area))
-  ) * # in km2
-  1000^2 # m2 / km 2
-
-
-# abandoned area over time
-s_age_r
-plot(s_age_r$y2017)
-plot(s_age_r$y2017 > 0)
-cellStats((s_age_r$y2017 > 0), "sum")
-
-s_age[y2017 > 0, .N] # the total number of pixels with non-zero abandonment ages in the year 2017
-
-s_age[, lapply(.SD, mean)] # mean age of abandonment over time.
-s_age[y1988 > 0, .N] # count of "abandoned" cells in a particular year
-s_age[get("y2017") > 0, .N]
-s_age[y2017 > 0, .N]
-
-
-# calculate areas for lc and abn manually
-lc_area_s <- cc_total_area_per_lc(land_cover_dt = s_dt, area_raster = s_area)
-abn_area_s <- cc_calc_abn_area(s_age, s_area)
-area_s <- rbind(lc_area_s, abn_area_s)
-
-
-
-# -------------------------------------------------------------- #
-# -------------------------------------------------------------- #
-# ------------- calculate total area per lc ---------------- #
-area_s <- cc_calc_area_per_lc_abn(land_cover_dt = s_dt, 
-                                  abn_age_dt = s_age, 
-                                  land_cover_raster = s$y2017)
-
-# ------------- plot ---------------- #
-cc_save_plot_lc_abn_area(input_area_df = area_s, subtitle = "Shaanxi/Shanxi Provinces, China", 
-                         outfile_label = "s",
-                         width = 6, height = 4)
-
-# manually
-gg_lc_abn_area_s <- ggplot(data = area_s, aes(year, area_ha)) +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
-  labs(y = expression("Area  (10"^{6}*" ha)") , 
-       x = "Year", 
-       title = "Area by Land Cover, with Abandonment",
-       subtitle = "Shaanxi/Shanxi Provinces, China",
-       color = "Land Cover") + 
-  geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
-                          group = lc, color = lc),
-            size = 1.2)
-
-gg_lc_abn_area_s
-
-# filter to include only subsets
-gg_lc_abn_area_s %+% filter(area_s, lc == "Abandoned") + labs(title = "Abandoned Area")
-gg_lc_abn_area_s %+% filter(area_s, lc != "Abandoned")
-
-gg_lc_abn_area_s
-gg_abn_area_s
-
-gg_lc_abn_area_s2
-gg_lc_abn_area_s
-
-
-
-
-ggplot(data = area_b1_s, aes(year, area_ha)) +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
-  labs(y = expression("Area  (10"^{6}*" ha)") , 
-       x = "Year", 
-       title = "Area by Land Cover, with Abandonment",
-       subtitle = "Shaanxi/Shanxi Provinces, China",
-       color = "Land Cover") + 
-  geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
-                          group = lc, color = lc),
-            size = 1.2)
-
-area_b1_s %>% filter(lc == "Non-veg.")
-
-
-# area in non-veg
-area_b1_s %>% 
-  select(-count) %>%
-  pivot_wider(id_cols = c(year, lc), 
-              names_from = lc, 
-              values_from = area_ha)
-  
-```
-
-
-```{r abandonment-persistence}
-# testing
-s_age[get(paste0("y", 1987:2017)[2]) > 0]
-s_age[y1988 > 0]
-
-
-# ----------------------- see functions in _util_dt_filter_functions ------------------------------------
-# manual
-persistence_count_long <- cc_calc_persistence(abn_age_dt = s_age, land_cover_raster = s$y2017, 
-                                              stat_proportion = FALSE,
-                                              NA_first = FALSE)
-
-persistence_count_long2 <- cc_calc_persistence(abn_age_dt = s_age, land_cover_raster = s$y2017, 
-                                              stat_proportion = FALSE, include_wide = TRUE,
-                                              NA_first = FALSE)
-
-# as a list
-
-persistence_list_s <- cc_calc_persistence_all(abn_age_dt = s_age, land_cover_raster = s$y2017)
-
-
-# ----------------------------------- plot ------------------------------------------------- #
-
-# plot the count of pixels abandoned (or age 1) in each year. This shows that over time, a greater amount of land is abandoned at once.
-ggplot(data = filter(persistence_list_s$count, time_abn == 1)) + 
-  theme_classic() + 
-  geom_point(mapping = aes(x = year_abn, y = area_ha, color = year_abn))
-
-
-# save as a plot
-cc_save_plot_abn_persistence(input_list = persistence_list_s, subtitle = "Shaanxi/Shanxi Provinces, China", outfile_label = "_s")
-
-
-
-
-
-
-#persistence_list_s <- cc_calc_persistence_all(abn_age_dt = s_age, land_cover_raster = s$y2017)
-load()
-
-
-# average proportion of abandoned land remaining, across time abandoned
-
-df_av <- persistence_list_b1_s$na_last %>%
-  mutate(year_abn = as_factor(year_abn)) %>%
-  group_by(time_abn) %>%
-  summarise(count = n(),
-            sd = sd(proportion, na.rm = TRUE), 
-            se = sd/sqrt(count),
-            proportion = mean(proportion), 
-            year_abn = as_factor("mean"))
-df_av
-
-
-# as percentage
-base <- ggplot(data = persistence_list_b1_s$na_first) + 
-    theme_classic() + 
-    geom_line(mapping = aes(x = age, y = proportion,
-                            group = year_abn, color = year_abn), 
-              size = 1.25
-    ) + 
-    labs(y = "Proportion remaining abandoned", 
-         x = "Years since initial abandonment", 
-         title = "Persistence of Abandoned Land",
-         subtitle = NULL, #subtitle,
-         color = "Year Abandoned") + 
-    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
-    # geom_hline(yintercept=0.5, linetype="dashed", 
-    #          color = "red", size = 0.75) +
-    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
-
-base + geom_line(data = df_av, mapping = aes(x = time_abn, y = proportion),
-              size = 3)
-base %+% test
-
-# ----------------------------------- plot ------------------------------------------------- #
-gg_half_life_s <- ggplot(data = persistence_list_b1_s$na_first) + 
-  theme_classic() + 
-  geom_hline(yintercept=0.5, linetype="dashed", 
-             color = "red", size = 0.75) +
-  geom_line(mapping = aes(x = age, y = proportion,
-                           group = year_abn, color = year_abn), 
-             size = 1) + 
-  # geom_smooth(method = "lm", formula = y ~ poly(x, 2),
-  #             mapping = aes(x = age, y = proportion),
-  #             color = "dark blue", fill = "blue", size = 1.5) +
-    
-  geom_ribbon(data = df_av, aes(x = time_abn, ymin = proportion - 1.96*se, ymax=proportion + 1.96*se), 
-              color = "gray", fill = "gray", alpha=0.5) + 
-  geom_line(data = df_av, mapping = aes(x = time_abn, y = proportion),
-              size = 2, color = "black") +
-
-  labs(y = "Proportion remaining abandoned", 
-         x = "Years since initial abandonment", 
-         title = "Persistence of Abandoned Land",
-         subtitle = NULL, #subtitle,
-         color = "Year Abandoned") + 
-  scale_color_distiller(palette = "Greens") + 
-  theme(legend.position = "bottom",
-        legend.text = element_text(angle = 320, vjust = 1, hjust = 0))
-
-gg_half_life_s
-df_av %>% filter(proportion <= 0.51)
-
-
-
-# save
-png(filename = paste0(p_output, "plots/half_life_s.png"), 
-    width = 7, height = 5, units = "in", res = 400)
-print(gg_half_life_s)
-dev.off()
-
-
-# ------------------- additional models ------------------------------------------------- #
-# y ~ log(x)
-ggplot(data = persistence_list_b1_s$na_first) + 
-    theme_classic() + 
-    geom_point(mapping = aes(x = age, y = proportion,
-                            group = year_abn, color = year_abn), 
-              size = 1.25) + 
-    labs(y = "Proportion remaining abandoned", 
-         x = "Years since initial abandonment", 
-         title = "Persistence of Abandoned Land",
-         subtitle = NULL, #subtitle,
-         color = "Year Abandoned") + 
-    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
-    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0)) + 
-  geom_smooth(method = "lm", formula = y ~ log(x),
-              mapping = aes(x = age, y = proportion),
-              color = "dark blue", fill = "blue", size = 1.5) + 
-  geom_hline(yintercept=0.5, linetype="dashed", 
-             color = "red", size = 0.75) + 
-  geom_vline(xintercept = 24.16574)
-
-
-# log(y) ~ x:
-ggplot(data = persistence_list_b1_s$na_first) + 
-    theme_classic() + 
-  # note, needs to be log transformed
-    geom_point(mapping = aes(x = age, y = log(proportion),
-                            group = year_abn, color = year_abn), 
-              size = 1.25) + 
-    labs(y = "Proportion remaining abandoned", 
-         x = "Years since initial abandonment", 
-         title = "Persistence of Abandoned Land",
-         subtitle = NULL, #subtitle,
-         color = "Year Abandoned") + 
-    scale_color_distiller(palette = "Greens") + theme(legend.position = "bottom") +
-    theme(legend.text = element_text(angle = 320, vjust = 1, hjust = 0)) + 
-  
-  # log(y) ~ x
-  geom_smooth(method = "lm", formula = log(y) ~ x,
-              mapping = aes(x = age, y = proportion),
-              color = "dark blue", fill = "blue", size = 1.5) + 
-  geom_hline(yintercept=log(0.5), linetype="dashed", 
-             color = "red", size = 0.75) + 
-  geom_vline(xintercept = 23.1708)
-
-```
-
-
-```{r abn-gain-loss-area}
-# calculate the abandonment area turnover
-abn_area_change_s <- cc_calc_abn_area_diff(abn_age_dt = s_age, area_raster = s_area)
-
-cc_save_plot_area_gain_loss(input_area_change_df = abn_area_change_s, 
-                            subtitle = "Shaanxi/Shanxi Provinces, China", outfile_label = "_s",
-                            width = 6)
-
-
-```
-
-```{r abn-area-by-age-class}
-area_s %>% filter(lc == "Abandoned")
-persistence_list_s$count_na_first
-persistence_list_s$count
-
-# first plot
-age_class0 <- ggplot(data = persistence_list_s$count_na_first) + 
-  theme_classic() +
-  geom_col(mapping = aes(x = year, y = area_ha / 10^3, group = year_abn, fill = year_abn)) + 
-  labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
-         x = "Years since initial abandonment", 
-         title = "Area of Abandoned Land, by Age Class",
-         subtitle = "Shaanxi/Shanxi Province, China",
-         fill = "Year Abandoned") + 
-  scale_fill_distiller(palette = "Greens") + theme(legend.position = "bottom") + 
-  scale_x_continuous(n.breaks = 10)
-
-# trying some massaging
-age_class_df <- persistence_list_s$count_na_first %>% 
-  mutate(age = year - year_abn + 1) %>% 
-  mutate(bins = ifelse(age > 0 & age <= 5, "1 to 5 years",
-                       ifelse(age > 5 & age <= 10, "5 to 10 years",
-                              ifelse(age > 10 & age <= 15, "10 to 15 years",
-                                     ifelse(age > 15 & age <= 20, "15 to 20 years",
-                                            ifelse(age > 20 & age <= 30, "20 to 30 years", NA)
-                                            ))))) %>%
-  mutate(bins = as_factor(bins))
-
-# plot
-
-
-
-# Function
-cc_save_plot_area_by_age_class(input_list = persistence_list_s, 
-                               subtitle = "Shaanxi/Shanxi Provinces, China", outfile_label = "_s")
-
-```
-
-
-
-
-
-
-```{r save-rasters}
-cc_save_map_pnv_hab_lc_abn(maxpixels = 3000000)
-
-cc_save_map_lc_age_rasters(maxpixels = 3000000)
-
-```
 
 
 ```{r animations}
+
+terra::animate(lc$shaanxi, 
+     levels = plot_cols1$name, # see "util/_util_misc.R"
+     col = plot_cols1$color,
+     type = "classes",
+     maxcell = 500000,
+     n = 1)
+
+
+
+
 site_index <- 1
 
 tic()
@@ -1268,735 +284,306 @@ legend("bottomleft", cex = 2, inset = 0,
 
 
 
+```{r plot-trajectory-per-pixel}
+bs <- brick(paste0(p_dat, "Abandonment/belarus_small.tif"))
+names(bs) <- gsub("smolensk", "y", names(bs))
+bs_dt <- as.data.table.raster(bs)
 
-```{r master-functions}
-# Shaanxi master functions
-# 1. ------------- calculate total area per lc, with abandonment ---------------- #
-area_s <- cc_calc_area_per_lc_abn(land_cover_dt = s_dt, 
-                                  abn_age_dt = s_age, 
-                                  land_cover_raster = s$y2017)
-
-cc_save_plot_lc_abn_area(input_area_df = area_s, subtitle = "Shaanxi/Shanxi Provinces, China", 
-                         outfile_label = "s",
-                         width = 5, height = 4)
-
-# 2. ------------------------ abandonment persistence --------------------------- #
-persistence_list_s <- cc_calc_persistence_all(abn_age_dt = s_age, land_cover_raster = s$y2017)
-
-cc_save_plot_abn_persistence(input_list = persistence_list_s, subtitle = "Shaanxi/Shanxi Provinces, China", outfile_label = "_s")
+# subset the data.table, for plotting
+sub <- bs_dt[1:10, -c(1,2)]
+sub[, pixel := c(1:10)]
 
 
-# 3. -------------------- calculate the abandonment area turnover ------------------- #
-abn_area_change_s <- cc_calc_abn_area_diff(abn_age_dt = s_age, area_raster = s_area)
+sub_melt <- melt(sub, id.vars = "pixel", 
+                 variable.name = "year", 
+                 value.name = "land_use", na.rm = TRUE)
 
-cc_save_plot_area_gain_loss(input_area_change_df = abn_area_change_s, 
-                            subtitle = "Shaanxi/Shanxi Provinces, China", outfile_label = "_s",
-                            width = 6)
+sub_melt$year <- gsub("y", "", sub_melt$year)
 
-# 4. -------------------- plot abandonment area by age class ------------------- #
-cc_save_plot_area_by_age_class(input_list = persistence_list_s, 
-                               subtitle = "Shaanxi/Shanxi Provinces, China", outfile_label = "_s")
+str(sub_melt)
 
+# set colors for plotting
+show_col(terrain.colors(9))
 
+lc_cols <- scale_color_manual(name = "Land Cover",
+                     labels = c("1" = "1. Non-veg",
+                                "2" = "2. Woody veg",
+                                "3" = "3. Crop",
+                                "4" = "4. Grassland"),
+                     values = c("1" = "gray80",
+                                "2" = terrain.colors(9)[1], # dark green
+                                "3" = terrain.colors(9)[5], # gold
+                                "4" = terrain.colors(9)[3] # light green
+                                )
+                     ) 
 
+# this plot shows the land-use trajectories of 10 individual pixels.
+gg_10_px_traj <- ggplot(data = sub_melt, 
+                        mapping = aes(x = year, y = land_use, group = pixel)) +
+  theme_classic() + 
+  theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  geom_line(mapping = aes(color = factor(land_use)), size = 2) +
+  facet_grid(rows = vars(pixel), scales = "free_x", switch = "x") + 
+  ylim(1, 4) + lc_cols
 
-# mega function to save all four plot types
-tic()
-cc_save_area_persistence_plots(land_cover_dt = s_dt, 
-  abn_age_dt = s_age, 
-  land_cover_raster = s$y2017,
-  subtitle = "Shaanxi/Shanxi Provinces, China",
-  outfile_label = "_s"
-  )
-toc()
-
-load(file = paste0(p_output, "abn_dat_products_s.rds"), verbose = TRUE)
-
-# how do i deal with different thresholds of abandonment?
-
-```
-
-
-```{r belarus-plots}
-# Belarus:
-
-tic()
-cc_save_area_persistence_plots(land_cover_dt = b_dt, 
-  abn_age_dt = b_age, 
-  land_cover_raster = b$y2017,
-  subtitle = "Eastern Belarus/Smolensk, Russia",
-  outfile_label = "_b"
-  )
-toc()
-
-# generate plots
-cc_save_area_persistence_plots(subtitle = "Shaanxi/Shanxi Provinces, China", outfile_label = "_s")
-
-cc_save_area_persistence_plots(subtitle = "Shaanxi/Shanxi Provinces, China", input_site_label = "_s", 
-                     outfile_label = "_s_all")
-
-cc_save_area_persistence_plots(subtitle = "Eastern Belarus/Smolensk, Russia", input_site_label = "_b", 
-                     outfile_label = "_b_all")
-
+gg_10_px_traj
+#       1. Non-vegetated area (e.g. water, urban, barren land)
+#       2. Woody vegetation
+#       3. Cropland 
+#       4. Herbaceous land (e.g. grassland)
 
 
 ```
 
-# Update to implement 5 year threshold
-```{r n_lc_area}
-# three files:
-area_s
-persistence_list_s
-abn_area_change_s
+```{r check-temporal-filter-counts}
+# Not strictly necessary - check cluster outputs and the number of pixels affected by the temporal filters
 
-# first, area
+# note that in the run: _2021-03-05, the temporal filter counter calculated the percent_affected without multiplying by 100, so percent_affected = value/nrow(dt), and therefore, nrow(dt) = value/percent_affected
 
-ggplot(data = area_s) +
+# for run: _2021_03_13, the percent was fixed, so nrow(dt) = 100 * value / (percent_affected)
+x <- "shaanxi"
+
+percent_affected_df <- 
+  lapply(site_df$site, function(x) {
+    # load the counts list
+    load(file = paste0(p_dat_derived, run_label, "/", x, 
+                       "_temporal_filter_counts_l", run_label, ".rds"), verbose = TRUE)
+    
+    cat(fill = TRUE, 
+        "number of rows:", 
+        temporal_filter_counts_l$edge_nrow_affected %>%
+               mutate(nrow = 100 * value/percent_affected) %>% 
+               .$nrow %>% unique())
+    
+    percent_affected_df <- 
+      bind_rows(temporal_filter_counts_l$nrow_affected_df,
+                temporal_filter_counts_l$edge_nrow_affected %>% 
+                  filter(edge == "start") %>% 
+                  select(filter = edge, nrow_affected = value)
+                ) %>%
+      mutate(site = x,
+             nrow_abn = temporal_filter_counts_l$edge_nrow_affected %>%
+               mutate(nrow = 100 * value/percent_affected) %>% 
+               .$nrow %>% round(digits = 0) %>% unique(),
+             # percent_affected = 100 * nrow_affected/nrow
+             ) %>% 
+      as_tibble() 
+    
+    # percent_affected_df %>% mutate(filter = recode(filter, start = "starting_edge" ))
+
+    percent_affected_df
+    
+}) %>% bind_rows()
+
+site_df_w_size <- read_csv(file = "/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/data_derived/site_df_w_size.csv") 
+
+percent_affected_df <- percent_affected_df %>% 
+  left_join(. , select(site_df_w_size, site, nrow_total = ncell)) %>%
+  select(-nrow) %>% 
+  pivot_longer(cols = c("nrow_abn", "nrow_total"), 
+               names_to = "relative_to", names_prefix = "nrow_", 
+               values_to = "nrow") %>%
+  mutate(percent_affected = 100 * nrow_affected/nrow)
+
+# write to file:
+
+write_csv(percent_affected_df, file = paste0(p_dat_derived, run_label, "/derived_data/temporal_filters_percent_affected_df", run_label,".csv"))
+
+
+
+# plot #
+gg_temp_filter_counts <- 
+  ggplot(data = percent_affected_df# %>% filter(filter %in% c("either", "starting_edge"))
+         ,
+       mapping = aes(x = fct_reorder(site, percent_affected), y = percent_affected, color = filter)) +
+  geom_point() +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 340, vjust = 1, hjust = 0)) + 
+  labs(x = "Site", y = "Percent of abandoned pixels affected by filters",
+       title = "Scope of pixels affected by moving window temporal filters") + 
+  scale_colour_discrete(labels = c(
+    eight_yr = "8-year filter",
+    five_yr = "5-year filter",
+    either = "Either 5- or 8-year filters", 
+    starting_edge = "Starting edge filter")) + 
+  facet_grid(rows = vars(relative_to), scales = "free_y", 
+             labeller = labeller(relative_to = c(abn = "Relative to abandoned pixels", #old = "new",
+                                                 total = "Relative to total pixels")))
+
+# save
+ggsave(plot = gg_temp_filter_counts,
+       filename = paste0(p_output, "plots/", run_label, "/temp_filter_counts_plot_full.pdf"), 
+       width = 8, height = 6, units = "in")
+
+# 
+percent_affected_df %>% group_by(filter, relative_to) %>% summarize(max = max(percent_affected))
+
+```
+
+
+
+# Save SI Figures
+
+## Facet grid figures
+
+```{r abn-area-by-age-bin-grid}
+# A figure showing the area abandoned at each site over time, by age class
+
+# plot
+gg_age_class_bins_grid <-
+    ggplot(data = persistence_dat) + 
     theme_classic() +
-    # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
-    labs(y = expression("Area  (10"^{6}*" ha)") , 
+    labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
          x = "Year", 
-         title = "Area by Land Cover, with Abandonment",
-         subtitle = subtitle,
-         color = "Land Cover") + 
-    geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
-                            group = lc, color = lc),
-              size = 1.2) + 
-    scale_x_continuous(n.breaks = 10)
+         #title = "Area of Abandoned Land, by Age Class",
+         #subtitle = subtitle,
+         fill = "Age (years)") +
+    geom_col(mapping = aes(x = year, y = area_ha / 10^3, 
+                           fill = fct_reorder(bins, age)),
+             position = position_stack(reverse = FALSE)) +
+    theme(
+      #legend.position = c(0.1, 0.8),
+      #legend.position = "bottom",
+      legend.title = element_text(size = 10)
+      ) +
+    scale_fill_brewer(palette = "Greens", direction = 1) +
+      facet_wrap(vars(site), scales = "free_y", labeller = as_labeller(cap_update_labels)) +  # see _util_misc.R
+    theme(legend.position = c(0.885, 0.12), 
+        legend.spacing = unit(2, units = "mm"), 
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) + 
+      guides(fill = guide_legend(nrow = 3, ncol = 2))
 
-abandonment_threshold <- 5
 
-abandoned_area_df <- tibble(
-    year = 1987:2017,
-    lc = "Abandoned",
-    count = sapply(1:31, function(i) {s_age[get(paste0("y", 1987:2017)[i]) >= abandonment_threshold, .N]}),
-    count_all = sapply(1:31, function(i) {s_age[get(paste0("y", 1987:2017)[i]) > 0, .N]}),
 
-    area_ha = count * median_cell_area_km2 * 100,
-    area_all_ha = count_all * median_cell_area_km2 * 100
-  )
 
-s_age[y1992 >= 5, .N]
+# save
+ggsave(plot = gg_age_class_bins_grid,
+       filename = paste0(p_plots, run_label,
+       "/abn_area_by_age_grid", run_label, ".pdf"),
+       width = 7, height = 5, units = "in", dpi = 400
+)
 
-abandoned_area_df %>% print(n = 31)
-filter(area, lc != "Abandoned")
-n_area_s1 <- bind_rows(filter(area_s, lc != "Abandoned"), abandoned_area_df) %>% print(n = 155)
+```
 
-tic()
-n_area_s <- cc_calc_area_per_lc_abn(land_cover_dt = s_dt,
-                                    abn_age_dt = s_age, 
-                                    land_cover_raster = s$y2017,
-                                    abandonment_threshold = 5)
-toc()
-identical(n_area_s, n_area_s1)
-
-# new updated plot
-ggplot(data = n_area_s 
-       %>% filter(lc != "Abandoned (all)") %>% 
-         mutate(lc = recode(lc, "Abandoned (>5)" = "Abandoned"))
-       ) +
+```{r area-land-cover-facet-grid}
+# ---------------------------------------------------------------------- #
+# plot area in each land cover class in a facet grid
+# ---------------------------------------------------------------------- #
+gg_area_lc_facet_grid <-
+  ggplot(data = area_dat %>% filter(lc != "Abandoned (>1)")) +
   theme_classic() +
   # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
   labs(y = expression("Area  (10"^{6}*" ha)") , 
        x = "Year", 
-       title = "Area by Land Cover, with Abandonment",
-       subtitle = subtitle,
-       color = "Land Cover") + 
+       color = NULL) + 
   geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
-                          group = lc, color = lc),
-            size = 1.2) + 
-  scale_x_continuous(n.breaks = 10) #+
-  # scale_color_discrete(name = "COVER", 
-  #                      labels = c("Abandoned (>5)",
-  #                                 "Abandoned (all)", 
-  #                                 "Crop", "Grassland", 
-  #                                 "Non-veg", "Woody veg"))
-
-n_area_s %>% select(lc) %>% unique() %>% arrange(lc)
-
-persistence_list_s
-abn_area_change_s
-
-```
-
-```{r n_persistence}
-persistence_list_s
-
-s_age
-s
-
-persistence_list_s <- cc_calc_persistence_all(
-  abn_age_dt = s_age, land_cover_raster = s$y2017)
-
-# starting with i + 1 (i.e. 1988), count the number of cells that are of i age, then the next year, with age 2, then the next year with age 3, etc.
-# the j represents each cohort of abandonment. I think I can just start with the fifth year for the counts.
-stat_proportion <- FALSE
-NA_first <- TRUE
-pl1 <- persistence_list
-pl2 <- persistence_list
-
-pl1
-pl2
-
-
-names(persistence_list) <- paste0("y", 1988:2017)
-pl2[[1]][-c(1:4)]
-abandonment_threshold
-c(abandonment_threshold:31) %>% length
-pl2[[1]][c(abandonment_threshold:31)]
-pl_na1 <- persistence_list
-pl_na2 <- persistence_list
-
-pl_na1[[1]]
-pl_na2[[1]]
-test1 <- pl_na1[[30]]
-test2 <- pl_na2[[30]]
-test2[c(1:4)] <- NA
-
-n_pl_na1 <- persistence_list
-n_pl_na2 <- persistence_list
-
-temp_vector[c(1:31)]
-pl_na1
-n_pl_na1
-
-pl_na2
-n_pl_na2
-for(i in 1:30) {print(length(persistence_list[[i]]))}
-
-temp_vector[c()]
-
-# remove cells that are below threshold
-if (NA_first){
-  temp_vector[c((1:(abandonment_threshold - 1)) + j)] <- NA
-} else {
-  temp_vector[c(1:(abandonment_threshold - 1))] <- NA
-}
-
-persistence_long %>% arrange(year_abn, time_abn)
-pl2[-c(1:4)]
-
- temp_vector4 <- c(
-      if (NA_first) {rep(NA, j)
-        } else {rep(NA, 0)},
-      sapply(1:(31 - j), function(i) {
-        abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, .N]
-      }),
-      if (NA_first) {rep(NA, 0)
-      } else {rep(NA, j)}
-    )
- 
-temp_vector %>% length
-temp_vector1 %>% length
-temp_vector2 %>% length
-temp_vector3 %>% length
-temp_vector4
-abandonment_threshold:(31 - 27)
-sapply(abandonment_threshold:(31 - 27), function(i) {
-        abn_age_dt[get(paste0("y", 1987:2017)[i + 27]) == i, .N]
-      })
-
-abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, .N]
-abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, .N]
-abn_age_dt[y1994 == 7, ]
-
-count_s <- cc_calc_persistence(abn_age_dt = s_age, 
-                               land_cover_raster = s$y2017, 
-                               stat_proportion = FALSE,
-                               NA_first = FALSE, include_wide = FALSE)
-
-
-
-proportion <- cc_calc_persistence(abn_age_dt, land_cover_raster, 
-                                  stat_proportion = TRUE,
-                                  NA_first = FALSE, include_wide = FALSE)
-
-count_na_first <- cc_calc_persistence(abn_age_dt, land_cover_raster, 
-                                      stat_proportion = FALSE,
-                                      NA_first = TRUE, include_wide = FALSE)
-
-proportion_na_first <- cc_calc_persistence(abn_age_dt, land_cover_raster, 
-                                           stat_proportion = TRUE,
-                                           NA_first = TRUE, include_wide = FALSE)
-
-
-
-
-# try the new functions
-
-n_persistence_list_s <- cc_calc_persistence_all(
-  abn_age_dt = s_age, 
-  land_cover_raster = s$y2017, 
-  include_wide = FALSE,
-  abandonment_threshold = 5,
-  include_all_abandonment = FALSE
-)
-n_persistence_list_s$na_last %>% select(proportion) %>% summary()
-n_persistence_list_s$na_first %>% select(proportion) %>% summary()
-
-n_persistence_list_s1 <- cc_calc_persistence_all(
-  abn_age_dt = s_age, 
-  land_cover_raster = s$y2017, 
-  include_wide = FALSE,
-  abandonment_threshold = 1
-)
-
-n_persistence_list_s_all <- cc_calc_persistence_all(
-  abn_age_dt = s_age, 
-  land_cover_raster = s$y2017, 
-  include_wide = FALSE,
-  abandonment_threshold = 5,
-  include_all_abandonment = TRUE
-)
-
-n_persistence_list_s_wide <- cc_calc_persistence_all(
-  abn_age_dt = s_age, 
-  land_cover_raster = s$y2017, 
-  include_wide = TRUE,
-  abandonment_threshold = 5,
-  include_all_abandonment = TRUE
-)
-
-pl_test <- 
-  cc_calc_persistence(
-  abn_age_dt = s_age, 
-  land_cover_raster = s$y2017, 
-  stat_proportion = TRUE, # doesn't work for true
-  NA_first = TRUE, # works for false, and for true?
-  include_wide = FALSE,
-  abandonment_threshold = 5
-)
-j <- 27
-# doesn't work for 
-stat_proportion = TRUE
-NA_first = FALSE
-include_wide = FALSE
-
-stat_proportion = TRUE
-NA_first = FALSE
-include_wide = FALSE
-abandonment_threshold = 1
-# doesn't work for the na_first
-
-# for NA_first = FALSE, it works
-# for NA_first = TRUE, it works
-persistence_list[[30]]
-if(sum(persistence_list[[30]], na.rm = TRUE) == 0) {print("yes")}
-
-test <- persistence_list[[30]]/max(persistence_list[[30]], na.rm = TRUE)
-
-temp_vector[c(1:(31 - (abandonment_threshold - 1)))]
-
-temp_vector[c()]
-
-temp_vector[c(abandonment_threshold + 1:27)]
-# try plotting:
-cc_save_plot_abn_persistence
-cc_save_plot_area_by_age_class
-```
-
-```{r n_age-class}
-
-persistence_list_s
-
-
-ggplot(data = filter(persistence_list_s$count_na_first, age >= 5)) + 
-  theme_classic() +
-  labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
-       x = "Year", 
-       title = "Area of Abandoned Land, by Age Class",
-       subtitle = subtitle,
-       fill = "Age") + 
-  #scale_x_continuous(n.breaks = 10) + 
-  geom_col(mapping = aes(x = year, y = area_ha / 10^3, group = bins, fill = bins),
-             position = position_stack(reverse = TRUE)
-    ) +
-  scale_fill_brewer(palette = "Greens", direction = 1) + 
-  geom_line(data = filter(n_area_s, lc == "Abandoned (>5)"), mapping = aes(x = year, y = area_ha / (10^3)))
+                          group = lc, color = fct_reorder(lc, lc)),
+            size = 1.5) + 
+  theme(legend.position = c(0.9, 0.12),
+        legend.title = element_text(size = 10)) +
+  scale_color_manual(values = plot_cols[-2]) +
   
+  guides(color = guide_legend(nrow = 5, ncol = 1)) +
+
+  facet_wrap(vars(site),
+             labeller = as_labeller(cap_update_labels),
+             scales = "free")
 
 
-age_class_continuous <- age_class_base +
-    geom_col(mapping = aes(x = year, y = area_ha / 10^3, group = age, fill = age),
-             position = position_stack(reverse = TRUE)
-    ) + 
-    scale_fill_distiller(palette = "Greens", direction = 1)
 
-
-  
-  age_class_bins <- age_class_base +
-    geom_col(mapping = aes(x = year, y = area_ha / 10^3, group = bins, fill = bins),
-             position = position_stack(reverse = TRUE)
-    ) +
-    scale_fill_brewer(palette = "Greens", direction = 1) 
-```
-
-
-```{r n_abn_area_change}
-abn_area_change_s
-
-identical(s_age, abn_age_dt)
-abn_age_dt
-
- # new. remove cells that are below threshold
-    
-abn_turnover_list
-abn_turnover_list[[1]] %>% length()
-abn_turnover_list[[1]]
-i <- 1
-j <- 3
-
-# testing grounds:
-temp_vector_diff <- c(
-      rep(0, j),
-      sapply(1:(31 - j), function(i) {
-        abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, .N]
-      })
-    )
-# need to remove cells below abandonment threshold
-temp_vector_diff[c(j + 1:(abandonment_threshold - 1))] <- 0
-
-# trim to right length
-if(length(temp_vector_diff) > 31){
-  temp_vector_diff <- temp_vector_diff[c(1:31)]
-  }
-
-# calculate diff
-temp_vector_diff <- diff(temp_vector_diff)
-
-test <- cc_calc_abn_area_diff(abn_age_dt = s_age, 
-                              land_cover_raster = s$y2017,
-                              abandonment_threshold = 5)
-cc_save_plot_area_gain_loss(
-  input_area_change_df = test, 
-  subtitle = "subtitle", 
-  outfile_label = "test")
-  
-
-temp_vector_diff %>% length
-abn_turnover_list[[30]] %>% length
-
-abn_age_dt[get(paste0("y", 1987:2017)[i+1]) == i, .N]
-abn_age_dt[get(paste0("y", 1987:2017)[i + j]) == i, .N]
-
-    if (abandonment_threshold > 1) {
-      if (NA_first){
-        temp_vector[c((1:(abandonment_threshold - 1)) + j)] <- NA
-      } else {
-        temp_vector[c(1:(abandonment_threshold - 1))] <- NA
-      }
-      
-      if(length(temp_vector) > 31){
-        temp_vector <- temp_vector[c(1:31)]
-      }
-    }
-```
-
-
-```{r run-full-functions}
-
-# ------------------------------------------ #
-# ----------------- Shaanxi ---------------- #
-# ------------------------------------------ #
-tic()
-cc_summarize_abn_dts(
-  land_cover_dt = s_dt, 
-  abn_age_dt = s_age, 
-  land_cover_raster = s$y2017,
-  outfile_label = "_s",
-  abandonment_threshold = 5,
-  include_all = TRUE
-  )
-toc()
-
-# load(file = paste0(p_output, "abn_dat_products_s.rds"), verbose = TRUE) # now happens inside the function
-
-
-tic()
-cc_save_area_persistence_plots(
-  input_path = p_output, 
-  output_path = paste0(p_output, "test/"),
-  site_label = "_s", 
-  blip_label = "_blip1",
-  outfile_label = "_s_blip1",
-  subtitle = "Shaanxi/Shanxi Provinces, China (recult. >= 2)", 
-  subtitle_all = "Shaanxi/Shanxi Provinces, China, all abandonment (recult. >= 2)",
-  save_all = TRUE
+ggsave(plot = gg_area_lc_facet_grid,
+       filename = paste0(p_plots, run_label, "/area_by_lc_grid", run_label, ".pdf"), 
+    width = 7, height = 5, units = "in"
 )
-toc()
+```
+
+```{r turnover-grid}
+turnover_dat <- read_csv(file = paste0(p_dat_derived, "turnover_dat", run_label, ".csv"))
+
+# ---------------------------------------------------------------------- #
+# plot facet grid
+# ---------------------------------------------------------------------- #
+
+gg_turnover_facet_grid <-
+  ggplot() +
+    theme_classic() + 
+    labs(y = expression("Annual area turnover (10"^{3}*" ha)"), 
+         x = "Year", 
+         #title = "Change in Area of Abandoned Land",
+         #subtitle = subtitle,
+         fill = NULL, #"Annual Change",
+         color = NULL) + 
+    scale_color_manual(values = c("black"),
+                       labels = "Net Change") + 
+    scale_fill_manual(values = brewer_pal(palette = "Greens")(5)[3:2],
+                      labels = c("Area Gained", "Area Lost")) + 
+    geom_col(data = filter(turnover_dat, change != "net"),
+             mapping = aes(x = year, y = area_ha / (10^3), 
+                           group = change, fill = change)) + 
+    geom_line(data = filter(turnover_dat, change == "net"),
+              mapping = aes(x = year, y = area_ha / (10^3), color = "Net Change in Area"),
+              size = 1) + 
+  facet_wrap(vars(site),
+             labeller = as_labeller(cap_update_labels),
+             scales = "free") +
+    theme(legend.position = c(0.9, 0.12),
+          legend.title = element_text(size = 10))
+  
+gg_turnover_facet_grid
 
 
-# ------------------------------------------ #
-# ----------------- Belarus ---------------- #
-# ------------------------------------------ #
-tic()
-cc_summarize_abn_dts(
-  land_cover_dt = b_dt, 
-  abn_age_dt = b_age, 
-  land_cover_raster = b$y2017,
-  outfile_label = "_b",
-  abandonment_threshold = 5,
-  include_all = TRUE
-  )
-toc()
-
-
-load(file = paste0(p_output, "abn_dat_products_b.rds"), verbose = TRUE)
-
-# 
-tic()
-cc_save_area_persistence_plots(
-  input_site_label = "_b", 
-  blip_label = "_blip1",
-  outfile_label = "_b_blip1",
-  subtitle = "Eastern Belarus/Smolensk, Russia (recult. >= 2)", 
-  subtitle_all = "Eastern Belarus/Smolensk, Russia, all abandonment (recult. >= 2)", 
-  save_all = TRUE
+ggsave(plot = gg_turnover_facet_grid,
+       filename = paste0(p_plots, run_label, "/turnover_grid", run_label, ".pdf"), 
+    width = 7, height = 5, units = "in"
 )
-toc()
-
-
-# ------------------------------------------ #
-# ------------ Fragmentation --------------- #
-# ------------------------------------------ #
-cc_save_frag_plots(input = frag_dat, outfile_label = NULL)
-
-
 ```
 
-```{r save-plots-loop}
 
-# see data.frame of all sites
-site_df
+```{r decay-facet-grid}
+# See "4_decay_models.Rmd" chunk "decay-mod-facet-grid"
+# File path: 
+paste0(p_plots, run_label, "/decay/", "decay_mod_grid", run_label, ".pdf")
+```
 
 
-i <- 2
-site_df$description[i]
+## Misc
+```{r save-si_panel-composite-figs}
+# save "si_panel" composite figures
 
-for (i in 1:11) {
-  blip_label <- "_b1"
+# these show:
+# a) accumulation of abandoned land by age class, 
+# b) decay of abandoned land by year abandoned, 
+# c) the area in each land cover class through time (including both land that has been abandoned for five or more years, as well as any land abandoned for 1 or more years, therefore including short-term fallows),
+# d) the annual turnover of abandoned land through time, and 
+# e) the distribution of abandonment duration for all periods of cropland abandonment (top) and the maximum duration of abandonment at each pixel (bottom).
 
-  cc_save_area_persistence_plots(
-    input_path = p_output, 
-    output_path = paste0(p_output, "plots_loop/"),
-    site_label = site_df$label[i], 
-    blip_label = blip_label,
-    outfile_label = paste0(blip_label, site_df$label[i]),
-    subtitle = paste0(site_df$description[i], ", (recult. >= 2)"), 
-    subtitle_all = paste0(site_df$description[i], ", all abandonment (recult. >= 2)"),
-    save_all = FALSE
+# note that the 
+
+lapply(1:11, function(i) {
+  cc_si_panel_plots(
+    input_path = paste0(p_dat_derived, run_label), 
+    output_path = paste0(p_output, "plots/", run_label, "/"),
+    outfile_label = paste0(run_label, site_df$label[i]),
+    site = site_df$site[i]
   )
-}
-
-
-
-for (i in c(1, 9)) {
-  blip_label <- "_blip1"
-  cc_save_area_persistence_plots(
-    input_path = p_output, 
-    output_path = paste0(p_output, "plots_loop1/"),
-    site_label = site_df$label[i], 
-    blip_label = blip_label,
-    outfile_label = paste0(blip_label, site_df$label[i]),
-    subtitle = paste0(site_df$description[i], ", (recult. >= 2)"), 
-    subtitle_all = paste0(site_df$description[i], ", all abandonment (recult. >= 2)"),
-    save_all = FALSE
-  )
-}
-
-site_df$description
-
-```
-
-
-```{r abandonment-rate}
-# two ways to calculate this:
-
-# 
-# 1. Amount of additional land abandoned in that year (the net gain in abandoned land) / the total amount of agricultural land at the start of the time series
-# 2. Amount of additional land abandoned in that year (the net gain in abandoned land) / the amount of agricultural land in the time step immediately preceding that year
-blip_label <- "_b1"
-site_label <- site_df$label[9]
-load(file = paste0(p_output, "abn_dat_products", blip_label, site_label, ".rds"), verbose = TRUE)
-
-
-# area in agriculture, at the start of the time series
-area_b1_s %>% filter(year == "1987", lc == "Cropland") %>% select(area_ha) %>% unlist(use.names = F)
-
-# area in agriculture, in the immediately preceding year
-rate_year <- 1992 # starting with 1992
-
-area_b1_s %>% filter(year == c(rate_year - 1), lc == "Cropland") %>% select(area_ha) %>% unlist(use.names = F)
-
-
-# area abandoned, net
-abn_area_change_b1_s %>% filter(year == rate_year, direction == "net") %>% select(area_ha) %>% unlist(use.names = F)
-
-# area abandoned, gross
-abn_area_change_b1_s %>% filter(year == rate_year, direction == "gain") %>% select(area_ha) %>% unlist(use.names = F)
-
-
-# make a data.frame - development
-site_df
-
-
-df1 <- abn_area_change_b1_s %>% 
-  filter(direction == "net") %>% 
-  mutate(area_abn_yr = area_ha) %>%
-  select(year, area_abn_yr)
-
-abn_area_change_b1_s %>% 
-  filter(direction == "net") %>% 
-  select(year, area_abn_yr = area_ha)
-
-filter(area_b1_s, year == "1987", lc == "Cropland")$area_ha
-filter(area_b1_s, lc == "Cropland")$area_ha[1:30]
-
-abn_area_change_b1_s
-
-# develop method to calculate the right data.frame
-# abn_rate_df <- abn_area_change_b1_s %>% 
-#   filter(direction == "net") %>% 
-#   select(year, area_abn_yr = area_ha) %>% 
-#   mutate(site = site_df$site[9],
-#          cropland_start = filter(area_b1_s, year == "1987", lc == "Cropland")$area_ha,
-#          cropland_yr_before = filter(area_b1_s, lc == "Cropland")$area_ha[1:30],
-#          abn_rate_start = area_abn_yr/cropland_start,
-#          abn_rate = area_abn_yr/cropland_yr_before)
-
-
-# ------------------------------------------------------------------------------------ #
-# write for loop to create rate_df and bind rows
-# ------------------------------------------------------------------------------------ #
-
-abn_rate_l <- vector(mode = "list", length = length(site_df$site))
-names(abn_rate_l) <- site_df$site
-
-for (i in 2:11) {
-  load(file = paste0(p_output, "abn_dat_products", blip_label, site_df$label[i], ".rds"), verbose = TRUE)
-
-  abn_rate_l[[i]] <- eval(parse(text = paste0("abn_area_change_b1", site_df$label[i]))) %>% 
-  filter(direction == "net") %>% 
-  select(year, area_abn_yr = area_ha) %>% 
-  mutate(site = site_df$site[i],
-         cropland_start = filter(eval(parse(text = paste0("area_b1", site_df$label[i]))), year == "1987", lc == "Cropland")$area_ha,
-         cropland_yr_before = filter(eval(parse(text = paste0("area_b1", site_df$label[i]))), lc == "Cropland")$area_ha[1:30],
-         abn_rate_start = area_abn_yr/cropland_start,
-         abn_rate = area_abn_yr/cropland_yr_before)
-}
-
-
-# Add Belarus
-load(file = paste0(p_output, "abn_dat_products", "_blip1", site_df$label[1], ".rds"), verbose = TRUE)
-
-abn_rate_l[[1]] <- eval(parse(text = paste0("abn_area_change_blip1", site_df$label[1]))) %>% 
-  filter(direction == "net") %>% 
-  select(year, area_abn_yr = area_ha) %>% 
-  mutate(site = site_df$site[1],
-         cropland_start = filter(eval(parse(text = paste0("area_blip1", site_df$label[1]))), year == "1987", lc == "Cropland")$area_ha,
-         cropland_yr_before = filter(eval(parse(text = paste0("area_blip1", site_df$label[1]))), lc == "Cropland")$area_ha[1:30],
-         abn_rate_start = area_abn_yr/cropland_start,
-         abn_rate = area_abn_yr/cropland_yr_before)
-
-# condense list into a data.frame
-abn_rate_df <- bind_rows(abn_rate_l)
-
-# save the new data.frame
-write.csv(abn_rate_df, file = paste0(p_dat_derived, "abn_rate_df.csv"))
-
-# ------------------------------------------------------------------------------------ #
-# plot results
-# ------------------------------------------------------------------------------------ #
-
-ggplot(data = filter(abn_rate_df, site == "shaanxi")) + 
-  theme_classic() +
-  geom_point(mapping = aes(x = year, y = abn_rate_start*100), col = "red") + 
-  geom_point(mapping = aes(x = year, y = abn_rate*100), col = "blue") + 
-  labs(title = "Abandonment Rate", subtitle = , x = "Year", y = "Abandonment Rate (%)" )
-
-
-# make groups
-abn_rate_df <- abn_rate_df %>% mutate(cluster = ifelse(site %in% site_df$site[1:3], "a",
-                                        ifelse(site %in% site_df$site[4:6], "b",
-                                               ifelse(site %in% site_df$site[7:9], "c", 
-                                                      ifelse(site %in% site_df$site[10:11], "d", NA
-                                        )))))
-
-
-gg_abn_rate <- ggplot(data = abn_rate_df) + 
-  theme_classic() +
-  geom_line(mapping = aes(x = year, y = abn_rate*100, group = site, color = site), #position = position_dodge(0.5), 
-            size = 1.25) + 
-  labs(title = "Abandonment Rate", subtitle = "Percent of cropland in prior year abandoned the following year", x = "Year", y = "Abandonment Rate (%)") + 
-  facet_wrap(vars(cluster)) + theme(strip.background = element_blank(), strip.text = element_blank())
-
-gg_abn_rate_start <- ggplot(data = abn_rate_df) + 
-  theme_classic() +
-  geom_line(mapping = aes(x = year, y = abn_rate_start*100, group = site, color = site), #position = position_dodge(0.5), 
-            size = 1.25) + 
-  labs(title = "Abandonment Rate", subtitle = "Percent of total cropland in 1987 abandoned each year", x = "Year", y = "Abandonment Rate (%)") + 
-  facet_wrap(vars(cluster)) + theme(strip.background = element_blank(), strip.text = element_blank())
-
-
-gg_abn_rate
-gg_abn_rate_start
-
-# save png
-png(filename = paste0(p_output, "plots/abn_rate.png"), 
-    width = 8.5, height = 5, units = "in", res = 400)
-print(gg_abn_rate)
-dev.off()
-
-
-# save png
-png(filename = paste0(p_output, "plots/abn_rate_start.png"), 
-    width = 8.5, height = 5, units = "in", res = 400)
-print(gg_abn_rate_start)
-dev.off()
-
-
-persistence_list_b1_s
-
-# Rate, method 1
-
-
-```
-
-
-
-
-```{r clean-up}
-
-env_size(ls())
-object_size(hl)
-
-```
-
-
-# explore latest run 3-5-21
-
-```{r load-cluster-results}
-run_file_paths <- list.files(path = paste0(p_dat_derived, run_label)) %>% 
-  grep("pers", ., value = TRUE)
-
-persistence_df <- read.csv(file = paste0(p_dat_derived, run_label, "/", run_file_paths[i]))
-
-run_dfs <- lapply(run_file_paths, function(i) {
-  read.csv(file = paste0(p_dat_derived, run_label, "/", i))
 })
 
-names(run_dfs) <- site_df$site
-run_dfs <- run_dfs %>% bind_rows(.id = "site") %>% as_tibble()
 
+# Shaanxi main text panel
 
-# when is the first year abandonment can take place?
-run_dfs %>% filter(area_ha > 0) %>% group_by(site) %>% summarize(first_year = min(year_abn))
-
+cc_si_panel_plots(
+    input_path = paste0(p_dat_derived, run_label), 
+    output_path = paste0(p_output, "plots/", run_label, "/"),
+    outfile_label = paste0(run_label, site_df$label[9]),
+    site = site_df$site[9],
+    main_text_panel = TRUE
+  )
 ```
 
-
-```{r save-figs}
+```{r save-indiv-figs}
 # run plots loop:
+
+# This saves individual versions of the panels in the si_panel composite figures
 
 if(!dir.exists(paste0(p_output, "plots/", run_label))) {
   dir.create(paste0(p_output, "plots/", run_label))
@@ -2017,37 +604,10 @@ lapply(1:11, function(i) {
 })
 ```
 
-```{r save-si_panel-composite-figs}
-
-# save "si_panel" composite figures
-
-lapply(1:11, function(i) {
-  cc_4_panel_plots(
-    input_path = paste0(p_dat_derived, run_label), 
-    output_path = paste0(p_output, "plots/", run_label, "/"),
-    outfile_label = paste0(run_label, site_df$label[i]),
-    site = site_df$site[i]
-  )
-})
+```{r produce-summary-figures-by-site}
+# Produce a set of summary figures for each site, in sequence, mostly for presentations
 
 
-# Shaanxi main text panel
-
-cc_4_panel_plots(
-    input_path = paste0(p_dat_derived, run_label), 
-    output_path = paste0(p_output, "plots/", run_label, "/"),
-    outfile_label = paste0(run_label, site_df$label[9]),
-    site = site_df$site[9],
-    main_text_panel = TRUE
-  )
-
-
-```
-
-
-# Presentation Figures:
-
-```{r lc-abn-by-age}
 input_path <- paste0(p_dat_derived, run_label)
 output_path <- paste0(p_output, "plots/", run_label, "/presentation/")
 outfile_label <- paste0(run_label, site_df$label[9])
@@ -2241,6 +801,7 @@ lapply(1:11, function(i) {
 
 ```
 
+
 ```{r extrapolation-combo}
 # see chunk 'extrapolation-panel' in 4_decay_models.Rmd
 # just b and c, for presentation
@@ -2261,466 +822,537 @@ ggsave(plot =
 )
 ```
 
-```{r mean-trend}
-# see "4_decay_models.Rmd"
-png(filename = paste0(p_plots, run_label, "/presentation/", "model_decay_curves_by_site_l3_wide", run_label, ".png"), 
-    width = 7, height = 4, units = "in", res = 400)
-print(gg_model_curves_by_site_l3 + 
-        # labs(caption = NULL) +
-        scale_x_continuous(n.breaks = 15) + 
-        theme(legend.position = c(0.9, 0.65)))
+
+# Global Site Map
+
+```{r load-world-data}
+r_extent <- lapply(r, raster::extent)
+plot(r_extent$belarus)
+
+site_sf <- lapply(age_r, FUN = function(x) {
+  x %>% 
+    extent() %>% 
+    as(., 'SpatialPolygons') %>%
+    st_as_sf()
+  }) %>% 
+  bind_rows() %>% 
+  mutate(site = site_df$site, 
+         label = gsub("_", "", site_df$label),
+         lab_desc = paste0("(", label, ") ", site_df$description),
+         desc = site_df$description)
+
+
+dev.off()
+
+plot(site_sf$geometry)
+
+# basemap
+world <- ne_countries(scale = "small", returnclass = "sf") #%>% st_make_valid() # can set returnclass to sf or sp.
+world_10 <- ne_countries(scale = "large", returnclass = "sf") %>% st_make_valid() # can set returnclass to sf or sp.
+world_states <- ne_states(returnclass = "sf") %>% st_make_valid()
+
+
+# set crs for site_sf 
+st_crs(site_sf) <-  "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+
+# -------------------------------------------------------------------- #
+# save site_sf
+st_write(site_sf, dsn = paste0(p_dat_derived, "site_sf.shp"), append = FALSE)
+
+# load back in:
+site_sf <- st_read(paste0(p_dat_derived, "site_sf.shp"))
+st_crs(site_sf) <-  "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+site_sf <- site_sf %>% st_make_valid()
+# bind sf with df
+left_join(site_sf, site_df, by = site)
+site_sf$site[9] == site_df$site[9]
+```
+
+```{r si-fig0-global-site-map}
+gg_simple_globe <- ggplot() + 
+  # theme_classic() +
+  theme_minimal() +
+  geom_sf(data = world %>% filter(continent != "Antarctica"), 
+          fill = NA, color = "gray50", size = sf_width) +
+  geom_sf(data = site_sf, mapping = aes(fill = desc), size = sf_width2) + 
+  labs(#subtitle = "Map projection: longlat", 
+       x = NULL, y = NULL) +
+  theme(legend.position = "none") + 
+  geom_label_repel(data = site_sf,
+                   aes(label = label, geometry = geometry),
+                   stat = "sf_coordinates",
+                   min.segment.length = 0.0, segment.alpha = 1,
+                   point.padding = 0.2, box.padding = 0.2,
+                   label.size = 0.3, color = "black") + 
+      coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "eqearth")))
+
+
+
+ggsave(plot = gg_simple_globe,
+       filename = paste0(p_plots, "fig0_small.pdf"),
+       width = 11.4, height = 11.4 * 3/5, units = "cm")
+
+ggsave(plot = gg_simple_globe,
+       filename = paste0(p_plots, "fig0.pdf"),
+       width = 17.8, height = 17.8 * 3/5, units = "cm")
+
+
+```
+
+```{r misc-global-site-map}
+# -------------------------------------------------------------------- #
+gg_globe <-
+  ggplot() + 
+  theme_classic() +
+  geom_sf(data = world %>% filter(continent != "Antarctica"), fill = NA, color = "gray") +
+  geom_sf(data = site_sf, mapping = aes(fill = desc)) + 
+  labs(#subtitle = "Map projection: longlat", 
+       x = NULL, y = NULL) +
+  theme(legend.position = "bottom") + 
+  geom_label_repel(data = site_sf,
+                   aes(label = label, geometry = geometry),
+                   stat = "sf_coordinates",
+                   min.segment.length = 0.0, segment.alpha = 1,
+                   point.padding = 0.2, box.padding = 0.2,
+                   label.size = 0.3, color = "black")
+
+
+gg_globe
+
+proj_text <- "moll"
+gg_globe1 <- gg_globe +
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
+  labs(subtitle = paste0("Map projection: ", proj_text))
+
+
+proj_text <- "eck4"
+gg_globe2 <- gg_globe +
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
+  labs(subtitle = paste0("Map projection: ", proj_text))
+
+# use this one:
+proj_text <- "eqearth"
+gg_globe3 <- gg_globe +
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
+  labs(subtitle = paste0("Map projection: ", proj_text))
+
+proj_text <- "natearth2"
+gg_globe4 <- gg_globe +
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", proj_text))) +
+  labs(subtitle = paste0("Map projection: ", proj_text))
+
+
+plot_grid(gg_globe, gg_globe1, gg_globe2, gg_globe3, gg_globe4)
+warnings()
+# -------------------------------------------------------------------- #
+# save map
+png(filename = paste0(p_output, "plots/site_locations_w_labels.png"), 
+    width = 9, height = 6, units = "in", res = 400)
+print(gg_globe4 + labs(subtitle = NULL))
 dev.off()
 
 
-# gg_extrapolation_panel_trend_a <-
-  ggplot(data = fitted_df_l3 %>% 
-           left_join(max_age_extrapolation, by = "site") %>% 
-           filter(age < 140),
-       mapping = aes(x = age, y = fitted, color = fct_reorder(site, max_age))) +
+# long labels:
+gg_site_locations_long <-
+  ggplot() + 
   theme_classic() +
-  geom_line(size = 1.1) +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray70") + 
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  labs(#title = "Decay of abandoned land over time", 
-       #caption = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
-       x = "Time since initial abandonment (years)", 
-       y = "Proportion of abandoned land remaining",
-       color = "Site") + 
-  guides(col = guide_legend(reverse = TRUE)) + 
-  scale_x_continuous(breaks = seq(from = 0, to = 140, by = 20))
+  geom_sf(data = world %>% filter(continent != "Antarctica"), fill = NA, color = "gray") +
+  geom_sf(data = site_sf, mapping = aes(fill = lab_desc)) + 
+  labs(x = NULL, y = NULL, fill = "") +
+  theme(legend.position = "bottom") + 
+  geom_label_repel(data = site_sf,
+                   aes(label = desc,  
+                       # label = label, # use this for single letter code
+                       geometry = geometry),
+                   stat = "sf_coordinates",
+                   min.segment.length = 0.0, segment.alpha = 1,
+                   point.padding = 0.2, box.padding = 0.2,
+                   label.padding = 0.2,
+                   label.size = 0.2, color = "black", direction = "both") +
+  # labs(subtitle = paste0("Map projection: ", "natearth2")) + 
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "natearth2"))) + 
+  guides(fill = guide_legend(nrow = 4, ncol = 3))
 
-  
-  
+
+ggsave(plot = gg_site_locations_long, 
+       filename = paste0(p_output, "plots/site_locations_w_labels_long.png"),
+       width = 9, height = 5, units = "in", dpi = 400)
+
+# just chinese sites
+ggplot() + 
+  geom_sf(data = filter(world, name %in% c("China")), fill = NA, color = "gray") +
+  geom_sf(data = site_sf %>% filter(site %in% c("shaanxi", "chongqing")), mapping = aes(fill = site)) +
+  # geom_sf_label(data = site_sf, aes(label = site)) + 
+  labs(subtitle = paste0("Map projection: ", "natearth2")) +
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "natearth2"))) + 
+
+  theme_classic() +
+  theme(legend.position = "bottom")
+
+
+
+
+
+
+
+# just a simple map
+
+my_width_s <- 8.7
+my_width_m <- 11.4
+my_width_l <- 17.8
+sf_width <- 0.25
+sf_width2 <- 0.1
 ```
 
-```{r abn-area-by-age-bin-grid}
+```{r crop-world}
 
-dat_l
+# cropping the map:
+world %>% st_make_valid
+world_crop <- st_crop(st_make_valid(world), extent(site_sf) )#+ c(50, 20))
 
-# plot
-gg_age_class_bins_grid <-
-    ggplot(data = dat_l) + 
-    theme_classic() +
-    labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
-         x = "Year", 
-         #title = "Area of Abandoned Land, by Age Class",
-         #subtitle = subtitle,
-         fill = "Age (years)") +
-    geom_col(mapping = aes(x = year, y = area_ha / 10^3, 
-                           fill = fct_reorder(bins, age)),
-             position = position_stack(reverse = FALSE)) +
-    theme(
-      #legend.position = c(0.1, 0.8),
-      #legend.position = "bottom",
-      legend.title = element_text(size = 10)
-      ) +
-    scale_fill_brewer(palette = "Greens", direction = 1) +
-      facet_wrap(vars(site), scales = "free_y", labeller = as_labeller(cap_update_labels)) +  # see _util_misc_functions.R
-    theme(legend.position = c(0.885, 0.12), 
-        legend.spacing = unit(2, units = "mm"), 
-        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) + 
-      guides(fill = guide_legend(nrow = 3, ncol = 2))
+# errors!
 
+# gg_world_crop <-
+  ggplot() + 
+  theme_classic() +
+  geom_sf(data = world, 
+          fill = NA, color = "gray") +
+  geom_sf(data = site_sf, mapping = aes(fill = desc)) + 
+  labs(x = NULL, y = NULL) +
+  theme(legend.position = "bottom") + 
+  geom_label_repel(data = site_sf,
+                   aes(label = label, geometry = geometry),
+                   stat = "sf_coordinates",
+                   min.segment.length = 0.0, segment.alpha = 1,
+                   point.padding = 0.2, box.padding = 0.2,
+                   label.size = 0.3, color = "black") + 
+  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "natearth2"))) +
+  # coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "eqearth"))) +
+  theme(legend.position = "none",
+        plot.margin = margin(0, 0, 0, 0, "mm"))
 
 
-
-# save
-ggsave(plot = gg_age_class_bins_grid,
-       filename = paste0(p_plots, run_label, #"/presentation", 
-       "/abn_area_by_age_grid", run_label, ".pdf"),
-       width = 7, height = 5, units = "in", dpi = 400
-)
+gg_world_crop
 
 ```
 
-```{r turnover-grid}
-turnover_dat <- read_csv(file = paste0(p_dat_derived, "turnover_dat", run_label, ".csv"))
-
-# ---------------------------------------------------------------------- #
-# plot facet grid
-# ---------------------------------------------------------------------- #
-
-gg_turnover_facet_grid <-
-  ggplot() +
-    theme_classic() + 
-    labs(y = expression("Annual area turnover (10"^{3}*" ha)"), 
-         x = "Year", 
-         #title = "Change in Area of Abandoned Land",
-         #subtitle = subtitle,
-         fill = NULL, #"Annual Change",
-         color = NULL) + 
-    scale_color_manual(values = c("black"),
-                       labels = "Net Change") + 
-    scale_fill_manual(values = brewer_pal(palette = "Greens")(5)[3:2],
-                      labels = c("Area Gained", "Area Lost")) + 
-    geom_col(data = filter(turnover_dat, change != "net"),
-             mapping = aes(x = year, y = area_ha / (10^3), 
-                           group = change, fill = change)) + 
-    geom_line(data = filter(turnover_dat, change == "net"),
-              mapping = aes(x = year, y = area_ha / (10^3), color = "Net Change in Area"),
-              size = 1) + 
-  facet_wrap(vars(site),
-             labeller = as_labeller(cap_update_labels),
-             scales = "free") +
-    theme(legend.position = c(0.9, 0.12),
-          legend.title = element_text(size = 10))
-  
-gg_turnover_facet_grid
 
 
-ggsave(plot = gg_turnover_facet_grid,
-       filename = paste0(p_plots, run_label, "/turnover_grid", run_label, ".pdf"), 
-    width = 7, height = 5, units = "in"
-)
-```
 
-# Maps
+# Abandonment Maps
 
+```{r classify-into-bins}
+# reclassify age rasters into bins of 5 years.
 
-```{r load-age-rasters, include = FALSE}
-
-# abandonment age maps (produced by Chris)
+# load rasters:
 age_files <- list.files(paste0(p_dat_derived, "age_rasters/", run_label), 
                         full.names = TRUE) %>%
   grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
 
-age_r <- lapply(seq_along(age_files), function(i) {rast(age_files[i])})
-names(age_r) <- site_df$site
-for (i in seq_along(age_r)) {names(age_r[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
-
-```
-
-```{r load-max-age-rasters}
-max_age_files <- list.files(paste0(p_dat_derived, "max_age/", run_label), full.names = TRUE) %>% 
-  grep(".tif", ., value = TRUE)
-max_age_r <- lapply(seq_along(max_age_files), function(i) {
-  # tmp <- 
-    brick(max_age_files[i])
-    # tmp <- rast(max_age_files[i]) # load as SpatRasters
-# 
-#   names(tmp) <- "max_age"
-#   tmp
-  })
-
-names(max_age_r) <- site_df$site
-
 # SpatRaster
-max_age_t <- lapply(seq_along(max_age_files), function(i) {rast(max_age_files[i])})
-names(max_age_t) <- site_df$site
-for (i in seq_along(max_age_t)) {names(max_age_t[[i]]) <- "max_age"} # remember: these are just 1987:2017
+age_t <- lapply(seq_along(age_files), function(i) {rast(age_files[i])})
+names(age_t) <- site_df$site
+for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
 
 
-max_age_r
-
-plot(max_age_r$shaanxi)
-abn_bin_r_all <- max_age_r$shaanxi
-abn_bin_r <- max_age_r$shaanxi
-
-# optional: make a binary "abandoned or not" layer, 
-# though this can probably more easily and flexibly done with data.table
-abn_bin_r_all[abn_bin_r_all > 0] <- 1
-
-abn_bin_r[abn_bin_r < 5] <- 0 # exclude short-term fallowing:
-abn_bin_r[abn_bin_r < 5] <- NA
-hist(values(abn_bin_r))
-
-abn_bin_r[abn_bin_r >= 5] <- 1
-
-plot(max_age_r$shaanxi)
-
-hist(values(max_age_r$shaanxi))
-hist(values(abn_bin_r))
-
-
-hist(values(max_age_r$shaanxi))
-plot(abn_bin_r_all)
-plot(abn_bin_r)
+# reclassification tibble:
+rcl_df <-
+  tibble("is" = 0:30) %>% 
+  mutate(becomes = cut(is, breaks = seq(from = 5, to = 30, by = 5), include.lowest = TRUE, labels = FALSE),
+         interval = cut(is, breaks = seq(from = 5, to = 30, by = 5), include.lowest = TRUE),
+         labels = case_when(
+           is %in% 5:10 ~ "5-10",
+           is %in% 11:15 ~ "11-15",
+           is %in% 16:20 ~ "16-20",
+           is %in% 21:25 ~ "21-25",
+           is %in% 26:30 ~ "26-30")) 
 
 
 
-plot(abn_bin_r)
+# reclassify age rasters into bins
+age_t_bins <- lapply(1:11, function(i) {
+  terra::classify(
+  age_t[[i]]$y2017,
+  rcl = select(rcl_df, is, becomes), 
+  filename = paste0(p_dat_derived, "age_rasters/2017_bins/", site_df$site[i], "_y2017_bins.tif"),
+  overwrite = TRUE)
+}
+)
+names(age_t_bins) <- site_df$site
+
+
+
+# reclassify max_age rastersinto bins
+max_age_t_bins <- lapply(1:11, function(i) {
+  terra::classify(
+  max_age_t[[i]],
+  rcl = select(rcl_df, is, becomes), 
+  filename = paste0(p_dat_derived, "max_age/bins/", site_df$site[i], "_max_age_bins.tif"),
+  overwrite = TRUE)
+}
+)
+
+names(max_age_t_bins) <- site_df$site
+
+
 ```
 
+
+```{r *fig1-final}
+
+inset_map_titles <- paste0("(", gsub("_", "", site_df$label), ") ", site_df$description)
+# cat(inset_map_titles, sep = "; ")
+new_titles <- inset_map_titles
+new_titles[1] <- "(b) Vitebsk, Belarus /\nSmolensk, Russia"
+new_titles[8] <- "(o) Orenburg, Russia /\nUralsk, Kazakhstan"
+
+age_t_bins <- lapply(1:11, function(i) {rast(paste0(p_dat_derived, "age_rasters/2017_bins/", site_df$site[i], "_y2017_bins.tif"))})
+names(age_t_bins) <- site_df$site
+
+# ----------------------------------------------------- #
+# horizontal
+# ----------------------------------------------------- #
+mval <- 1
+include_borders <- FALSE
+
+{
+  pdf(file = paste0(p_output, "plots/fig1", 
+                    if(include_borders) {"_borders_simple"},
+                    ".pdf"),
+      width = 7, height = 6)
+  
+  par(mfrow = c(3, 4), 
+      # mar=c(0,0,0,0), 
+      oma=c(1,1,0,0), 
+      adj = 0,
+      cex.main = 1#,
+      # tcl = -0.2
+      )
+  
+  for (i in 1:11) {
+    terra::plot(age_t_bins[[i]], type = "classes",
+       levels = rcl_df$labels %>% unique() %>% .[-1],
+       col = viridis(n = 5, direction = -1), 
+       colNA = "gray95",
+       main = new_titles[i], #inset_map_titles[i],
+       legend = FALSE,
+       mar = c(mval+0.5, mval, mval + 1.2, mval) # bltr     
+       )
+    
+    if(include_borders) {
+      plot(world_states_simple %>%
+             {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
+             st_geometry(), add = T, border = "gray50")
+      
+      plot(states_union %>%
+             {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
+             st_geometry(), add = T, border = "black")
+      }
+  
+  }
+  
+  plot.new()
+  plot(age_t_bins[[i]], type = "classes",
+       levels = rcl_df$labels %>% unique() %>% .[-1],
+         legend = "left", #legend.shrink = 5,
+         plg = list(cex = 1.5, title = "Abandonment\nDuration (Years)", title.adj = 0),
+         col = viridis(n = 5, direction =  -1), colNA = "gray95",
+       legend.only = TRUE
+       )
+  
+  dev.off()
+
+}
+
+```
+
+
+```{r si-fig1-max-age-maps}
+max_age_t_bins <- lapply(1:11, function(i) {rast(paste0(p_dat_derived, "max_age/bins/", site_df$site[i], "_max_age_bins.tif"))})
+names(max_age_t_bins) <- site_df$site
+
+
+
+
+mval <- 1
+include_borders <- FALSE
+
+{
+  pdf(file = paste0(p_output, "plots/fig1_max", #run_label, "/maps/max_age_maps", 
+                    if(include_borders) {"_borders"},
+                    ".pdf"),
+    width = 7, height = 6)
+  
+  par(mfrow = c(3, 4), 
+      # mar=c(0,0,0,0), 
+      oma=c(1,1,0,0), 
+      adj = 0,
+      cex.main = 1#,
+      # tcl = -0.2
+      )
+  
+  for (i in 1:11) {
+    terra::plot(max_age_t_bins[[i]], type = "classes",
+       levels = rcl_df$labels %>% unique() %>% .[-1],
+       col = viridis(n = 5, direction = -1), colNA = "gray95",
+       main = new_titles[i], #inset_map_titles[i],
+       legend = FALSE,
+       mar = c(mval+0.5, mval, mval + 1.2, mval) # bltr     
+       )
+    
+    if(include_borders) {
+      plot(world_states %>%
+             {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
+             st_geometry(), add = T, border = "gray50")
+      
+      plot(world_10 %>%
+             {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
+             st_geometry(), add = T, border = "black")
+      }
+  
+  }
+
+
+  plot.new()
+  plot(max_age_t_bins[[i]], type = "classes",
+       levels = rcl_df$labels %>% unique() %>% .[-1],
+         legend = "bottomleft", legend.shrink = 5,
+         plg = list(cex = 1.5, title = "Max. Abandonment\nDuration (Years)", title.adj = 0),
+         col = viridis(n = 5, direction =  -1), colNA = "gray95",
+       legend.only = TRUE)
+  
+  dev.off()
+
+}
+
+
+```
+
+
+
+```{r generate-age-maps-thumb}
+# Unused, but potentially useful.
+# Save individual maps for each site, to put together manually into a figure.
+
+
+i <- 9
+
+# titles
+inset_map_titles <- paste0("(", gsub("_", "", site_df$label), ") ", site_df$description)
+
+
+# ------------------------------------------------------------------ #
+# base terra plot, with bins
+plot(age_t_bins[[9]])
+# ------------------------------------------------------------------ #
+cc_save_fig1_inset <- function(i, include_borders = FALSE, titles_vector = inset_map_titles, maxpixels = 5e6,
+                               myh = 4.5, myw = 4.5) {
+ pdf(file = paste0(p_output, "plots/fig1/", 
+                   "fig1_inset",
+                    if(!include_borders) {""} else {"_borders"}, 
+                    site_df$label[i], ".pdf"),
+    width = myw, height = myh)
+
+  par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0), adj = 0)
+
+
+  plot(age_t_bins[[i]], type = "classes",
+     levels = rcl_df$labels %>% unique() %>% .[-1],
+     col = viridis(n = 5, direction = -1), colNA = "gray95",
+     main = titles_vector[i],
+     legend = FALSE, #maxcell = maxpixels
+     mar = c(1.5, 1.5, 1.5, 0.5) # bltr     
+     )
+
+  if(include_borders) {
+    plot(world_states %>%
+           {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
+           st_geometry(), add = T, border = "gray50")
+    
+    plot(world_10 %>%
+           {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
+           st_geometry(), add = T, border = "black")
+    }
+
+  dev.off() 
+}
+
+
+lapply(1:11, function(i) cc_save_fig1_inset(i = i, myh = 4.25, myw = 4.25))
+
+
+
+
+# ------------------------------------------------------------------ #
+# Save legend only
+# ------------------------------------------------------------------ #
+
+{
+pdf(file = paste0(p_output, "plots/fig1/fig1_inset_legends.pdf"), 
+    width = 4, height = 5)
+plot.new()
+par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
+
+plot(age_t_bins[[i]], type = "classes",
+     levels = rcl_df$labels %>% unique() %>% .[-1],
+       legend = "right", legend.shrink = 5, 
+       plg = list(cex = 3),
+       col = viridis(n = 5, direction =  -1), colNA = "gray95",
+     legend.only = TRUE)
+dev.off()
+}
+
+
+# ------------------------------------------------------------------ #
+# Save world map
+# ------------------------------------------------------------------ #
+
+gg_world_thumb <- ggplot() +
+  theme_classic() +
+  geom_sf(data = world %>% filter(continent != "Antarctica") #%>%
+            # st_crop(., #extent(site_sf) + c(50, 20)
+            #         extent(c(-130, 140, -60, 160))
+            #         )
+          , 
+          fill = NA, color = "gray") +
+  geom_sf(data = site_sf, mapping = aes(fill = desc)) + 
+  labs(#subtitle = "Map projection: longlat", 
+       x = NULL, y = NULL) +
+  geom_label_repel(data = site_sf,
+                   aes(label = label, geometry = geometry),
+                   stat = "sf_coordinates",
+                   min.segment.length = 0.0, segment.alpha = 1,
+                   point.padding = 0.2, box.padding = 0.2,
+                   label.size = 0.3, color = "black") + 
+  coord_sf(expand = TRUE, crs = st_crs("+proj=natearth2")
+           ) +
+  theme(legend.position = "none",
+        plot.margin = margin(0, 0, 2, 0, "mm"))
+
+ggsave(plot = gg_world_thumb,
+       filename = paste0(p_plots, "/fig1/fig1_world.pdf"),
+       width = 5, height = 3)
+
+```
 ```{r age-levelplots}
-max_age_rs <- max_age_r$shaanxi
-max_age_rs[max_age_rs < 5] <- NA # exclude short-term fallowing:
-
-age_in_2017_s <- age_r$shaanxi$y2017
-age_in_2017_s[age_in_2017_s < 5] <- NA
-
-# removing the large white space around the plots
-lattice.options(
-  layout.heights=list(bottom.padding=list(x=0), top.padding=list(x = 0)),
-  layout.widths=list(left.padding=list(x=0), right.padding=list(x=0))
-)
-dev.off()
-levelplot(max_age_rs, margin = list(FUN = 'median'), #contour=TRUE, 
-          par.settings = viridisTheme)
-
-levelplot(max_age_rs, margin = list(FUN = 'mean'), #contour=TRUE, 
-          par.settings = RdBuTheme)
-levelplot(max_age_rs, margin = list(FUN = 'mean'), #contour=TRUE, 
-          par.settings = infernoTheme)
-levelplot(max_age_rs, margin = list(FUN = 'mean'), #contour=TRUE, 
-          par.settings = plasmaTheme)
-
-p1 <- levelplot(max_age_rs, margin = list(FUN = 'mean'), #contour=TRUE, 
-          par.settings = YlOrRdTheme,
-          main = "Max. abandonment duration")
-
-
-p_2017 <- levelplot(age_in_2017_s, margin = list(FUN = 'mean'), #contour=TRUE, 
-          par.settings = YlOrRdTheme,
-          main = "Abandonment length as of 2017")
-
-levelplot(max_age_r$shaanxi, margin = list(FUN = 'mean'), #contour=TRUE, 
-          par.settings = YlOrRdTheme,
-          main = "Max. abandonment duration", maxpixels = 1e6)
-
-levelplot(max_age_r$shaanxi, margin = F, #contour=TRUE, 
-          par.settings = YlOrRdTheme,
-          main = "Max. abandonment duration",
-          # xscale.components = xscale.raster,
-          # yscale.components = yscale.raster,
-          maxpixels = 1e6)
-
-plot(max_age_r$shaanxi)
-levelplot(SISmm, layers = 1, margin = list(FUN = 'median'), contour=TRUE)
-
-
-
-
-max_age_values <- values(max_age_rs) %>% 
-  as_tibble() %>% 
-  filter(!is.na(max_age)) %>% 
-  group_by(max_age) %>% summarise(freq = n())
-
-age_in_2017_values <- values(age_in_2017_s) %>% 
-  as_tibble() %>% 
-  filter(!is.na(value)) %>% 
-  group_by(value) %>% summarise(freq = n())
-
-p_hist_max <- ggplot(data = max_age_values, aes(max_age)) + 
-  geom_col(mapping = aes(x = max_age, y = freq), fill = "gray70") + 
-  theme_classic()
-
-p_hist_2017 <- ggplot(data = age_in_2017_values, aes(value)) + 
-  geom_col(mapping = aes(x = value, y = freq), fill = "gray70") + 
-  theme_classic()
-
-ggsave(plot = plot_grid(p1, p_hist_max, ncol = 1, nrow = 2, rel_heights = c(1, 0.4)),
-       filename = paste0(p_plots, run_label, "/spatial_reg/", 
-                         "max_age_duration_w_dist", run_label, site_df$label[9], ".pdf"), 
-       width = 6, height = 8.5, units = "in")
-
-ggsave(plot = plot_grid(p_2017, p_hist_2017, ncol = 1, nrow = 2, rel_heights = c(1, 0.4)),
-       filename = paste0(p_plots, run_label, "/spatial_reg/", 
-                         "age_in_2017_duration_w_dist", run_label, site_df$label[9], ".pdf"), 
-       width = 6, height = 8.5, units = "in")
-
-
-hist(values(max_age_rs), main = "Abandonment length distribution", xlab = "Abandonment duration (years)")
-
-levelplot(max_age_rs, margin = list(FUN = 'mean'), #contour=TRUE, 
-          par.settings = BuRdTheme)
-levelplot(max_age_rs, margin = list(FUN = 'mean'), #contour=TRUE, 
-          par.settings = RdBuTheme)
-levelplot(max_age_rs, margin = list(FUN = 'mean'), #contour=TRUE, 
-          par.settings = GrTheme)
-levelplot(max_age_rs, margin = list(FUN = 'mean'), #contour=TRUE, 
-          par.settings = BTCTheme)#(rev = TRUE))
-
-
-levelplot(max_age_rs, #margin = list(FUN = 'mean'), #contour=TRUE, 
-          par.settings = rev(brewer.pal(n = 9, 'YlGnBu')))
-dev.off()
-display.brewer.all()
-
-summary(values(max_age_rs))
-
-
-levelplot(site_r$shaanxi[[1:8]])
-
-lattice.options(
-    layout.heights=list(bottom.padding=list(x=0), top.padding=list(x = 0)),  
-    layout.widths=list(left.padding=list(x=0), right.padding=list(x=0))
-  )
-  
-  # make level plot
-  myTheme <- viridisTheme()
-  myTheme$regions$col <- viridis(n = 100, direction = -1)
-  myTheme$panel.background$col = 'gray95' 
-  
-    levelplot(max_age_rs, margin = list(FUN = 'mean'), #contour=TRUE, 
-              par.settings = myTheme, #YlOrRdTheme,
-              main = "Test")
-  
-levelplot(max_age_rs)
-
-plot(max_age_rs)
-
-# as a function, for each site:
-year_or_max <- 2015
-site_index <- 9
-
-cc_age_levelplot_hist()
-# test it out
-for(i in 9) {cc_age_levelplot_hist(site_index = i, year_or_max = "max")}
+# Save abandonment age levelplots with histograms
 
 for(i in 1:11) {cc_age_levelplot_hist(site_index = i, year_or_max = "max")}
 for(i in 1:11) {cc_age_levelplot_hist(site_index = i, year_or_max = "2017")}
 
-env_size(ls())
 ```
-
-
-```{r abn-age-maps-2017}
-# load in the data.tables
-library(data.table)
-list.files()
-age_dt_files <- s
-lapply(age_dt_files, function(i) {fread(i, select = c("Year","Jan","Feb","Mar","Apr","May","Jun"))})
-
-age_r[[1]][["y2017"]]
-
-plot(age_r[[1]][["y2017"]], maxpixels = 50000)
-
-
-
-age_2017_grid <- 
-  plot_grid(plot(age_r[[1]][["y2017"]], main = site_df$site[1]),
-          plot(age_r[[2]][["y2017"]], main = site_df$site[2]),
-          plot(age_r[[3]][["y2017"]], main = site_df$site[3]),
-          plot(age_r[[4]][["y2017"]], main = site_df$site[4]),
-          nrow = 2, ncol = 2, labels = "auto")
-
-ggsave(plot = age_2017_grid,
-       file = paste0(p_plots, run_label, "/abn_age_2017_maps.pdf"),
-       width = 9, height = 5, units = "in", dpi = 400)
-
-test_dt
-ggplot() +
- geom_raster(data = test_dt, 
-             mapping = aes(x = x, y = y, fill = y2017)) + 
-  theme_classic() +
-  coord_quickmap()
-
-par(mfrow = c(3, 4))
-for (i in 1:11) {
-  levelplot(age_r[[i]][["y2017"]], main = site_df$site[i])
-}
-  
-
-
-# directly with raster:
-
-age_r[[1]][["y2017"]]
-age_2017_l <- lapply(1:11, function(i) {
-  temp <- age_r[[i]][["y2017"]]
-  temp <- raster::aggregate(temp, fact = 100)
-  temp
-})
-
-names(age_2017_l) <- site_df$site
-for (i in 1:11) {
-  names(age_2017_l[[i]]) <- site_df$site[i]
-  }
-
-# set map color scheme
-map_colors <- c("#F2F2F2", viridis(30, direction = 1))  # colorblindness-safe
-
-
-# -------------------------------------------------------- #
-# try one, with ggplot
-# -------------------------------------------------------- #
-
-# mp1 <- 
-  gplot(age_2017_l[[1]]) + 
-        geom_raster(aes(fill = value)) +
-        # facet_wrap(~ variable, nrow = 1,
-        #            #labeller = labeller(variable = new_labels_lookup)
-        #            ) +
-        scale_fill_gradientn(colors = map_colors, na.value = "white",
-                             limits = c(0, 30)
-                             ) + 
-        labs(y = NULL, x = names(age_2017_l[[1]])) + 
-        theme(rect = element_blank(), line = element_blank(), 
-              axis.line = element_blank(), 
-              axis.ticks = element_blank(), 
-              axis.ticks.length = unit(0, "pt"), axis.text = element_blank(),
-              legend.position = "right") + 
-        coord_equal()
-  
-for (i in 1:11) {
-  assign(x = paste0("mp_", i), 
-         value = gplot(age_2017_l[[i]]) + 
-           geom_raster(aes(fill = value)) +
-           scale_fill_gradientn(colors = map_colors, 
-                                na.value = "white", limits = c(0, 30)) +
-           labs(y = NULL, x = names(age_2017_l[[i]])) + 
-           theme(rect = element_blank(), line = element_blank(), 
-                 axis.line = element_blank(), axis.ticks = element_blank(), 
-                 axis.ticks.length = unit(0, "pt"), axis.text = element_blank(),
-                 legend.position = "none") + 
-           coord_fixed()
-         )
-  }
-
-
-plot_grid(mp_1, mp_2, mp_3, mp_4, get_legend(mp_2 + theme(legend.position = "right")), nrow = 1, rel_widths = c(1.3, 1.2, 1, 1, 0.5))
-
-# -------------------------------------------------------- #
-# plot with base raster plots
-# -------------------------------------------------------- #
-
-plot(age_2017_l[[2]], 
-     col = map_colors, 
-     main = site_df$description[2],
-     axes = F, legend = T, box = F)
-
-ggsave()
-pdf()
-png(paste0(p_plots, run_label, "/abn_age_2017_maps_testrr.png"), 
-    width = 7, height = 6, units = "in", res = 400
-    )
-par(mfrow=c(3, 4), mar=c(1,1,2,1), oma = c(1, 1, 1, 1))
-
-for (i in 1:11) {
-  # assign(
-    # x = paste0("mp", i), 
-    # value = 
-      plot(age_2017_l[[i]], 
-                 main = site_df$description[i],
-                 col = map_colors,
-                 axes = FALSE, legend = FALSE, box = FALSE)
-  # )
-}
-
-
-# add standalone legend at the end
-plot.new() # must add a new plot window
-plot(age_2017_l[[1]], col = map_colors,
-   legend.only = TRUE,
-   legend.width = 2,
-   legend.shrink = 1.4, cex = 5,
-   smallplot=c(0.2, 0.35, 0.15, 0.85))#; par(mar = par("mar")) 
-# small plot works as follows:
-# smallplot=c(min % from left, max % from left, min % from bottom, max % from bottom).
-dev.off()
-
-
-library(gridExtra)
-grid.arrange(mp1, mp2)
-```
-
 
 ```{r aggregate-abn-age}
+# aggregate abandonment maps to a coarser resolution
+
+
 # aggregate using max function
 age_2017_aggregated_10_max_l <- lapply(1:11, function(i) {
   temp <- age_r[[i]][["y2017"]]
   temp <- raster::aggregate(temp, fact = 100, fun = max)
   temp
 })
+
 # update names of the list items, and rename the raster layers after each site
 names(age_2017_aggregated_10_max_l) <- site_df$site
 for (i in 1:11) {
@@ -2810,9 +1442,9 @@ ggsave(plot = plot_grid(NULL, pan_top, pan_middle, pan_bottom,
 
 
 ```
-
-
-```{r comp-fig-site-abn-age-w-location}
+```{r old-fig1-w-global-map}
+# An old version of Figure 1, which showed a map of abandonment for each site,
+# surrounding a global map.
 
 myTheme <- viridisTheme()
 myTheme$regions$col <- viridis(n = 100, direction = -1)
@@ -2927,1030 +1559,12 @@ ggsave(plot =
        run_label, ".pdf"),
        width = 11, height = 13, units = "in", dpi = 400
        )
-
-
-
-
-
-
 ```
 
-```{r fig1-testing}
-age_r[[i]][["y2017"]]
-
-# load the rasters with terra
-tt <- rast(age_files[9])
-
-
-names(tt) <- paste0("y", 1987:2017)
-tt
-plot(tt$y2017, type="interval", plg=list(x="topright"))
-
-
-age_t <- lapply(seq_along(age_files), function(i) {rast(age_files[i])})
-names(age_t) <- site_df$site
-for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
-
-
-# ------------------------------------------------------------------- #
-# plot with terra
-# ------------------------------------------------------------------- #
-
-
-plot(age_t$shaanxi$y2017, 
-     type = "interval", 
-     breaks = seq(from = 5, to = 30, by = 5), 
-     col = viridis(n = 5, direction = -1), colNA = "gray95")
-
-
-plot(age_t$shaanxi$y2017, type = "interval", breaks = seq(from = 5, to = 30, by = 5),
-     plg=list(x="topright"), mar = c(2.1, 2.1, 1.1, 1.1))
-
-
-freq(age_t$shaanxi$y2017)
-
-
-
-# ------------------------------------------------------------------- #
-# rasterVis
-# ------------------------------------------------------------------- #
-levelplot(age_r$shaanxi$y2017,
-          main = site_sf$lab_desc[9],
-          colorkey = TRUE, scales=list(draw=TRUE),
-          # par.settings = myTheme,
-          at = seq(5, 30, by = 1), 
-          xlab = NULL, ylab = NULL, margin = FALSE,
-          # shrink = c(1.5, 1.5)
-          # shrink = c(1, 1)
-          )
-
-
-# ------------------------------------------------------------------- #
-# tmap
-# ------------------------------------------------------------------- #
-install.packages("tmap")
-library(tmap)
-data("World")
-
-tm_shape(World) +
-    tm_polygons(col = "gray90",
-                alpha = .5
-                ) #+
-  # tm_shape(age_r$shaanxi$y2017) +
-  #   tm_raster("y2017", palette = terrain.colors(10))
-
-tm_shape(World) + tm_borders()
-
-tm_shape(age_r$shaanxi$y2017) +
-    tm_raster("y2017", palette = terrain.colors(10))
-
-tt
-
-smol <- aggregate(age_r$shaanxi$y2017, fact = 10, fun = max)
-smoler <- aggregate(smol, fact = 10)
-plot(smol)
-plot(smoler)
-
-dev.off()
-
-temp <- copy(age_r$shaanxi$y2017)
-temp
-plot(temp)
-
-tm_shape(rast(age_r$shaanxi$y2017)) + tm_raster(alpha = 0.7)
-
-tm_shape(smoler) + tm_raster(alpha = 0.7)
-tm_shape(temp) + tm_raster(alpha = 0.7)
-
-```
-
-```{r try2}
-ggplot() + 
-  theme_classic() +
-  geom_sf(data = world %>% filter(continent != "Antarctica"), fill = NA, color = "gray") +
-  geom_sf(data = site_sf, mapping = aes(fill = desc)) + 
-  labs(#subtitle = "Map projection: longlat", 
-       x = NULL, y = NULL) +
-  theme(legend.position = "bottom") + 
-  geom_label_repel(data = site_sf,
-                   aes(label = label, geometry = geometry),
-                   stat = "sf_coordinates",
-                   min.segment.length = 0.0, segment.alpha = 1,
-                   point.padding = 0.2, box.padding = 0.2,
-                   label.size = 0.3, color = "black") +
-  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "natearth2"))) +
-  theme(legend.position = "none",
-        plot.margin = margin(0, 0, 2, 0, "mm"))
-```
-
-
-
-
-
-```{r ggdraw}
-## ggdraw 
-# --------
-
-png(filename = paste0(p_output, "plots/terra_inset.png"), 
-    width = 3, height = 3, units = "in", res = 400)
-plot(age_t$shaanxi$y2017, type = "interval", breaks = seq(from = 5, to = 30, by = 5),
-     plg=list(x="topright"), mar = c(2.1, 2.1, 1.1, 1.1),
-     main = )
-dev.off()
-
-ggsave(plot = ggdraw() + 
-         draw_plot(gg_world_crop, scale = 0.68) + 
-         draw_image(paste0(p_output, "plots/terra_inset.png"),
-                    x = 0.3, y = 0.3, scale = 0.25),
-       filename = paste0(p_plots, run_label,
-                         "/fig1_test", ".pdf"),
-       width = 10, height = 6, units = "in", dpi = 400)
-```
-
-
-```{r sort-out-which-maps-to-plot}
-# Question: how does terra make its bins for plotting?
-
-
-# load rasters:
-age_files <- list.files(paste0(p_dat_derived, "age_rasters/", run_label), 
-                        full.names = TRUE) %>%
-  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
-
-# raster
-age_r <- lapply(seq_along(age_files), function(i) {rast(age_files[i])})
-names(age_r) <- site_df$site
-for (i in seq_along(age_r)) {names(age_r[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
-
-# SpatRaster
-age_t <- lapply(seq_along(age_files), function(i) {rast(age_files[i])})
-names(age_t) <- site_df$site
-for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
-
-freq(age_t$shaanxi$y2017)
-
-
-# reclassification tibble:
-rcl_df <-
-  tibble("is" = 0:30) %>% 
-  mutate(becomes = cut(is, breaks = seq(from = 5, to = 30, by = 5), include.lowest = TRUE, labels = FALSE),
-         interval = cut(is, breaks = seq(from = 5, to = 30, by = 5), include.lowest = TRUE),
-         labels = case_when(
-           is %in% 5:10 ~ "5-10",
-           is %in% 11:15 ~ "11-15",
-           is %in% 16:20 ~ "16-20",
-           is %in% 21:25 ~ "21-25",
-           is %in% 26:30 ~ "26-30")) 
-
-plot(st, type = "classes", levels = rcl_df$labels %>% unique() %>% .[-1])
-
-
-# reclassify into bins
-s_rcl <- terra::classify(
-  age_t[[9]]$y2017,
-  rcl = select(rcl_df, is, becomes), 
-  filename = paste0(p_dat_derived, "age_rasters/2017_bins/", site_df$site[9], "_y2017_bins.tif"),
-  overwrite = TRUE)
-
-plot(s_rcl)
-plot(s_rcl, type = "classes",
-     levels = rcl_df$labels %>% unique() %>% .[-1],
-     col = viridis(n = 5, direction = -1), colNA = "gray95",
-     main = inset_map_titles[9],
-     legend = FALSE)
-
-
-
-# save reclassified raster as pdf
-pdf(file = paste0(p_dat_derived, "age_rasters/2017_bins/", site_df$site[9], "_y2017_bins.pdf"),
-    width = 4.5, height = 4.5)
-par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
-plot(s_rcl, type = "classes",
-     levels = rcl_df$labels %>% unique() %>% .[-1],
-     col = viridis(n = 5, direction = -1), colNA = "gray95",
-     main = inset_map_titles[9],
-     legend = TRUE)
-dev.off()
-
-
-# base r plot with terra
-pdf(file = paste0(p_dat_derived, "age_rasters/2017_bins/", site_df$site[9], "_y2017_interval.pdf"),
-    width = 4.5, height = 4.5)
-par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
-plot(age_t$shaanxi$y2017, type = "interval", 
-     breaks = seq(from = 5, to = 30, by = 5), 
-     col = viridis(n = 5, direction = -1), colNA = "gray95",
-     main = "interval terra", legend = TRUE)
-dev.off()
-
-
-pdf(file = paste0(p_dat_derived, "age_rasters/2017_bins/", site_df$site[9], "_y2017_interval_man.pdf"),
-    width = 4.5, height = 4.5)
-par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
-plot(age_t$shaanxi$y2017, type = "interval", 
-     breaks = c(4.99, 10, 15, 20, 25, 30), 
-     col = viridis(n = 5, direction = -1), colNA = "gray95",
-     main = "interval terra manual", legend = TRUE)
-dev.off()
-
-pdf(file = paste0(p_dat_derived, "age_rasters/2017_bins/", site_df$site[9], "_y2017_interval_man2.pdf"),
-    width = 4.5, height = 4.5)
-par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
-plot(age_t$shaanxi$y2017, type = "interval", 
-     breaks = c(5, 11, 16, 21, 26, 30), 
-     col = viridis(n = 5, direction = -1), colNA = "gray95",
-     main = "interval terra manual 2", legend = TRUE)
-dev.off()
-
-
-# based on this exploration, I now know that breaks c(5, 10, 15, 20, 25, 30) results in 
-# intervals that are closed on the left (including 10, but not 15, for example). strange!
-
-
-plot(s_rcl, type = "classes",
-     levels = rcl_df$labels %>% unique() %>% .[-1],
-     col = viridis(n = 5, direction = -1), colNA = "gray95",
-     main = inset_map_titles[9],
-     legend = TRUE)
-
-tt <- classify(age_t$shaanxi$y2017, seq(from = 5, to = 30, by = 5), right = FALSE, include.lowest = TRUE) # right = logical, indicating if the intervals should be closed on the right (and open on the left) or vice versa. The default is TRUE. A special case is to use right=NA. In this case both the left and right intervals are open.
-
-ttr <- classify(age_t$shaanxi$y2017, c(0, seq(from = 5, to = 30, by = 5)), 
-                right = TRUE, include.lowest = TRUE, othersNA = TRUE)
-
-levels(tt)
-levels(ttr)
-
-
-plot(ttr, col = viridis(n = 5, direction = -1), colNA = "gray95")
-plot(tt, col = viridis(n = 5, direction = -1), colNA = "gray95")
-
-
-
-# trying to figure out the plotting... are the intervals open on the left and closed on the right (5, 10] {i.e. not including 5, but including 10},  or vice versa.
-persistence_dat %>% print(n = 30)
-
-plot(age_t$shaanxi$y2017, type = "interval", 
-     breaks = seq(from = 5, to = 30, by = 5), 
-     col = viridis(n = 5, direction = -1), bg = "dark gray")
-
-plot(age_t$shaanxi$y2017, type = "interval", 
-     breaks = seq(from = 5, to = 30, by = 5), 
-     col = viridis(n = 6, direction = -1), bg = "dark gray")
-
-plot(age_t$shaanxi$y2017, type = "interval", 
-     breaks = seq(from = 5, to = 30, by = 5), 
-     col = viridis(n = 6, direction = -1)[2:6], bg = "dark gray")
-
-
-
-# ok - the plan is to simply reclassify the age data into bins, so that I know exactly what's being plotted.
-
-```
-
-```{r classify-into-bins}
-
-# load rasters:
-age_files <- list.files(paste0(p_dat_derived, "age_rasters/", run_label), 
-                        full.names = TRUE) %>%
-  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
-
-# SpatRaster
-age_t <- lapply(seq_along(age_files), function(i) {rast(age_files[i])})
-names(age_t) <- site_df$site
-for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
-
-
-# reclassification tibble:
-rcl_df <-
-  tibble("is" = 0:30) %>% 
-  mutate(becomes = cut(is, breaks = seq(from = 5, to = 30, by = 5), include.lowest = TRUE, labels = FALSE),
-         interval = cut(is, breaks = seq(from = 5, to = 30, by = 5), include.lowest = TRUE),
-         labels = case_when(
-           is %in% 5:10 ~ "5-10",
-           is %in% 11:15 ~ "11-15",
-           is %in% 16:20 ~ "16-20",
-           is %in% 21:25 ~ "21-25",
-           is %in% 26:30 ~ "26-30")) 
-
-
-# reclassify into bins (age rasters)
-age_t_bins <- lapply(1:11, function(i) {
-  terra::classify(
-  age_t[[i]]$y2017,
-  rcl = select(rcl_df, is, becomes), 
-  filename = paste0(p_dat_derived, "age_rasters/2017_bins/", site_df$site[i], "_y2017_bins.tif"),
-  overwrite = TRUE)
-}
-)
-names(age_t_bins) <- site_df$site
-
-
-# reclassify into bins (max_age rasters)
-max_age_t_bins <- lapply(1:11, function(i) {
-  terra::classify(
-  max_age_t[[i]],
-  rcl = select(rcl_df, is, becomes), 
-  filename = paste0(p_dat_derived, "max_age/bins/", site_df$site[i], "_max_age_bins.tif"),
-  overwrite = TRUE)
-}
-)
-
-names(max_age_t_bins) <- site_df$site
-plot(max_age_t_bins[[1]])
-
-max_age_t
-
-
-
-
-plot(age_t_bins[[9]])
-
-plot(age_t_bins[[9]], type = "classes",
-     levels = rcl_df$labels %>% unique() %>% .[-1],
-     col = viridis(n = 5, direction = -1), colNA = "gray95",
-     main = inset_map_titles[9],
-     legend = FALSE)
-
-
-
-# save reclassified raster as pdf
-pdf(file = paste0(p_dat_derived, "age_rasters/2017_bins/", site_df$site[9], "_y2017_bins.pdf"),
-    width = 4.5, height = 4.5)
-par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
-plot(s_rcl, type = "classes",
-     levels = rcl_df$labels %>% unique() %>% .[-1],
-     col = viridis(n = 5, direction = -1), colNA = "gray95",
-     main = inset_map_titles[9],
-     legend = TRUE)
-dev.off()
-
-```
-
-```{r simplify-states}
-install.packages("rmapshaper")
-library(rmapshaper)
-
-world_states
-world_10
-
-object_size(world_states)
-object_size(world_10)
-
-plot(world_10_simple)
-
-world_states_simple <- ms_simplify(world_states, keep = 0.1,
-                                   keep_shapes = FALSE)
-
-world_10_simple <- ms_simplify(world_10, keep = 0.1,
-                               keep_shapes = FALSE)
-
-world_states_simple <- st_make_valid(world_states_simple)
-world_10_simple <- st_make_valid(world_10_simple)
-
-world_states_simple %>% st_drop_geometry() %>% as_tibble()
-
-names(world_states_simple)
-world_states_simple$type_en %>% unique
-
-
-world_states_simple %>% st_drop_geometry() %>% as_tibble() %>% select(name, name_alt, type_en, adm0_label, adm0_a3, geonunit)
-
-
-states_union <- world_states_simple %>% 
-  group_by(geonunit) %>%
-  summarise(dissolved = "what") %>% st_cast()
-
-states_union %>% filter(geonunit == "Afghanistan") %>% st_geometry() %>% plot()
-world_states_simple %>% filter(geonunit == "Afghanistan") %>% st_geometry() %>% plot()
-
-states_union %>% filter(geonunit == "Bosnia and Herzegovina") %>% st_geometry() %>% plot()
-world_states_simple %>% filter(geonunit == "Bosnia and Herzegovina") %>% st_geometry() %>% plot()
-world_states %>% filter(geonunit == "Bosnia and Herzegovina") %>% st_geometry() %>% plot()
-world_10 %>% filter(name_en == "Bosnia and Herzegovina") %>% st_geometry() %>% plot()
-
-states_union$geonunit
-```
-
-```{r fig1-final}
-
-inset_map_titles <- paste0("(", gsub("_", "", site_df$label), ") ", site_df$description)
-# cat(inset_map_titles, sep = "; ")
-new_titles <- inset_map_titles
-new_titles[1] <- "(b) Vitebsk, Belarus /\nSmolensk, Russia"
-new_titles[8] <- "(o) Orenburg, Russia /\nUralsk, Kazakhstan"
-
-age_t_bins <- lapply(1:11, function(i) {rast(paste0(p_dat_derived, "age_rasters/2017_bins/", site_df$site[i], "_y2017_bins.tif"))})
-names(age_t_bins) <- site_df$site
-
-# ----------------------------------------------------- #
-# horizontal
-# ----------------------------------------------------- #
-mval <- 1
-include_borders <- FALSE
-
-{
-  pdf(file = paste0(p_output, "plots/fig1", 
-                    if(include_borders) {"_borders_simple2"},
-                    ".pdf"),
-      width = 7, height = 6)
-  
-  par(mfrow = c(3, 4), 
-      # mar=c(0,0,0,0), 
-      oma=c(1,1,0,0), 
-      adj = 0,
-      cex.main = 1#,
-      # tcl = -0.2
-      )
-  
-  for (i in 1:11) {
-    terra::plot(age_t_bins[[i]], type = "classes",
-       levels = rcl_df$labels %>% unique() %>% .[-1],
-       col = viridis(n = 5, direction = -1), 
-       colNA = "gray95",
-       main = new_titles[i], #inset_map_titles[i],
-       legend = FALSE,
-       mar = c(mval+0.5, mval, mval + 1.2, mval) # bltr     
-       )
-    
-    if(include_borders) {
-      plot(world_states_simple %>%
-             {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
-             st_geometry(), add = T, border = "gray50")
-      
-      plot(states_union %>%
-             {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
-             st_geometry(), add = T, border = "black")
-      }
-  
-  }
-  
-  plot.new()
-  plot(age_t_bins[[i]], type = "classes",
-       levels = rcl_df$labels %>% unique() %>% .[-1],
-         legend = "left", #legend.shrink = 5,
-         plg = list(cex = 1.5, title = "Abandonment\nDuration (Years)", title.adj = 0),
-         col = viridis(n = 5, direction =  -1), colNA = "gray95",
-       legend.only = TRUE
-       )
-  
-  dev.off()
-
-}
-
-
-# ----------------------------------------------------- #
-# vertical
-# ----------------------------------------------------- #
-
-pdf(file = paste0(p_dat_derived, "age_rasters/2017_bins/fig1_y2017_composite_v.pdf"),
-    width = 7.5, height = 10)
-par(mfrow = c(4, 3), mar=c(0,0,0,0), oma=c(0,0,0,0))
-
-for (i in 1:11) {
-  plot(age_t_bins[[i]], type = "classes",
-     levels = rcl_df$labels %>% unique() %>% .[-1],
-     col = viridis(n = 5, direction = -1), colNA = "gray95",
-     main = new_titles[i],
-     legend = FALSE)
-}
-dev.off()
-
-
-
-```
-
-```{r expanding-map}
-par(bg = 'blue')
-dev.off()
- 
-par(panel.background = list(col="skyblue"))
-plot(age_t_bins$iraq)
-
-dims <- lapply(1:11, function(i) {
-  tibble(site = site_df$site[i],
-         x = dim(age_t_bins[[i]])[2],
-         y = dim(age_t_bins[[i]])[1])
-}) %>% bind_rows() %>%
-  mutate(ratio = y/x)
-
-dims
-
-```
-
-
-```{r fig1-max-age-maps}
-max_age_t_bins <- lapply(1:11, function(i) {rast(paste0(p_dat_derived, "max_age/bins/", site_df$site[i], "_max_age_bins.tif"))})
-names(max_age_t_bins) <- site_df$site
-
-
-
-
-mval <- 1
-include_borders <- FALSE
-
-{
-  pdf(file = paste0(p_output, "plots/fig1_max", #run_label, "/maps/max_age_maps", 
-                    if(include_borders) {"_borders"},
-                    ".pdf"),
-    width = 7, height = 6)
-  
-  par(mfrow = c(3, 4), 
-      # mar=c(0,0,0,0), 
-      oma=c(1,1,0,0), 
-      adj = 0,
-      cex.main = 1#,
-      # tcl = -0.2
-      )
-  
-  for (i in 1:11) {
-    terra::plot(max_age_t_bins[[i]], type = "classes",
-       levels = rcl_df$labels %>% unique() %>% .[-1],
-       col = viridis(n = 5, direction = -1), colNA = "gray95",
-       main = new_titles[i], #inset_map_titles[i],
-       legend = FALSE,
-       mar = c(mval+0.5, mval, mval + 1.2, mval) # bltr     
-       )
-    
-    if(include_borders) {
-      plot(world_states %>%
-             {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
-             st_geometry(), add = T, border = "gray50")
-      
-      plot(world_10 %>%
-             {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
-             st_geometry(), add = T, border = "black")
-      }
-  
-  }
-
-
-  plot.new()
-  plot(max_age_t_bins[[i]], type = "classes",
-       levels = rcl_df$labels %>% unique() %>% .[-1],
-         legend = "bottomleft", legend.shrink = 5,
-         plg = list(cex = 1.5, title = "Max. Abandonment\nDuration (Years)", title.adj = 0),
-         col = viridis(n = 5, direction =  -1), colNA = "gray95",
-       legend.only = TRUE)
-  
-  dev.off()
-
-}
-
-
-```
-
-
-
-```{r generate-age-maps-thumb}
-
-i <- 9
-
-# titles
-inset_map_titles <- paste0("(", gsub("_", "", site_df$label), ") ", site_df$description)
-
-
-# ------------------------------------------------------------------ #
-# base terra plot, with bins
-plot(age_t_bins[[9]])
-# ------------------------------------------------------------------ #
-cc_save_fig1_inset <- function(i, include_borders = FALSE, titles_vector = inset_map_titles, maxpixels = 5e6,
-                               myh = 4.5, myw = 4.5) {
- pdf(file = paste0(p_output, "plots/fig1/x", 
-                    if(!include_borders) {"fig1_inset"} else {"fig1_inset_borders"}, 
-                    site_df$label[i], ".pdf"),
-    width = myw, height = myh)
-  
-  # png(filename = paste0(p_output, "plots/fig1/fig1_inset", site_df$label[i], ".png"), 
-  #   width = 4.5, height = 4.5, units = "in", res = 400)
-
-  par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0), adj = 0)
-
-
-  plot(age_t_bins[[i]], type = "classes",
-     levels = rcl_df$labels %>% unique() %>% .[-1],
-     col = viridis(n = 5, direction = -1), colNA = "gray95",
-     main = titles_vector[i],
-     legend = FALSE, #maxcell = maxpixels
-     mar = c(1.5, 1.5, 1.5, 0.5) # bltr     
-     )
-
-  if(include_borders) {
-    plot(world_states %>%
-           {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
-           st_geometry(), add = T, border = "gray50")
-    
-    plot(world_10 %>%
-           {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
-           st_geometry(), add = T, border = "black")
-    }
-
-  dev.off() 
-}
-
-cc_save_fig1_inset(i = 8, myh = 4.25, myw = 4.25)
-
-
-lapply(1:11, function(i) cc_save_fig1_inset(i = i, myh = 4.25, myw = 4.25))
-
-
-
-
-# ------------------------------------------------------------------ #
-# Save legend
-# ------------------------------------------------------------------ #
-
-pdf(file = paste0(p_output, "plots/fig1/fig1_inset_legends.pdf"), 
-    width = 6, height = 8)
-plot.new()
-par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
-
-plot(age_t_bins[[i]], type = "classes",
-     levels = rcl_df$labels %>% unique() %>% .[-1],
-       legend = "right", legend.shrink = 2, 
-       plg = list(cex = 3),
-       col = viridis(n = 5, direction =  -1), colNA = "gray95",
-     legend.only = TRUE)
-
-dev.off()
-  
-
-{
-pdf(file = paste0(p_output, "plots/fig1/fig1_inset_legends_test.pdf"), 
-    width = 4, height = 5)
-plot.new()
-par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
-
-plot(age_t_bins[[i]], type = "classes",
-     levels = rcl_df$labels %>% unique() %>% .[-1],
-       legend = "right", legend.shrink = 5, 
-       plg = list(cex = 3),
-       col = viridis(n = 5, direction =  -1), colNA = "gray95",
-     legend.only = TRUE)
-dev.off()
-}
-
-
-
-# ------------------------------------------------------------------ #
-# Save site age map as level plot
-# ------------------------------------------------------------------ #
-
-max_pixels <- 5e2
-include_legend <- FALSE
-my_width <- 3
-my_height <- 3
-
-strwrap(site_df$description, width = 0.5) %>% paste(., sep = "\n")
-
-for (i in 1:11) {
-  pdf(paste0(p_output, "plots/fig1/test_fig1_inset_lp_border", site_df$label[i], ".pdf"), 
-    width = my_width, height = my_height)
-  
-    # png(paste0(p_output, "plots/fig1/fig1_inset", site_df$label[i], "_lp.png"), 
-    # width = 4.5, height = 4.5, units = "in", res = 400)
-    
-  myTheme <- viridisTheme()
-  myTheme$regions$col <- viridis(n = 5, direction = 1)
-  myTheme$panel.background$col = 'gray95' 
-  
-  lattice.options(
-    layout.heights = list(bottom.padding = list(x = 0), top.padding = list(x = 0)),
-    layout.widths = list(left.padding = list(x = 0), right.padding = list(x = 0))
-    )
-
-  # par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
-
-  print(
-    levelplot(
-        age_r[[i]]$y2017,
-        # main = inset_map_titles[i],
-        colorkey = include_legend,
-        scales=list(draw=TRUE),
-        # maxpixels = max_pixels,
-        par.settings = myTheme,
-        at = seq(5, 30, by = 5),
-        xlab = NULL, ylab = NULL,
-        margin = FALSE
-        ) +
-  layer(sp.polygons(world_states %>% 
-                      {if (i %in% c(4, 6)) . else  st_crop(., extent(site_sf[i, ]))} %>% 
-                      as_Spatial(), 
-                    col = "gray50")) +
-  layer(sp.polygons(world_10 %>% 
-                      {if (i %in% c(4, 6)) . else  st_crop(., extent(site_sf[i, ]))} %>% 
-                      as_Spatial(), 
-                    col = "black"))
-        )
-
-  dev.off()
-}
-
-
-# ------------------------------------------------------------------ #
-# Save world map
-# ------------------------------------------------------------------ #
-
-gg_world_thumb <- ggplot() +
-  theme_classic() +
-  geom_sf(data = world %>% filter(continent != "Antarctica") #%>%
-            # st_crop(., #extent(site_sf) + c(50, 20)
-            #         extent(c(-130, 140, -60, 160))
-            #         )
-          , 
-          fill = NA, color = "gray") +
-  geom_sf(data = site_sf, mapping = aes(fill = desc)) + 
-  labs(#subtitle = "Map projection: longlat", 
-       x = NULL, y = NULL) +
-  geom_label_repel(data = site_sf,
-                   aes(label = label, geometry = geometry),
-                   stat = "sf_coordinates",
-                   min.segment.length = 0.0, segment.alpha = 1,
-                   point.padding = 0.2, box.padding = 0.2,
-                   label.size = 0.3, color = "black") + 
-  coord_sf(expand = TRUE, crs = st_crs("+proj=natearth2")
-           ) +
-  theme(legend.position = "none",
-        plot.margin = margin(0, 0, 2, 0, "mm"))
-
-ggsave(plot = gg_world_thumb,
-       filename = paste0(p_plots, "/fig1/fig1_world.pdf"),
-       width = 5, height = 3)
-
-```
-
-
-```{r ggdraw-w-levelplots}
-# first with aggregated rasters, since they're much easier to work with
-age_2017_aggregated_10_max_l
-
-# save level plots to objects
-for (i in 1:11) {
-  assign(
-  x = paste0("lpt", site_df$label[i]),
-  value =
-      levelplot(
-        age_2017_aggregated_10_max_l[[i]],
-        main = site_sf$lab_desc[i],
-        colorkey = FALSE,
-        scales=list(draw=TRUE),
-        par.settings = myTheme,
-        at = seq(5, 30, by = 5), 
-        xlab = NULL, ylab = NULL,
-        margin = FALSE
-        )
-  )
-}
-
-# save as pdf
-for (i in 1:11) {
-  png(filename = paste0(p_output, "plots/terra_inset2", site_df$label[i], ".png"), 
-    width = 4, height = 4, units = "in", res = 400)
-  
-  # print(levelplot(
-  #       age_2017_aggregated_10_max_l[[i]],
-  #       main = site_sf$lab_desc[i],
-  #       colorkey = TRUE,
-  #       scales=list(draw=TRUE),
-  #       par.settings = myTheme,
-  #       at = seq(5, 30, by = 5), 
-  #       xlab = NULL, ylab = NULL,
-  #       margin = FALSE
-  #       ))
-  
-  plot(age_t[[i]]$y2017, 
-       type = "interval", 
-       breaks = seq(from = 5, to = 30, by = 5),
-       legend = FALSE,
-     # mar = c(2.1, 2.1, 4.1, 1.1),
-     main = site_sf$lab_desc[i])
-  
-  dev.off()
-}
-
-
-
-# with level plots
-lpt_s
-
-lpt <- levelplot(smoler,
-  #age_r$shaanxi$y2017,
-          main = site_sf$lab_desc[9],
-          colorkey = TRUE, scales=list(draw=TRUE),
-          par.settings = myTheme,
-          at = seq(5, 30, by = 5), 
-          xlab = NULL, ylab = NULL, margin = FALSE,
-          # shrink = c(1.5, 1.5)
-          # shrink = c(1, 1)
-          )
-
-lpt
-
-gg_fig1 <- ggdraw() + 
-  draw_plot(gg_world_crop, scale = 0.68) + 
-  draw_plot(lpt_w, x = 0.10, y = 0.6, scale = 0.25) + 
-  draw_plot(lpt_b, x = 0.30, y = 0.6, width = 0.25, height = 0.25, vjust = 0) + 
-  draw_plot(lpt_v, x = 0.50, y = 0.6, width = 0.25, height = 0.25, vjust = 0) + 
-  draw_plot(lpt_s, x = 0.70, y = 0.6, width = 0.25, height = 0.25, vjust = 0)
-
-ggsave(plot = gg_fig1,
-       filename = paste0(p_plots, run_label,
-                         "/fig1_test2", ".pdf"),
-       width = 10, height = 6, units = "in", dpi = 400)
-
-
-inset_height <- 0.3
-my_hjust <- 0.5
-
-top_row_y <- 0.85
-bottom_row_y <- 0.15
-
-# figure out plotting alignment
-gcircle <- grid::circleGrob()
-ggdraw() + 
-  draw_plot(gcircle, height = 0.25, 
-            # ok, starts in the middle of the plot (x axis), bottom (y axis)
-            x = 0.1, y = 0.1,
-            hjust = 0.5, vjust = 0.5, 
-            # halign = 0, valign = 0
-            )
-
-
-
-gg_fig1.2 <-
-  ggdraw() + 
-  draw_plot(gg_world_crop, height = 0.45, 
-            x = 0.5, y = 0.5, hjust = 0.5, vjust = 0.5) + 
-    
-  # top row, left to right
-  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[11], ".png"),
-             x = 0.1, y = top_row_y, hjust = 0.5, vjust = 0.5, 
-             height = inset_height) +
-  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[1], ".png"),
-             x = 0.375, y = top_row_y, hjust = 0.5, vjust = 0.5, 
-             height = inset_height) +
-  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[10], ".png"),
-             x = 0.625, y = top_row_y, hjust = 0.5, vjust = 0.5, 
-             height = inset_height) +
-  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[8], ".png"),
-             x = 0.9, y = top_row_y, hjust = 0.5, vjust = 0.5,
-             height = inset_height) #+
-  
-  # left column
-  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[7], ".png"),
-             x = 0, y = 0.6, hjust = 0.5, vjust = 0.5, 
-             height = inset_height) +   
-  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[6], ".png"),
-             x = 0, y = 0.4, hjust = 0.5, vjust = 0.5, 
-             height = inset_height) +
-  
-  # right column
-  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[9], ".png"),
-             x = 1, y = 0.5, hjust = 0.5, vjust = 0.5, 
-             height = inset_height) +   
-  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[3], ".png"),
-             x = 1, y = 0.5, hjust = 0.5, vjust = 0.5, 
-             height = inset_height) +
-    
-    
-  # bottom row
-  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[4], ".png"),
-             x = 0, y = bottom_row_y, hjust = 0.5, vjust = 0.5, 
-             height = inset_height) +   
-  
-  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[2], ".png"),
-             x = 0, y = bottom_row_y, hjust = 0.5, vjust = 0.5, 
-             height = inset_height) +   
-  
-  draw_image(paste0(p_output, "plots/terra_inset", site_df$label[5], ".png"),
-             x = 0, y = bottom_row_y, hjust = 0.5, vjust = 0.5, 
-             height = inset_height)
-
-
-ggsave(plot = gg_fig1.2,
-       filename = paste0(p_plots, run_label,
-                         "/fig1_test3", ".pdf"),
-       width = 8, height = 6, units = "in", dpi = 400)
-
-
-
-
-# backup
-
-# 
-#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[11], ".png"),
-#              x = 0, y = 0, hjust = 0, vjust = 0, halign = 0.0, valign = 1,
-#              height = inset_height) #+
-#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[1], ".png"),
-#              x = 0, y = 1, hjust = 0, vjust = 1, halign = 1/3, valign = 1,
-#              height = inset_height) +
-#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[10], ".png"),
-#              x = 0, y = 1, hjust = 0, vjust = 1, halign = 2/3, valign = 1,
-#              height = inset_height) +
-#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[8], ".png"),
-#              x = 0, y = 1, hjust = 0, vjust = 1, halign = 1, valign = 1,
-#              height = inset_height) +
-#   
-#   # left column
-#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[7], ".png"),
-#              x = 0, y = 0.6, hjust = 0, vjust = 0.5, halign = 0, valign = 0,
-#              height = inset_height) +   
-#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[6], ".png"),
-#              x = 0, y = 0.4, hjust = 0, vjust = 0.5, halign = 0, valign = 0,
-#              height = inset_height) +
-#   
-#   # right column
-#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[9], ".png"),
-#              x = 1, y = 0.5, hjust = 1, vjust = 0, halign = 1, valign = 0,
-#              height = inset_height) +   
-#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[3], ".png"),
-#              x = 1, y = 0.5, hjust = 1, vjust = 1, halign = 1, valign = 0,
-#              height = inset_height) +
-#     
-#     
-#   # bottom row
-#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[4], ".png"),
-#              x = 0, y = 0, hjust = 0, vjust = 0, halign = 0, valign = 0,
-#              height = inset_height) +   
-#   
-#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[2], ".png"),
-#              x = 0, y = 0, hjust = 0, vjust = 0, halign = 1/3, valign = 0,
-#              height = inset_height) +   
-#   
-#   draw_image(paste0(p_output, "plots/terra_inset", site_df$label[5], ".png"),
-#              x = 0, y = 0, hjust = 0, vjust = 0, halign = 2/3, valign = 0,
-#              height = inset_height)
-```
-
-
-```{r map-max-age-composite}
-
-myTheme <- viridisTheme()
-myTheme$regions$col <- viridis(n = 100, direction = -1)
-myTheme$panel.background$col = 'gray95' 
-
-lattice.options(
-  layout.heights=list(bottom.padding=list(x=0), top.padding=list(x = 0)),
-  layout.widths=list(left.padding=list(x=0), right.padding=list(x=0))
-  )
-
-
-# make levelplots for full rasters
-for (i in 1:11) {
-  assign(
-  x = paste0("lp_max", site_df$label[i]),
-  value =
-      levelplot(
-        max_age_r[[i]],
-        main = site_df$description[i],
-        colorkey = TRUE,
-        scales=list(draw=TRUE),
-        par.settings = myTheme, # use myTheme for gray background
-        at = seq(5, 31, by = 1), 
-        xlab = NULL, ylab = NULL,
-        margin = FALSE
-        )
-  )
-}
-
-gg_site_locations <- gg_globe +
-  coord_sf(expand = TRUE, crs = st_crs(paste0("+proj=", "natearth2"))) +
-  theme(legend.position = "none",
-        plot.margin = margin(0, 0, 0, 0, "cm"))
-
-# for testing:
-# pan_top <- plot_grid(tp11, tp1, tp10, tp8, nrow = 1)
-# pan_l <- plot_grid(tp7, tp6, ncol = 1)
-# pan_r <- plot_grid(tp9, tp3, ncol = 1)
-# pan_bottom <- plot_grid(tp4, tp2, tp5, nrow = 1, ncol = 3)
-
-# with full rasters, gray background
-pan_max_top <- plot_grid(lp_max_w, lp_max_b, lp_max_v, lp_max_o, nrow = 1)
-pan_max_l <- plot_grid(lp_max_n, lp_max_mg, ncol = 1)
-pan_max_r <- plot_grid(lp_max_s, lp_max_c, ncol = 1)
-pan_max_bottom <- plot_grid(lp_max_g, lp_max_bh, lp_max_i, nrow = 1, ncol = 3)
-
-pan_max_middle <- plot_grid(pan_max_l, gg_site_locations, pan_max_r, NULL,
-          rel_widths = c(1, 2, 1, 0.05),
-          nrow = 1, ncol = 4)
-
-# save plain composite figure ---------------------------- #
-# 
-
-ggsave(plot = 
-         plot_grid(lp_max_b, lp_max_bh, lp_max_c, lp_max_g, 
-                   lp_max_i, lp_max_mg, lp_max_n, lp_max_o, 
-                   lp_max_s, lp_max_v, lp_max_w, NULL, nrow = 3, ncol = 4),
-       filename = paste0(p_plots, run_label,
-       "/abn_age_maps_max_rev", 
-       run_label, ".pdf"),
-       width = 14, height = 10, units = "in", dpi = 400
-       )
-```
-
-
-```{r end}
+```{r clean-up}
 env_size(ls())
+
+object_size(hl)
 
 tmpFiles(current=TRUE,
          orphan=FALSE, 
