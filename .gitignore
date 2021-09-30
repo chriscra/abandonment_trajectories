@@ -8,8 +8,7 @@ scripts/old/
 scripts/cluster/old/
 scripts/cluster/slurm/
 scripts/misc_ref/
-scripts/PNAS_ms_files/
-scripts/PNAS_si_files/
+scripts/verbose_backups/
 writing/
 
 # specific files to ignore
