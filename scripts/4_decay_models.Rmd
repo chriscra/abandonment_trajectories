@@ -4,14 +4,10 @@ output: html_notebook
 editor_options: 
   chunk_output_type: console
 ---
-```{r initialize}
-source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
-source(paste0(p_proj, "scripts/util/_util_master.R"))
-```
-
 # Assessing the persistence of abandonment by modeling recultivation ("decay")
 
-This R markdown document includes the primary code for developing linear models of the decay of abandoned cropland, or the process through which abandoned land is recultivated over time following initial abandonment.
+This R markdown document includes the primary code for developing linear models of the decay of abandoned cropland, or the process through which abandoned land is recultivated over time following initial abandonment. 
+(See: https://github.com/chriscra/abandonment_trajectories).
 
 This document is loosely organized as follows:  
 1. Loading the derived abandonment length, persistence, and turnover data.
@@ -41,13 +37,17 @@ For example, for the cropland first abandoned in the year 2001, this means it wa
 It has been abandoned for 5 years in the year 2005. 
 We begin modeling recultivation from here, and therefore set the proportion of that cohort of abandoned cropland that remains abandoned to 1.
 
-
 Question 2 led to a series of additional questions:  
 - What is the half-life of abandoned agricultural land? 
 - How does the half-life vary over time?
 - How does the average half-life and the rate of change of the half-life differ across sites?
 
 To provide a simple answer to this, I first calculated the half-life for each cohort at each of my sites, then look at how the half-life evolves over time at each of the sites.
+
+```{r initialize}
+source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
+source(paste0(p_proj, "scripts/util/_util_master.R"))
+```
 
 # Load prepped datasets
 
