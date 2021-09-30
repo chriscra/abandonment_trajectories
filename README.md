@@ -38,7 +38,7 @@ These files include:
 - **3_figures.Rmd** contains code for exploratory data analysis and visualization, including the production of more figures for the manuscript and supporting information.
 - **Crawford_abandonment_MS+SI.Rmd** contains the text of the main text of the manuscript as well as the supporting information. Data is loaded and manipulated directly and programmatically in this document, and the document requires access to data files and figures as a result to knit correctly.
 - **Crawford_abandonment_SI.Rmd** contains only the supporting information text, tables, and figures.
-- **preamble.tex** contains common \LaTeX code for both the manuscript and the supporting information file.
+- **preamble.tex** contains common LaTeX code for both the manuscript and the supporting information file.
 
 
 ### cluster scripts
