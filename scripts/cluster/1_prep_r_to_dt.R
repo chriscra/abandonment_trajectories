@@ -7,10 +7,10 @@
 # Note: this script merges, recodes, and preps land cover rasters from Yin et al. 2020,
 # saving them for use in "2_analyze_all_sites.R"
 
-# It contains two steps:
+# It contains three steps:
 # 1. cc_merge_rasters() // Merge raw raster layers
 # 2. cc_r_to_dt() // Convert raw rasters into data.tables (including renaming and recoding)
-
+# 3. save prepped land cover data.tables as rasters.
 
 # SLURM Scripts that accompany this are:
 # analyze_all_sites.slurm, which runs for all sites except belarus (1), which requires a greater memory allocation.
@@ -25,14 +25,14 @@ cluster_packages <- c("data.table", "tictoc", "raster", "terra",
 install_pkg <- lapply(cluster_packages, library, character.only = TRUE)
 
 # set paths:
-p_dat_derived   <-    "/scratch/network/clc6/abandonment_trajectories/data_derived/"
-p_input_rasters <-    "/scratch/network/clc6/abandonment_trajectories/data_derived/input_rasters/"
-p_output        <-    "/scratch/network/clc6/abandonment_trajectories/output/"
-p_raw_rasters   <-    "/scratch/network/clc6/abandonment_trajectories/raw_rasters/"
+p_dat_derived   <-    "/scratch/gpfs/clc6/abandonment_trajectories/data_derived/"
+p_input_rasters <-    "/scratch/gpfs/clc6/abandonment_trajectories/data_derived/input_rasters/"
+p_output        <-    "/scratch/gpfs/clc6/abandonment_trajectories/output/"
+p_raw_rasters   <-    "/scratch/gpfs/clc6/abandonment_trajectories/raw_rasters/"
 
 
 # source functions:
-source("/home/clc6/abandonment_trajectories/scripts/util/_util_dt_filter_functions.R")
+source("/home/clc6/abandonment_trajectories/scripts/util/_util_functions.R")
 
 
 # array set up -------
@@ -89,14 +89,12 @@ cc_r_to_dt(site = site, site_df = site_df,
 toc(log = TRUE)
 
 
-# To be added...
-# Save renamed and recoded input rasters as rasters, to serve as canonical inputs going forward.
-# This can be adapted from dt_age_to_raster.R
-
-p_input_rasters
+# -------------------------------------------------------- #
+# 3. (Recently added). Save renamed and recoded input land cover data.tables (.csvs) as rasters, 
+# to serve as canonical inputs going forward.
+# This is adapted from dt_age_to_raster.R
 
 # load the data
-# -------------------------------------------------------- #
 tic("load data")
 dt <- fread(file = paste0(p_input_rasters, site, ".csv"))
 toc(log = TRUE)
@@ -115,6 +113,8 @@ tic("write raster")
 writeRaster(r, filename = paste0(p_input_rasters, site, ".tif"))
 toc(log = TRUE)
 
+
+# -------------------------------------------------------- #
 
 toc(log = TRUE) # final toc
 tic.log(format = TRUE) # print the tic log
