@@ -244,10 +244,10 @@ cc_make_dt_binary <- function(dt) {
 
 
 # -------------------------------------------------------------------------- #
-# Filter out pixels that are either all crop or all noncrop
+# Filter out pixels that are either all crop or all noncrop (or NA)
 # -------------------------------------------------------------------------- #
 cc_remove_non_abn <- function(dt) {
-  # this function filters out all rows for which 
+  # this function selects only those rows for which 
   dt[dt[, rowSums(.SD) > 0 & rowSums(.SD) < length(.SD), 
         .SDcols = grep("[xy]$", names(dt), invert = TRUE)], ] 
   
@@ -1227,7 +1227,7 @@ cc_filter_abn_dt_simple <- function(dt) {
 
 cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
                              path = p_dat_derived,
-                             pass_temporal_filter = TRUE, filter_edge = TRUE,
+                             pass_temporal_filter = TRUE, filter_edge,
                              run_label = format(Sys.time(), "_%Y_%m_%d"), # paste0("_", Sys.Date()), # format(Sys.time(), "_%Y-%m-%d_%H%M%S")
                              temporal_filter_replacement_value = 1) {
   
@@ -3243,4 +3243,115 @@ cc_age_levelplot_hist <- function(site_index, year_or_max = "max") {
 }
 
 
+# extrapolation functions ----
+
+# ----------------------------------------------------------------------- #
+# Function to calculate the total amount of abandoned land in a given year, 
+# disaggregated by age, based on the modeled decay rate and the
+# initial area abandoned in each year.
+# This serves as a starting place for extrapolating the
+# area and mean age of abandonment into the future.
+# ----------------------------------------------------------------------- #
+
+cc_estimate_area_abn <- function(year, summarize_area = TRUE, site_ = "shaanxi") {
+  df <- lapply(1988:(year - 4), function(i) {
+    
+    df_tmp <- data.frame(year_abn = i) %>% 
+      mutate(initial_area_abn = filter(persistence_dat, site == site_, year_abn == i) %>% 
+               .$initial_area_abn %>% unique(),
+             age_ = year - i + 1,
+             exp_proportion = filter(fitted_df_l3, site == site_, 
+                                     age == age_) %>% .$fitted,
+             
+             # exp_proportion = mean_coef_tmp$mean_est[2]*log(age - 4) + 
+             #   mean_coef_tmp$mean_est[1]*((age - 4) - 1) + 1,
+             
+             exp_area = initial_area_abn*exp_proportion
+      )
+  }) %>% bind_rows() 
+  
+  if(summarize_area) {
+    df <- df %>% summarise(area = sum(exp_area)) %>% as.numeric() }
+  
+  df
+}
+
+
+# ----------------------------------------------------------------------- #
+# Function to extrapolate mean age based on mean area abandoned in each year
+# ----------------------------------------------------------------------- #
+
+cc_extrapolate_abn <- function(extrapolate_to_year = 2100, 
+                               summarize_area = TRUE, 
+                               fitted_values_df = fitted_df_l3,
+                               site_ = "shaanxi") {
+  
+  future_df <- tibble(
+    site = site_,
+    year = extrapolate_to_year,
+    year_abn = 1988:extrapolate_to_year,
+    mean_initial_area_abn = mean_initial_area_abn %>% filter(site == site_) %>% .$mean_area_abn, # constant area abandoned each year
+    age = extrapolate_to_year - year_abn + 1) %>%
+    
+    # match with fitted values (expected proportions)
+    left_join(.,
+              filter(fitted_values_df, site == site_) %>% 
+                select(age, exp_proportion = fitted),
+              by = c("age")) %>%
+    
+    mutate(exp_area_ha = mean_initial_area_abn * exp_proportion)
+  
+  if(summarize_area) {
+    future_df <- future_df %>% 
+      summarise(exp_total_area_abn = sum(exp_area_ha, na.rm = TRUE),
+                mean_age = 
+                  sum(age*exp_area_ha, na.rm = TRUE) /
+                  sum(exp_area_ha, na.rm = TRUE))
+  }
+  
+  future_df
+}
+
+
+# ---------------------------------------------------------------- #
+# write new function, to implement updated assumption (2.2:
+# ---------------------------------------------------------------- #
+
+cc_extrapolate_abn_a2 <- function(extrapolate_to_year = 2050, 
+                                  summarize_area = TRUE, 
+                                  fitted_values_df = fitted_df_l3,
+                                  site_ = "shaanxi") {
+  
+  mean_initial_area_abn_value <- mean_initial_area_abn %>% filter(site == site_) %>% .$mean_area_abn
+  
+  future_df <- tibble(
+    site = site_,
+    year = extrapolate_to_year,
+    year_abn = 1988:extrapolate_to_year,
+    initial_area_abn = if_else(year_abn <= 2017, mean_initial_area_abn_value,
+                               if_else(year_abn <= 2050, mean_initial_area_abn_value - 
+                                         (year_abn - 2017) * # number of years past end of original time series
+                                         (mean_initial_area_abn_value / (2050-2017)), # incremental decline each year
+                                       0 # no abandonment beyond 2050
+                               )),    
+    age = extrapolate_to_year - year_abn + 1) %>%
+    
+    # match with fitted values (expected proportions)
+    left_join(.,
+              filter(fitted_values_df, site == site_) %>% 
+                select(age, exp_proportion = fitted),
+              by = c("age")) %>% 
+    
+    mutate(exp_area_ha = initial_area_abn * exp_proportion)
+  
+  if(summarize_area) {
+    future_df <- future_df %>% 
+      summarise(exp_total_area_abn = sum(exp_area_ha, na.rm = TRUE),
+                mean_age = 
+                  sum(age*exp_area_ha, na.rm = TRUE) /
+                  sum(exp_area_ha, na.rm = TRUE))
+  }
+  
+  future_df
+}
 
