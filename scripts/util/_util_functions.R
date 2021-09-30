@@ -724,7 +724,7 @@ cc_temporal_filter_count <- function(dt) {
 # -------------------------------------------------------------------------- #
 # Temporal filters, 5-year and 8-year moving window filters (added February 19th, 2021)
 # -------------------------------------------------------------------------- #
-cc_temporal_filter <- function(dt, replacement_value = 1, filter_edge = TRUE) {
+cc_temporal_filter <- function(dt, replacement_value = 1, filter_edge = FALSE) {
   # Five- and eight-year moving window filters designed to address potential misclassification errors
   # in the Yin et al. 2018 time series data.
   
@@ -2329,7 +2329,7 @@ cc_save_area_persistence_plots <- function(input_path,
 # save just the general intro plots
 # ------------------------------------------------------------------------------------ #
 
-cc_4_panel_plots <- function(input_path, 
+cc_si_panel_plots <- function(input_path, 
                              output_path,
                              outfile_label = paste0(run_label, site_label),
                              site,
