@@ -41,12 +41,6 @@ rmarkdown::render("scripts/abn_trajectories_ms.Rmd",
                     paste0(p_proj, "writing/previews/", "abn_duration_draft",
                            format(Sys.Date(), ("_%Y_%m_%d")), ".docx"))
 
-
-# Save PDF with SI for linking below:
-rmarkdown::render("scripts/abn_trajectories_ms.Rmd",
-                  output_file = paste0(p_proj, "writing/previews/", "abn_duration_draft_w_SI.pdf"),
-                  output_format = "bookdown::pdf_document2")
-
 # Save final PDF with SI for submission:
 rmarkdown::render("scripts/abn_trajectories_ms.Rmd",
                   output_file = paste0(p_proj, "writing/", "Crawford_abandonment_MS+SI.pdf"),
@@ -65,8 +59,6 @@ rmarkdown::render("scripts/abn_trajectories_ms.Rmd",
 #   output_options = 
 #     list(reference_docx = "/Users/christophercrawford/Google_Drive/_Projects/writing/scripts/word_style_ref.docx"),
 #   preview = TRUE)
-
-
 ```
 
 ```{r set-chunk-opts, include = FALSE}
