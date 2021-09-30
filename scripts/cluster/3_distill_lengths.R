@@ -33,7 +33,7 @@ cat(fill = TRUE, "Distilling length data.tables for run:", run_label)
 
 
 # -------------------------------------------------------- #
-# 1. Distill the length data, for use in histograms ----
+# Distill the length data, for use in histograms ----
 
 length_distill_df <- lapply(site_df$site, function(x){
   length <- fread(input = paste0(p_input_rasters, x, "_length", run_label, ".csv"))

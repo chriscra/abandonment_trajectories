@@ -115,6 +115,8 @@ ggsave(plot = gg_prop_lc_2017,
        filename = paste0(p_plots, run_label, "/abn_prop_lc_2017", run_label, ".pdf"), 
        width = 4.5, height = 4.5, units = "in")
 
+
+### TBD ###
 # ----------------------------------------------------------------------------- #
 # Part II: At what age does abandoned land transition from grassland to forest?
 # ----------------------------------------------------------------------------- #
