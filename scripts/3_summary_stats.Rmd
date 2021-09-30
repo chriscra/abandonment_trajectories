@@ -7,10 +7,9 @@ editor_options:
   chunk_output_type: console
 ---
 
-Summary statistics for manuscript
+The markdown document calculates the primary summary statistics for the Crawford et al. abandonment trajectories manuscript (see: https://github.com/chriscra/abandonment_trajectories).
+It is loosely organized as follows:
 
-
-This document is loosely organized as follows:
 1. Prepping the derived abandonment length, **persistence, area, and turnover data**.
 
 2. Calculating **summary statistics** for the manuscript, particularly the mean duration of abandonment at each site.
@@ -19,9 +18,8 @@ This document is loosely organized as follows:
   
 3. Calculating the **area abandoned**, resulting in *area_summary_df*. This also involved:
   a. Calculating the area of those pixels classified as cropland at least once during the time series (*the total cropland extent*), 
-  b. Plotting the area in each land cover class over time at each site, and
-  c. Plotting in a three plot panel figure, 1) Area abandoned as of 2017, 2) Area abandoned at least once between 1987-2017, and 3) Area abandoned as of 2017 as a proportion of total cropland extent.
-  d. Calculating the mean proportion of abandoned land that is recultivated at each site (allowing for multiple instances of abandonment for pixel), and how this changes based on the chosen definition of abandonment (1, 3, 5, 7, or 10 years). [Note that the script "cluster/4_lc_of_abn.R" calculates the proportion of abandonment (as of 2017) that is classified as woody vegetation vs. grassy (herbaceous) vegetation.]
+  b. Plotting in a three plot panel figure, 1) Area abandoned as of 2017, 2) Area abandoned at least once between 1987-2017, and 3) Area abandoned as of 2017 as a proportion of total cropland extent.
+  c. Calculating the mean proportion of abandoned land that is recultivated at each site (allowing for multiple instances of abandonment for pixel), and how this changes based on the chosen definition of abandonment (1, 3, 5, 7, or 10 years). [Note that the script "cluster/4_lc_of_abn.R" calculates the proportion of abandonment (as of 2017) that is classified as woody vegetation vs. grassy (herbaceous) vegetation.]
 
 4. Comparing our method for identifying abandonment using the full annual time series to a commonly used two-year method, using just two distinct time points.
   a. This involved creating maps of abandonment as of 2017 using these two methods, 
@@ -38,6 +36,133 @@ mean_length_df$abn_threshold %>% unique()
 ```{r initialize}
 source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
 source(paste0(p_proj, "scripts/util/_util_master.R"))
+```
+
+```{r set-site-params}
+# Make data.frame containing site names, labels, original land cover codes, and noting whether to 1) merge layers into a stack, 2) update land cover codes, or 3) trim extra years
+
+# Primary sites
+# 1. Shaanxi - He
+# 2. Belarus (Smolensk) - He
+# 3. Chongqing - Yanhua (not great -fields are small, mountainous, and lots of clouds) - look at the data to see. 
+# 4. Goias - Ben
+# 5. Mato Grasso - Amintas
+# 6. Nebraska - Seth
+# 7. Wisconsin - David
+# 
+# ok
+# 8. Volgograd - Natalia
+# 9. Orenburg - Natalia
+# 10. Bosnia & Herzegovina (medium)
+# 11. Iraq (medium good, low accuracy over years, but good single accuracy)
+# 
+# exclude 
+# 12. Nepal - Johanna
+# 13. Sardinia - Kasia
+# 14. Uganda - Niwaeli
+
+# CAREFUL!!!!! Land Cover codes are different for each file:
+# Land use class codes: (for He's site, Shaanxi and Belarus)
+#       1. Non-vegetated area (e.g. water, urban, barren land)
+#       2. Woody vegetation
+#       3. Cropland 
+#       4. Herbaceous land (e.g. grassland)
+# 
+# Also be careful of years: Nebraska runs from 1986-2018, Wisconsin 1987:2018. All other sites run 1987-2017.
+
+# Shaanxi (China):      1 others;     2 forest,     3 cropland;     4 grassland
+# Belarus / Russia:     1 others;     2 forest,     3 cropland;     4 grassland
+# Goias (Brazil):       1 others;     2 forest,     3 cropland;     4 grassland
+# Mato Grosso (Brazil): 1 others;     2 forest;     3 cropland;     4 grassland
+# Bosnia & Herzegovina: 1 others;     2 forest;     3 cropland;     4 grassland
+# Chongqing (China):    1 others;     2 forest;     3 cropland;     4 grassland
+
+# Iraq:                 1 others;     2 cropland;   3 forest;       4 grassland
+# Nebraska (US):        1 cropland;   2 forest;     3 others;       4 grassland
+# Orenburg (Russia):    1 others;     2 cropland;   3 grassland;    4 forest
+# Volgograd (Russia):   1 others;     2 cropland;   3 grassland;    4 forest
+# Wisconsin (US):       1 cropland;   2 grassland;  3 forest;       4 others
+
+# list of all sites
+site_list <- c("belarus", "bosnia_herzegovina", "chongqing", 
+               "goias", "iraq", "mato_grosso", 
+               "nebraska", "orenburg", "shaanxi", 
+               "volgograd", "wisconsin")
+
+
+site_label_list <- c("_b", "_bh", "_c", 
+                     "_g", "_i", "_mg", 
+                     "_n", "_o", "_s", 
+                     "_v", "_w")
+
+site_description <- c(
+  "Vitebsk, Belarus / Smolensk, Russia",
+  "Bosnia & Herzegovina", 
+  "Chongqing, China",
+  "Goiás, Brazil",
+  "Iraq", 
+  "Mato Grosso, Brazil",
+  "Nebraska/Wyoming, USA", 
+  "Orenburg, Russia / Uralsk, Kazakhstan",
+  "Shaanxi/Shanxi, China", 
+  "Volgograd, Russia", 
+  "Wisconsin, USA"
+  )
+
+site_merge_layers <- site_list[c(3, 4, 5, 7, 8, 9, 10)]
+c("chongqing", "goias", "iraq", "nebraska", "orenburg", "shaanxi", "volgograd")
+
+site_update_lc <- site_list[c(5, 7, 8, 10, 11)]
+c("iraq", "nebraska", "orenburg", "volgograd", "wisconsin")
+
+
+# make a data.frame outlining site names, labels, whether to update land cover, whether to merge, whether to trim years, original land cover codes etc. 
+site_df <- data.frame(site = site_list,
+                      label = site_label_list) %>% 
+  mutate(merge_layers = ifelse(site %in% 
+                                 c("chongqing", "goias", "iraq", 
+                                   "nebraska", "orenburg", "shaanxi", "volgograd"), 
+                               "Yes", "No"),
+         update_lc = ifelse(site %in% 
+                              c("iraq", "nebraska", "orenburg", 
+                                "volgograd", "wisconsin"), 
+                            "Yes", "No"),
+         trim_years = ifelse(site %in% 
+                               c("nebraska", "wisconsin"), 
+                             "Yes", "No"),
+         other = 1, 
+         woody_veg = 2,
+         cropland = 3,
+         grassland = 4,
+         description = site_description
+         )
+
+# Update land cover classes for the following sites:
+# Iraq:             1 others;     2 cropland;   3 forest;       4 grassland
+# Nebraska:         1 cropland;   2 forest;     3 others;       4 grassland
+# Russia Orenburg:  1 others;     2 cropland;   3 grassland;    4 forest
+# Russia Volgograd: 1 others;     2 cropland;   3 grassland;    4 forest
+# Wisconsin:        1 cropland;   2 grassland;  3 forest;       4 others
+
+site_df[site_df$site == "iraq", 
+        c("other", "cropland", "woody_veg", "grassland")] <- 1:4
+
+site_df[site_df$site == "nebraska", 
+        c("cropland", "woody_veg", "other", "grassland")] <- 1:4
+
+site_df[site_df$site == "orenburg", 
+        c("other", "cropland", "grassland", "woody_veg")] <- 1:4
+
+site_df[site_df$site == "volgograd", 
+        c("other", "cropland", "grassland", "woody_veg")] <- 1:4
+
+site_df[site_df$site == "wisconsin", 
+        c("cropland", "grassland", "woody_veg", "other")] <- 1:4
+
+site_df
+
+# save site_df
+write_csv(site_df, file = paste0(p_dat_derived, "site_df.csv"))
 ```
 
 # Prep datasets
@@ -136,6 +261,8 @@ ggplot(data = area_dat %>% filter(lc != "Abandoned (>1)")
   facet_wrap(vars(site))
 
 ```
+
+
 
 ```{r turnover-dat}
 turnover_file_paths <- list.files(path = paste0(p_dat_derived, run_label)) %>% 
@@ -660,7 +787,7 @@ ggsave(plot = gg_mean_w_violin,
     width = 6, height = 5, units = "in")
 ```
 
-```{r fig2-ggridges}
+```{r *fig2-ggridges}
 # Plot the mean abandonment length at each site, with the distribution of all abandonment lengths displayed behind it, plotted using the {ggridges} package.
 library(ggridges)
 
@@ -1017,37 +1144,6 @@ names(lc_total_crop_mask) <- site_df$site
 
 ```
 
-```{r area-land-cover-facet-grid}
-# ---------------------------------------------------------------------- #
-# plot area in each land cover class in a facet grid
-# ---------------------------------------------------------------------- #
-gg_area_lc_facet_grid <-
-  ggplot(data = area_dat %>% filter(lc != "Abandoned (>1)")) +
-  theme_classic() +
-  # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
-  labs(y = expression("Area  (10"^{6}*" ha)") , 
-       x = "Year", 
-       color = NULL) + 
-  geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
-                          group = lc, color = fct_reorder(lc, lc)),
-            size = 1.5) + 
-  theme(legend.position = c(0.9, 0.12),
-        legend.title = element_text(size = 10)) +
-  scale_color_manual(values = plot_cols[-2]) +
-  
-  guides(color = guide_legend(nrow = 5, ncol = 1)) +
-
-  facet_wrap(vars(site),
-             labeller = as_labeller(cap_update_labels),
-             scales = "free")
-
-
-
-ggsave(plot = gg_area_lc_facet_grid,
-       filename = paste0(p_plots, run_label, "/area_by_lc_grid", run_label, ".pdf"), 
-    width = 7, height = 5, units = "in"
-)
-```
 
 This next chunk accomplishes the following:
 1. Calculate area abandoned summary stats:
