@@ -27,14 +27,14 @@ cluster_packages <- c("data.table", "tictoc", "raster", "terra",
 install_pkg <- lapply(cluster_packages, library, character.only = TRUE)
 
 # set paths:
-p_dat_derived   <-    "/scratch/network/clc6/abandonment_trajectories/data_derived/"
-p_input_rasters <-    "/scratch/network/clc6/abandonment_trajectories/data_derived/input_rasters/"
-p_output        <-    "/scratch/network/clc6/abandonment_trajectories/output/"
-p_raw_rasters   <-    "/scratch/network/clc6/abandonment_trajectories/raw_rasters/"
+p_dat_derived   <-    "/scratch/gpfs/clc6/abandonment_trajectories/data_derived/"
+p_input_rasters <-    "/scratch/gpfs/clc6/abandonment_trajectories/data_derived/input_rasters/"
+p_output        <-    "/scratch/gpfs/clc6/abandonment_trajectories/output/"
+p_raw_rasters   <-    "/scratch/gpfs/clc6/abandonment_trajectories/raw_rasters/"
 
 
 # source functions:
-source("/home/clc6/abandonment_trajectories/scripts/util/_util_dt_filter_functions.R")
+source("/home/clc6/abandonment_trajectories/scripts/util/_util_functions.R")
 
 
 # array set up -------

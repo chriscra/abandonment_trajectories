@@ -26,7 +26,7 @@ Rscript ./2_analyze_abn.R $SLURM_ARRAY_TASK_ID
 # before running, make sure the 
 # 1. Rscript name is correct
 # 2. site_df is uploaded
-# 3. util_dt_filter_functions.R is up to date
+# 3. util_functions.R is up to date
 
 # usage notes:
 # Iraq test took about 1.5 hours and exactly 60 gb. Should give it 70 or 80 next time to be safe.

@@ -27,7 +27,7 @@ Rscript ./2.1_summarize_abn_dts_only.R $SLURM_ARRAY_TASK_ID
 # before running, make sure the 
 # 1. Rscript name is correct
 # 2. site_df is uploaded
-# 3. util_dt_filter_functions.R is up to date
+# 3. util_functions.R is up to date
 
 # run with:
 # sbatch --array [1,8,10] --mem-per-cpu=80G 2.1_summarize_abn_dts_only.slurm
