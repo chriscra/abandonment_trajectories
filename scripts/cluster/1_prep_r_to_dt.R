@@ -5,7 +5,7 @@
 # producing data.tables for further analysis.
 # -------------------------------------------------------- #
 # Note: this script merges, recodes, and preps land cover rasters from Yin et al. 2020,
-# saving them for use in "2_analyze_all_sites.R"
+# saving them for use in "2_analyze_abn.R"
 
 # It contains three steps:
 # 1. cc_merge_rasters() // Merge raw raster layers

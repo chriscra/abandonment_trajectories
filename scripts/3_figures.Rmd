@@ -5,7 +5,7 @@ editor_options:
   chunk_output_type: console
 ---
 
-# Figures and exploratory data analysis
+# Exploratory data analysis and visualization
 
 This document includes code for exploratory data analysis and the production of various figures for the Crawford, et al. See: https://github.com/chriscra/abandonment_trajectories. 
 
