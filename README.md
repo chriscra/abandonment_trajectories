@@ -51,14 +51,14 @@ Each R script is accompanied by a "slurm" script, which sets the parameters for 
 - **2_analyze_abn.R** is the most important analysis script for this work, taking the prepped land cover time series from **1_prep_r_to_dt.R** and applying a series of custom functions to it, filtering the time series to only those pixels that were abandoned croplands, calculating their age in each year, calculating the maximum age throughout the time series for each pixel, saving a map of the age of abandoned cropland as both rasters and data.tables, and finally, extracting summary statistics from these abandonment data products.
 - **2.1_summarize_abn_dts_only.R** performs *only* the final step of the previous script (**2_analyze_abn.R**), extracting a range of summary statistics for each site based on the derived maps of abandonment.
 - **3_distill_lengths.R** takes raw data.tables of the length of each abandonment period (for each pixel) observed during the time series at each site, and distills these tens of millions of pixels down to the frequency of each length at each site. 
-- **4_lc_of_abn.R** calculates the proportion of abandoned cropland (as of 2017) that is classified as woody vegetation vs. grassy (herbaceous) vegetation. This results in summary files "abn_lc_count_2017" & "abn_prop_lc_2017," along with a figure "abn_prop_lc_2017"
+- **4_lc_of_abn.R** calculates the proportion of abandoned cropland (as of 2017) that is classified as woody vegetation vs. grassy (herbaceous) vegetation. This results in summary files "abn_lc_count_2017" & "abn_prop_lc_2017," along with a figure "abn_prop_lc_2017."
 
 
 ### util scripts
 
 The "util" folder contains scripts that include custom analysis functions and pathnames for managing the project:
 
-- **_util_functions.R** contains custom functions written by Christopher Crawford, which underlie the bulk of this analysis. These functions accomplish a variety of tasks, 
-- **_util_misc.R**
+- **_util_functions.R** contains custom functions written by Christopher Crawford, which underlie the bulk of this land cover time series analysis. These functions accomplish a variety of tasks, including: cleaning, filtering, and organizing data; calculating abandonment age; extracting area, persistence, and turnover statistics from abandonment maps; saving plots; and projecting abandonment into the future.
+- **_util_misc.R** includes miscellaneous functions for development, analysis, and plotting.
 - **_util_pathnames.R** includes user-specific pathnames for managing the project, which are used throughout the rest of the analysis scripts. Note, however, that **cluster** scripts make use of alternative pathnames (specific to the Princeton high-performance computing clusters used for the analysis), as specified in each script.
 - **_util_master.R** runs the four "util" scripts described above.
