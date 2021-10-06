@@ -6,10 +6,12 @@
 # Part I: What proportion of the land that was abandoned at each site falls into the different land cover classes?
 # ----------------------------------------------------------------------------- #
 
-# 1. Easiest method is to a) take the abandonment age rasters, select 2017, then b) take the land cover rasters, select 2017, 
-# 2. Merge the two
-# 3. Convert to data.tables
-# 4. Calculate summary statistics
+# 1. Easiest method is to make a stack out of:
+#   a) abandonment age rasters, year 2017, 
+#   b) land cover rasters, year 2017, 
+#   c) area (ha) raster
+# 2. Convert to data.tables
+# 3. Calculate summary statistics
 
 # load site input land cover rasters:
 # --------------- list of all sites ----------------- #
@@ -17,7 +19,10 @@
 site_input_raster_files <- list.files(paste0(p_dat_derived, "input_rasters"), full.names = TRUE) %>%
   grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = TRUE)
 
-site_r <- lapply(seq_along(site_input_raster_files), function(i) {brick(site_input_raster_files[i])})
+# as Raster*
+site_r <- lapply(seq_along(site_input_raster_files), function(i) {
+  raster::brick(site_input_raster_files[i])
+  })
 names(site_r) <- site_df$site
 
 # rename raster layers:
@@ -32,72 +37,113 @@ for (i in 1:11) {
       names(site_r[[i]]) <- paste0("y", 1987:2017)
     }}}
 
-site_r
+
+# as SpatRaster
+site_t <- lapply(seq_along(site_input_raster_files), function(i) {
+  terra::rast(site_input_raster_files[i])
+})
+names(site_t) <- site_df$site
+
+# rename raster layers:
+for (i in 1:11) {
+  if (names(site_t[i]) == "nebraska") {
+    names(site_t[[i]]) <- paste0("y", 1986:2018)
+  } else {
+    if (names(site_t[i]) == "wisconsin") {
+      names(site_t[[i]]) <- paste0("y", 1987:2018)
+    } else {
+      # everything else, just 1987:2017
+      names(site_t[[i]]) <- paste0("y", 1987:2017)
+    }}}
 
 # ----------------- load abandonment age rasters ---------------- #
 # abandonment age maps (produced by Chris)
 age_files <- list.files(paste0(p_dat_derived, "age_rasters/", run_label), full.names = TRUE) %>%
   grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
 
-
-age_r <- lapply(seq_along(age_files), function(i) {brick(age_files[i])})
+# as Raster*
+age_r <- lapply(seq_along(age_files), function(i) {
+  raster::brick(age_files[i])
+  })
 names(age_r) <- site_df$site
 for (i in seq_along(age_r)) {names(age_r[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
 
-abn_lc_count_2017 <- lapply(site_df$site, function(i) {
+# as SpatRaster (for area calculation)
+age_t <- lapply(seq_along(age_files), function(i) {
+  terra::rast(age_files[i])
+})
+names(age_t) <- site_df$site
+for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
+
+
+
+# stack and manipulate #
+
+abn_lc_area_2017 <- lapply(site_df$site, function(i) {
   # Select just the years 2017, and convert to data.tables
   r17 <- stack(
-    site_r[[i]]$y2017,
-    age_r[[i]]$y2017
+    site_r[[i]]$y2017, # land cover in 2017 (Raster*)
+    age_r[[i]]$y2017, # abandonment age in 2017 (Raster*)
+    raster(terra::cellSize(age_t[[i]]$y2017, unit = "ha", mask = FALSE)) # area (ha), calculated as SpatRaster, then converted to Raster*,
   )
-  names(r17) <- c("lc_2017", "age_2017")
+  names(r17) <- c("lc_2017", "age_2017", "area_ha")
   # plot(r17)
-  
+
   # convert to data.tables
   dt17 <- as.data.table.raster(r17)
-
+  
   # where age is greater than or equal to 5, what is the land cover class breakdown?
-  lc_count <- dt17[age_2017 >= 5, .N, by = .(lc_2017, age_2017)] %>% 
-    tibble() %>%
+  # calculate the sum of area, pixels, etc.
+  lc_area <- dt17[age_2017 >= 5, 
+                   .(pixel_count = .N, sum_area_ha = sum(area_ha)), 
+                   by = .(lc_2017, age_2017)] %>% 
+    as_tibble() %>%
     arrange(lc_2017, age_2017) %>%
     mutate(site = i)
   
-  lc_count
+  lc_area
   }
 ) %>% bind_rows()
 
-# save the lc_count_2017 tibble
-write_csv(abn_lc_count_2017, file = paste0(p_dat_derived, run_label, "/", "abn_lc_count_2017", run_label, ".csv"))
-# abn_lc_count_2017 <- read_csv(file = paste0(p_dat_derived, run_label, "/", "abn_lc_count_2017", run_label, ".csv"))
+# save the lc_area_2017 tibble
+write_csv(abn_lc_area_2017, file = paste0(p_dat_derived, run_label, "/derived_data/", "abn_lc_area_2017", run_label, ".csv"))
+# abn_lc_area_2017 <- read_csv(file = paste0(p_dat_derived, run_label, "/derived_data/", "abn_lc_area_2017", run_label, ".csv"))
 
 
 # what proportion of the abandoned land at each site ends up in forest vs. grassland?
-abn_prop_lc_2017 <- abn_lc_count_2017 %>% 
+abn_prop_lc_2017 <- abn_lc_area_2017 %>% 
   group_by(site, lc_2017) %>%
-  summarise(lc_freq = sum(N)) %>%
+  summarise(lc_freq = sum(pixel_count),
+            lc_area_ha = sum(sum_area_ha)) %>%
   left_join(., 
-            abn_lc_count_2017 %>% 
+            abn_lc_area_2017 %>% 
               group_by(site) %>%
-              summarise(abn_freq = sum(N))) %>%
-  mutate(prop_lc = lc_freq/abn_freq) %>% ungroup() %>%
-  left_join(., filter(., lc_2017 == 4) %>% arrange(prop_lc) %>% mutate(order = 1:n()) %>% select(site, order))
+              summarise(abn_freq = sum(pixel_count),
+                        total_abn_ha = sum(sum_area_ha))) %>%
+  mutate(prop_lc_pixels = lc_freq/abn_freq,
+         prop_lc_area_ha = lc_area_ha/total_abn_ha
+         ) %>% 
+  ungroup() %>%
+  left_join(., filter(., lc_2017 == 4) %>% arrange(prop_lc_area_ha) %>% mutate(order = 1:n()) %>% select(site, order))
 
 # save:
-write_csv(abn_prop_lc_2017, file = paste0(p_dat_derived, run_label, "/", "abn_prop_lc_2017", run_label, ".csv"))
-# abn_prop_lc_2017 <- read_csv(file = paste0(p_dat_derived, run_label, "/", "abn_prop_lc_2017", run_label, ".csv"))
+write_csv(abn_prop_lc_2017, file = paste0(p_dat_derived, run_label, "/derived_data/", "abn_prop_lc_2017", run_label, ".csv"))
+# abn_prop_lc_2017 <- read_csv(file = paste0(p_dat_derived, run_label, "/derived_data/", "abn_prop_lc_2017", run_label, ".csv"))
 
   
 # plot
 gg_prop_lc_2017 <- ggplot(data = abn_prop_lc_2017, 
                           mapping = aes(y = fct_reorder(site, order),
-                                 x = prop_lc, 
-                                 # group = as_factor(lc_2017), 
+                                 x = prop_lc_area_ha, 
                                  fill = as_factor(lc_2017))) +
   geom_col(position = position_dodge(), width = 0.6) + 
-  labs(x = "Proportion of abandoned cropland in \neach land cover class (2017)", y = "Site",
+  scale_x_continuous(n.breaks = 10) +
+  labs(x = "Proportion of abandoned cropland area\nin each land cover class (2017)", 
+       y = NULL,
        fill = "Land cover class") + 
   scale_fill_manual(values = c("#276419", "#7FBC41"), labels = c("Forest", "Grassland")) +
-  theme_classic() + theme(legend.position = "top") + 
+  theme_classic() +
+  theme(legend.position = "top") + 
   scale_y_discrete(#expand = c(0.02, 0),
                    labels = c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
                               "bosnia_herzegovina" = "Bosnia &\n Herzegovina",
