@@ -205,6 +205,7 @@ write_csv(persistence_dat, file = paste0(p_dat_derived, "persistence_dat", run_l
 # variables of interest
 # ---------------------------------------------------------------------------- #
 # ---------------------------------------------------------------------------- #
+persistence_dat
 persistence_dat$proportion # response variable: the proportion of originally abandoned land that remains in a given year. 
 persistence_dat$year # the current year, allowing us to measure area abandoned in the current year, relative to the amount initially abandoned
 persistence_dat$year_abn # cohort of land abandoned in a particular year, which is then followed year after year to track persistence.
@@ -234,13 +235,16 @@ area_dat <- lapply(area_file_paths, function(i) {
 names(area_dat) <- site_df$site
 area_dat <- area_dat %>% bind_rows(.id = "site") %>% as_tibble()
 
+area_dat <- area_dat %>% 
+  mutate(lc = replace(lc, lc == "Abandoned (>1)", "Abandoned (>=1)"))
+
 write_csv(area_dat, file = paste0(p_dat_derived, "area_dat", run_label, ".csv"))
 # area_dat <- read_csv(file = paste0(p_dat_derived, "area_dat", run_label, ".csv"))
 
 # ---------------------------------------------------------------------- #
 # plot facet grid
 # ---------------------------------------------------------------------- #
-ggplot(data = area_dat %>% filter(lc != "Abandoned (>1)")
+ggplot(data = area_dat %>% filter(lc != "Abandoned (>=1)")
     ) +
     theme_classic() +
     # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
@@ -1162,10 +1166,10 @@ This next chunk accomplishes the following:
 5. *area_ever_abn_ha* - the area of those pixels that were abandoned at least once during the time series
 6. *total_crop_extent_ha* - the area of those pixels that were classified as cropland at least once during the time series
 7. *total_area_abn_remaining_2017* - duplicate of *area_abn_ha_2017,* the area abandoned as of 2017 (ha)
-8. *total_initial_area_abn* - the sum of the area of each cohort of abandonment at the 5 year mark (this is cumulative, and because it counts those pixels that were abandoned more than once, it is therefore larger than *area_ever_abn_ha*)
-9. *total_area_abn_recultivated_2017* - the area of abandoned land that was recultivated as of 2017 (cumulatively, i.e., *total_initial_area_abn* - *area_abn_ha_2017*
+8. *total_initial_area_abn* - the sum of the initial area of each cohort of abandonment when it is first classified as "abandoned," i.e., at the 5 year mark. Note that this is cumulative, and because it counts those pixels that were abandoned more than once, it is therefore larger than *area_ever_abn_ha*.
+9. *total_area_abn_recultivated_2017* - the area of abandoned land that was recultivated as of 2017 (cumulatively, i.e., *total_initial_area_abn* - *area_abn_ha_2017*)
 10. *proportion_recultivated* - the proportion of all abandoned cropland (including multiple periods per pixel) that was recultivated by 2017 
-11. *area_2017_as_prop_site* - area abandoned as of 2017 as a proportion of  the total site area
+11. *area_2017_as_prop_site* - area abandoned as of 2017 as a proportion of the total site area
 12. *area_2017_as_prop_total_crop* - area abandoned as of 2017 as a proportion of the total crop extent
 13. *area_2017_as_prop_crop87* - area abandoned as of 2017 as a proportion of cropland area in 1987
 14. *area_ever_abn_as_prop_site* - area ever abandoned as a proportion of the total site area
@@ -1506,6 +1510,10 @@ area_recult_threshold %>%
   summarise(sum_abn_2017 = sum(total_area_abn_remaining_2017) / 10^6,
             sum_init_abn = sum(total_initial_area_abn) / 10^6) 
 
+# data description:
+names(area_recult_threshold)
+
+
 
 round(area_summary_df %>% summarise(total_ever_abn_Mha = sum(area_ever_abn_ha)/1e6), digits = 2)
 
@@ -1548,7 +1556,7 @@ What proportion of abandoned land is classified as woody vegetation vs. grassy v
 See "cluster/4_lc_of_abn.R"
 
 ```{r}
-abn_lc_count_2017 <- read_csv(file = paste0(p_dat_derived, run_label, "/", "abn_lc_count_2017", run_label, ".csv"))
+abn_lc_area_2017 <- read_csv(file = paste0(p_dat_derived, run_label, "/", "abn_lc_area_2017", run_label, ".csv"))
 
 abn_prop_lc_2017 <- read_csv(file = paste0(p_dat_derived, run_label, "/", "abn_prop_lc_2017", run_label, ".csv"))
 ```
@@ -1865,7 +1873,13 @@ age_files <- list.files(paste0(p_dat_derived, "age_rasters/", run_label),
                         full.names = TRUE) %>%
   grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
 
-age_t <- lapply(seq_along(age_files), function(i) {rast(age_files[i])})
+# as Raster*
+age_r <- lapply(seq_along(age_files), function(i) {raster::brick(age_files[i])})
+names(age_r) <- site_df$site
+for (i in seq_along(age_r)) {names(age_r[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
+
+# as SpatRaster (for area calculation)
+age_t <- lapply(seq_along(age_files), function(i) {terra::rast(age_files[i])})
 names(age_t) <- site_df$site
 for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
 
@@ -1875,18 +1889,20 @@ for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # reme
 # ---------------------------------------------------------------- #
 
 abn_2yr_ages_df <- lapply(1:11, FUN = function(i){
-  tmp_b <- brick(brick(abn_2yr_mask[[i]]), 
-               brick(age_t[[i]])[[31]],
-               brick(terra::cellSize(abn_2yr_mask[[i]], unit = "km")))
+  tmp_b <- stack(
+    raster(abn_2yr_mask[[i]]), # abandonment identified using the two-year method (2017-1987)
+    age_r[[i]]$y2017, # abandonment age in 2017, calculated using annual time series, five year abandonment definition
+    raster(terra::cellSize(abn_2yr_mask[[i]], unit = "ha", mask = FALSE)) # area (ha), calculated as SpatRaster, then converted to Raster*
+               )
   
-  names(tmp_b) <- c("twoyr_2017", "age_2017", "area_km2")
+  names(tmp_b) <- c("twoyr_2017", "age_2017", "area_ha")
   
   # convert to data.table
   tmp_dt <- as.data.table.raster(tmp_b)
   
   # calculate the sum of area, pixels, etc.
   twoyr_age_df <- tmp_dt[twoyr_2017 > 0, 
-                       .(count = .N, sum_area_km2 = sum(area_km2)), 
+                       .(count = .N, sum_area_ha = sum(area_ha)), 
                        by = age_2017
                        ][order(age_2017)] %>%
     as_tibble() %>% mutate(site = site_df$site[i])
@@ -1896,25 +1912,25 @@ abn_2yr_ages_df <- lapply(1:11, FUN = function(i){
 
 # write to file:
 write_csv(abn_2yr_ages_df, 
-          file = paste0(p_dat_derived, run_label, "/derived_data/", "abn_2yr_ages_df", run_label, ".csv"))
+          file = paste0(p_dat_derived, run_label, 
+                        "/derived_data/", "abn_2yr_ages_df", run_label, ".csv"))
 
 
-abn_2yr_ages_df <- read_csv(file = paste0(p_dat_derived, run_label, "/derived_data/", "abn_2yr_ages_df", run_label, ".csv"))
-
+abn_2yr_ages_df <- read_csv(file = paste0(p_dat_derived, run_label, 
+                                          "/derived_data/", "abn_2yr_ages_df", run_label, ".csv"))
 
 total_area_by_site <- 
   abn_2yr_ages_df %>%
   group_by(site) %>%
   # filter(age_2017 > 0) %>%
   summarise(total_pixels = sum(count),
-            total_area = sum(sum_area_km2)) #%>% as.numeric()
-
+            total_area_ha = sum(sum_area_ha)) #%>% as.numeric()
 
 abn_2yr_ages_summary_df <- 
   abn_2yr_ages_df %>%
   left_join(total_area_by_site, by = "site") %>%
   mutate(percent_px = 100 * count/total_pixels,
-         percent_area = 100 * sum_area_km2/total_area) %>%
+         percent_area = 100 * sum_area_ha/total_area_ha) %>%
   filter(age_2017 < 5) %>%
   group_by(site) %>%
   summarise(sum_p_px = sum(percent_px),
@@ -2033,6 +2049,7 @@ abn_2yr_overestimation <-
 
 abn_2yr_overestimation <- abn_2yr_overestimation %>% 
   left_join(select(abn_2yr_ages_summary_df, -sum_p_px), by = "site")
+
 
 
 # ----------------------------------------------------------- #
