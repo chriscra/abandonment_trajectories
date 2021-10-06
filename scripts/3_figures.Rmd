@@ -470,7 +470,7 @@ ggsave(plot = gg_age_class_bins_grid,
 # plot area in each land cover class in a facet grid
 # ---------------------------------------------------------------------- #
 gg_area_lc_facet_grid <-
-  ggplot(data = area_dat %>% filter(lc != "Abandoned (>1)")) +
+  ggplot(data = area_dat %>% filter(lc != "Abandoned (>=1)")) +
   theme_classic() +
   # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
   labs(y = expression("Area  (10"^{6}*" ha)") , 
@@ -634,7 +634,7 @@ cc_presentation_summary_plots <- function(input_path,
   
   # ------------- calculate total area per lc, with abandonment ---------------- #
   gg_lc_abn_area <-
-    ggplot(data  = area_df #%>% filter(lc != "Abandoned (>1)")
+    ggplot(data  = area_df #%>% filter(lc != "Abandoned (>=1)")
     ) +
     theme_classic() +
     # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +

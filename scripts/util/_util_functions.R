@@ -1512,7 +1512,7 @@ cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster
   
   abandoned_area_df_all <- tibble(
     year = 1987:2017,
-    lc = "Abandoned (>1)",
+    lc = "Abandoned (>=1)",
     area_ha = sapply(1:31, function(i) {
       abn_age_dt[get(paste0("y", 1987:2017)[i]) > 0, 
                  sum(pixel_area) * 100]
@@ -2005,7 +2005,7 @@ cc_save_plot_lc_abn_area <- function(input_area_df, subtitle, outfile_label,
   # }
 
   gg_lc_abn_area <-
-    ggplot(data = input_area_df #%>% filter(lc != "Abandoned (>1)")
+    ggplot(data = input_area_df #%>% filter(lc != "Abandoned (>=1)")
            ) +
     theme_classic() +
     # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
@@ -2348,7 +2348,7 @@ cc_si_panel_plots <- function(input_path,
   
   # ------------- calculate total area per lc, with abandonment ---------------- #
   gg_lc_abn_area <-
-    ggplot(data  = area_df #%>% filter(lc != "Abandoned (>1)")
+    ggplot(data  = area_df #%>% filter(lc != "Abandoned (>=1)")
     ) +
     theme_classic() +
     # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +

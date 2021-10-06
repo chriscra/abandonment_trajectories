@@ -279,6 +279,146 @@ names(lm_0_l) <- site_df$site
 
 ```
 
+```{r coef-all-sites-l3}
+# extract coefficients for log-lin-log-cohort model for all sites
+
+coef_df_l3 <- lapply(lm_lin_log_lin_l, FUN = function(x) {
+  tidy(x, conf.int = TRUE) %>% 
+    mutate(coef_term = sub(":*cohort....:*", "", term),
+         year_abn = ifelse(coef_term == "log(time + 1)", gsub(".*cohort", "", term), parse_number(term)),
+         year_abn = as.numeric(year_abn),
+         cohort = as.factor(year_abn))
+}) %>% bind_rows(.id = "site") %>%
+    mutate(term_long = term,
+           term = as_factor(ifelse(coef_term == "I(time)", "lin", "log"))) %>%
+  select(site, cohort, term, estimate, coef_term, everything())
+
+
+# calculate mean coefficients per site, for both lin and log terms
+mean_coef_df_l3 <- coef_df_l3 %>% 
+  group_by(site, coef_term, term) %>% # group by site, term and coef_term (though you only need one of these)
+  summarise(mean = mean(estimate, na.rm = TRUE),
+            mean_low = mean(conf.low, na.rm = TRUE),
+            mean_high = mean(conf.high, na.rm = TRUE)) %>% ungroup()
+
+
+# pivot wider, for use below in the calculation of projections
+mean_coef_df_wide_l3 <- mean_coef_df_l3 %>%
+  pivot_wider(id_cols = c(site, term), 
+              names_from = term,
+              names_glue = "{term}_{.value}",
+              values_from = c(mean, mean_low, mean_high)) %>%  
+  
+  # calculate the time_to_0.5
+  mutate(time_to_0.5 = ((log_mean * lambertW0((lin_mean * exp(lin_mean/log_mean + 0.5/log_mean - 1/log_mean))/log_mean))/lin_mean) + 4,
+         time_to_0.5_low = ((log_mean_low * lambertW0((lin_mean_low * exp(lin_mean_low/log_mean_low + 0.5/log_mean_low - 1/log_mean_low))/log_mean_low))/lin_mean_low) + 4,
+         time_to_0.5_high = ((log_mean_high * lambertW0((lin_mean_high * exp(lin_mean_high/log_mean_high + 0.5/log_mean_high - 1/log_mean_high))/log_mean_high))/lin_mean_high) + 4
+         )
+
+
+
+# join to all coef df
+coef_df_l3 <- left_join(coef_df_l3, 
+                        mean_coef_df_l3 %>% select(-term),
+                        by = c("site","coef_term"))# %>% filter(site == "belarus") %>% print(n = 30) # for testing purposes
+
+
+
+# pivot coef_df_wide_l3
+coef_df_wide_l3 <- 
+  coef_df_l3 %>%
+  pivot_wider(id_cols = c(site, cohort, year_abn, term), 
+              names_from = term,
+              names_glue = "{term}_{.value}",
+              values_from = estimate) %>%
+  mutate(time_to_0.5 = ((log_estimate * lambertW0((lin_estimate * exp(lin_estimate/log_estimate + 0.5/log_estimate - 1/log_estimate))/log_estimate))/lin_estimate) + 4)
+
+
+# join mean half time to coef_df_wide_l3
+coef_df_wide_l3 <- left_join(coef_df_wide_l3,
+                             mean_coef_df_wide_l3 %>% select(site, lin_mean, log_mean, mean_time_to_0.5 = time_to_0.5),
+                             by = c("site"))
+  
+
+
+# calculate the proportion remaining at various times, projection
+mean_coef_proj_l3 <- bind_rows(mean_coef_df_wide_l3, 
+                          
+                          # time + 1 = i + 4 (since time is age - 5)
+                          lapply(c(0, 5, 10, 15, 20, 25, 35, 45), FUN = function(x) {
+                            mean_coef_df_wide_l3 %>%
+                             # need to update this to reflect the new formula:
+                              #{mean_coef_tmp$mean_est[2]*log(x-4) + mean_coef_tmp$mean_est[1]*((x-4) - 1) + 1}
+                              # mean*log(x) + mean*(x - 1) + 1
+                               mutate(mean = log_mean*log(x + 1) + lin_mean*(x) + 1,
+                                     mean_low = log_mean_low*log(x + 1) + lin_mean_low*(x) + 1,
+                                     mean_high = log_mean_high*log(x + 1) + lin_mean_high*(x) + 1,
+                                     term = paste0("yr_", x + 5))
+                            }))
+
+
+
+seq(from = 0.1, to = 0.5, by = 0.1)
+select(mean_coef_df_wide_l3, -contains("half_"))
+
+
+
+# calculate time to various proportions:
+time_to_l3 <- bind_rows(#select(mean_coef_df_wide_l3, -contains("half_")), 
+                          
+                          # time = i + 4 (since time_1 is age - 4)
+                          lapply(seq(from = 0, to = 1,# 0.9, 
+                                     by = 0.1), FUN = function(x) {
+                            select(mean_coef_df_wide_l3, -contains("half_")) %>%
+                                         
+                                         # solve a log(u) + b(u-1) + 1 - p = 0 for u : 
+                                         # (in this case, u = t + 1, so we're solving for t + 1. 
+                                         # Remember that age = t + 5 = u + 4)
+                                         
+                                         # age = (a * lambertW0((b * exp((b + p - 1)/a))/a))/b + 4
+                                           
+                              # where p is the proportion, a is the log coef, and b is the linear coef.
+                               mutate(
+                                 time_to_value = ((log_mean * lambertW0((lin_mean * exp((lin_mean + x - 1)/log_mean)) / 
+                                                                        log_mean)) / lin_mean) + 4,
+                                 time_to_value_low = ((log_mean_low * 
+                                                         lambertW0((lin_mean_low * exp((lin_mean_low + x - 1)/log_mean_low)) / 
+                                                                     log_mean_low)) / lin_mean_low) + 4,
+                                 time_to_value_high = ((log_mean_high * 
+                                                          lambertW0((lin_mean_high * exp((lin_mean_high + x - 1)/log_mean_high)) /
+                                                                      log_mean_high)) / lin_mean_high) + 4,
+                                     proportion = paste0("p_", x),
+                                 p = x)
+                            }))
+
+
+# save dfs:
+coef_df_l3
+coef_df_wide_l3
+mean_coef_df_l3
+mean_coef_df_wide_l3
+mean_coef_proj_l3
+time_to_l3
+
+
+
+# ------------------------------------------------------------------------ #
+# save coef data.frames
+# ------------------------------------------------------------------------ #
+save(coef_df_l3, 
+     coef_df_wide_l3, 
+     mean_coef_df_l3, 
+     mean_coef_df_wide_l3, 
+     mean_coef_proj_l3, 
+     time_to_l3,
+     file = paste0(p_dat_derived, run_label, "/derived_data", "/decay_mod_coef_dfs.rds"))
+
+
+load(file = paste0(p_dat_derived, run_label, "/derived_data", "/decay_mod_coef_dfs.rds"),
+     verbose = TRUE)
+```
+
+
 
 ```{r run-mega-lm}
 # These "mega" lms just mean that the lm() function is performed on the full "persistence_dat" dataset, using site as a fixed effect in addition to cohort. 
@@ -340,7 +480,7 @@ lm_mega_0_l <- lm(log(proportion) ~ 0 + time,
 ```
 
 
-```{r mega-lm}
+```{r mega-lm-exploration}
 # note: it shouldn't make a difference whether you run the model for each site individually or as one mega model. For simplicity, I'm going to continue with the site specific models, since that is how I've largely coded things so far. However, note that the confidence intervals on the individual models will be different from the CIs for the full model including all sites.
 
 # constructing a model of all sites, with cohort and site fixed effects
@@ -507,6 +647,7 @@ car::qqPlot(lm(log(proportion) ~ 0 + log(time + 1):cohort:site,
                data = filter(persistence_dat[-2092, ], year_abn < 2013)))
 
 ```
+
 
 
 ## Check Assumptions
@@ -1765,145 +1906,6 @@ for (i in 1:11) {
 
 ## Model Coef. Plots (lin-log-lin)
 
-```{r coef-all-sites-l3}
-# extract coefficients for log-log-cohort model for all sites
-
-coef_df_l3 <- lapply(lm_lin_log_lin_l, FUN = function(x) {
-  tidy(x, conf.int = TRUE) %>% 
-    mutate(coef_term = sub(":*cohort....:*", "", term),
-         year_abn = ifelse(coef_term == "log(time + 1)", gsub(".*cohort", "", term), parse_number(term)),
-         year_abn = as.numeric(year_abn),
-         cohort = as.factor(year_abn))
-}) %>% bind_rows(.id = "site") %>%
-    mutate(term_long = term,
-           term = as_factor(ifelse(coef_term == "I(time)", "lin", "log"))) %>%
-  select(site, cohort, term, estimate, coef_term, everything())
-
-
-# calculate mean coefficients per site, for both lin and log terms
-mean_coef_df_l3 <- coef_df_l3 %>% 
-  group_by(site, coef_term, term) %>% # group by site, term and coef_term (though you only need one of these)
-  summarise(mean = mean(estimate, na.rm = TRUE),
-            mean_low = mean(conf.low, na.rm = TRUE),
-            mean_high = mean(conf.high, na.rm = TRUE)) %>% ungroup()
-
-
-# pivot wider, for use below in the calculation of projections
-mean_coef_df_wide_l3 <- mean_coef_df_l3 %>%
-  pivot_wider(id_cols = c(site, term), 
-              names_from = term,
-              names_glue = "{term}_{.value}",
-              values_from = c(mean, mean_low, mean_high)) %>%  
-  
-  # calculate the time_to_0.5
-  mutate(time_to_0.5 = ((log_mean * lambertW0((lin_mean * exp(lin_mean/log_mean + 0.5/log_mean - 1/log_mean))/log_mean))/lin_mean) + 4,
-         time_to_0.5_low = ((log_mean_low * lambertW0((lin_mean_low * exp(lin_mean_low/log_mean_low + 0.5/log_mean_low - 1/log_mean_low))/log_mean_low))/lin_mean_low) + 4,
-         time_to_0.5_high = ((log_mean_high * lambertW0((lin_mean_high * exp(lin_mean_high/log_mean_high + 0.5/log_mean_high - 1/log_mean_high))/log_mean_high))/lin_mean_high) + 4
-         )
-
-
-
-# join to all coef df
-coef_df_l3 <- left_join(coef_df_l3, 
-                        mean_coef_df_l3 %>% select(-term),
-                        by = c("site","coef_term"))# %>% filter(site == "belarus") %>% print(n = 30) # for testing purposes
-
-
-
-# pivot coef_df_wide_l3
-coef_df_wide_l3 <- 
-  coef_df_l3 %>%
-  pivot_wider(id_cols = c(site, cohort, year_abn, term), 
-              names_from = term,
-              names_glue = "{term}_{.value}",
-              values_from = estimate) %>%
-  mutate(time_to_0.5 = ((log_estimate * lambertW0((lin_estimate * exp(lin_estimate/log_estimate + 0.5/log_estimate - 1/log_estimate))/log_estimate))/lin_estimate) + 4)
-
-
-# join mean half time to coef_df_wide_l3
-coef_df_wide_l3 <- left_join(coef_df_wide_l3,
-                             mean_coef_df_wide_l3 %>% select(site, lin_mean, log_mean, mean_time_to_0.5 = time_to_0.5),
-                             by = c("site"))
-  
-
-
-# calculate the proportion remaining at various times, projection
-mean_coef_proj_l3 <- bind_rows(mean_coef_df_wide_l3, 
-                          
-                          # time + 1 = i + 4 (since time is age - 5)
-                          lapply(c(0, 5, 10, 15, 20, 25, 35, 45), FUN = function(x) {
-                            mean_coef_df_wide_l3 %>%
-                             # need to update this to reflect the new formula:
-                              #{mean_coef_tmp$mean_est[2]*log(x-4) + mean_coef_tmp$mean_est[1]*((x-4) - 1) + 1}
-                              # mean*log(x) + mean*(x - 1) + 1
-                               mutate(mean = log_mean*log(x + 1) + lin_mean*(x) + 1,
-                                     mean_low = log_mean_low*log(x + 1) + lin_mean_low*(x) + 1,
-                                     mean_high = log_mean_high*log(x + 1) + lin_mean_high*(x) + 1,
-                                     term = paste0("yr_", x + 5))
-                            }))
-
-
-
-seq(from = 0.1, to = 0.5, by = 0.1)
-select(mean_coef_df_wide_l3, -contains("half_"))
-
-
-
-# calculate time to various proportions:
-time_to_l3 <- bind_rows(#select(mean_coef_df_wide_l3, -contains("half_")), 
-                          
-                          # time = i + 4 (since time_1 is age - 4)
-                          lapply(seq(from = 0, to = 1,# 0.9, 
-                                     by = 0.1), FUN = function(x) {
-                            select(mean_coef_df_wide_l3, -contains("half_")) %>%
-                                         
-                                         # solve a log(u) + b(u-1) + 1 - p = 0 for u : 
-                                         # (in this case, u = t + 1, so we're solving for t + 1. 
-                                         # Remember that age = t + 5 = u + 4)
-                                         
-                                         # age = (a * lambertW0((b * exp((b + p - 1)/a))/a))/b + 4
-                                           
-                              # where p is the proportion, a is the log coef, and b is the linear coef.
-                               mutate(
-                                 time_to_value = ((log_mean * lambertW0((lin_mean * exp((lin_mean + x - 1)/log_mean)) / 
-                                                                        log_mean)) / lin_mean) + 4,
-                                 time_to_value_low = ((log_mean_low * 
-                                                         lambertW0((lin_mean_low * exp((lin_mean_low + x - 1)/log_mean_low)) / 
-                                                                     log_mean_low)) / lin_mean_low) + 4,
-                                 time_to_value_high = ((log_mean_high * 
-                                                          lambertW0((lin_mean_high * exp((lin_mean_high + x - 1)/log_mean_high)) /
-                                                                      log_mean_high)) / lin_mean_high) + 4,
-                                     proportion = paste0("p_", x),
-                                 p = x)
-                            }))
-
-
-# save dfs:
-coef_df_l3
-coef_df_wide_l3
-mean_coef_df_l3
-mean_coef_df_wide_l3
-mean_coef_proj_l3
-time_to_l3
-
-
-
-# ------------------------------------------------------------------------ #
-# save coef data.frames
-# ------------------------------------------------------------------------ #
-save(coef_df_l3, 
-     coef_df_wide_l3, 
-     mean_coef_df_l3, 
-     mean_coef_df_wide_l3, 
-     mean_coef_proj_l3, 
-     time_to_l3,
-     file = paste0(p_dat_derived, run_label, "/decay_mod_coef_dfs.rds"))
-
-
-load(file = paste0(p_dat_derived, run_label, "/decay_mod_coef_dfs.rds"), 
-     verbose = TRUE)
-```
-
 ```{r plot-mean-coef-per-site-l3}
 
 # quasi half-lives
@@ -1936,7 +1938,8 @@ print(gg_mean_coef_site_l3)
 dev.off()
 
 mean_coef_proj_l3$term %>% unique()
-
+View(mean_coef_proj_l3)
+View(time_to_l3)
 gg_example_proportions_by_site_l3 <-
   ggplot(data = mean_coef_proj_l3 %>% filter(!is.na(term), #term != "p5"
                                              term %in% c("yr_10", "yr_15", "yr_20", "yr_25", "yr_30")
@@ -2002,6 +2005,8 @@ fitted_df_l3 <- lapply(site_df$site, FUN = function(x) {
 
 write_csv(fitted_df_l3, file = paste0(p_dat_derived, run_label, "/decay_mod_fitted_df_l3", run_label, ".csv"))
 # fitted_df_l3 <- read_csv(file = paste0(p_dat_derived, run_label, "/decay_mod_fitted_df_l3", run_label, ".csv"))
+
+fitted_df_l3 %>% group_by(site) %>% summarise(n = n())
 ```
 
 ```{r *fig3-mean-trend-by-site-l3}
@@ -3242,7 +3247,6 @@ future_df_l3 <-
 
 future_df_l3 %>% filter(site == "shaanxi") %>% arrange(desc(year), desc(year_abn))
 
-
 # save future_df_l3
 write_csv(future_df_l3, file = paste0(p_dat_derived, run_label, "/future_df_l3", run_label, ".csv"))
 # future_df_l3 <- read_csv(file = paste0(p_dat_derived, run_label, "/future_df_l3", run_label, ".csv"))
@@ -3252,6 +3256,7 @@ write_csv(future_df_l3, file = paste0(p_dat_derived, run_label, "/future_df_l3",
 # ----------------------- #
 # calculate the mean age
 # ----------------------- #
+extrapolate_df_l3$year %>% unique() %>% sort()
 
 extrapolate_df_l3 <- future_df_l3 %>% 
   group_by(site, year) %>%
