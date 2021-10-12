@@ -3695,6 +3695,53 @@ ggsave(plot = gg_obs_v_exp,
 
 ```
 
+
+
+```{r plot-mean-age-in-2050}
+# load files:
+mean_length_df <- read_csv(file = paste0(p_derived2, "mean_length_df", run_label, ".csv"))
+extrapolate_df_l3 <- read_csv(file = paste0(p_derived2, "/extrapolate_df_l3", run_label, ".csv"))
+extrapolate_df_l3_a2 <- read_csv(file = paste0(p_derived2, "/extrapolate_df_l3_a2", run_label, ".csv"))
+
+
+# assumption 1 - constant initial area abandoned
+mean_age_in_2050 <- mean_length_df %>% filter(abn_threshold == 5, length_type == "all") %>%
+  select(site, mean_age_obs = mean_duration) %>%
+  left_join(., extrapolate_df_l3 %>% filter(year == 2050) %>% select(site, mean_age_extrap1 = mean_age), by = "site") %>%
+  left_join(., extrapolate_df_l3_a2 %>% filter(year == 2050) %>% select(site, mean_age_extrap2 = mean_age), by = "site") %>%
+  arrange(mean_age_obs)
+   
+gg_mean_age_in_2050 <- mean_age_in_2050 %>%
+  pivot_longer(cols = c(2:4), names_to = "variable") %>%
+  ggplot(data = ., mapping = aes(x = fct_reorder(site, value), y = value, fill = variable)) + 
+  labs(x = NULL, #"Site", 
+       y = "Mean abandonment duration (years)") +
+  geom_col(position = position_dodge()) + coord_flip() + 
+  scale_fill_discrete(name = "Mean duration type: ", 
+                      labels = c(mean_age_obs = "Observed (1987-2017)", 
+                                 mean_age_extrap1 = "Extrapolation 1 (2050)",
+                                 mean_age_extrap2 = "Extrapolation 2 (2050)")) +
+  scale_x_discrete(labels = c("belarus" = "Vitebsk, Belarus /\n Smolensk, Russia",
+                              "bosnia_herzegovina" = "Bosnia & Herzegovina",
+                              "chongqing" = "Chongqing, China",
+                              "goias" = "Goiás, Brazil",
+                              "iraq" = "Iraq",
+                              "mato_grosso" = "Mato Grosso, Brazil",
+                              "nebraska" = "Nebraska/Wyoming, USA",
+                              "orenburg" = "Orenburg, Russia /\n Uralsk, Kazakhstan",
+                              "shaanxi" = "Shaanxi/Shanxi, China",
+                              "volgograd" = "Volgograd, Russia",
+                              "wisconsin" = "Wisconsin, USA")) +
+  theme_classic()
+
+# save
+ggsave(plot = gg_mean_age_in_2050,
+       filename = paste0(p_plots, run_label, "/mean_age_in_2050", run_label, ".pdf"),
+       width = 7, height = 5, units = "in"
+       )
+```
+
+
 ## Extrapolation 2
 In order to change the second assumption, we need to alter the "mean_initial_area_abn" parameter.
 
