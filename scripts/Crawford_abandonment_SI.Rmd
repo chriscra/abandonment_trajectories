@@ -21,7 +21,7 @@ editor_options:
   chunk_output_type: console
 bibliography: [/Users/christophercrawford/Google_Drive/Library/library.bib, packages.bib]
 link-citations: yes
-csl: nature.csl
+csl: science-advances.csl
 lineno: true
 urlcolor: blue
 linkcolor: black
@@ -695,7 +695,7 @@ Table \@ref(tab:twoyr-diff-table) shows the area of abandoned croplands as ident
 These two methods produced abandonment area estimates that ranged between `r abs(abn_2yr_stats$low_percent)`% lower (`r abn_2yr_stats$low_p_site`) and `r abn_2yr_stats$high_percent`% higher (`r abn_2yr_stats$high_p_site`) than the abandoned area identified using the full time series.
 
 Not only do these methods produce different area estimates, but they also differ in the location of the abandonment they identify, with spatial agreement of only `r abn_2yr_stats$jaccard_low`% (`r abn_2yr_stats$jaccard_low_site`) to `r abn_2yr_stats$jaccard_high`% (`r abn_2yr_stats$jaccard_high_site`) (see Table \@ref(tab:twoyr-diff-table)).
-We measure spatial agreement using the Jaccard similarity index [Legendre2012], a measure of overlap between two sets, defined as the proportion of shared elements, or the intersection divided by the union (Equation \@ref(eq:jaccard-equation)) [@Legendre2012]:
+We measure spatial agreement using the Jaccard similarity index [@Legendre2012], a measure of overlap between two sets, defined as the proportion of shared elements, or the intersection divided by the union (Equation \@ref(eq:jaccard-equation)) [@Legendre2012]:
 
 \begin{equation}
 J(a,b) = \frac{a\cap b}{a\cup b} (\#eq:jaccard-equation)
@@ -934,7 +934,7 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/turnover_grid", run_
 # knitr::include_graphics(path = paste0(p_plots, run_label, "/mean_lengths", run_label, ".pdf")) 
 
 # new version, flipped, with histograms
-knitr::include_graphics(path = paste0(p_plots, "fig2_w_max_right.pdf"))
+knitr::include_graphics(path = paste0(p_plots, "fig2_w_max.pdf"))
 ```
 
 (ref:caption-maps-max-abn-duration) Maximum duration of cropland abandonment (in years) observed at each pixel between 1987 and 2017 in our eleven study sites. This serves as a companion to maps of the abandonment duration as of 2017 shown in Figure 1. Site locations are shown in Figure \@ref(fig:global-map).
@@ -1077,36 +1077,7 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "extrapolat
 (ref:caption-mean-duration-2050) Comparing the mean duration of abandonment at our 11 sites observed between 1987 and 2017 with the extrapolated mean duration as of 2050 for our two extrapolations.
 
 ```{r mean-duration-2050, fig.cap = '(ref:caption-mean-duration-2050)', echo=FALSE}
-# assumption 1 - constant initial area abandoned
-
-mean_age_in_2050 <- mean_length_df %>% filter(abn_threshold == 5, length_type == "all") %>%
-  select(site, mean_age_obs = mean_duration) %>%
-  left_join(., extrapolate_df_l3 %>% filter(year == 2050) %>% select(site, mean_age_extrap1 = mean_age), by = "site") %>%
-  left_join(., extrapolate_df_l3_a2 %>% filter(year == 2050) %>% select(site, mean_age_extrap2 = mean_age), by = "site") %>%
-  arrange(mean_age_obs)
-   
-mean_age_in_2050 %>%
-  pivot_longer(cols = c(2:4), names_to = "variable") %>%
-  ggplot(data = ., mapping = aes(x = fct_reorder(site, value), y = value, fill = variable)) + 
-  labs(x = NULL, #"Site", 
-       y = "Mean abandonment duration (years)") +
-  geom_col(position = position_dodge()) + coord_flip() + 
-  scale_fill_discrete(name = "Mean duration type: ", 
-                      labels = c(mean_age_obs = "Observed (1987-2017)", 
-                                 mean_age_extrap1 = "Extrapolation 1 (2050)",
-                                 mean_age_extrap2 = "Extrapolation 2 (2050)")) +
-  scale_x_discrete(labels = c("belarus" = "Vitebsk, Belarus /\n Smolensk, Russia",
-                              "bosnia_herzegovina" = "Bosnia & Herzegovina",
-                              "chongqing" = "Chongqing, China",
-                              "goias" = "Goiás, Brazil",
-                              "iraq" = "Iraq",
-                              "mato_grosso" = "Mato Grosso, Brazil",
-                              "nebraska" = "Nebraska/Wyoming, USA",
-                              "orenburg" = "Orenburg, Russia /\n Uralsk, Kazakhstan",
-                              "shaanxi" = "Shaanxi/Shanxi, China",
-                              "volgograd" = "Volgograd, Russia",
-                              "wisconsin" = "Wisconsin, USA")) +
-  theme_classic()
+knitr::include_graphics(path = paste0(p_plots, run_label, "/mean_age_in_2050", run_label, ".pdf"))
 ```
 
 (ref:caption-panel-b) Abandonment patterns for `r site_df$description[1]`, showing a) accumulation of abandoned land by age class, b) decay of abandoned land by year abandoned, c) the area in each land cover class through time (including both land that has been abandoned for five or more years, as well as any land abandoned for 1 or more years, therefore including short-term fallows), d) the annual turnover of abandoned land through time, and e) the distribution of abandonment duration for all periods of cropland abandonment (top) and the maximum duration of abandonment at each pixel (bottom).

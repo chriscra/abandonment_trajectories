@@ -628,6 +628,7 @@ ggsave(plot = gg_mean_length_by_threshold_side + scale_fill_manual(values = viri
     width = 8.5, height = 5, units = "in")
 ```
 
+
 ## Distributions of abandonment lengths (durations)
 
 ```{r histograms-of-lengths}
@@ -980,7 +981,7 @@ ggsave(plot =
                legend.text.align = 0,
                legend.title.align = 1),
        
-       filename = paste0(p_plots, "/fig2_right.pdf"), 
+       filename = paste0(p_plots, "/fig2.pdf"), 
     width = 3.42, height = 5, units = "in")
 ```
 
@@ -1081,7 +1082,7 @@ ggsave(plot = gg_mean_length_ridges_w_max +
                legend.box.just = "left",
                legend.text.align = 0, 
                legend.title.align = 1),
-       filename = paste0(p_plots, "/fig2_w_max_right.pdf"), 
+       filename = paste0(p_plots, "/fig2_w_max.pdf"), 
     width = 3.42, height = 5, units = "in")
 
 ```
@@ -2145,6 +2146,10 @@ gt_2yr
 
 gtsave(gt_2yr, filename = paste0(p_plots, run_label, "/", 
                          "table_1_abn_2yr_overestimation.png"))
+
+# note, can also use kableExtra::kable_as_image() to save the table
+
+
 
 ```
 
