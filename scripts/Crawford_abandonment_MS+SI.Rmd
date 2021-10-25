@@ -14,7 +14,7 @@ date:
   \today
 output:
   bookdown::word_document2:
-    reference_docx: /Users/christophercrawford/Google_Drive/_Projects/writing/scripts/word_style_ref.docx
+    reference_docx: /Users/christophercrawford/work/projects/writing/scripts/word_style_ref.docx
     number_sections: false
   bookdown::pdf_document2:
     toc: false
@@ -23,7 +23,7 @@ output:
       in_header: "preamble.tex"
 editor_options:
   chunk_output_type: console
-bibliography: [/Users/christophercrawford/Google_Drive/Library/library.bib, packages.bib]
+bibliography: [/Users/christophercrawford/work/library/library.bib, packages.bib]
 link-citations: yes
 csl: science-advances.csl
 urlcolor: blue
@@ -32,7 +32,7 @@ citecolor: black
 ---
 
 ```{r load-packages-functions, eval = TRUE, echo = FALSE, include = FALSE}
-source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
+source("/Users/christophercrawford/work/projects/abandonment_trajectories/scripts/0_start.R")
 ```
 
 ```{r preview-chapter, eval=FALSE, include = FALSE}
@@ -57,7 +57,7 @@ rmarkdown::render("scripts/Crawford_abandonment_MS+SI.Rmd",
 #   output_file = paste0("abn_duration_draft", format(Sys.Date(), ("_%Y_%m_%d")), ".docx"),
 #   output_dir = paste0(p_proj, "writing/previews"),
 #   output_options = 
-#     list(reference_docx = "/Users/christophercrawford/Google_Drive/_Projects/writing/scripts/word_style_ref.docx"),
+#     list(reference_docx = "/Users/christophercrawford/work/projects/writing/scripts/word_style_ref.docx"),
 #   preview = TRUE)
 ```
 
@@ -104,7 +104,7 @@ knitr::write_bib(x = c(needed_packages, github_packages), file = 'packages.bib')
 run_label <- "_2021_03_13"
 
 # Additional paths --------------------------------------------------- #
-p_plots <- "/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/"
+p_plots <- "/Users/christophercrawford/work/projects/abandonment_trajectories/output/plots/"
 p_derived2 <- paste0(p_dat_derived, run_label, "/derived_data/")
 
 # load general spatial data on site locations --------------------------------------------------- #
@@ -258,7 +258,7 @@ future_df_l3 <- read_csv(file = paste0(p_derived2, "/future_df_l3", run_label, "
 
 # figures:
 # this is a chunk for including a pre-existing plot or graphic.
-#knitr::include_graphics("/Users/christophercrawford/Google_Drive/_Projects/Zambia/agroEcoTradeoff/external/plots/Estes-plots_test.png")
+#knitr::include_graphics("/Users/christophercrawford/work/projects/Zambia/agroEcoTradeoff/external/plots/Estes-plots_test.png")
 
 # Figure captions:
 # https://bookdown.org/yihui/rmarkdown-cookbook/cross-ref.html
@@ -355,7 +355,7 @@ Unless policymakers take steps to reduce recultivation or provide incentives for
 
 Human populations are in flux around the world, as people seek new economic opportunities in cities and flee changing environments and conflicts [@Sanderson2018].
 Urbanization and rural outmigration, together with environmental degradation and changing agricultural technologies, have reduced the economic viability of many agricultural lands and contributed to a growing global trend of cropland abandonment [@ReyBenayas2007; @Prishchepov2021].
-Given increasing competition for land, abandoned croplands have been targeted for diverse goals such as biofuel production [@Naess2021], carbon sequestration [@Griscom2017; @Chazdon2016a], biodiversity and ecosystem restoration [@Chazdon2020; @Xie2019; @Navarro2012], or recultivation [@Meyfroidt2016].
+Given increasing competition for land, abandoned croplands have been targeted for diverse goals such as biofuel production [@Naess2021], carbon sequestration [@Griscom2017; @Chazdon2016a], biodiversity and ecosystem restoration [@Chazdon2020; @Xie2019; @Navarro2012; @Perino2019], or recultivation [@Meyfroidt2016].
 
 Tens of millions of hectares of agricultural lands have been abandoned since 1950 [@Li2017], with abandonment predicted to continue in many places [@Sanderson2018; @Popp2017], but for how long and to what end remains unclear.
 Understanding the environmental effects of abandonment requires detailed information on not only where and when abandonment takes place, but also on what happens to croplands after they are abandoned.

@@ -45,7 +45,7 @@ Question 2 led to a series of additional questions:
 To provide a simple answer to this, I first calculated the half-life for each cohort at each of my sites, then look at how the half-life evolves over time at each of the sites.
 
 ```{r initialize}
-source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
+source("/Users/christophercrawford/work/projects/abandonment_trajectories/scripts/0_start.R")
 source(paste0(p_proj, "scripts/util/_util_master.R"))
 ```
 

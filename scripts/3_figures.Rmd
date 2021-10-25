@@ -13,7 +13,7 @@ Not all of the code is necessary, and this script is included largely for explor
 Chunks are meant to be walked through sequentially.
 
 ```{r initialize}
-source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
+source("/Users/christophercrawford/work/projects/abandonment_trajectories/scripts/0_start.R")
 ```
 
 ```{r load-data}

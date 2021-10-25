@@ -132,6 +132,11 @@ scale_this <- function(x){
 # ----------------------- plotting colors ------------------------ 
 # --------------------------------------------------------------- #
 
+# from: https://medialab.github.io/iwanthue/
+cbf_col <- c("#6972d7", "#9fac3a", "#583586", "#69a150", "#b853a2",
+              "#45c097", "#ba4b7d", "#c1893c", "#628ed6", "#b85136",
+              "#bf81d7", "#ba4758")
+
 # general ggplot color palette
 gg_color_hue <- function(n) {
   hues = seq(15, 375, length = n + 1)

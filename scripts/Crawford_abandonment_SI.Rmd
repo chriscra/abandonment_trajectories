@@ -19,7 +19,7 @@ output:
       in_header: "preamble.tex"
 editor_options:
   chunk_output_type: console
-bibliography: [/Users/christophercrawford/Google_Drive/Library/library.bib, packages.bib]
+bibliography: [/Users/christophercrawford/work/library/library.bib, packages.bib]
 link-citations: yes
 csl: science-advances.csl
 lineno: true
@@ -38,7 +38,7 @@ rmarkdown::render("scripts/Crawford_abandonment_SI.Rmd",
 
 
 ```{r load-packages-functions, eval = TRUE, echo = FALSE, include = FALSE}
-source("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/scripts/0_start.R")
+source("/Users/christophercrawford/work/projects/abandonment_trajectories/scripts/0_start.R")
 # source(paste0(p_proj, "scripts/util/_util_master.R"))
 # devtools::install_github("benmarwick/wordcountaddin", type = "source", dependencies = TRUE)
 
@@ -86,7 +86,7 @@ knitr::write_bib(x = c(needed_packages, github_packages), file = 'packages.bib')
 run_label <- "_2021_03_13"
 
 # Additional paths --------------------------------------------------- #
-p_plots <- "/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/output/plots/"
+p_plots <- "/Users/christophercrawford/work/projects/abandonment_trajectories/output/plots/"
 p_derived2 <- paste0(p_dat_derived, run_label, "/derived_data/")
 
 # load general spatial data on site locations --------------------------------------------------- #
@@ -205,7 +205,7 @@ future_df_l3 <- read_csv(file = paste0(p_derived2, "/future_df_l3", run_label, "
 
 # figures:
 # this is a chunk for including a pre-existing plot or graphic.
-#knitr::include_graphics("/Users/christophercrawford/Google_Drive/_Projects/Zambia/agroEcoTradeoff/external/plots/Estes-plots_test.png")
+#knitr::include_graphics("/Users/christophercrawford/work/projects/Zambia/agroEcoTradeoff/external/plots/Estes-plots_test.png")
 
 # Figure captions:
 # https://bookdown.org/yihui/rmarkdown-cookbook/cross-ref.html

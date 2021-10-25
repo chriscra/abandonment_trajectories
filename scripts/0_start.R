@@ -3,9 +3,9 @@
 # Start File: load packages, functions, and pathnames
 # 
 # --------------------------------------------------------------- #
-# setwd("/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories")
+# setwd("/Users/christophercrawford/work/projects/abandonment_trajectories")
 
-p_proj <- "/Users/christophercrawford/Google_Drive/_Projects/abandonment_trajectories/"
+p_proj <- "/Users/christophercrawford/work/projects/abandonment_trajectories/"
 
 
 # ------------------------- #
