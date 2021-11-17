@@ -1577,4 +1577,14 @@ tmpFiles(current=TRUE,
 warnings()
 ```
 
+```{r new-clean-up}
+os <- get_sizes(ls())
+os
+
+# rm(list = os$object[2:5])
+
+os %>% 
+  summarise(total_env_size = sum(size)) %>% 
+  mutate(gb = total_env_size / 1024^3)
+```
 

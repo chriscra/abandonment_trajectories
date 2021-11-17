@@ -43,6 +43,18 @@ env_size <- function(workspace = ls()) {
 # 
 # get_env_size()
 
+
+# ------------------------- #
+# return a tibble of objects and their sizes
+# ------------------------- #
+
+get_sizes <- function(stuff) {
+  lapply(stuff, function(i) {
+    tibble(object = i, size = obj_size(get(i)))
+  }) %>% bind_rows() %>% arrange(desc(size)) %>% mutate(mb = size / 1024^2)
+}
+
+
 # ------------------------- #
 # calculate a dummy data.table
 # ------------------------- #
