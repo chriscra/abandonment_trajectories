@@ -1561,30 +1561,135 @@ ggsave(plot =
        )
 ```
 
-```{r clean-up}
-env_size(ls())
 
-object_size(hl)
 
-tmpFiles(current=TRUE,
-         orphan=FALSE, 
-         old=TRUE, 
-         remove=TRUE)
+# Quadrant plot
+```{r quadrant}
+# The idea: a measure of abandonment decay on the y-axis, and a measure of abandonment extent on the x-axis
 
-tmpFiles(current=TRUE,
-         orphan=FALSE, 
-         old=TRUE)
-warnings()
+
+# load required files:
+
+
+
+# -------- x-axis ----------- #
+# abandonment as of 2017, as a proportion of total cropland extent
+area_summary_df %>% 
+  select(site, area_abn_ha_2017, area_ever_abn_ha, area_2017_as_prop_total_crop)
+
+
+
+# -------- y-axis ----------- #
+# half life on the y-axis
+time_to_l3$p %>% unique()
+
+time_to_l3 %>% filter(p == 0.5) %>%
+  select(site, time_to_value_low, time_to_value, time_to_value_high, p) %>% 
+  # mutate(time_to_value_high = ifelse(is.na(time_to_value_high), 0, time_to_value_high)) %>%
+  arrange(time_to_value)
+
+
+quadrant_df <- area_summary_df %>% 
+  select(site, area_abn_ha_2017, area_ever_abn_ha, area_2017_as_prop_total_crop) %>%
+  left_join(time_to_l3 %>% 
+              filter(p == 0.5) %>%
+              select(site, time_to_value_low, time_to_value, time_to_value_high, p),
+            by = "site") %>%
+  left_join(., site_df %>% select(site, description), by = "site") %>%
+  mutate(description = ifelse(site == "belarus", "Vitebsk, Belarus /\nSmolensk, Russia", description),
+         description = ifelse(site == "orenburg", "Orenburg, Russia /\nUralsk, Kazakhstan", description))
+
+# plot
+gg_quadrant <- ggplot(data = quadrant_df, 
+       mapping = aes(x = area_2017_as_prop_total_crop,
+                     y = time_to_value,
+                     # label = site,
+                     size = area_abn_ha_2017/10^3
+                     )) + 
+  geom_point() + 
+  geom_label_repel(aes(x = area_2017_as_prop_total_crop,
+                     y = time_to_value, 
+                     label = description), 
+                  inherit.aes = FALSE,
+                  box.padding   = 1.5, 
+                  point.padding = 1,
+                  min.segment.length = 0,
+                  # nudge_x = 5,
+                  # direction = "x",
+                  # force = 1,
+                  segment.color = 'grey10'
+                  ) +
+  geom_vline(xintercept = mean(quadrant_df$area_2017_as_prop_total_crop), 
+             linetype="dashed", alpha = 0.4, colour = "red") +
+  geom_hline(yintercept = mean(quadrant_df$time_to_value), 
+             linetype="dashed", alpha = 0.4, colour = "red") +
+  labs(x = "Area abandoned as a percent (%) of total cropland extent",
+       y = "Half-life (years)",
+       size = "Area abandoned \n(2017, kha)",
+       caption = "Dashed red lines represent mean values") +
+  theme_classic() + 
+    theme(legend.position = c(0.15, 0.8)) + 
+    scale_size_continuous(range = c(0.1, 10))
+
+
+# save 
+ggsave(plot = gg_quadrant,
+       filename = paste0(p_plots, run_label, "/quadrant_fig", run_label, ".pdf"), 
+       width = 7, height = 6, 
+       # width = 3.42, height = 3.4, 
+       units = "in")
+
+ggplot(data = quadrant_df, 
+       mapping = aes(x = area_2017_as_prop_total_crop,
+                     y = time_to_value,
+                     # label = site,
+                     size = area_abn_ha_2017/10^3)) + 
+  geom_point() + 
+  # theme(legend.position = c(0.25, 0.8)) + 
+  scale_size_continuous(range = c(0.1, 12)) + 
+  labs(size = NULL)
+
+
+# trying with other ways to represent x and y
+ggplot(data = quadrant_df, 
+       mapping = aes(x = area_2017_as_prop_total_crop,
+                     y = time_to_value,
+                     # label = site,
+                     size = area_abn_ha_2017/area_ever_abn_ha)) + 
+  geom_point() + labs(size = NULL)
+
 ```
 
-```{r new-clean-up}
-os <- get_sizes(ls())
-os
 
-# rm(list = os$object[2:5])
+
+# End
+
+```{r clean-up}
+os <- get_sizes(ls())
 
 os %>% 
   summarise(total_env_size = sum(size)) %>% 
   mutate(gb = total_env_size / 1024^3)
+
+os %>% print(n = 20)
+
+
+rm(list = os$object[c(1:2)])
+
+# terra and raster temp files
+terra::tmpFiles(current=TRUE, orphan=FALSE, old=FALSE, 
+                remove=TRUE)
+
+terra::tmpFiles(current=TRUE, orphan=TRUE, old=TRUE, 
+                remove=TRUE)
+
+raster::rasterTmpFile()
+raster::showTmpFiles()
+raster::removeTmpFiles()
+
+
+
 ```
+
+
 
