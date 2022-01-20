@@ -35,7 +35,7 @@ mean_length_df$abn_threshold %>% unique()
 
 ```{r initialize}
 source("/Users/christophercrawford/work/projects/abandonment_trajectories/scripts/0_start.R")
-source(paste0(p_proj, "scripts/util/_util_master.R"))
+source(paste0(p_proj, "scripts/util/_util_main.R"))
 ```
 
 ```{r set-site-params}

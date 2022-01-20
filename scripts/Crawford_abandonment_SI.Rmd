@@ -39,7 +39,7 @@ rmarkdown::render("scripts/Crawford_abandonment_SI.Rmd",
 
 ```{r load-packages-functions, eval = TRUE, echo = FALSE, include = FALSE}
 source("/Users/christophercrawford/work/projects/abandonment_trajectories/scripts/0_start.R")
-# source(paste0(p_proj, "scripts/util/_util_master.R"))
+# source(paste0(p_proj, "scripts/util/_util_main.R"))
 # devtools::install_github("benmarwick/wordcountaddin", type = "source", dependencies = TRUE)
 
 # replace the following figure references:

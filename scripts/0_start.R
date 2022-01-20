@@ -34,9 +34,12 @@ needed_packages <- c(
   
   # visualization:
   "rasterVis", "RColorBrewer", "viridis", "scales", "colorspace",
+  "MetBrewer",
+  "dotwhisker",
   "patchwork", "cowplot", # for combining multiple plots
   "ggridges",
   "ggpubr", # for extracting legends
+  "ggnewscale", # for adding multiple color or fill scales
   "animation", "magick", "ggrepel",
   "plotly", # plotly makes interactive graphics!
   
@@ -127,5 +130,5 @@ github_packages_inst <- sapply(github_packages, library, character.only = TRUE) 
 
 
 # ----- load other functions ----
-source(paste0(p_proj, "scripts/util/_util_master.R"))
+source(paste0(p_proj, "scripts/util/_util_main.R"))
 

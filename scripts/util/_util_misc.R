@@ -13,6 +13,13 @@
 
 
 # ------------------------- #
+# Calculate standard error 
+# ------------------------- #
+se <- function(x) sqrt(var(x, na.rm = TRUE) / length(na.omit(x)))
+
+
+
+# ------------------------- #
 # calculate the sizes of items in the environment
 # ------------------------- #
 env_size <- function(workspace = ls()) {
@@ -125,6 +132,24 @@ cap_update_labels <- function(string) {
                                                      gsub("_", " ", string))))))))
 }
 # for use in facet_wrap(labeller = as_labeller(cap_update_labels))
+# or scale_y_discrete(labels = cap_update_labels)
+
+# ------------------------ #
+# capitalize site labels & and add breaks
+# ------------------------ #
+
+fancy_labels <- c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
+                  "bosnia_herzegovina" = "Bosnia &\nHerzegovina",
+                  "chongqing" = "Chongqing, China",
+                  "goias" = "Goiás, Brazil",
+                  "iraq" = "Iraq",
+                  "mato_grosso" = "Mato Grosso,\nBrazil",
+                  "nebraska" = "Nebraska /\nWyoming, USA",
+                  "orenburg" = "Orenburg, Russia /\nUralsk, Kazakhstan",
+                  "shaanxi" = "Shaanxi/Shanxi,\nChina",
+                  "volgograd" = "Volgograd, Russia",
+                  "wisconsin" = "Wisconsin, USA")
+
 
 
 
