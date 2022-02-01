@@ -1,6 +1,37 @@
 # Final land cover classes of abandoned and recultivated lands
-# Christopher Crawford, March 23rd, 2021
+# Christopher Crawford, March 23rd, 2021, updated Feb 1, 2022
 # ----------------------------------------------------------------------- #
+
+# load libraries
+cluster_packages <- c("data.table", "tictoc", "raster", "terra", 
+                      "landscapemetrics", "landscapetools", "sp",
+                      "tidyverse", "rgdal", "dtraster")
+install_pkg <- lapply(cluster_packages, library, character.only = TRUE)
+
+# set paths:
+p_dat_derived   <-    "/scratch/gpfs/clc6/abandonment_trajectories/data_derived/"
+p_input_rasters <-    "/scratch/gpfs/clc6/abandonment_trajectories/data_derived/input_rasters/"
+p_output        <-    "/scratch/gpfs/clc6/abandonment_trajectories/output/"
+p_raw_rasters   <-    "/scratch/gpfs/clc6/abandonment_trajectories/raw_rasters/"
+p_tmp           <-    "/scratch/gpfs/clc6/abandonment_trajectories/data_derived/tmp/"
+
+
+# set terra autosave options:
+terraOptions(tempdir = p_tmp)
+rasterOptions(tmpdir = p_tmp)
+
+# source functions:
+source("/home/clc6/abandonment_trajectories/scripts/util/_util_functions.R")
+
+# tic.clearlog()
+# tic("full script")
+
+# set up parameters:
+site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
+
+run_label <- "_2022_01_31" #"_2021_03_13" # "_2021-03-05"
+
+
 
 # ----------------------------------------------------------------------------- #
 # Part I: What proportion of the land that was abandoned at each site falls into the different land cover classes?
@@ -16,8 +47,8 @@
 # load site input land cover rasters:
 # --------------- list of all sites ----------------- #
 # prepared input rasters (derived by Chris)
-site_input_raster_files <- list.files(paste0(p_dat_derived, "input_rasters"), full.names = TRUE) %>%
-  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = TRUE)
+site_input_raster_files <- list.files(p_input_rasters, full.names = TRUE) %>%
+  grep("clean.tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = TRUE)
 
 # as Raster*
 site_r <- lapply(seq_along(site_input_raster_files), function(i) {
@@ -58,8 +89,8 @@ for (i in 1:11) {
 
 # ----------------- load abandonment age rasters ---------------- #
 # abandonment age maps (produced by Chris)
-age_files <- list.files(paste0(p_dat_derived, "age_rasters/", run_label), full.names = TRUE) %>%
-  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
+age_files <- list.files(p_input_rasters, full.names = TRUE) %>%
+  grep(paste0(run_label, ".tif"), ., value = TRUE) %>% grep("max_age", ., value = TRUE, invert = TRUE)
 
 # as Raster*
 age_r <- lapply(seq_along(age_files), function(i) {
@@ -106,7 +137,7 @@ abn_lc_area_2017 <- lapply(site_df$site, function(i) {
 ) %>% bind_rows()
 
 # save the lc_area_2017 tibble
-write_csv(abn_lc_area_2017, file = paste0(p_dat_derived, run_label, "/derived_data/", "abn_lc_area_2017", run_label, ".csv"))
+write_csv(abn_lc_area_2017, file = paste0(p_dat_derived, "abn_lc_area_2017", run_label, ".csv"))
 # abn_lc_area_2017 <- read_csv(file = paste0(p_dat_derived, run_label, "/derived_data/", "abn_lc_area_2017", run_label, ".csv"))
 
 
@@ -127,7 +158,7 @@ abn_prop_lc_2017 <- abn_lc_area_2017 %>%
   left_join(., filter(., lc_2017 == 4) %>% arrange(prop_lc_area_ha) %>% mutate(order = 1:n()) %>% select(site, order))
 
 # save:
-write_csv(abn_prop_lc_2017, file = paste0(p_dat_derived, run_label, "/derived_data/", "abn_prop_lc_2017", run_label, ".csv"))
+write_csv(abn_prop_lc_2017, file = paste0(p_dat_derived, "abn_prop_lc_2017", run_label, ".csv"))
 # abn_prop_lc_2017 <- read_csv(file = paste0(p_dat_derived, run_label, "/derived_data/", "abn_prop_lc_2017", run_label, ".csv"))
 
   
@@ -158,7 +189,7 @@ gg_prop_lc_2017 <- ggplot(data = abn_prop_lc_2017,
                               "wisconsin" = "Wisconsin, USA"))
 
 ggsave(plot = gg_prop_lc_2017,
-       filename = paste0(p_plots, run_label, "/abn_prop_lc_2017", run_label, ".pdf"), 
+       filename = paste0(p_dat_derived, "/abn_prop_lc_2017", run_label, ".pdf"), 
        width = 4.5, height = 4.5, units = "in")
 
 
