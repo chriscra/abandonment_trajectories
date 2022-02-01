@@ -36,6 +36,7 @@ mean_length_df$abn_threshold %>% unique()
 ```{r initialize}
 source("/Users/christophercrawford/work/projects/abandonment_trajectories/scripts/0_start.R")
 source(paste0(p_proj, "scripts/util/_util_main.R"))
+
 ```
 
 ```{r set-site-params}
@@ -166,6 +167,11 @@ write_csv(site_df, file = paste0(p_dat_derived, "site_df.csv"))
 ```
 
 # Prep datasets
+```{r run-label}
+run_label <- "_2022_01_31" #"_2021_03_13"
+
+```
+
 
 ```{r persistence_dat}
 # find file path names to persistence data.frames:
@@ -312,7 +318,6 @@ ggplot() +
 ```
 
 ```{r load-data}
-run_label <- "_2021_03_13"
 
 # load combined persistence, area, and turnover datasets:
 
@@ -342,18 +347,17 @@ This involved using "length_distill_df" (a summary of the number of abandonment 
 
 # Script to produce length plots based on distilled length data.tables from "3_distill_lengths.R"
 # -------------------------------------------------------- #
-
-
-# download from the cluster with the following bash command:
-# scp clc6@della:/scratch/network/clc6/abandonment_trajectories/data_derived/input_rasters/length_distill_df_2021-03-05.csv /Users/christophercrawford/Google\ Drive/_Projects/abandonment_trajectories/data_derived/_2021-03-05/
+# Download via _3_4.slurm:
+# cd /Users/christophercrawford/work/projects/abandonment_trajectories/data_derived/_2022_01_31
+# scp clc6@della:/scratch/gpfs/clc6/abandonment_trajectories/data_derived/input_rasters/*result*_2022_01_31* ./
+# scp clc6@della:/scratch/gpfs/clc6/abandonment_trajectories/data_derived/input_rasters/length_distill_df_2022_01_31.csv ./
+# scp clc6@della:/scratch/gpfs/clc6/abandonment_trajectories/data_derived/input_rasters/recult_length_distill_df_2022_01_31.csv ./
+# scp clc6@della:/scratch/gpfs/clc6/abandonment_trajectories/data_derived/abn_*_2022_01_31* ../
 
 
 # set up parameters:
 # data.frame of all sites contains information about sites
 site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
-
-run_label <- "_2021_03_13" #"_2021-03-05"
-# _2021_03_13
 
 
 # 0. Load distilled length data
@@ -538,9 +542,9 @@ ggsave(plot = gg_mean_length,
 #     units = "in", res = 400)
 # print(gg_mean_length)
 # dev.off()
-
-library(colorblindr)
-cvd_grid(gg_mean_length)
+# 
+# library(colorblindr)
+# cvd_grid(gg_mean_length)
 ```
 
 
@@ -820,9 +824,10 @@ gg_mean_length_ridges <-
     data = length_distribution, 
     mapping = aes(y = fct_reorder(site, desc(order)), 
                   x = length, group = site),
-    stat = "binline", bins = 26, 
+    stat = "binline", bins = 26, # these parameters control how smooth the distribution is, or whether it is binned.
     scale = 0.95) + 
   
+  # Add a vertical line indicating the mean value across sites
   geom_vline(data = mean_length_df %>% 
                group_by(abn_threshold, length_type) %>%
                summarise(overall_mean = mean(mean_duration, na.rm = TRUE)) %>% 
@@ -833,6 +838,7 @@ gg_mean_length_ridges <-
              color = hue_pal()(3)[1]) + 
   scale_linetype_manual(values = c("Mean across all sites" = "dashed")) +
   
+  # add points indicating the mean value for each site
   geom_point(data = mean_length_df %>%
            filter(abn_threshold == "5", length_type == "all"),
              mapping = aes(y = fct_reorder(site, desc(order)),
@@ -888,7 +894,7 @@ ggsave(plot =
                legend.title.align = 1)
          ,
        
-       filename = paste0(p_plots, "/fig2_left.pdf"), 
+       filename = paste0(p_plots, "/fig2_left", run_label, ".pdf"), 
     width = 3.42, height = 5, units = "in")
 
 
@@ -981,7 +987,7 @@ ggsave(plot =
                legend.text.align = 0,
                legend.title.align = 1),
        
-       filename = paste0(p_plots, "/fig2.pdf"), 
+       filename = paste0(p_plots, "/fig2", run_label, ".pdf"), 
     width = 3.42, height = 5, units = "in")
 ```
 
@@ -1082,7 +1088,7 @@ ggsave(plot = gg_mean_length_ridges_w_max +
                legend.box.just = "left",
                legend.text.align = 0, 
                legend.title.align = 1),
-       filename = paste0(p_plots, "/fig2_w_max.pdf"), 
+       filename = paste0(p_plots, "/fig2_w_max", run_label, ".pdf"), 
     width = 3.42, height = 5, units = "in")
 
 ```
@@ -2131,10 +2137,10 @@ gt_2yr <- abn_2yr_overestimation %>%
   tab_header(title = "Table 1. Cropland abandonment (in Mha) as of 2017 as identified using a) our annual time series and a five-year abandonment definition and b) the difference between only two years.") %>%
   tab_options(heading.align = "left") %>%
   cols_label(
-    description = "Site", 
-    area_ha_cc = "Area (annual, as of 2017)", 
-    area_2yr = "Area (2017-1987)", 
-    percent_diff = "Percent Difference", 
+    description = "Site",
+    area_ha_cc = "Area (annual, as of 2017)",
+    area_2yr = "Area (2017-1987)",
+    percent_diff = "Percent Difference",
     jaccard = "Jaccard Similarity") %>%
   cols_align(align = "left", columns = description) %>%
   cols_align(align = "right", columns = c("area_ha_cc", "area_2yr", "percent_diff", "jaccard")) %>%
@@ -2149,6 +2155,239 @@ gtsave(gt_2yr, filename = paste0(p_plots, run_label, "/",
 
 # note, can also use kableExtra::kable_as_image() to save the table
 
+
+
+```
+
+# Revision sandbox:
+
+Factors that require consideration:
+- can I simply reverse the way `cc_calc_age()` works? (i.e., 0 to 1). YES
+- should I restrict recultivation to only the periods following abandonment of 5 years or more? YES
+- 
+
+```{r calculating-length-of-recultivation}
+
+{ # replicate the abn filtering
+dt <- cc_create_bin(numcol = 25)
+dt[c(3, 13), 12:15] <- 0
+dt[c(13), 22:25] <- 0
+# dt <- data.table::copy(dt0)
+
+dt_age <- data.table::copy(dt)
+cc_calc_age(dt_age)
+cc_erase_non_abn_periods(dt_age)
+dt_diff <- cc_diff_dt(dt_age)
+al_df <- cc_extract_length(dt_diff, length_type = "abandonment")
+}
+
+# now, produce a mock script
+
+# tomorrow: write a script to load in the necessary data.tables, then write out the dt_recult.
+
+
+# ----- 0. Start - load the original 1s and 0s data.table (recoded) ----- #
+# dt_recult_age <- fread(input = paste0(path, site, "_binary.csv"))
+dt_recult_age <- data.table::copy(dt)
+
+# make a big file:
+# simplest way
+dt <- cc_create_dt(numrow = 4e7, numcol = 25)
+dt_recult_age <- data.table::copy(dt)
+# prep "big" versions of other data.tables:
+dt_age <- data.table::copy(dt)
+cc_calc_age(dt_age)
+cc_erase_non_abn_periods(dt_age)
+dt_diff <- cc_diff_dt(dt_age)
+
+# rm(dt, dt_age, dt_diff, dt_recult_age, dt_recult, dt_recult_diff, dt_recult_filter)
+
+obj_size(dt_recult_age)
+
+# ----- 1. Run the recultivation age calculator function, specifying abn_threshold, and save to file. ----- #
+# 1.1 Run recult_age function:
+cat(fill = TRUE, "Run cc_calc_recult_age() function, calculating the age of recultivated lands.")
+tic("Run cc_calc_recult_age() (dt_recult_age)")
+dt_recult_age <- cc_calc_recult_age(dt = dt_recult_age, 
+                                    dt_age = dt_age,
+                                    dt_diff = dt_diff,
+                                    abn_threshold = 5)
+toc(log = TRUE)
+
+
+# 1.2. Write out cleaned recultivation age data.table
+cat(fill = TRUE, "Write out cleaned recultivation age data.table to:", paste0(path, site, "_recult_age", run_label,".csv"))
+tic("wrote out cleaned recultivation age data.table (dt_recult_age)")
+fwrite(dt_recult_age, file = paste0(path, site, "_recult_age", run_label,".csv"))
+toc(log = TRUE)
+
+
+# ----- 2. Calculate recultivation diff data.table, to use to extract lengths, and save to file. ----- #
+# Produces a data.table with year-to-year lagged differences (each year subtracted by the previous year, much like base::diff())
+
+# 2.1. Run diff function
+cat(fill = TRUE, "Make dt_diff, with year-to-year lagged differences: cc_diff_dt()")
+tic("made dt_recult_diff")
+
+dt_recult_diff <- cc_diff_dt(dt_recult_age)
+toc(log = TRUE)
+
+# 2.2. Write out dt_recult_diff
+cat(fill = TRUE, "Write out dt_recult_diff to:", 
+    paste0(path, site, "_recult_diff", run_label,".csv"))
+tic("write out dt_diff")
+fwrite(dt_recult_diff, file = paste0(path, site, "_recult_diff", run_label,".csv"))
+toc(log = TRUE)
+
+
+# ----- 3. Extract the length of each period of recultivation following a qualifying period of abandonment, turn into a data.table, and save to file ----- #
+
+# 3.1. Extract length.
+cat(fill = TRUE, "Extract the length of each period of recultivation: cc_extract_length()")
+tic("extracted length")
+# note that this function can be easily modified to search for positive or negative numbers, if multiplying the
+# data.tables by -1 takes a long time. 
+recult_length <- cc_extract_length(dt_recult_diff, length_type = "recultivation")
+toc(log = TRUE)
+
+# 3.2. Create a data.table listing the lengths.
+cat(fill = TRUE, "Create a data.table listing the recultivations lengths, write to:", 
+    paste0(path, site, "_recult_length", run_label,".csv"))
+tic("created data.table of recultivation lengths")
+
+recult_length <- data.table(length = recult_length)
+toc(log = TRUE)
+
+# 3.3. Write to file.
+tic("wrote out length data.table")
+fwrite(recult_length, file = paste0(path, site, "_recult_length", run_label,".csv"))
+toc(log = TRUE)
+
+
+
+# produce a combined data.table with positive ages of abandonment and negative ages of recultivation.
+dt_combo <- dt_age + dt_recult
+
+
+# ------------------------------------------------------------------------ #
+# extras:
+
+# Very useful for comparing the effect of each successive stage of the filtering process.
+dt_diff[, ':='(type = "diff", row = 1:nrow(dt_diff), V1 = NA)]
+dt_age[, ':='(type = "age", row = 1:nrow(dt_age), end = NA)]
+dt_diffc <- rbind(dt_age, dt_diff)
+
+setcolorder(dt_diffc, c("row", "type", paste0("V", 1:25), "end"))
+dt_diffc[order(row, type)]
+
+
+# make a big file:
+# simplest way
+big <- cc_create_dt(numrow = 4e7, numcol = 25)
+
+
+```
+
+## New, simpler extrapolation 
+
+How can I start counting in the first year of abandonment (or qualifying periods of abandonment) and just keep counting, assuming they were never recultivated?
+
+Idea: add the dt_age (abn) and dt_recult_age together, and then run the cc_calc_age() function again
+```{r extrapolate-no-recultivation}
+
+{ # replicate the abn filtering
+dt <- cc_create_bin(numcol = 25)
+dt[c(3, 13), 12:15] <- 0
+dt[c(13), 22:25] <- 0
+# dt <- data.table::copy(dt0)
+
+# abn age
+dt_age <- data.table::copy(dt)
+cc_calc_age(dt_age)
+cc_erase_non_abn_periods(dt_age)
+dt_diff <- cc_diff_dt(dt_age)
+al_df <- cc_extract_length(dt_diff, length_type = "abandonment")
+
+# recultivation age
+dt_recult_age <- data.table::copy(dt)
+dt_recult_age <- cc_calc_recult_age(dt = dt_recult_age, dt_age = dt_age, dt_diff = dt_diff, abn_threshold = 1)
+dt_recult_diff <- cc_diff_dt(dt_recult_age)
+recult_length <- cc_extract_length(dt_recult_diff, length_type = "recultivation")
+recult_length <- data.table(length = recult_length)
+
+
+dt_combo <- dt_age - dt_recult_age
+}
+
+dt_age
+dt_recult_age
+dt_combo
+```
+
+
+```{r terra-extrapolate-no-recultivation}
+# terra solution:
+age_t[[9]]
+
+
+```
+
+
+# Calculating cluster times
+
+```{r seff}
+# extract run codes:
+list.files("scripts/cluster/slurm_out") %>% grep("*run*", ., value = TRUE) %>%
+  str_extract(., "[0-9]{6,10}_[0-9]{1,2}") %>%
+  paste0("seff ", .) %>%
+  paste(., collapse = "; ") %>%
+  cat()
+
+1202/60 # 20 minutes for shaanxi
+
+
+cat(
+  paste("seff", paste0("39004952_", 1:27), collapse = "; "),
+  "> text2.txt"
+    )
+# Use the above to make seff calls to get the full times and memory usage for the full array run
+# then copy and paste this output into a 
+
+
+paste("seff", paste0("39537809_", c(1, 7, 8, 10)), collapse = "; ")
+paste("seff", paste0("39537810_", c(2, 4, 5, 11)), collapse = "; ")
+paste("seff", paste0("39537811_", c(3, 6)), collapse = "; ")
+paste("seff", paste0("39537812_", 9), collapse = "; ")
+
+
+txt <- read_csv("scripts/ref/seff_out_run_1_2.2.csv")
+txt <- read_csv("scripts/ref/seff_out_aoh_abn_lc.csv")
+txt <- read_csv("scripts/ref/seff_out_max.csv")
+
+txt %>% print(n = 15)
+
+
+seff <- tibble(
+  # core_index = 1:11,
+  job_id = str_subset(txt$out, "^Job ID:"),
+  array_id = str_subset(txt$out, "Array Job ID:"),
+  time = str_subset(txt$out, "CPU Utilized"), 
+  mem_used = str_subset(txt$out, "Memory Utilized"),
+  mem_given = str_subset(txt$out, "Memory Efficiency"),
+  state = str_subset(txt$out, "State: ")
+  ) %>%
+  mutate(
+    job_id = str_extract(job_id, "[0-9]{6,10}") %>% as.numeric(),
+    array_id = str_extract(array_id, "[0-9]{6,10}_[0-9]{1,2}"),
+    array = str_extract(array_id, "_[0-9]{1,2}") %>% gsub("_", "", .) %>% as.numeric(),
+    time = str_extract(time, "[0-9][0-9]:[0-9][0-9]:[0-9][0-9]"),
+    mem_used = str_extract(mem_used, "[0-9]{2,3}.[0-9][0-9]") %>% as.numeric(),
+    mem_given = str_extract(mem_given, "[0-9]{2,3}.[0-9][0-9] GB") %>% 
+      gsub(" GB", "", .) %>% as.numeric()
+    )
+
+seff %>% arrange(array) %>% print(n = 30)
+seff %>% filter(grepl("COMPLETED", state)) %>% arrange(array) %>% print(n = 30)
 
 
 ```
