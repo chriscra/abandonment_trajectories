@@ -1565,6 +1565,8 @@ ggsave(plot =
 
 # Quadrant plot
 ```{r quadrant}
+install.packages("geomtextpath")
+library(geomtextpath)
 # The idea: a measure of abandonment decay on the y-axis, and a measure of abandonment extent on the x-axis
 
 
@@ -1599,30 +1601,42 @@ quadrant_df <- area_summary_df %>%
   mutate(description = ifelse(site == "belarus", "Vitebsk, Belarus /\nSmolensk, Russia", description),
          description = ifelse(site == "orenburg", "Orenburg, Russia /\nUralsk, Kazakhstan", description))
 
+quadrant_endpoints <- 
+  endpoint_half_lives %>%
+  left_join(area_summary_df %>% 
+              select(site, area_abn_ha_2017, area_ever_abn_ha, area_2017_as_prop_total_crop),
+  by = "site")
+
+quadrant_endpoints %>%
+  group_by(site) %>%
+  summarise(mean_hl = mean(mean))
+
 # plot
-gg_quadrant <- ggplot(data = quadrant_df, 
+gg_quadrant <-
+  ggplot(data = quadrant_df, 
        mapping = aes(x = area_2017_as_prop_total_crop,
                      y = time_to_value,
-                     # label = site,
-                     size = area_abn_ha_2017/10^3
+                     label = description,
+                     size = area_abn_ha_2017/10^3,
+                     # color = site
                      )) + 
-  geom_point() + 
-  geom_label_repel(aes(x = area_2017_as_prop_total_crop,
-                     y = time_to_value, 
-                     label = description), 
-                  inherit.aes = FALSE,
-                  box.padding   = 1.5, 
+  geom_vline(xintercept = mean(quadrant_df$area_2017_as_prop_total_crop), 
+             linetype="dashed", alpha = 0.4, colour = "red") +
+  geom_hline(yintercept = mean(quadrant_df$time_to_value), 
+             linetype="dashed", alpha = 0.4, colour = "red") +
+  geom_point(alpha = 0.6) + 
+  geom_text_repel(
+                  box.padding   = 1,
                   point.padding = 1,
                   min.segment.length = 0,
+                  size = 3,
                   # nudge_x = 5,
                   # direction = "x",
                   # force = 1,
                   segment.color = 'grey10'
                   ) +
-  geom_vline(xintercept = mean(quadrant_df$area_2017_as_prop_total_crop), 
-             linetype="dashed", alpha = 0.4, colour = "red") +
-  geom_hline(yintercept = mean(quadrant_df$time_to_value), 
-             linetype="dashed", alpha = 0.4, colour = "red") +
+  # geom_textpath(size = 3, hjust = -.3, vjust = -0.5) + 
+  
   labs(x = "Area abandoned as a percent (%) of total cropland extent",
        y = "Half-life (years)",
        size = "Area abandoned \n(2017, kha)",
@@ -1635,31 +1649,129 @@ gg_quadrant <- ggplot(data = quadrant_df,
 # save 
 ggsave(plot = gg_quadrant,
        filename = paste0(p_plots, run_label, "/quadrant_fig", run_label, ".pdf"), 
-       width = 7, height = 6, 
+       # width = 9, height = 7,
+       width = 7, height = 6,
        # width = 3.42, height = 3.4, 
        units = "in")
 
-ggplot(data = quadrant_df, 
+# ------------------------------------------------------------------------------- #
+# Quadrant, with endpoint derived half-lives
+# ------------------------------------------------------------------------------- #
+# gg_quadrant_endpoints <-
+  ggplot(data = quadrant_endpoints, 
        mapping = aes(x = area_2017_as_prop_total_crop,
-                     y = time_to_value,
-                     # label = site,
-                     size = area_abn_ha_2017/10^3)) + 
-  geom_point() + 
-  # theme(legend.position = c(0.25, 0.8)) + 
-  scale_size_continuous(range = c(0.1, 12)) + 
-  labs(size = NULL)
+                     y = mean,
+                     label = site,
+                     size = area_abn_ha_2017/10^3,
+                     # group = site,
+                     color = endpoint, 
+                     group = site
+                     )) + 
+  geom_vline(xintercept = mean(quadrant_df$area_2017_as_prop_total_crop), 
+             linetype="dashed", alpha = 0.4, colour = "red") +
+  geom_hline(yintercept = mean(quadrant_df$time_to_value), 
+             linetype="dashed", alpha = 0.4, colour = "red") +
+  geom_point(alpha = 0.6, 
+             # position = position_dodge(0.2)
+             ) + 
+    geom_point(data = quadrant_endpoints %>%
+                 group_by(site, area_2017_as_prop_total_crop, area_abn_ha_2017) %>%
+                 summarise(mean_hl = mean(mean)),
+               mapping = aes(x = area_2017_as_prop_total_crop,
+                             y = mean_hl,
+                             size = area_abn_ha_2017/10^3
+                             ),
+               inherit.aes = F) +
+    geom_path(alpha = 0) +
+      scale_color_viridis(direction = -1) +
+    # geom_text_repel(box.padding = 1, point.padding = 1, min.segment.length = 0, 
+    #                 size = 3, segment.color = 'grey10') +
+  geom_textpath(mapping = aes(x = area_2017_as_prop_total_crop,
+                              y = mean, label = site), 
+                # size = 3, 
+                # hjust = -1, 
+                vjust = 0.7,
+                inherit.aes = F, text_only = T) +
+
+    
+  labs(x = "Area abandoned as a percent (%) of total cropland extent",
+       y = "Half-life (years)",
+       size = "Area abandoned \n(2017, kha)",
+       caption = "Dashed red lines represent mean values") +
+  theme_classic() + 
+    theme(legend.position = c(0.15, 0.8)) + 
+    # scale_size_continuous(range = c(0.1, 10)) + 
+  coord_cartesian(ylim = c(0, 50))
 
 
-# trying with other ways to represent x and y
-ggplot(data = quadrant_df, 
+# save 
+ggsave(plot = gg_quadrant_endpoints,
+       filename = paste0(p_plots, run_label, "/quadrant_endpoints", run_label, ".pdf"), 
+       # width = 9, height = 7,
+       width = 7, height = 6,
+       # width = 3.42, height = 3.4, 
+       units = "in")
+
+
+
+
+
+# ------------------------------------------------------------------------------- #
+# just the mean values derived from the endpoints analysis:
+# ------------------------------------------------------------------------------- #
+quad_end_tmp <- 
+  quadrant_endpoints %>%
+  group_by(site, area_2017_as_prop_total_crop, area_abn_ha_2017) %>%
+  summarise(mean_hl = mean(mean))
+  
+gg_quadrant_endpoints_mean <- 
+  ggplot(data = quad_end_tmp, 
        mapping = aes(x = area_2017_as_prop_total_crop,
-                     y = time_to_value,
-                     # label = site,
-                     size = area_abn_ha_2017/area_ever_abn_ha)) + 
-  geom_point() + labs(size = NULL)
+                     y = mean_hl,
+                     label = site,
+                     size = area_abn_ha_2017/10^3,
+                     # color = site
+                     )) + 
+  geom_vline(xintercept = mean(quad_end_tmp$area_2017_as_prop_total_crop), 
+             linetype="dashed", #alpha = 0.4, 
+             colour = "red") +
+  geom_hline(yintercept = mean(quad_end_tmp$mean_hl), 
+             linetype="dashed",# alpha = 0.4,
+             colour = "red") +
+  geom_point(alpha = 0.6) + 
+  geom_text_repel(
+                  box.padding   = 1,
+                  point.padding = 1,
+                  min.segment.length = 0,
+                  size = 3,
+                  # nudge_x = 5,
+                  # direction = "x",
+                  # force = 1,
+                  segment.color = 'grey10'
+                  ) +
+
+  labs(x = "Area abandoned as a percent (%) of total cropland extent",
+       y = "Half-life (years)",
+       size = "Area abandoned \n(2017, kha)",
+       caption = "Dashed red lines represent mean values") +
+  theme_classic() + 
+    theme(legend.position = c(0.15, 0.8)) +
+    scale_size_continuous(range = c(0.1, 10))
+
+# ------- save -------- #
+# save 
+ggsave(plot = gg_quadrant_endpoints_mean,
+       filename = paste0(p_plots, run_label, "/quadrant_endpoints_mean", run_label, ".pdf"), 
+       width = 7, height = 6, units = "in")
+
 
 ```
 
+```{r quad-endpoints}
+
+
+
+```
 
 
 # End
@@ -1671,10 +1783,11 @@ os %>%
   summarise(total_env_size = sum(size)) %>% 
   mutate(gb = total_env_size / 1024^3)
 
-os %>% print(n = 20)
+os %>% print(n = 30)
 
+# rm(list = os$object[c(3:18)])
+get(os$object[c(30)])
 
-rm(list = os$object[c(1:2)])
 
 # terra and raster temp files
 terra::tmpFiles(current=TRUE, orphan=FALSE, old=FALSE, 
