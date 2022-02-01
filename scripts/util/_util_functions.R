@@ -5,10 +5,10 @@
 # --------------------------------------------------------------- #
 # updated: July 23, 2021
 
-# raster prep functions ----
+# raster* / SpatRaster* prep functions ----
 
 # -------------------------------------------------------------------------- #
-# Load individual raster layers and merge into a single raster brick
+# Load individual raster layers and merge into a single raster brick, using {raster}
 # -------------------------------------------------------------------------- #
 cc_merge_rasters <- function(site, site_df,
                              input_path){
@@ -19,18 +19,18 @@ cc_merge_rasters <- function(site, site_df,
   if (site_df[site_df$site == site, "merge_layers"] == "Yes") {
     
     # load raster layers
-    raster_layers_list <- lapply(site_files, function(i) raster(i))
+    raster_layers_list <- lapply(site_files, function(i) raster::raster(i))
     
     # create raster stack
     tic("create raster stack")
-    raster_stack <- stack(raster_layers_list)
+    raster_stack <- raster::stack(raster_layers_list)
     toc(log = TRUE)
     
   } else {
     
     # load raster stack
     tic("load raster stack")
-    raster_stack <- brick(site_files)
+    raster_stack <- raster::brick(site_files)
     toc(log = TRUE)
     
   }
@@ -42,15 +42,96 @@ cc_merge_rasters <- function(site, site_df,
   
   # write to file
   tic("write raster_stack to file")
-  writeRaster(raster_stack, 
-              filename = paste0(input_path, site, "_raw.tif"),
-              overwrite = TRUE)
+  raster::writeRaster(raster_stack, 
+                      filename = paste0(input_path, site, "_raw.tif"),
+                      overwrite = TRUE)
   toc(log = TRUE)
   
   cat(fill = TRUE, "Done! Used cc_merge_rasters() to merge and save raw raster brick for: ", site)
-
+  
 }
 
+
+# -------------------------------------------------------------------------- #
+# Load individual raster layers and merge into a single raster brick, using {terra}
+# -------------------------------------------------------------------------- #
+cc_merge_rasters_terra <- function(site, site_df,
+                                   input_path){
+  cat(fill = TRUE, "cc_merge_rasters: Merging raw raster layers into a single stack for ", site)
+  
+  site_files <- list.files(paste0(input_path, site), full.names = TRUE)
+  
+
+  # create SpatRaster
+  tic("create SpatRaster")
+  spat_raster <- terra::rast(site_files)
+  toc(log = TRUE)
+  
+  cat("SpatRaster names:", fill = TRUE)
+  print(names(spat_raster))
+  cat("SpatRaster file source(s):", fill = TRUE)
+  print(sources(spat_raster))
+  
+  # extract names:
+  # rename raster layers:
+  if (site == "nebraska") {
+    layer_names <- paste0("y", 1986:2018)
+    } else {
+      if (site == "wisconsin") {
+        layer_names <- paste0("y", 1987:2018)
+      } else {
+        # everything else, just 1987:2017
+        layer_names <- paste0("y", 1987:2017)
+      }}
+  
+  # write to file
+  tic("write raster_stack to file")
+  terra::writeRaster(spat_raster,
+                     filename = paste0(input_path, site, "_raw.tif"),
+                     overwrite = TRUE,
+                     names = layer_names)
+  toc(log = TRUE)
+  
+  cat(fill = TRUE, "Done! Used cc_merge_rasters_terra() to merge and save raw SpatRaster for: ", site)
+  
+}
+
+
+# -------------------------------------------------------------------------- #
+# save processed data.tables showing age of abandonment as rasters*
+# -------------------------------------------------------------------------- #
+cc_save_dt_as_raster <- function(site, type, 
+                                 input_path = p_dat_derived,
+                                 output_path = p_dat_derived) {
+  # load dt
+  dt <- fread(file = paste0(input_path, site, type, ".csv"))
+  
+  # merge the data_table back to the original land cover data.table, if necessary
+  if (grepl("age", type)){
+    cat("Joining age data.table to input land cover data.table, filling non-abandonment pixels with NA", fill = TRUE)
+    cat("Land cover data.table location:", paste0(input_path, site, "_clean.csv"), fill = TRUE)
+    lc_dt <- fread(file = paste0(input_path, site, "_clean.csv"))
+    dt <- merge(lc_dt[, .(x, y)], dt, all = TRUE, by = c("x", "y"), sort = FALSE)
+  }
+  
+  # convert age dt to raster
+  r <- dt_to_raster(dt, crs("+proj=longlat +datum=WGS84 +no_defs"))
+  
+  # write raster
+  raster::writeRaster(r, filename = paste0(output_path, site, type, ".tif"), overwrite = TRUE)
+  
+  cat("Saved data.table as raster at:", paste0(output_path, site, type, ".tif"), fill = TRUE)
+  
+  
+  # reload, and assign
+  # brick(paste0(directory, name, "_age.tif"))
+}
+
+# I need to write some code to bind the original x and y columns from 
+# the first raster to the age csv, so that even the non-abandonment rows 
+# with NAs are included. 
+# sp::points2grid()
+# sp::coordinates()
 
 
 
@@ -65,7 +146,7 @@ cc_recode_rasters <- function(site, site_df, input_path,
   tic.clearlog()
   
   tic("load input raster")
-  input_raster <- brick(paste0(input_path, site, "_raw.tif"))
+  input_raster <- raster::brick(paste0(input_path, site, "_raw.tif"))
   toc(log = TRUE)
   
   print("freq(input_raster[[1]]): before")
@@ -113,7 +194,7 @@ cc_recode_rasters <- function(site, site_df, input_path,
   
   # write to file
   tic("write recoded raster to file")
-  writeRaster(input_raster, 
+  raster::writeRaster(input_raster, 
               filename = paste0(output_path, site, ".tif"),
               overwrite = TRUE)
   toc(log = TRUE)
@@ -829,6 +910,79 @@ cc_temporal_filter <- function(dt, replacement_value = 1, filter_edge = FALSE) {
 }
 
 
+
+# -------------------------------------------------------------------------- #
+# 5-year & 8-year moving window temporal filters, specifically for 
+# land cover data. Designed to address potential misclassification 
+# errors in the Yin et al. 2020 time series data.
+# This temporal filter is the final version used for analysis.
+# (Developed December 6th, 2021)
+# -------------------------------------------------------------------------- #
+cc_temporal_filter_lc <- function(dt) {
+  # Five- and eight-year moving window filters designed to address potential misclassification errors
+  # in the Yin et al. 2020 land cover time series.
+  
+  # This function is a complement to cc_temporal_filter(), which works with the 
+  # binary abandonment data.tables (which have been converted to just 0s and 1s).
+  # This function passes the temporal filter over the raw land cover data, before 
+  # it is processed further.
+  # This is designed primarily to produce a cleaned version of the land cover maps
+  # to then use to determine the land cover of abandoned 
+  
+  # Goal: address the lingering cropland classifications that persist in 
+  # abn_lc.
+  
+  # check that dt starts with x & y
+  if (!identical(names(dt)[1:2], c("x", "y"))) {
+    stop("x and y must be the first two columns in the data.table")
+  }
+  
+  
+  # ---------------------------------------------------------- #
+  # five year moving window: 
+  # fill 1-1-2-1-1, 1-1-3-1-1, & 1-1-4-1-1
+  for(lc_class in 1:4) {
+    for (i in 5:(ncol(dt) - 2)) {
+      dt[get(names(dt)[i-2]) == lc_class &
+           get(names(dt)[i-1]) == lc_class & 
+           get(names(dt)[i]) %in% c(1:4)[1:4 != lc_class] & 
+           get(names(dt)[i+1]) == lc_class & 
+           get(names(dt)[i+2]) == lc_class,
+         names(dt)[i] := lc_class # update value
+      ]
+    }
+  }
+  
+  # ---------------------------------------------------------- #
+  # eight year moving window filter:
+  # fill 1-1-1-2-2-1-1-1, 1-1-1-3-3-1-1-1, & 1-1-1-4-4-1-1-1
+  
+  for(lc_class in 1:4) {
+    blip_values <- c(1:4)[1:4 != lc_class]
+    
+    for (i in 6:(ncol(dt) - 4)) {
+      dt[get(names(dt)[i-3]) == lc_class &
+           get(names(dt)[i-2]) == lc_class &
+           get(names(dt)[i-1]) == lc_class &
+           # .e.g., if lc_class is 1, then these are 
+           # (V4 == 2 & V5 == 2) | (V4 == 3 & V5 == 3) | (V4 == 4 & V5 == 4)
+           ((get(names(dt)[i]) == blip_values[1] & get(names(dt)[i+1]) == blip_values[1]) | 
+              (get(names(dt)[i]) == blip_values[2] & get(names(dt)[i+1]) == blip_values[2]) |
+              (get(names(dt)[i]) == blip_values[3] & get(names(dt)[i+1]) == blip_values[3])) &
+           get(names(dt)[i+2]) == lc_class &
+           get(names(dt)[i+3]) == lc_class &
+           get(names(dt)[i+4]) == lc_class, 
+         
+         c(names(dt)[i], 
+           names(dt)[i+1]) := lc_class
+      ]
+    }
+  }
+  
+  dt # return the dt
+}
+
+
 # -------------------------------------------------------------------------- #
 # Calculate age of each noncrop cell
 # -------------------------------------------------------------------------- #
@@ -853,6 +1007,73 @@ cc_calc_age <- function(dt) {
   }
 }
 
+
+# -------------------------------------------------------------------------- #
+# Calculate the length ("age") of each period of recultivation following a period of abandonment
+# -------------------------------------------------------------------------- #
+cc_calc_recult_age <- function(dt, dt_age, dt_diff, 
+                                  flag = 100,
+                                  abn_threshold = 5) {
+  # This function should be run as follows:
+  # dt <- cc_calc_recult_age(dt)
+  # Keep in mind, however, that this directly modifies the input dt.
+  
+  stopifnot("All input data.tables must start with x and y columns" = names(dt)[1:2] == c("x", "y"),
+            names(dt_age)[1:2] == c("x", "y"),
+            names(dt_diff)[1:2] == c("x", "y")
+            )
+  
+  if (length(grep("[xy]$", names(dt))) > 0) {
+    if (!identical(names(dt)[1:2], c("x", "y"))) {
+      stop("x and y must be the first two columns in the data.table")
+    }
+    start <- 4
+  } else {
+    start <- 2
+  }
+  
+  
+  # ----- 1. Identifying periods of abandonment that last at least 5 years. ----- #
+  # This data.table extracts the final year of those abandonment periods that last >= 5 years, 
+  # i.e., the year right before recultivation.
+  # This works because dt_diff is the lagged difference for each pixel from one year to the next. 
+  # The difference between a period of abandonment (>=5 years) and recultivation (0) is 
+  # always the negative age. 
+  # Where this is less than or equal to -5, the cell in the column before is the last year
+  # of a qualifying period of abandonment. 
+  # This also works because the dt_diff is shifted one column to the right (the first column
+  # is V2, the last column is a bonus column, "end"). This one year "mismatch" here is key. 
+  # "Mismatch" is in quotes because it's just a function of how I structured the diff.
+  
+  dt_final_year <- dt_age * (dt_diff <= -abn_threshold) 
+  
+  
+  # ----- 2. Flag the final year of qualifying periods of abandonment. ----- #
+  # Subset rows containing the final year of abandonment that passes the threshold, and flag them by adding 100 to the final year of qualifying periods of abandonment. 
+  for (i in 2:ncol(dt)) {
+    dt[dt_final_year[get(names(dt)[i]) > 0, which = TRUE],
+              names(dt)[i] := get(names(dt)[i]) + flag]
+  }
+  
+  # ----- 3. Pass the recultivation calculation function. ----- #
+  for (i in start:ncol(dt)) {
+    
+    # subset rows that are equal to 0 (for crop), and
+    dt[get(names(dt)[i]) == 0, 
+       
+       # set them equal to the previous column's value in that row, minus 1.
+       names(dt)[i] := get(names(dt)[i-1]) - 1] 
+  }
+  
+  # subtract one, because the results of the above step still have 1 indicating "non-crop", 
+  # and 0 indicating the start of a recultivation period.
+  # This can then be multiplied by -1 to get a positive map of the lengths of recultivation.
+  
+  dt <- dt - 1 - flag
+  
+  # ---- 4. Filter and return resulting data.table. ----- #
+  dt <- dt * (dt > -flag)
+}
 
 
 # -------------------------------------------------------------------------- #
@@ -887,18 +1108,22 @@ cc_erase_non_abn_periods <- function(dt) {
 # -------------------------------------------------------------------------- #
 cc_diff_dt <- function(dt){
   # produces a data.table with year-to-year lagged differences (much like base::diff())
+  # This function should be run as follows:
+  # dt <- cc_diff_dt(dt)
   
   if (length(grep("[xy]$", names(dt))) > 0) {
     if (!identical(names(dt)[1:2], c("x", "y"))) {
       stop("x and y must be the first two columns in the data.table")
     }
-    dt_lead <- copy(dt[, -c("x", "y")])
+    dt_xy <- data.table::copy(dt[, c("x", "y")])
+    dt_lead <- data.table::copy(dt[, -c("x", "y")])
     dt_lead[, names(dt_lead)[1] := NULL][, end := 0]
-    dt_lead - dt[, -c("x", "y")]
+    dt_diff <- dt_lead - dt[, -c("x", "y")]
+    dt_diff <- cbind(dt_xy, dt_diff)
   } else {
-    dt_lead <- copy(dt)
+    dt_lead <- data.table::copy(dt)
     dt_lead[, names(dt_lead)[1] := NULL][, end := 0]
-    dt_lead - dt
+    dt_diff <- dt_lead - dt
   }
 }
 
@@ -907,17 +1132,39 @@ cc_diff_dt <- function(dt){
 # Extract lengths of all abandonment periods
 # -------------------------------------------------------------------------- #
 
-cc_extract_length <- function(dt_diff) {
-  # note: this function only works with a diff'd data.table, so that 
-  # negative values mark years of recultivation (or the end of the time-series)
+cc_extract_length <- function(dt_diff, length_type = "abandonment") {
+  # Note: this function only works with a diff'd data.table, so that:
+  # negative values mark the end of periods of abandonment (i.e., recultivation, or the end of the time-series), and
+  # positive values mark the end of periods of recultivation (i.e., re-abandonment, or the end of the time series).
+  
+  stopifnot("length_type must be either 'abandonment' or 'recultivation'" = 
+              length_type %in% c("abandonment", "recultivation"))
+  
+  # drop x and y columns
+  dt_tmp <- data.table::copy(dt_diff[, -c("x", "y")])
+  
   abn_length <- vector(mode = "numeric")
-  for(i in seq_len(length(dt_diff))) {
-    abn_length <- c(abn_length, 
-                    dt_diff[get(names(dt_diff)[i]) < 0,
-                            get(names(dt_diff)[i])])
+  
+  if(length_type == "abandonment") {
+    for(i in seq_len(length(dt_tmp))) {
+      abn_length <- c(abn_length, 
+                      dt_tmp[get(names(dt_tmp)[i]) < 0,
+                             get(names(dt_tmp)[i])])
+    }
+  } 
+  
+  
+  if(length_type == "recultivation") {
+    for(i in seq_len(length(dt_tmp))) {
+      abn_length <- c(abn_length, 
+                      dt_tmp[get(names(dt_tmp)[i]) > 0,
+                             get(names(dt_tmp)[i])])
+    }
   }
+  
   abs(abn_length)
 }
+
 
 
 # remove NAs from data.table
@@ -1043,42 +1290,6 @@ cc_recode_lc_dt <- function(dt, site, site_df) {
 
 
 
-
-# -------------------------------------------------------------------------- #
-# save processed data.tables showing age of abandonment as rasters
-# -------------------------------------------------------------------------- #
- cc_save_dt_as_raster <- function(site, type, 
-                                 input_path = p_dat_derived,
-                                 output_path = p_dat_derived) {
-  # load dt
-  dt <- fread(file = paste0(input_path, site, type, ".csv"))
-  
-  # merge the data_table back to the original land cover data.table, if necessary
-  if (grepl("age", type)){
-    cat("Joining age data.table to input land cover data.table, filling non-abandonment pixels with NA", fill = TRUE)
-    cat("Land cover data.table location:", paste0(input_path, site, ".csv"), fill = TRUE)
-    lc_dt <- fread(file = paste0(input_path, site, ".csv"))
-    dt <- merge(lc_dt[, .(x, y)], dt, all = TRUE, by = c("x", "y"), sort = FALSE)
-  }
-  
-  # convert age dt to raster
-  r <- dt_to_raster(dt, crs("+proj=longlat +datum=WGS84 +no_defs"))
-  
-  # write raster
-  writeRaster(r, filename = paste0(output_path, site, type, ".tif"), overwrite = TRUE)
-  
-  cat("Saved data.table as raster at:", paste0(output_path, site, type, ".tif"), fill = TRUE)
-  
-  
-  # reload, and assign
-  # brick(paste0(directory, name, "_age.tif"))
-}
-
-# I need to write some code to bind the original x and y columns from 
-# the first raster to the age csv, so that even the non-abandonment rows 
-# with NAs are included. 
-# sp::points2grid()
-# sp::coordinates()
 
 
 
@@ -1227,20 +1438,22 @@ cc_filter_abn_dt_simple <- function(dt) {
 
 cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
                              path = p_dat_derived,
-                             pass_temporal_filter = TRUE, filter_edge,
+                             load_precleaned_lc = TRUE,
+                             pass_temporal_filter = TRUE, filter_edge = FALSE,
                              run_label = format(Sys.time(), "_%Y_%m_%d"), # paste0("_", Sys.Date()), # format(Sys.time(), "_%Y-%m-%d_%H%M%S")
                              temporal_filter_replacement_value = 1) {
   
   # Steps:
-  # 1. (re)load recoded dt
+  # 1. (re)load recoded dt (with a switch for loading pre-cleaned lc_dt)
   # 2. update this code to select just 1987:2017, with a switch
   # 3. Update land cover classes to lump grassland and woody vegetation into a single non-crop category, and binarize crop and noncrop
   # 4. Remove NAs
   # 5. Filter out the non-abandonment pixels (i.e. those that are either all crop or all noncrop)
-  # 6. Count recultivation blips, and clean (i.e. periods of recultivation that do not last longer than the recultivation threshold, which is by default 1 year)
-  # 7. Pass temporal filter
+  # 6.1. Count recultivation blips, and clean (i.e. periods of recultivation that do not last longer than the recultivation threshold, which is by default 1 year)
+  # 6.2. Pass temporal filter.
+  # 7. Write out the recoded dt (1s and 0s) after all-1 or all-0 pixels have been removed, for later manipulation (calculating length of abandonment, recultivation, etc.).
   # 8. Calculate age of abandonment in each pixel that experiences abandonment
-  # 9. Erase non abandonment periods (i.e. those that start the time series as non-crop)
+  # 9. Erase non-abandonment periods from start of time-series (i.e. those that start the time series as non-crop)
   # 10. Write out cleaned abandonment age data.table
   # 11. Make diff data.table, each year subtracted by the previous year produces a data.table with year-to-year lagged differences (much like base::diff())
   # 12. Write out dt_diff
@@ -1253,21 +1466,39 @@ cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
   cat(fill = TRUE, "cc_filter_abn_dt(): Processing data.table for site: ", site)
   cat(fill = TRUE, "Path: ", path)
   cat(fill = TRUE, "run_label: ", run_label)
-  if(pass_temporal_filter) cat(fill = TRUE, "Passing temporal filter, replacing with:", 
-                               "temporal_filter_replacement_value =", temporal_filter_replacement_value)
+  
+  
+  # notes about temporal filtering steps:
+  if(load_precleaned_lc) {
+    cat(fill = TRUE, "Loading pre-cleaned land cover data.table...(see '1_prep_r_to_dt.R' and 'cc_temporal_filter_lc()'")
+  }
+  
+  if(pass_temporal_filter) {
+    cat(fill = TRUE, "Passing temporal filter, replacing with:", 
+        "temporal_filter_replacement_value =", temporal_filter_replacement_value)
+  }
+  
   if(filter_edge) {
     cat(fill = TRUE, "Note: temporal filter filtered edge cases (beginning of time series only).")
   } else {
-      cat(fill = TRUE, "Note: temporal filter did not filter edge cases.")}
+      cat(fill = TRUE, "Note: temporal filter did not filter edge cases.")
+    }
     
+  
   # -------------------------------------------------------- #
-  # 1. load raw dt
-  cat(fill = TRUE, "i. Start by loading raw data.table")
-  tic("load the raw data.table")
-  dt <- fread(input = paste0(path, site, ".csv"))
+  # 1. load land cover data.table
+  cat(fill = TRUE, "i. Start by loading land cover data.table. (Precleaned:", load_precleaned_lc, ")")
+  tic("load the land cover data.table")
+  
+  if(load_precleaned_lc) {
+    dt <- fread(input = paste0(path, site, "_clean.csv"))
+    } else {
+      dt <- fread(input = paste0(path, site, ".csv"))
+    }
+  
   toc(log = TRUE)
   
-  cat(fill = TRUE, "data.table input:")
+  cat(fill = TRUE, "data.table input: (Precleaned:", load_precleaned_lc,")")
   print(dt) # print the head and tail of the data.table
   
   
@@ -1317,7 +1548,7 @@ cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
   dt <- cc_remove_non_abn(dt)   # filter non abandonment pixels
   toc(log = TRUE)
   
-  # 6. Count the number of cases identified by the temporal filter:
+  # 6.1. Count the number of cases identified by the temporal filter:
   if(pass_temporal_filter) {
     tic("count cases identified by temporal filter")
     temporal_filter_counts_l <- cc_temporal_filter_count(dt = dt)
@@ -1331,7 +1562,7 @@ cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
         Wrote resulting list to: ", paste0(path, site, "_temporal_filter_counts_l", run_label, ".rds"))
   }
   
-  # 7. Pass temporal filter, to address potential cases of misclassification 
+  # 6.2. Pass temporal filter, to address potential cases of misclassification 
   # (five- and eight-year moving windows):
   if(pass_temporal_filter) {
     tic("pass temporal filter")
@@ -1348,9 +1579,18 @@ cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
     warning("vi & vii. Did not pass temporal filters or count cases.")
   }
   
+  # 7. Write out the recoded dt (1s and 0s) after all-1 or all-0 pixels have been removed,
+  # for later manipulation (calculating length of abandonment, recultivation, etc.).
+  cat(fill = TRUE, "vii.5. Write out recoded lc data.table (1s and 0s) to:", 
+      paste0(path, site, "_binary", run_label,".csv"))
+  tic("wrote out cleaned abandonment age data.table")
+  fwrite(dt, file = paste0(path, site, "_binary", run_label,".csv"))
+  toc(log = TRUE)
+  
+  
   # 8. Calculate age of abandonment in each pixel that experiences abandonment
   cat(fill = TRUE, "viii. Calculate age of abandonment for each pixel that experiences abandonment: cc_calc_age()")
-  tic("calculated age")
+  tic("calculated abandonment age")
   cc_calc_age(dt)  # calculate age
   toc(log = TRUE)
   
@@ -1382,7 +1622,7 @@ cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
   # 13. Extract the length of each period of abandonment
   cat(fill = TRUE, "xiii. Extract the length of each period of abandonment: cc_extract_length()")
   tic("extracted length")
-  length <- cc_extract_length(dt_diff)
+  length <- cc_extract_length(dt_diff, length_type = "abandonment")
   toc(log = TRUE)
   
   # 14. Create a data.table listing the lengths, write to file.
@@ -1932,9 +2172,9 @@ cc_summarize_abn_dts <- function(input_path,
   cat(fill = TRUE, "abandonment_threshold: >=" , abandonment_threshold)
 
   # load files:
-  lc_r <- rast(x = paste0(input_path, site, ".tif"))[[1]]
+  lc_r <- rast(x = paste0(input_path, site, "_clean.tif"))[[1]]
   # lc_r <- raster(paste0(input_path, site, ".tif"))
-  lc_dt <- fread(input = paste0(input_path, site, ".csv")) 
+  lc_dt <- fread(input = paste0(input_path, site, "_clean.csv")) 
   age_dt <- fread(input = paste0(input_path, site, "_age", run_label, ".csv"))
   
   cat("calculating total area in each land cover class, and that is abandoned (for at least as long as the abandonment threshold), over time.", fill = TRUE)
