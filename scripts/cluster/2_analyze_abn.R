@@ -1,5 +1,6 @@
 # -------------------------------------------------------- #
-# Christopher Crawford, Princeton University, March 4th, 2021 (updated March 13th, 2021)
+# Christopher Crawford, Princeton University, March 4th, 2021 
+# (updated March 13th, 2021, January 28th, 2022)
 
 # Script to analyze abandonment trajectories rasters for all sites
 # -------------------------------------------------------- #
@@ -25,6 +26,8 @@
 # 0th run (_b1) - only blip filter (just 101)
 # 1st run with new temporal filters, and also filtering the edge (_2021-03-05)
 # 2nd run, with temporal filters but NOT filtering the edge (_2021_03_13) (filter_edge = FALSE)
+# 3rd run, after moving the temporal filtering stage to raw land cover dts, 
+#   and adding recultivation calculator (_2022_01_31).
 
 # -------------------------------------------------------- #
 # load libraries
@@ -38,7 +41,12 @@ p_dat_derived   <-    "/scratch/gpfs/clc6/abandonment_trajectories/data_derived/
 p_input_rasters <-    "/scratch/gpfs/clc6/abandonment_trajectories/data_derived/input_rasters/"
 p_output        <-    "/scratch/gpfs/clc6/abandonment_trajectories/output/"
 p_raw_rasters   <-    "/scratch/gpfs/clc6/abandonment_trajectories/raw_rasters/"
+p_tmp           <-    "/scratch/gpfs/clc6/abandonment_trajectories/data_derived/tmp/"
 
+
+# set terra autosave options:
+terraOptions(tempdir = p_tmp)
+rasterOptions(tmpdir = p_tmp)
 
 # source functions:
 source("/home/clc6/abandonment_trajectories/scripts/util/_util_functions.R")
@@ -52,18 +60,6 @@ indx <- as.numeric(args[1])
 # set up parameters:
 # data.frame of all sites contains information about sites
 site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
-
-# site_list <- c("belarus", "bosnia_herzegovina", "chongqing", 
-#                "goias", "iraq", "mato_grosso", 
-#                "nebraska", "orenburg", "shaanxi", 
-#                "volgograd", "wisconsin")
-# 
-# site_label_list <- c("_b", "_bh", "_c", 
-#                      "_g", "_i", "_mg", 
-#                      "_n", "_o", "_s", 
-#                      "_v", "_w")
-
-
 site <- site_df$site[indx] # set site:
 site_label <- site_df$label[indx] # set label
 
@@ -94,7 +90,9 @@ cat("1. Filter data.tables for abandonment raw rasters to data.tables: ", site, 
 cc_filter_abn_dt(site = site,
                  path = p_input_rasters,
                  run_label = run_label,
-                 pass_temporal_filter = TRUE, filter_edge = FALSE,
+                 # note, now temporal filtering step has been moved to land cover map, instead of after recoded map
+                 load_precleaned_lc = TRUE,
+                 pass_temporal_filter = FALSE, filter_edge = FALSE,
                  temporal_filter_replacement_value = 1)
 
 
@@ -111,8 +109,10 @@ cc_calc_max_age(directory = p_input_rasters,
 cat("3. Save data.tables as rasters: ", site, fill = TRUE)
 
 dt_ids <- c(
-  "",  # the re-coded land cover .csv
-  paste0("_max_age", run_label),  # can also include the max age raster, perhaps?
+  # these first two are not strictly necessary - see "1_prep_r_to_dt.R"
+  # "",  # the re-coded land cover .csv (without the temporal filter)
+  # "_clean",  # the cleaned land cover .csv (after applying the temporal filter)
+  paste0("_max_age", run_label),  # can also include the max age raster
   paste0("_age", run_label) # the abandonment age .csv
 )
 
@@ -125,22 +125,6 @@ for (i in dt_ids) {
                        input_path = p_input_rasters,
                        output_path = p_input_rasters)
 }
-
-# cc_save_dt_as_raster(site = site, 
-#                      type = "", 
-#                      input_path = p_input_rasters, 
-#                      output_path = p_input_rasters)
-# 
-# cc_save_dt_as_raster(site = site, 
-#                      type = paste0("_age", run_label), 
-#                      input_path = p_input_rasters, 
-#                      output_path = p_input_rasters)
-# 
-# cc_save_dt_as_raster(site = site, 
-#                      type = paste0("_max_age", run_label), 
-#                      input_path = p_input_rasters, 
-#                      output_path = p_input_rasters)
-
 
 
 # -------------------------------------------------------- #
