@@ -101,7 +101,7 @@ knitr::write_bib(x = c(needed_packages, github_packages), file = 'packages.bib')
 ```{r load-files, include = FALSE}
 
 # set run:
-run_label <- "_2021_03_13"
+run_label <- "_2022_01_31" #"_2021_03_13"
 
 # Additional paths --------------------------------------------------- #
 p_plots <- "/Users/christophercrawford/work/projects/abandonment_trajectories/output/plots/"
