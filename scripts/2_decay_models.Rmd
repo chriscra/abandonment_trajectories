@@ -583,6 +583,7 @@ coef_log2_lin_mega <-
 # calculate mean coefficients and their confidence intervals
 combo_mean_coefs <- 
   bind_rows(coef_l3_mega,
+            coef_l3_mega_trim,
             coef_lin_log_mega,
             coef_log2_lin_mega) %>%
   group_by(mod, site, coef_term) %>% # group by site and coef_term
@@ -905,6 +906,20 @@ for (i in 1:11) {
 }
 dev.off()
 ```
+
+```{r mega-diag}
+
+plot(lm_mega_lin_log_lin_l)
+
+qqnorm(residuals(lm_mega_lin_log_lin_l), main = paste0("QQ: mega"))
+
+car::qqPlot(update(lm_mega_lin_log_lin_trim, data = dat_trim[-c(2014, 2036),]),
+       ylab = "Sample Quantiles",
+       main = paste0("QQ: mega"))
+
+
+```
+
 
 ```{r save-alt-model-spec-diag-plots}
 # -------------------------------------------------------------------------------------------------- #
@@ -1647,7 +1662,9 @@ gg_common_group_obs_by_site <-
     size = 1.2) +
   facet_wrap(vars(site), labeller = as_labeller(fancy_labels)) + 
   scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30)) +
-  scale_y_continuous(limits = c(0.3, 1)) +
+  # scale_y_continuous(limits = c(0.3, 1)) +
+    coord_cartesian(ylim = c(0.3, 1)) +
+
   labs(x = "Time since initial abandonment (years)", 
        y = "Proportion of abandoned land remaining",
        color = "Cohorts grouped \nby # observations",
@@ -1689,7 +1706,9 @@ gg_common_group_obs_150 <-
   geom_line(size = 1.1) +
   geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray70") +
   geom_hline(yintercept = 0, linetype = "dashed") +
-  scale_y_continuous(limits = c(0,1)) + 
+  # scale_y_continuous(limits = c(0,1)) + 
+    coord_cartesian(ylim = c(0, 1)) +
+
   labs(x = "Time since initial abandonment (years)", 
        y = "Proportion of abandoned land remaining",
        color = "Site") + 
@@ -1736,18 +1755,50 @@ persistence_dat %>%
   filter(age <= 20, 
          year_abn %in% unique(filter(persistence_dat, age == 20)$year_abn))
 
-common_endpoint_dat_l <- lapply(10:29, function(i) {
+common_endpoint_dat_l <- lapply(7:29, function(i) {
   persistence_dat %>%
   filter(age <= i, 
          year_abn %in% unique(filter(persistence_dat, age == i)$year_abn))
 })
-names(common_endpoint_dat_l) <- paste0("age_", 10:29)
+names(common_endpoint_dat_l) <- paste0("age_", 7:29)
 
+
+# bind tibbles in list together
+common_endpoint_dat <- 
+  common_endpoint_dat_l %>% 
+  bind_rows(.id = "endpoint") %>% 
+  mutate(endpoint = gsub("age_", "", endpoint) %>% as.numeric())
+
+
+endpoint_n <- lapply(common_endpoint_dat_l, function(i) {
+  tmp <- i %>%
+  group_by(site, year_abn) %>%
+  summarise(obs = n()) %>% 
+  ungroup()
+  
+  tibble(n_obs = unique(tmp$obs),
+         n_cohorts = length(unique(tmp$year_abn)),
+         total_obs = n_obs * n_cohorts,
+         cohorts = paste0(unique(tmp$year_abn), collapse = ", "))
+  }) %>% 
+  bind_rows(.id = "endpoint") %>%
+  mutate(endpoint = gsub("age_", "", endpoint) %>% as.numeric())
+
+endpoint_n %>%
+  pivot_longer(cols = c(n_obs, n_cohorts, total_obs), values_to = "value", names_to = "type") %>%
+  ggplot(mapping = aes(x = endpoint, y = value, color = type)) + 
+  geom_point()
+  
+
+# ---------- #
+# update the model predictions
+# ---------- #
 lm_l3_endpoint <- lapply(common_endpoint_dat_l, function(i) {update(lm_mega_lin_log_lin_l, data = i)})
 
 
-# coefs and fitted:
-
+# ---------- #
+# extract coefs and fitted:
+# ---------- #
 coef_l3_endpoints <- lapply(lm_l3_endpoint, function(i) {
   tidy(i, conf.int = TRUE) %>%
   mutate(site = gsub("site", "", str_extract(term, "site[a-z,_]*")),
@@ -1759,7 +1810,17 @@ coef_l3_endpoints <- lapply(lm_l3_endpoint, function(i) {
   select(mod, site, year_abn, cohort, coef_term, estimate, conf.low, conf.high, uncertainty_range, everything())
 
 }) %>% bind_rows(.id = "endpoint")
-  
+
+
+# augment:
+augment_endpoints <- 
+  lapply(lm_l3_endpoint, function(i) augment(i, se_fit = TRUE)) %>%
+  bind_rows(.id = "endpoint") %>% 
+  mutate(endpoint = gsub("age_", "", endpoint) %>% as.numeric(),
+         time = round(exp(`log(time + 1)`), digits = 0) - 1,
+         age = time + 5,
+         proportion = .fitted + 1,
+         year_abn = as.numeric(levels(cohort))[cohort])
 
 # ----------------------------------------------------------------------- #
 # calculate mean coefficients and their confidence intervals
@@ -1773,9 +1834,10 @@ fitted_endpoints <-
   pivot_wider(id_cols = c(site, endpoint, coef_term), names_from = coef_term, values_from = estimate) %>% 
   left_join(tibble(age = 5:150), by = character()) %>%
   mutate(proportion = log * log(age-4) + lin * ((age-4) - 1) + 1,
-         proportion = ifelse(proportion >= 0, proportion, 0)) # fitted proportion can't be less than 0!
+         proportion = ifelse(proportion >= 0, proportion, 0), # fitted proportion can't be less than 0!
+         endpoint = gsub("age_", "", endpoint) %>% as.numeric())
 
-
+# fitted_endpoints %>% select(endpoint) %>% unique() %>% print(n = 50)
 ```
 
 
@@ -1814,10 +1876,10 @@ coef_l3_endpoints %>% select(endpoint) %>% unique()
 fitted_endpoints %>% select(endpoint) %>% unique()
 
 
-for(i in 10:29) {
+for(i in 7:29) {
 
 endpoint_tmp <- i
-# endpoint_tmp <- 20
+# endpoint_tmp <- 7
 
 mean_traj_labels <- c(paste0("Endpoint: ", endpoint_tmp, " years"))
 names(mean_traj_labels) <- paste0("age_", endpoint_tmp)
@@ -1884,6 +1946,95 @@ ggsave(gg_endpoints_by_site_tmp,
 
 }
 ```
+
+```{r endpoint-by-site}
+endpoint_tmp <- i
+# endpoint_tmp <- 7
+
+mean_traj_labels <- c(paste0("Endpoint: ", endpoint_tmp, " years"))
+names(mean_traj_labels) <- paste0("age_", endpoint_tmp)
+
+sites_tmp_switch <- "b"
+
+for(i in c("a", "b", "all")
+    # c("b")
+    ){
+  sites_tmp_switch <- i
+  sites_tmp <- if(sites_tmp_switch == "a") {site_df$site[1:6]
+    } else {if(sites_tmp_switch == "b") {site_df$site[c(1, 7:11)]} else {site_df$site}}
+
+
+gg_endpoints_by_site_5_25 <-
+  ggplot(data = common_endpoint_dat %>% 
+           filter(endpoint %in% c(10, 15, 20, 25), 
+                  # site == "shaanxi",
+                  site %in% sites_tmp
+                  ),
+       mapping = aes(x = age, y = proportion, 
+                     group = year_abn, color = year_abn)) + 
+  theme_classic() + 
+  geom_point(size = 0.8) +
+  scale_color_viridis(discrete = FALSE, name = "Cohort\n(Year\nAbandoned)") +
+  facet_grid(site~endpoint,# nrow = 3,
+             labeller = as_labeller(cap_update_labels),
+             scales = "free_x", space = "free") +
+  # scale_x_continuous(n.breaks = 6) +
+  scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30)#,
+                     # limits = c(5, 30)
+                     ) +
+
+  geom_hline(yintercept = 0.5, linetype = "dashed") + 
+  labs(x = "Time since initial abandonment (years)", 
+       y = "Proportion of abandoned land remaining") + 
+  theme(
+    # legend.position = c(0.9, 0.15),
+    # legend.spacing = unit(2, units = "mm"), 
+    legend.background = element_blank(),
+    legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
+  # coord_cartesian(ylim = c(0.3, 1)) +
+
+# fitted lines
+    geom_line(data = augment_endpoints %>% 
+                filter(endpoint %in% c(10, 15, 20, 25), 
+                       # site == "shaanxi",
+                       site %in% sites_tmp
+                       ),
+              linetype = 5,
+              aes(alpha = "Fitted"), show.legend = TRUE) +
+      scale_alpha_manual(name = NULL,
+                     values = c(1), # breaks = c(0, "Fitted"),
+                     guide = guide_legend(
+                       order = 2)) +
+
+# add mean trajectories
+  new_scale_color() +
+  geom_line(data = lapply(10:29, function(i) {filter(fitted_endpoints, endpoint == i, age <= i)}) %>%
+              bind_rows() %>% 
+              filter(endpoint %in% c(10, 15, 20, 25), 
+                     # site == "shaanxi",
+                     site %in% sites_tmp
+                     ), 
+            mapping = aes(x = age, y = proportion, 
+                          color = site
+                          ),
+                          color = "red",
+              size = 1, inherit.aes = FALSE) + 
+  scale_color_discrete(name = "Mean trajectory", labels = fancy_labels)
+  
+
+ggsave(gg_endpoints_by_site_5_25,
+  filename = paste0(p_plots, run_label, "/decay/common_endpoints/",
+                    "endpoints_by_site_5_25",
+                    sites_tmp_switch, run_label, ".pdf"), 
+  width = ifelse(sites_tmp_switch == "a|b", 7, 7),
+  height = ifelse(sites_tmp_switch == "a|b", 6, 10), 
+  units = "in"
+  )
+}
+
+
+```
+
 
 ```{r make-gif}
 library(magick)
@@ -1956,11 +2107,11 @@ ggsave(gg_endpoints_mean_traj_all,
   )
 
 
-# add the mean trajectory from l3, straight mean
+# add the mean trajectory from l3, straight mean, with high and low (has option to add in weighted means)
 ggsave(plot = 
          gg_endpoints_mean_traj_all + 
          new_scale_color() +
-         geom_line(data = fitted_combo %>% filter(mod == "l3", type != "no_cohort"), 
+         geom_line(data = fitted_combo %>% filter(mod == "l3", !grepl("w_", type)), 
                    mapping = aes(x = age, y = proportion, color = type),
                    size = 1, inherit.aes = FALSE) +
          scale_color_discrete(labels = c("mean" = "Mean coef.",
@@ -1974,6 +2125,43 @@ ggsave(plot =
        width = 10, height = 8.5, units = "in"
        )
 
+# ---------------------
+# add Confidence Intervals:
+ggsave(plot = 
+         gg_endpoints_mean_traj_all + 
+         new_scale_color() +
+         geom_ribbon(data = 
+                       fitted_combo %>% 
+                       filter(mod == "l3", !grepl("w_", type)) %>%
+                       pivot_wider(id_cols = c(mod, site, age), 
+                                   names_from = type, 
+                                   values_from = "proportion"),
+                     mapping = aes(x = age, y = mean, 
+                                   ymin = conf.low, ymax = conf.high),
+                   alpha = 0.15, #size = 1,
+                   color = "red", fill = "red", inherit.aes = FALSE) +
+         geom_line(data = 
+                       fitted_combo %>% 
+                       filter(mod == "l3", !grepl("w_", type)) %>%
+                       pivot_wider(id_cols = c(mod, site, age), 
+                                   names_from = type, 
+                                   values_from = "proportion"),
+                     mapping = aes(x = age, y = mean),
+              color = "red", size = 1,
+              inherit.aes = FALSE) +
+         
+         scale_color_discrete(labels = c("mean" = "Mean coef."),
+                              name = "Site mean decay rates") + 
+         theme(legend.position = c(0.885, 0.14),
+               legend.spacing = unit(2, units = "mm")) + 
+         coord_cartesian(ylim = c(0, 1)),
+       filename = paste0(p_plots, run_label, "/decay/common_endpoints/", 
+                         "common_endpoints_mean_traj_all_CI", run_label, ".pdf"), 
+       width = 10, height = 8.5, units = "in"
+       )
+
+
+# crop to just first 30 years
 
 ggsave(gg_endpoints_mean_traj_all %+% 
          mutate(filter(fitted_endpoints, age < 30), endpoint = gsub("age_", "", endpoint) %>% as.numeric()) +
@@ -2028,6 +2216,341 @@ ggsave(plot = gg_endpoints_mean_traj_by_endpoint +
 
 ```
 
+```{r half-lives-by-endpoint}
+time_to_endpoints <-
+  coef_l3_endpoints %>%
+  group_by(site, endpoint, coef_term) %>% # group by site and coef_term
+  # use a linear regression to calculate mean and confidence intervals
+  summarise(tidy(lm(estimate ~ 1), conf.int = TRUE, conf.level = 0.95)) %>% 
+  ungroup() %>%
+  select(site, endpoint, coef_term, mean = estimate, conf.low, conf.high) %>%
+  pivot_longer(cols = c(mean, conf.low, conf.high), values_to = "value", names_to = "type") %>%
+  pivot_wider(id_cols = c(site, endpoint, type, coef_term), names_from = coef_term, values_from = value) %>%
+
+  left_join(tibble(proportion = seq(from = 0, to = 1, by = 0.1)), by = character()) %>%
+  
+  mutate(time_to = ((log * lambertW0((lin * exp((lin + proportion - 1) / log)) / 
+                                              log)) / lin) + 4
+         )
+
+
+# mutate to a format easier to plot:
+endpoint_half_lives <- time_to_endpoints %>% 
+  filter(proportion == 0.5) %>%
+  pivot_wider(id_cols = c(site, endpoint), names_from = type, values_from = "time_to") %>%
+  mutate(endpoint = gsub("age_", "", endpoint) %>% as.numeric()) %>%
+  left_join(endpoint_n, by = "endpoint")
+
+
+# exploratory plot
+endpoint_n %>%
+  filter(endpoint %in% c(10:25)) %>%
+  pivot_longer(cols = c(n_obs, n_cohorts, total_obs), values_to = "value", names_to = "type") %>%
+  ggplot(mapping = aes(x = endpoint, y = value, color = type)) + 
+  geom_point()
+
+endpoint_half_lives
+
+# ------------------------------------------------------------------------- #
+# plot 
+# ------------------------------------------------------------------------- #
+gg_half_life_endpoints <-
+  ggplot(data = endpoint_half_lives,
+         mapping = aes(x = mean,
+                       y = fct_reorder(site, mean),
+                       color = endpoint, group = endpoint)
+         ) +
+  geom_point(position = position_dodge(0.7), size = 1.7) + 
+  scale_x_continuous(breaks = seq(from = 10, to = 210, by = 10)) +
+  scale_y_discrete(labels = fancy_labels) + 
+  scale_color_viridis(direction = -1) +
+  theme_classic() +
+  labs(x = "Half-life (Years)", y = "Site", color = "Endpoint (years)") +
+  theme(legend.position = c(0.75, 0.4),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(colour = "black"))
+
+
+# ------------------------------------------------------------------------- #
+# save
+# ------------------------------------------------------------------------- #
+ggsave(plot = gg_half_life_endpoints,
+       filename = paste0(p_plots, run_label, "/decay/", "half_lives_endpoints", run_label, ".pdf"), 
+       width = 8, height = 5, units = "in")
+
+
+
+# ------------------------------------------------------------------------- #
+# display the half-lives with size as a function of number of observations:
+# ------------------------------------------------------------------------- #
+endpoint_half_lives$total_obs %>% unique() %>% sort()
+
+
+gg_half_life_endpoints_by_obs <-
+  ggplot(data = endpoint_half_lives %>% 
+           filter(
+             # endpoint %in% c(10:25)
+             ), 
+       mapping = aes(x = mean, y = fct_reorder(site, mean), 
+                     color = endpoint, group = endpoint, 
+                     fill = n_cohorts, size = total_obs)) +
+  geom_point(position = position_dodge(0.7), alpha = 0.7) + 
+  scale_color_viridis(direction = -1) +
+  
+  # add another fill scale geom with number of cohorts, to get a corresponding color bar into the legend
+  scale_fill_viridis(breaks = c(6, 11, 16, 21)) +
+  scale_size_continuous(range = c(2, 6)#, breaks = seq(from = 50, to = 200, by = 50)
+                        ) + 
+  scale_x_continuous(breaks = seq(from = 10, to = 210, by = 10)) +
+  scale_y_discrete(labels = fancy_labels) + 
+  labs(x = "Half-life (Years)", y = "Site", 
+       color = "Endpoint\n(Years)", size = "Observations\n(n)",
+       fill = "Cohorts\n(n)",) +
+  
+  theme_classic() +
+  theme(legend.position = c(0.725, 0.2),
+        legend.spacing = unit(1, units = "mm"),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(colour = "black"),
+        legend.box = "horizontal"
+        ) + 
+  guides(color = guide_colorbar(order = 1), 
+         size = guide_legend(order = 3#, override.aes = list(alpha = 1)
+                             ),
+         fill = guide_colorbar(order = 2, reverse = TRUE)) #+ 
+  # annotate("text", x = 81.5, y = 5, label = "Model specifications")
+  
+  
+ggsave(plot = gg_half_life_endpoints_by_obs,
+       filename = paste0(p_plots, run_label, "/decay/", "half_lives_endpoints_by_obs", run_label, ".pdf"), 
+       width = 7, height = 6, units = "in")
+
+
+ggsave(plot = gg_half_life_endpoints_by_obs %+% 
+         filter(endpoint_half_lives, endpoint %in% c(10:25)),
+       filename = paste0(p_plots, run_label, "/decay/", "half_lives_endpoints_by_obs_trim", run_label, ".pdf"), 
+       width = 7, height = 6, units = "in")
+
+
+
+
+# ------------------------------------------------------------------------- #
+# add the straight means from l3 model
+# ------------------------------------------------------------------------- #
+ggsave(plot = 
+         gg_half_life_endpoints_by_obs + 
+         new_scale_color() +
+         geom_errorbar(
+           data = time_to_combo %>% 
+             filter(proportion == 0.5, !is.na(time_to), type == "mean",
+                 !grepl("conf", type), mod %in% c("l3", "l3_trim")) %>%
+           left_join(time_to_combo %>%
+                       filter(grepl("conf", type), proportion == 0.5, 
+                              !is.na(time_to), mod %in% c("l3", "l3_trim")) %>%
+                       pivot_wider(id_cols = c(mod, site), names_from = type, values_from = "time_to") %>%
+                       mutate(type = "mean")),
+           mapping = aes(x = time_to, xmin = conf.low, xmax = conf.high,
+                         y = fct_reorder(site, time_to),
+                         color = as_factor(mod)),
+           width = 0.5, position = position_dodge(0.7), alpha = 0.7, inherit.aes = FALSE) + 
+         geom_point(data = time_to_combo %>%        
+                      filter(proportion == 0.5, !is.na(time_to), type == "mean", 
+                             !grepl("conf", type), mod %in% c("l3", "l3_trim")) %>%
+                      left_join(time_to_combo %>%
+                                  filter(grepl("conf", type), proportion == 0.5, 
+                                         !is.na(time_to), mod %in% c("l3", "l3_trim")) %>%
+                                  pivot_wider(id_cols = c(mod, site), names_from = type, 
+                                              values_from = "time_to") %>%
+                                  mutate(type = "mean")),
+                    mapping = aes(x = time_to, y = fct_reorder(site, time_to),
+                                  color = as_factor(mod)),
+                    position = position_dodge(0.7), size = 1.7, alpha = 0.7, inherit.aes = FALSE,
+                    show.legend = T) + 
+  
+    scale_color_discrete(labels = c("l3" = "Including all cohorts",
+                             "l3_trim"= "Excluding cohorts\nwith < 5 obs.\n(2010, '11, '12, '13)"),
+                         name = "Full Model Mean") + 
+      theme(legend.position = c(0.78, 0.55)) #+ coord_cartesian(xlim = c(10, 60))
+    ,
+    filename = paste0(p_plots, run_label, "/decay/", "half_lives_endpoints+_crop", run_label, ".pdf"), 
+       width = 8, height = 5, units = "in")
+
+
+# ------------------------------------------------------------------- #
+# exclude very short and very long endpoints:
+gg_half_life_endpoints_trim <-
+  ggplot(data = endpoint_half_lives %>% filter(endpoint >= 10, endpoint <= 25),
+         mapping = aes(x = mean,
+                       y = fct_reorder(site, mean),
+                       color = endpoint, group = endpoint)
+         ) +
+  geom_point(position = position_dodge(0.7), size = 1.7) + 
+  scale_x_continuous(breaks = seq(from = 10, to = 170, by = 10)) +
+  scale_y_discrete(labels = fancy_labels) + 
+  scale_color_viridis(direction = -1) +
+  theme_minimal() +
+  labs(x = "Half-life (Years)", y = "Site", color = "Endpoint (years)") +
+  
+# add the straight means from l3 model
+  new_scale_color() +
+         geom_errorbar(
+           data = time_to_combo %>% 
+             filter(proportion == 0.5, !is.na(time_to), type == "mean",
+                 !grepl("conf", type), mod %in% c("l3", "l3_trim")) %>%
+           left_join(time_to_combo %>%
+                       filter(grepl("conf", type), proportion == 0.5, 
+                              !is.na(time_to), mod %in% c("l3", "l3_trim")) %>%
+                       pivot_wider(id_cols = c(mod, site), names_from = type, values_from = "time_to") %>%
+                       mutate(type = "mean")),
+           mapping = aes(x = time_to, xmin = conf.low, xmax = conf.high,
+                         y = fct_reorder(site, time_to),
+                         color = as_factor(mod)),
+           width = 0.5, position = position_dodge(0.7), alpha = 0.7, inherit.aes = FALSE) + 
+         geom_point(data = time_to_combo %>%        
+                      filter(proportion == 0.5, !is.na(time_to), type == "mean", 
+                             !grepl("conf", type), mod %in% c("l3", "l3_trim")) %>%
+                      left_join(time_to_combo %>%
+                                  filter(grepl("conf", type), proportion == 0.5, 
+                                         !is.na(time_to), mod %in% c("l3", "l3_trim")) %>%
+                                  pivot_wider(id_cols = c(mod, site), names_from = type, 
+                                              values_from = "time_to") %>%
+                                  mutate(type = "mean")),
+                    mapping = aes(x = time_to, y = fct_reorder(site, time_to),
+                                  color = as_factor(mod)),
+                    position = position_dodge(0.7), size = 1.7, alpha = 0.7, inherit.aes = FALSE) + 
+  
+    scale_color_discrete(labels = c("l3" = "Including all cohorts",
+                             "l3_trim"= "Excluding cohorts\nwith < 5 obs.\n(2010, '11, '12, '13)"),
+                         name = "Full Model Mean") + 
+  theme(legend.position = c(0.8, 0.35),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(colour = "black")) #+ 
+  # coord_cartesian(xlim = c(10, 120))
+
+
+ggsave(plot = gg_half_life_endpoints_f_trim,
+    filename = paste0(p_plots, run_label, "/decay/", "half_lives_endpoints+_trim", run_label, ".pdf"), 
+       width = 8, height = 5, units = "in")
+
+# ------------------------------------------------------------------------- #
+# with confidence intervals:
+# ------------------------------------------------------------------------- #
+gg_half_life_endpoints_ci <-
+  ggplot(data = endpoint_half_lives,
+         mapping = aes(x = mean, xmin = conf.low, xmax = conf.high,
+                       y = fct_reorder(site, mean),
+                       color = endpoint, group = endpoint)
+         ) +
+  geom_errorbar(width = 0.5, position = position_dodge(0.7), alpha = 0.8) + 
+  geom_point(position = position_dodge(0.7), size = 1.7) + 
+
+  scale_x_continuous(breaks = seq(from = 10, to = 210, by = 10)) +
+  scale_y_discrete(labels = fancy_labels) + 
+    scale_color_viridis(direction = -1) +
+    
+  # facet_wrap(vars(mod)) + 
+  theme_classic() +
+  labs(x = "Half-life", y = "Site", color = "Endpoint (Years)",
+       caption = "Error bars represent 95% Confidence Intervals (where possible)") + 
+  theme(legend.position = c(0.75, 0.4),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(colour = "black")) + 
+    
+    coord_cartesian(xlim = c(10, 130))
+
+
+ggsave(plot = gg_half_life_endpoints_ci,
+       filename = paste0(p_plots, run_label, "/decay/", "half_lives_endpoints_ci", run_label, ".pdf"), 
+       width = 8, height = 5, units = "in")
+
+
+
+
+endpoint_half_lives %>% 
+  filter(endpoint %in% c(10:25)) %>%
+  select(endpoint, n_cohorts) %>% unique() %>%
+  arrange(endpoint)
+
+
+
+```
+
+```{r example-panel}
+gg_endpoints_example_panel_s <-
+  ggplot(data = common_endpoint_dat %>% 
+           filter(endpoint %in% c(10, 15, 20, 25), 
+                  site == "shaanxi",
+                  site %in% sites_tmp
+                  ) %>%
+           mutate(endpoint = as_factor(endpoint)) %>%
+           bind_rows(persistence_dat %>% 
+                       filter(site == "shaanxi") %>% 
+                       mutate(endpoint = "full model", endpoint = as_factor(endpoint))),
+       mapping = aes(x = age, y = proportion, 
+                     group = year_abn, color = year_abn)) + 
+  theme_classic() + 
+  geom_point(size = 0.8) +
+  scale_color_viridis(discrete = FALSE, name = "Cohort\n(Year\nAbandoned)") +
+  facet_grid(site~endpoint,# nrow = 3,
+             labeller = as_labeller(cap_update_labels),
+             scales = "free_x", space = "free") +
+  # scale_x_continuous(n.breaks = 6) +
+  scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30)#,
+                     # limits = c(5, 30)
+                     ) +
+
+  geom_hline(yintercept = 0.5, linetype = "dashed") + 
+  labs(x = "Time since initial abandonment (years)", 
+       y = "Proportion of abandoned land remaining") + 
+  theme(legend.background = element_blank(),
+    legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
+
+# fitted lines
+    geom_line(data = augment_endpoints %>% 
+                filter(endpoint %in% c(10, 15, 20, 25), 
+                       site == "shaanxi",
+                       site %in% sites_tmp
+                       ) %>% 
+                mutate(endpoint = as_factor(endpoint)) %>%
+                bind_rows(
+                  augment(lm_mega_lin_log_lin_l, se_fit = TRUE) %>%
+                    mutate(time = round(exp(`log(time + 1)`), digits = 0) - 1,
+                           age = time + 5,
+                           proportion = .fitted + 1,
+                           year_abn = as.numeric(levels(cohort))[cohort]) %>%
+                    filter(site == "shaanxi") %>% 
+                    mutate(endpoint = "full model", endpoint = as_factor(endpoint))),
+              linetype = 5,
+              aes(alpha = "Fitted"), show.legend = TRUE) +
+      scale_alpha_manual(name = NULL,
+                     values = c(1), # breaks = c(0, "Fitted"),
+                     guide = guide_legend(
+                       order = 2)) +
+
+# add mean trajectories
+  new_scale_color() +
+  geom_line(data = lapply(10:29, function(i) {filter(fitted_endpoints, endpoint == i, age <= i)}) %>%
+              bind_rows() %>% 
+              filter(endpoint %in% c(10, 15, 20, 25), 
+                     site == "shaanxi",
+                     site %in% sites_tmp
+                     ), 
+            mapping = aes(x = age, y = proportion, 
+                          color = site
+                          ),
+                          color = "red",
+              size = 1, inherit.aes = FALSE) + 
+  scale_color_discrete(name = "Mean trajectory", labels = fancy_labels)
+
+
+
+# save the figure:
+ggsave(gg_endpoints_example_panel_s,
+  filename = paste0(p_plots, run_label, "/decay/", "endpoints_example_panel_s", run_label, ".pdf"), 
+    width = 11, height = 4, units = "in"
+  )
+
+```
 
 
 ## Test model fit without low n cohorts
@@ -2114,7 +2637,16 @@ coef_l3_mega_trim <-
   tidy(conf.int = TRUE) %>%
   mutate(site = gsub("site", "", str_extract(term, "site[a-z,_]*")),
          year_abn = as.integer(str_extract(term, "[1-2][0-9][0-9][0-9]")),
-         coef_term = ifelse(grepl("log", term), "log", "lin"))
+         cohort = as.factor(year_abn),
+         coef_term = ifelse(grepl("log", term), "log", "lin"),
+         uncertainty_range = conf.high - conf.low,
+         mod = "l3_trim") %>%
+  left_join(dat_trim %>%
+              group_by(site, year_abn) %>%
+              summarise(obs = n()) %>% 
+              ungroup()
+            ) %>%
+  select(mod, site, year_abn, cohort, coef_term, estimate, conf.low, conf.high, uncertainty_range, obs, everything())
 
 # ----------------------------------------------------------------------- #
 # calculate mean coefficients and their confidence intervals
@@ -2223,6 +2755,8 @@ ggplot(data = filter(persistence_dat,
               filter(year_abn > 2009),
             linetype = 5) 
 
+
+
 ggplot(data = filter(persistence_dat, site == site_df$site[9]),
          mapping = aes(x = age, y = proportion, 
                        group = year_abn, 
@@ -2280,6 +2814,7 @@ ggplot(data = filter(persistence_dat, site == site_df$site[9]),
 combo_mean_coefs_w <-
   # coef_l3_mega %>% 
   bind_rows(coef_l3_mega,
+            coef_l3_mega_trim,
             coef_lin_log_mega,
             coef_log2_lin_mega) %>% 
   # filter(!is.na(estimate)) %>%
@@ -2303,142 +2838,271 @@ combo_mean_coefs_w
 # ------------------------------------------------------- #
 # calculate fitted values for the mean trajectories:
 
-# age_range <- 5:30
-age_range <- 5:150
-# type = "mean", "w_obs", "w_uncertainty", "no_cohort"
-
-fitted_l3 <- 
-  # combine fitted values for lin-log-lin models
-  lapply(1:11, function(i) {
-    bind_rows(
-      tibble(age = age_range,
-           site = site_df$site[i],
-           mod = "l3", type = "mean",
-           a = filter(combo_mean_coefs_w, mod == "l3", 
-                      site == site_df$site[i], coef_term == "log")$estimate,
-           b = filter(combo_mean_coefs_w, mod == "l3", 
-                      site == site_df$site[i], coef_term == "lin")$estimate),
-      tibble(age = age_range,
-           site = site_df$site[i],
-           mod = "l3", type = "no_cohort",
-           a = filter(coef_l3_no_cohort_mega, mod == "l3_no_cohort", 
-                      site == site_df$site[i], coef_term == "log")$estimate,
-           b = filter(coef_l3_no_cohort_mega, mod == "l3_no_cohort", 
-                      site == site_df$site[i], coef_term == "lin")$estimate),
-      tibble(age = age_range,
-           site = site_df$site[i],
-           mod = "l3", type = "w_obs",
-           a = filter(combo_mean_coefs_w, mod == "l3", 
-                      site == site_df$site[i], coef_term == "log")$mean_w_obs,
-           b = filter(combo_mean_coefs_w, mod == "l3", 
-                      site == site_df$site[i], coef_term == "lin")$mean_w_obs),
-      tibble(age = age_range,
-           site = site_df$site[i],
-           mod = "l3", type = "w_uncertainty",
-           a = filter(combo_mean_coefs_w, mod == "l3", 
-                      site == site_df$site[i], coef_term == "log")$mean_w_unc,
-           b = filter(combo_mean_coefs_w, mod == "l3", 
-                      site == site_df$site[i], coef_term == "lin")$mean_w_unc)
-      ) %>%
-      mutate(proportion = a * log(age-4) + b * ((age-4) - 1) + 1)
-}) %>% bind_rows()
-
-coefs_l3_mega
-combo_mean_coefs_w$mod %>% unique()
-fitted_combo$mod %>% unique()
-fitted_combo %>% select(mod, type) %>% unique()
+# Calculate and combine fitted values for lin-log-lin models, l3_no_cohort, lin_log, and log2_lin models
 coef_l3_no_cohort_mega %>% names
-names(combo_mean_coefs_w)
+mean_coef_l3_mega_trim %>% names
 
 
 fitted_combo <-
   combo_mean_coefs_w %>% 
   rename(mean = estimate) %>%
   bind_rows(coef_l3_no_cohort_mega) %>%
+  # bind_rows(mean_coef_l3_mega_trim) %>%
   select(mod, site, coef_term, estimate, mean, mean_w_obs, mean_w_unc, conf.low, conf.high) %>%
-  pivot_longer(cols = c(estimate:conf.high), values_to = "value") %>%
-  pivot_wider(id_cols = c(mod, site, name), names_from = coef_term, values_from = "value") %>%
+  pivot_longer(cols = c(estimate:conf.high), values_to = "value", names_to = "type") %>%
+  pivot_wider(id_cols = c(mod, site, type), names_from = coef_term, values_from = "value") %>%
+  mutate(type = ifelse(type == "mean_w_obs", "w_obs", type),
+         type = ifelse(type == "mean_w_unc", "w_uncertainty", type)) %>%
+  
+  # can modify age range here
   left_join(tibble(age = 5:150), by = character()) %>%
   mutate(
     proportion = case_when(
       mod == "l3"           ~ log * log(age-4) + lin * ((age-4) - 1) + 1,
+      mod == "l3_trim"      ~ log * log(age-4) + lin * ((age-4) - 1) + 1,
       mod == "l3_no_cohort" ~ log * log(age-4) + lin * ((age-4) - 1) + 1,
       mod == "lin_log"      ~ log * log(age-4) + 1,
       mod == "log2_lin"     ~ ((age-4) ^ log ) * exp(1) ^ (lin * (age - 5))
       ),
     proportion = ifelse(proportion >= 0, proportion, 0)) %>%
-    filter(!is.na(proportion)) 
+    filter(!is.na(proportion))
+  
 
-
-
-# ----------------------------------------------------------------- #
-# now, add the fitted values for lin-log and log log lin models:
-# formula(lm_mega_lin_log_l)
-# combo_mean_coefs_w$mod %>% unique()
-# combo_mean_coefs_w %>% filter(mod == "lin_log")
-
-fitted_lin_log <- 
-  lapply(1:11, function(i) {
-    bind_rows(
-      tibble(age = age_range,
-           site = site_df$site[i],
-           mod = "lin_log", type = "mean",
-           a = filter(combo_mean_coefs_w, mod == "lin_log", 
-                      site == site_df$site[i], coef_term == "log")$estimate),
-      tibble(age = age_range,
-           site = site_df$site[i],
-           mod = "lin_log", type = "w_obs",
-           a = filter(combo_mean_coefs_w, mod == "lin_log", 
-                      site == site_df$site[i], coef_term == "log")$mean_w_obs),
-      tibble(age = age_range,
-           site = site_df$site[i],
-           mod = "lin_log", type = "w_uncertainty",
-           a = filter(combo_mean_coefs_w, mod == "lin_log", 
-                      site == site_df$site[i], coef_term == "log")$mean_w_unc)
-      ) %>%
-      mutate(proportion = a * log(age-4) + 1)
-}) %>% bind_rows()
-
-
-# formula(lm_mega_log2_lin_l)
-
-
-fitted_log2_lin <- 
-  lapply(1:11, function(i) {
-    bind_rows(
-      tibble(age = age_range,
-           site = site_df$site[i],
-           mod = "log2_lin", type = "mean",
-           a = filter(combo_mean_coefs_w, mod == "log2_lin", 
-                      site == site_df$site[i], coef_term == "log")$estimate,
-           b = filter(combo_mean_coefs_w, mod == "log2_lin", 
-                      site == site_df$site[i], coef_term == "lin")$estimate),
-      tibble(age = age_range,
-           site = site_df$site[i],
-           mod = "log2_lin", type = "w_obs",
-           a = filter(combo_mean_coefs_w, mod == "log2_lin", 
-                      site == site_df$site[i], coef_term == "log")$mean_w_obs,
-           b = filter(combo_mean_coefs_w, mod == "log2_lin", 
-                      site == site_df$site[i], coef_term == "lin")$mean_w_obs),
-      tibble(age = age_range,
-           site = site_df$site[i],
-           mod = "log2_lin", type = "w_uncertainty",
-           a = filter(combo_mean_coefs_w, mod == "log2_lin", 
-                      site == site_df$site[i], coef_term == "log")$mean_w_unc,
-           b = filter(combo_mean_coefs_w, mod == "log2_lin", 
-                      site == site_df$site[i], coef_term == "lin")$mean_w_unc)
-      ) %>%
-      mutate(proportion = ((age-4) ^ a ) * exp(1) ^ (b * (age - 5)))
-}) %>% bind_rows()
-
-fitted_combo <- 
-  bind_rows(
-    fitted_l3,
-    fitted_lin_log,
-    fitted_log2_lin
-  ) %>%
-  mutate(proportion = ifelse(proportion >= 0, proportion, 0)) # fitted proportion can't be less than 0!
+fitted_combo %>% select(mod, type) %>% unique()
 ```
+
+```{r new-indiv-half-lives}
+coef_df_wide_l3 %>%
+  filter(
+    year_abn < 2012,
+    is.na(time_to_0.5)
+    ) %>%
+  mutate(time_to_0.5 = case_when(
+    year_abn < 2012 & is.na(time_to_0.5) ~ 200
+  )) %>%
+  print()
+
+
+
+# gg_all_half_lives <-
+  ggplot(data = coef_df_wide_l3, 
+       mapping = aes(x = time_to_0.5, y = fct_reorder(site, mean_time_to_0.5, .desc = FALSE),
+                     color = year_abn, group = year_abn)) + 
+  geom_point(position = position_dodge(0.7), size = 1.7) + 
+  scale_x_continuous(breaks = seq(from = 0, to = 230, by = 10)) +
+  scale_y_discrete(labels = fancy_labels) + 
+  scale_color_viridis(direction = -1) +
+  theme_classic() +
+  labs(x = "Half-life (Years)", y = "Site", color = "Cohort", linetype = NULL) +
+  theme(legend.position = c(0.7, 0.2),
+        legend.background = element_blank(),
+        # legend.direction = "horizontal",
+        legend.box.background = element_rect(colour = "black")) +
+  
+  geom_point(data = coef_df_wide_l3 %>%
+               filter(year_abn < 2012, is.na(time_to_0.5)) %>%
+               mutate(time_to_0.5 = case_when(year_abn < 2012 & is.na(time_to_0.5) ~ 230)),
+             shape = 17, show.legend = T, aes(linetype = "NA values"))
+
+
+# ------------------------------------------------------------------------- #
+# save
+# ------------------------------------------------------------------------- #
+ggsave(plot = gg_all_half_lives,
+       filename = paste0(p_plots, run_label, "/decay/", "half_lives_full_model", run_label, ".pdf"), 
+       width = 8, height = 5, units = "in")
+
+```
+
+
+```{r new-mean-half-lives}
+fitted_combo
+
+# ------------------------------------------------------------------------- #
+time_to_combo <- 
+  combo_mean_coefs_w %>% 
+  rename(mean = estimate) %>%
+  bind_rows(coef_l3_no_cohort_mega) %>%
+  select(mod, site, coef_term, estimate, mean, mean_w_obs, mean_w_unc, conf.low, conf.high) %>%
+  pivot_longer(cols = c(estimate:conf.high), values_to = "value", names_to = "type") %>%
+  pivot_wider(id_cols = c(mod, site, type), names_from = coef_term, values_from = "value") %>%
+  mutate(type = ifelse(type == "mean_w_obs", "w_obs", type),
+         type = ifelse(type == "mean_w_unc", "w_uncertainty", type)) %>%
+  filter(!(mod != "l3_no_cohort" & type == "estimate")) %>%
+  
+  left_join(tibble(proportion = seq(from = 0, to = 1, by = 0.1)), by = character()) %>%
+  
+  mutate(time_to = case_when(
+      mod %in% c("l3", 
+                 "l3_trim",
+                 "l3_no_cohort") ~ ((log * lambertW0((lin * exp((lin + proportion - 1) / log)) / 
+                                              log)) / lin) + 4
+      # mod == "lin_log"      ~ log * log(age-4) + 1,
+      # mod == "log2_lin"     ~ ((age-4) ^ log ) * exp(1) ^ (lin * (age - 5))
+      ))
+           
+
+
+# view:
+time_to_combo %>%        
+  filter(proportion == 0.5, !is.na(time_to), type == "mean", 
+         !grepl("conf", type), mod %in% c("l3", "l3_trim")) %>%
+  left_join(time_to_combo %>%
+              filter(grepl("conf", type), proportion == 0.5, 
+                     !is.na(time_to), mod %in% c("l3", "l3_trim")) %>%
+              pivot_wider(id_cols = c(mod, site), names_from = type, 
+                          values_from = "time_to") %>%
+              mutate(type = "mean")) %>%
+  arrange(site, mod) %>%
+  select(mod, site, proportion, time_to) %>%
+  pivot_wider(id_cols = c(mod, site), names_from = mod, 
+              values_from = "time_to") %>%
+  mutate(diff = l3_trim - l3) %>%
+  arrange(desc(diff)) %>%
+  print(n = 30)
+  
+
+
+
+
+# ------------------------------------------------------------------------- #
+# plot 
+# ------------------------------------------------------------------------- #
+gg_half_life <-
+  time_to_combo %>% 
+      filter(proportion == 0.5, !is.na(time_to),
+             type == "mean",
+             !grepl("conf", type), 
+             # mod == "l3"
+             mod %in% c("l3", "l3_trim")
+             ) %>%
+  # arrange(site, type, time_to)
+  left_join(
+    time_to_combo %>%
+      filter(grepl("conf", type),
+             proportion == 0.5, 
+             !is.na(time_to), 
+             # mod == "l3"
+             mod %in% c("l3", "l3_trim")
+             ) %>%
+      pivot_wider(id_cols = c(mod, site), names_from = type, 
+                  values_from = "time_to") %>%
+      mutate(type = "mean")
+    ) %>%
+  ggplot(data = .,
+         mapping = aes(x = time_to, xmin = conf.low, xmax = conf.high,
+                       y = fct_reorder(site, time_to),
+                       # shape = mod,
+                       shape = type,
+                       # color = as_factor(type)
+                       color = as_factor(mod)
+                       )
+         ) +
+  geom_errorbar(width = 0.5, position = position_dodge(0.7),
+                alpha = 0.8) + 
+  geom_point(position = position_dodge(0.7), size = 1.7) + 
+  scale_x_continuous(breaks = seq(from = 10, to = 190, by = 10)) +
+  scale_y_discrete(labels = fancy_labels) + 
+  scale_shape_discrete(labels = c("mean" = "Mean coefs.\n (unweighted)",
+                                "w_obs"= "Mean weighted \n by # obs.",
+                                "w_uncertainty"= "Mean weighted\n by inverse uncertainty"),
+                       name = "Mean Method") +
+    scale_color_discrete(labels = 
+                           c("l3" = "Including all cohorts",
+                             "l3_trim"= "Excluding cohorts\nwith < 5 obs.\n(2010, '11, '12, '13)"),
+                         name = "Model Spec.") + 
+  # facet_wrap(vars(mod)) + 
+  theme_classic() +
+  labs(x = "Half-life", y = "Site", 
+       caption = "Error bars represent 95% Confidence Intervals (where possible)") + 
+  theme(legend.position = c(0.75, 0.4),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(colour = "black"))
+
+
+# ------------------------------------------------------------------------- #
+# save
+# ------------------------------------------------------------------------- #
+ggsave(plot = gg_half_life, 
+       filename = paste0(p_plots, run_label, "/decay/", "half_lives", run_label, ".pdf"), 
+       width = 5, height = 5, units = "in")
+
+ggsave(plot = gg_half_life, 
+       filename = paste0(p_plots, run_label, "/decay/", "half_lives_w_trim", run_label, ".pdf"), 
+       width = 8, height = 5, units = "in")
+
+
+
+
+
+
+
+
+time_to_combo %>% 
+      filter(proportion == 0.5, !is.na(time_to),
+             !grepl("conf", type), 
+             grepl("l3", mod), !grepl("no_cohort", mod)) %>%
+  pivot_wider(id_cols = c(mod, site), names_from = c(mod, type), 
+                  values_from = "time_to") %>%
+  pivot_longer(cols = c(!site), 
+               values_to = "time_to", names_to = "type")
+
+# ------------------------------------------------------------------------- #
+# plot multiple mean methods
+# ------------------------------------------------------------------------- #
+gg_half_life_multi <-
+  time_to_combo %>% 
+      filter(proportion == 0.5, !is.na(time_to),
+             # type == "mean",
+             !grepl("conf", type), 
+             grepl("l3", mod), !grepl("no_cohort", mod)) %>%
+  # arrange(site, type, time_to)
+  left_join(
+    time_to_combo %>%
+      filter(grepl("conf", type), grepl("l3", mod), !grepl("no_cohort", mod),
+             proportion == 0.5, 
+             !is.na(time_to)) %>%
+      pivot_wider(id_cols = c(mod, site), names_from = type, 
+                  values_from = "time_to") %>%
+      mutate(type = "mean")
+    ) %>%
+  ggplot(data = .,
+         mapping = aes(x = time_to, xmin = conf.low, xmax = conf.high,
+                       y = fct_reorder(site, time_to), 
+                       shape = mod,
+                       color = as_factor(type))) +
+  geom_errorbar(width = 0.5, position = position_dodge(0.7),
+                alpha = 0.8) + 
+  geom_point(position = position_dodge(0.7), size = 1.7) + 
+  scale_x_continuous(breaks = seq(from = 10, to = 190, by = 10)) +
+  scale_y_discrete(labels = fancy_labels) + 
+  scale_color_discrete(labels = c("mean" = "Mean coefs.\n (unweighted)",
+                                "w_obs"= "Mean weighted \n by # obs.",
+                                "w_uncertainty"= "Mean weighted\n by inverse uncertainty")) +  scale_shape_discrete(labels = c("l3" = "Including all cohorts",
+                                "l3_trim"= "Excluding cohorts\nwith < 5 obs.\n(2010, '11, '12, '13)"
+                                )) +
+  # facet_wrap(vars(mod)) + 
+  theme_classic() +
+  labs(x = "Half-life", y = "Site", 
+       color = "Mean Method", shape = "Model spec.",
+       caption = "Error bars represent 95% Confidence Intervals (where possible)") + 
+  theme(
+    legend.position = c(0.75, 0.5),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(colour = "black"))
+
+
+# ------------------------------------------------------------------------- #
+# save
+# ------------------------------------------------------------------------- #
+ggsave(plot = gg_half_life_multi, 
+       filename = paste0(p_plots, run_label, "/decay/", "half_lives_multi_method+", run_label, ".pdf"), 
+       width = 9, height = 6, units = "in")
+
+
+
+```
+
 
 
 ```{r decay-mod-plus}
@@ -2476,9 +3140,7 @@ gg_decay_alt_means <-
   
     # add mean trajectories
   new_scale_color() +
-  geom_line(data = fitted_combo %>% filter(age < 31, mod == "l3", 
-                                           type != "no_cohort"
-                                           ), 
+  geom_line(data = fitted_combo %>% filter(age < 31, mod == "l3"), 
             mapping = aes(x = age, y = proportion, 
                           # linetype = mod,
                           color = type),
@@ -2961,7 +3623,70 @@ gg_decay_grid0 <-
              labeller = as_labeller(cap_update_labels))
 ```
 
+```{r 1-2}
+names(mod_ll_mega)
+mod_index <- 1
 
+for(mod_index in c(1, 2)) {
+# mod_index <- 11
+# model fits:
+augment_tmp <- augment(
+  mod_ll_mega[[mod_index]], 
+  # mod_ll_mega_trim[[mod_index]], 
+  se_fit = TRUE,
+  interval = "confidence",
+  conf.level = 0.95) %>% 
+  mutate(
+    time = round(exp(`log(time + 1)`), digits = 0) - 1,
+    age = time + 5,
+    # proportion = .fitted + 1,
+    year_abn = as.numeric(levels(cohort))[cohort]
+    ) %>%
+  filter(year_abn < cohort_cut_off)
+
+# mean trajectory:
+# fitted_tmp <- fitted_l3_mega %>% filter(mod == "l3")
+
+# add model fits:
+gg_mod_tmp_fits <- 
+  gg_decay_grid0 +   
+    # fitted lines
+    geom_line(data = augment_tmp,
+              linetype = 5, #5, #"longdash"
+              aes(alpha = "Fitted", y = exp(.fitted))) +
+     scale_alpha_manual(name = NULL,
+                     values = c(1), # breaks = c(0, "Fitted"),
+                     guide = guide_legend(
+                       order = 2)) + 
+  labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
+
+# add confidence intervals:
+gg_mod_tmp_ci <- 
+  gg_decay_grid0 + 
+  geom_ribbon(data = augment_tmp,
+              mapping = aes(x = age, 
+                            y = exp(.fitted), 
+                            ymin = exp(.lower), 
+                            ymax = exp(.upper),
+                            group = year_abn, color = year_abn, fill = year_abn
+                              ),
+                alpha = 0.2,
+                show.legend = FALSE, inherit.aes = FALSE) + 
+      scale_fill_viridis() + 
+    labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
+
+
+ggsave(plot = gg_mod_tmp_fits,
+       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label,
+                         "_mod_", mod_index, "_fits.pdf"), 
+       width = 8, height = 8, units = "in")
+
+ggsave(plot = gg_mod_tmp_ci, 
+       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label, 
+                         "_mod_", mod_index, "_ci.pdf"), 
+       width = 8, height = 8, units = "in")
+}
+```
 ```{r 3-4}
 for(mod_index in c(3, 4)) {
 # mod_index <- 11
@@ -3037,71 +3762,6 @@ names(mod_ll_mega)
 
 
 # exponential decay (mod #8)
-```
-
-```{r 1-2}
-names(mod_ll_mega)
-mod_index <- 1
-
-for(mod_index in c(1, 2)) {
-# mod_index <- 11
-# model fits:
-augment_tmp <- augment(
-  mod_ll_mega[[mod_index]], 
-  # mod_ll_mega_trim[[mod_index]], 
-  se_fit = TRUE,
-  interval = "confidence",
-  conf.level = 0.95) %>% 
-  mutate(
-    time = round(exp(`log(time + 1)`), digits = 0) - 1,
-    age = time + 5,
-    # proportion = .fitted + 1,
-    year_abn = as.numeric(levels(cohort))[cohort]
-    ) %>%
-  filter(year_abn < cohort_cut_off)
-
-# mean trajectory:
-# fitted_tmp <- fitted_l3_mega %>% filter(mod == "l3")
-
-# add model fits:
-gg_mod_tmp_fits <- 
-  gg_decay_grid0 +   
-    # fitted lines
-    geom_line(data = augment_tmp,
-              linetype = 5, #5, #"longdash"
-              aes(alpha = "Fitted", y = exp(.fitted))) +
-     scale_alpha_manual(name = NULL,
-                     values = c(1), # breaks = c(0, "Fitted"),
-                     guide = guide_legend(
-                       order = 2)) + 
-  labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
-
-# add confidence intervals:
-gg_mod_tmp_ci <- 
-  gg_decay_grid0 + 
-  geom_ribbon(data = augment_tmp,
-              mapping = aes(x = age, 
-                            y = exp(.fitted), 
-                            ymin = exp(.lower), 
-                            ymax = exp(.upper),
-                            group = year_abn, color = year_abn, fill = year_abn
-                              ),
-                alpha = 0.2,
-                show.legend = FALSE, inherit.aes = FALSE) + 
-      scale_fill_viridis() + 
-    labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
-
-
-ggsave(plot = gg_mod_tmp_fits,
-       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label,
-                         "_mod_", mod_index, "_fits.pdf"), 
-       width = 8, height = 8, units = "in")
-
-ggsave(plot = gg_mod_tmp_ci, 
-       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label, 
-                         "_mod_", mod_index, "_ci.pdf"), 
-       width = 8, height = 8, units = "in")
-}
 ```
 
 ```{r 5}
@@ -3482,11 +4142,6 @@ ggsave(plot = gg_mod_tmp_ci,
 
 
 ```
-
-```{r lin-log}
-
-```
-
 
 ```{r 11-decay-panel-l3-continuous}
 names(mod_ll_mega)
@@ -5141,7 +5796,8 @@ mean_coef_df %>% mutate(site = fct_relevel(site, coef_level_order)) %>% .$site
 
 ```{r fig3-w-ci}
 ci_tmp <- 
-  mean_traj_ci %>%
+  # mean_traj_ci %>%
+  mean_traj_ci_trim %>%
   # update proportions to 0 if less than 0.
   mutate(estimate = ifelse(estimate >= 0, estimate, 0),
          conf.low = ifelse(conf.low >= 0, conf.low, 0),
@@ -5151,22 +5807,33 @@ ci_tmp <-
 
 
 # plot
-# gg_model_curves_by_site_w_ci <- 
+gg_model_curves_by_site_w_ci <-
+# gg_model_curves_by_site_w_ci_trim <-
   ggplot(
-    data = ci_tmp %>% filter(age < 140),
-       mapping = aes(x = age, 
-                     y = estimate, 
-                     ymin = conf.low,
-                     ymax = conf.high, 
-                     color = site, group = site, fill = site
+    data = 
+      mean_traj_ci %>%
+      # mean_traj_ci_trim %>%
+      # update proportions to 0 if less than 0.
+      mutate(estimate = ifelse(estimate >= 0, estimate, 0),
+             conf.low = ifelse(conf.low >= 0, conf.low, 0),
+             conf.high = ifelse(conf.high >= 0, conf.high, 0)) %>%
+      filter(age < 140) %>%
+      left_join(time_to2 %>% 
+                  filter(proportion == 0.5, mod == "l3", type == "mean") %>% 
+                  select(site, time_to)),
+       mapping = aes(x = age, y = estimate, 
+                     ymin = conf.low, ymax = conf.high, 
+                     color = fct_reorder(site, time_to), 
+                     group = fct_reorder(site, time_to), 
+                     fill = fct_reorder(site, time_to)
                      )) +
   theme_classic() +
+  coord_cartesian(ylim = c(0, 1)) +
+  # add 95% confidence intervals
+  geom_ribbon(alpha = 0.1, show.legend = FALSE, size = 0) +
   
   # add mean trajectories
   geom_line(size = 1.1) +
-  
-  # add 95% confidence intervals
-  geom_ribbon(alpha = 0.1, show.legend = FALSE) +
   
   geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray70") +
   geom_hline(yintercept = 0, linetype = "dashed") +
@@ -5189,9 +5856,16 @@ ggsave(plot =
          labs(caption = NULL) +
          scale_x_continuous(n.breaks = 15) + 
          theme(legend.position = c(0.76, 0.70)),
-       filename = paste0(p_plots, "/fig3.pdf"),
+       filename = paste0(p_plots, "/fig3_ci.pdf"),
        width = 7, height = 3.5, units = "in", dpi = 400)
 
+ggsave(plot =
+         gg_model_curves_by_site_w_ci_trim + 
+         labs(caption = NULL) +
+         scale_x_continuous(n.breaks = 15) + 
+         theme(legend.position = c(0.76, 0.70)),
+       filename = paste0(p_plots, "/fig3_ci_trim.pdf"),
+       width = 7, height = 3.5, units = "in", dpi = 400)
 
 
   
