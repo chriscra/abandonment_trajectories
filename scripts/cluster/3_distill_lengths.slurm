@@ -13,9 +13,6 @@
 
 echo "Executing on the machine:" $(hostname)
 
-# load any required modules
-module load gdal/2.2.4
-module load geos/3.7.2
 
 # set working directory
 cd /home/clc6/abandonment_trajectories/scripts

@@ -1,8 +1,8 @@
 # -------------------------------------------------------- #
-# Christopher Crawford, Princeton University, March 9th, 2021 (updated March 13th, 2021)
+# Christopher Crawford, Princeton University, March 9th, 2021 (updated March 13th, 2021, January 28th, 2022)
 
 # Script to synthesize the abandonment length data resulting from
-# "2_analyze_abn.R" script, calculating abandonment trajectories for all sites
+# "2_analyze_abn.R" and "2.2_calc_recult_age.R" scripts, calculating abandonment and recultivation lengths for all sites
 # -------------------------------------------------------- #
 
 
@@ -17,7 +17,12 @@ p_dat_derived   <-    "/scratch/gpfs/clc6/abandonment_trajectories/data_derived/
 p_input_rasters <-    "/scratch/gpfs/clc6/abandonment_trajectories/data_derived/input_rasters/"
 p_output        <-    "/scratch/gpfs/clc6/abandonment_trajectories/output/"
 p_raw_rasters   <-    "/scratch/gpfs/clc6/abandonment_trajectories/raw_rasters/"
+p_tmp           <-    "/scratch/gpfs/clc6/abandonment_trajectories/data_derived/tmp/"
 
+
+# set terra autosave options:
+terraOptions(tempdir = p_tmp)
+rasterOptions(tmpdir = p_tmp)
 
 # source functions:
 source("/home/clc6/abandonment_trajectories/scripts/util/_util_functions.R")
@@ -27,13 +32,13 @@ source("/home/clc6/abandonment_trajectories/scripts/util/_util_functions.R")
 site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
 
 # set run_label
-run_label <- "_2021_03_13" # "_2021-03-05"
+run_label <- "_2022_01_31" #"_2021_03_13" # "_2021-03-05"
 
 cat(fill = TRUE, "Distilling length data.tables for run:", run_label)
 
 
 # -------------------------------------------------------- #
-# Distill the length data, for use in histograms ----
+# Distill the abandonment length data, for use in histograms ----
 
 length_distill_df <- lapply(site_df$site, function(x){
   length <- fread(input = paste0(p_input_rasters, x, "_length", run_label, ".csv"))
@@ -59,11 +64,36 @@ length_distill_df <- lapply(site_df$site, function(x){
 
 length_distill_df <- length_distill_df %>% bind_rows() %>% as.data.frame()
 
-# save site_df
+# save length_distill_df
 write_csv(length_distill_df, file = paste0(p_input_rasters, "length_distill_df", run_label, ".csv"))
 
 cat(fill = TRUE, "Saved length_distill_df to:", paste0(p_input_rasters, "length_distill_df", run_label, ".csv"))
 
+
+
+# -------------------------------------------------------- #
+# Distill the recultivation length data, for use in histograms ----
+
+recult_length_distill_df <- lapply(site_df$site, function(x){
+  recult_length <- fread(input = paste0(p_input_rasters, x, "_recult_length", run_label, ".csv"))
+  
+  
+  dt <- recult_length[, .(freq = .N), by = length
+                      ][, ':='(site = x, length_type = "recult")]
+  
+  cat(fill = TRUE, "distilled:", x)
+  
+  # return dt
+  dt
+}
+) 
+
+recult_length_distill_df <- recult_length_distill_df %>% bind_rows() %>% as.data.frame()
+
+# save recult_length_distill_df
+write_csv(recult_length_distill_df, file = paste0(p_input_rasters, "recult_length_distill_df", run_label, ".csv"))
+
+cat(fill = TRUE, "Saved recult_length_distill_df to:", paste0(p_input_rasters, "recult_length_distill_df", run_label, ".csv"))
 
 
 
