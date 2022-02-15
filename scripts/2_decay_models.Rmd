@@ -390,7 +390,9 @@ combo_mean_coefs <-
 
 
 
+# -------------------------------------
 # extras:
+# -------------------------------------
 
 
 mean_coef_l3_mega
@@ -2666,6 +2668,9 @@ ggsave(plot = gg_half_life_endpoints_by_obs %+%
        width = 7, height = 6, units = "in")
 
 
+# -------------------------------------------------------- # 
+# this is the final figure to go into the main text of the manuscript
+# -------------------------------------------------------- # 
 ggsave(plot = gg_half_life_endpoints_by_obs %+% 
          filter(endpoint_half_lives, endpoint %in% c(10, 15, 20, 25)),
        filename = paste0(p_plots, run_label, "/decay/", "half_lives_endpoints_by_obs_10_25", run_label, ".pdf"), 
@@ -2673,7 +2678,9 @@ ggsave(plot = gg_half_life_endpoints_by_obs %+%
 
 
 
-
+# -------------------------------------------------------- # 
+# -------------------------------------------------------- # 
+# -------------------------------------------------------- # 
 # ------------------------------------------------------------------------- #
 # add the straight means from l3 model
 # ------------------------------------------------------------------------- #
@@ -3675,6 +3682,38 @@ tidy(lmer_l3_random)#, conf.int = TRUE)
 
 ```
 
+# Save files 
+```{r save-files}
+
+# ------------------------------------------------------------------------ #
+# save coef data.frames
+# ------------------------------------------------------------------------ #
+save(lm_mega_lin_log_lin_l, 
+     mod_ll_mega, 
+     coef_l3_mega,
+     mean_coef_l3_mega, 
+     combo_mean_coefs, 
+     half_lives_all_cohorts_l3, 
+     half_life_mean_coefs_l3, 
+     mod_AIC_mega, 
+     combo_mean_coefs_w, 
+     fitted_combo, 
+     time_to_combo,
+     file = paste0(p_derived2, "/decay_mod_files", run_label, ".rds"))
+
+save(common_endpoint_dat, 
+     endpoint_n,
+     coef_l3_endpoints,
+     augment_endpoints,
+     fitted_endpoints,
+     time_to_endpoints,
+     endpoint_half_lives,
+     file = paste0(p_derived2, "/decay_endpoints_files", run_label, ".rds"))
+
+
+load(file = paste0(p_derived2, "/decay_mod_files", run_label, ".rds"), verbose = TRUE)
+load(file = paste0(p_derived2, "/decay_endpoints_files", run_label, ".rds"), verbose = TRUE)
+```
 
 
 # Figures
