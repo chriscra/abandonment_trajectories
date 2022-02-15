@@ -1007,6 +1007,30 @@ cc_calc_age <- function(dt) {
   }
 }
 
+# -------------------------------------------------------------------------- #
+# Calculate potential age of abandonment, assuming no recultivation
+# -------------------------------------------------------------------------- #
+cc_calc_potential_age <- function(dt) {
+  
+  if (length(grep("[xy]$", names(dt))) > 0) {
+    if (!identical(names(dt)[1:2], c("x", "y"))) {
+      stop("x and y must be the first two columns in the data.table")
+    }
+    start <- 4
+  } else {
+    start <- 2
+  }
+  
+  for (i in start:ncol(dt) - 1) {
+    
+    # subset rows that are greater than 0 (i.e. 1, for noncrop), and
+    dt[get(names(dt)[i]) >= 5, 
+       
+       # set them equal to the previous column's value in that row, plus 1.
+       names(dt)[i+1] := get(names(dt)[i]) + 1] 
+  }
+}
+
 
 # -------------------------------------------------------------------------- #
 # Calculate the length ("age") of each period of recultivation following a period of abandonment
@@ -1639,7 +1663,77 @@ cc_filter_abn_dt <- function(site, select_1987_2017 = TRUE,
   cat(fill = TRUE, "Done! cc_filter_abn_dt() for: ", site)
 }
 
+# carbon ----
 
+# -------------------------------------------------------------------------- #
+# Calculate the total carbon accumulated in abandoned land over time,
+# for all former cropland (threshold == 1) and for an abandonment_threshold specified
+# as a function parameter.
+# This function works for different input types, e.g., "_age" and "_potential_age".
+# input_age data.tables are loaded in directly, then combined with a carbon accumulation rate
+# data table that is then masked by max_age_t. 
+# This means that carbon_t and max_age_t must be loaded prior to calling this function.
+# -------------------------------------------------------------------------- #
+
+
+cc_calc_carbon_accumulation <- function(
+  input_type, site_indx,
+  years_covered = 1987:2017,
+  abandonment_threshold = 5) {
+  
+  cat(fill = TRUE, "Calculating for:", site_df$site[site_indx], input_type, "...")
+  
+  # 0. Load age data.table
+  tic("load input age data.table")
+  input_age_dt <- fread(paste0(p_input_rasters, site_df$site[site_indx], input_type, run_label, ".csv"))
+  toc()
+  
+  # 1. Convert carbon raster to data.table
+  tic("convert carbon raster to data.table")
+  carbon_dt <- spatraster_to_dt(
+    c(carbon_t[[site_indx]],
+      max_age_t[[site_indx]])
+  )
+  toc()
+  
+  # 2. mask carbon_dt by max_age
+  tic("round x and y columns for merge")
+  carbon_dt <- carbon_dt[!is.na(max_age), ]
+  toc()
+  
+  # 3. Combine carbon and age data.tables
+  tic("merge data.tables")
+  cdt <- cbind(input_age_dt, carbon_dt[, .(Y20, YSS)])
+  toc()
+  
+  # 4.
+  tic("calculate C for years 21-30, tmp file")
+  C_21_30_tmp <- sapply(paste0("y", years_covered), function(my_year) {
+    cdt[get(my_year) >= 21, 
+        sum((get(my_year) - 20) * YSS, na.rm = TRUE) + # apply the lower YSS rate to years past 20
+          sum(20 * Y20, na.rm = TRUE)] # add 20 * Y20 rate
+  })
+  toc()
+  
+  # 4. create carbon df
+  tic("calculate carbon accumulation")
+  carbon_df <- lapply(c(1, abandonment_threshold), function(i) {
+    carbon_df <- tibble(
+      site = site_df$site[site_indx],
+      year = years_covered,
+      threshold = i,
+      C_up_to_20 = sapply(paste0("y", year), function(my_year) {
+        cdt[get(my_year) >= i & 
+              get(my_year) < 21, sum(get(my_year) * Y20, na.rm = TRUE)]
+      }),
+      C_21_30 = C_21_30_tmp,
+      total_C_Mg = C_up_to_20 + C_21_30,
+    )
+  }) %>% bind_rows()
+  toc()
+  
+  carbon_df
+}
 
 
 
@@ -1660,10 +1754,9 @@ cc_calc_area_per_lc_abn <- function(land_cover_dt, abn_age_dt, land_cover_raster
   area_raster <- land_cover_raster %>%
     # terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
     # classify(., rcl = tribble(~"is", ~"becomes", 0, NA)) %>%  # remove the 0s
-    terra::cellSize(., unit = "km", mask = FALSE) %>% # calculate cell areas
-    raster(.) # convert back to raster for as.data.table.raster()
+    terra::cellSize(., unit = "km", mask = FALSE) # calculate cell areas
   
-  area_dt <- as.data.table.raster(area_raster)
+  area_dt <- spatraster_to_dt(area_raster)
   setnames(area_dt, old = "area", new = "pixel_area") # update layer names
   # -------------------------------------------------------------- #
   # -------- old version -------- #
@@ -1778,14 +1871,14 @@ cc_calc_abn_area <- function(abn_age_dt, land_cover_raster, abandonment_definiti
   area_raster <- land_cover_raster %>%
     # terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
     # classify(., rcl = tribble(~"is", ~"becomes", 0, NA)) %>%  # remove the 0s
-    terra::cellSize(., unit = "km", mask = FALSE) %>% # calculate cell areas
-    raster(.) # convert back to raster for as.data.table.raster()
+    terra::cellSize(., unit = "km", mask = FALSE) # calculate cell areas
   
-  area_dt <- as.data.table.raster(area_raster)
+  area_dt <- spatraster_to_dt(area_raster)
   setnames(area_dt, old = "area", new = "pixel_area") # update layer names
+ 
   # -------------------------------------------------------------- #
   # -------- old version -------- #
-  # area_raster <- raster::area(land_cover_raster) # calculate area in km2
+  # area_raster <- raster::area(raster(land_cover_raster)) # calculate area in km2
   # area_dt <- as.data.table.raster(area_raster) # convert to data.table
   # setnames(area_dt, old = "layer", new = "pixel_area") # update layer names
 
@@ -1832,10 +1925,9 @@ cc_calc_persistence <- function(abn_age_dt,
   area_raster <- land_cover_raster %>%
     # terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
     # classify(., rcl = tribble(~"is", ~"becomes", 0, NA)) %>%  # remove the 0s
-    terra::cellSize(., unit = "km", mask = FALSE) %>% # calculate cell areas
-    raster(.) # convert back to raster for as.data.table.raster()
-  
-  area_dt <- as.data.table.raster(area_raster)
+    terra::cellSize(., unit = "km", mask = FALSE) # calculate cell areas
+
+  area_dt <- spatraster_to_dt(area_raster)
   setnames(area_dt, old = "area", new = "pixel_area") # update layer names
   # -------------------------------------------------------------- #
   # -------- old version -------- #
@@ -1863,7 +1955,7 @@ cc_calc_persistence <- function(abn_age_dt,
   
   # first calculate a list of 30 vectors corresponding to abandonment originating in a particular year.
   persistence_list <- lapply(1:30, function(j) {
-    # calculate a vector of the summed area (ha) of abandoned pixels that originate 
+    # Calculate a vector of the summed area (ha) of abandoned pixels that originate 
     # in a particular year (i.e. cohort), and the area (ha) of those pixels in each 
     # subsequent year, starting in 1988. 
     # Filled with NAs for periods that are beyond the length of the time series.
@@ -2038,10 +2130,9 @@ cc_calc_abn_diff <- function(abn_age_dt, land_cover_raster,
   area_raster <- land_cover_raster %>%
     # terra::rast(land_cover_raster)[[1]] %>% # convert land cover raster to SpatRaster for area calculation, selecting only first layer in order to speed up operations
     # classify(., rcl = tribble(~"is", ~"becomes", 0, NA)) %>%  # remove the 0s
-    terra::cellSize(., unit = "km", mask = FALSE) %>% # calculate cell areas
-    raster(.) # convert back to raster for as.data.table.raster()
-  
-  area_dt <- as.data.table.raster(area_raster)
+    terra::cellSize(., unit = "km", mask = FALSE) # calculate cell areas
+
+  area_dt <- spatraster_to_dt(area_raster)
   setnames(area_dt, old = "area", new = "pixel_area") # update layer names
   # -------------------------------------------------------------- #
   # -------- old version -------- #
@@ -2848,12 +2939,24 @@ cc_save_decay_model_plots <- function(site_index, add_no_cohort = TRUE) {
 # ------------------------------------------------------------------------------------ #
 # crop, resample predictor datasets
 # ------------------------------------------------------------------------------------ #
-cc_crop_resample_r <- function(input_r, site = "shaanxi", resample_method = "ngb") {
-  site_r <- max_age_r[[site]]
-  cropped <- crop(input_r, site_r)
-  resampled <- raster::resample(x = cropped, y = site_r, method = "ngb")
-  final <- crop(resampled, site_r)
-  final
+cc_crop_resample_r <- function(input_r, site, resample_method = "near",
+                               output_path, label) {
+  # requires lcc to be loaded
+  crop_extent <- terra::ext(lcc[[site]]) + rep(0.1, 4) # include a buffer
+  
+  cropped <- crop(
+    input_r, crop_extent,
+    filename = paste0(output_path, site, label, "_buff.tif"),
+    names = paste0(site, label, "_buff"),
+    overwrite = TRUE)
+  
+  resampled <- terra::resample(
+    x = cropped, y = lcc[[site]][["y2017"]], method = resample_method,
+    filename = paste0(output_path, site, label, "_30.tif"),
+    names = paste0(site, label, "_30"),
+    overwrite = TRUE)
+  
+  resampled
 }
 
 
@@ -3594,4 +3697,72 @@ cc_extrapolate_abn_a2 <- function(extrapolate_to_year = 2050,
   
   future_df
 }
+
+# data.table helper functions -----
+
+# ------------------------- #
+# convert a data.table to a SpatRaster, via an intermediary data.frame, trimming NA border
+# ------------------------- #
+# analogous to Lyndon's function dtraster::dt_to_raster()
+# note that this process introduces a single cell border on the top and right edge of the SpatRaster filled with NA values. 
+# introducing terra::trim() fixes this issue. 
+# I have confirmed that the spatraster %>% dt_to_spatraster() %>% spatraster_to_dt() workflow results in an identical spatraster.
+
+dt_to_spatraster <- function(dt, trim = TRUE){
+  spt <- dt %>%
+    as.data.frame() %>%
+    terra::rast(
+      type = "xyz",
+      crs = "+proj=longlat +datum=WGS84 +no_defs"
+    ) 
+  
+  if(trim) {spt <- terra::trim(spt)}
+  
+  spt
+}
+
+
+# ------------------------- #
+# convert a SpatRaster into a data.table, via an intermediary data.frame
+# ------------------------- #
+# analogous to Lyndon's function dtraster::as.data.table.raster()
+
+spatraster_to_dt <- function(spt, xy_switch = TRUE) {
+  dt <- spt %>%
+    terra::as.data.frame(
+      na.rm = FALSE, # na.rm=TRUE is default
+      xy = xy_switch) %>% 
+    as.data.table()
+  
+  dt
+}
+
+
+
+# ------------------------- #
+# calculate a dummy data.table
+# ------------------------- #
+cc_create_dt <- function(numrow = 15, numcol = 15, seed = 34L) {
+  set.seed(seed)
+  dt <- matrix(round(runif(numrow*numcol)), nrow = numrow, ncol = numcol)
+  dt <- as.data.frame(dt)
+  setDT(dt)
+}
+
+# ------------------------- #
+#
+# ------------------------- #
+cc_create_bin <- function(numrow = 15, numcol = 15, seed = 34L) {
+  dt <- cc_create_dt(numrow = numrow, numcol = numcol, seed = seed)
+  dt[3] <- 1
+  dt[13] <- 1
+  dt[12] <- 0
+  dt[4, 1:4] <- 1
+  dt[14, 1] <- 1
+  dt[1, 9] <- 1
+  dt[3, 1:2] <- 0
+  dt
+}
+
+
 
