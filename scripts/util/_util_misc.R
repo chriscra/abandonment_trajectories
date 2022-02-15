@@ -1,8 +1,11 @@
 # --------------------------------------------------------------- #
 #
-# Miscellaneous functions
+# Miscellaneous functions ----
 # 
 # --------------------------------------------------------------- #
+
+
+# helper functions ----
 
 
 # ------------------------- #
@@ -15,7 +18,7 @@
 # ------------------------- #
 # Calculate standard error 
 # ------------------------- #
-se <- function(x) sqrt(var(x, na.rm = TRUE) / length(na.omit(x)))
+se <- function(x) {sqrt(var(x, na.rm = TRUE) / length(na.omit(x)))}
 
 
 
@@ -59,32 +62,6 @@ get_sizes <- function(stuff) {
   lapply(stuff, function(i) {
     tibble(object = i, size = obj_size(get(i)))
   }) %>% bind_rows() %>% arrange(desc(size)) %>% mutate(mb = size / 1024^2)
-}
-
-
-# ------------------------- #
-# calculate a dummy data.table
-# ------------------------- #
-cc_create_dt <- function(numrow = 15, numcol = 15, seed = 34L) {
-  set.seed(seed)
-  dt <- matrix(round(runif(numrow*numcol)), nrow = numrow, ncol = numcol)
-  dt <- as.data.frame(dt)
-  setDT(dt)
-}
-
-# ------------------------- #
-#
-# ------------------------- #
-cc_create_bin <- function(numrow = 15, numcol = 15, seed = 34L) {
-  dt <- cc_create_dt(numrow = numrow, numcol = numcol, seed = seed)
-  dt[3] <- 1
-  dt[13] <- 1
-  dt[12] <- 0
-  dt[4, 1:4] <- 1
-  dt[14, 1] <- 1
-  dt[1, 9] <- 1
-  dt[3, 1:2] <- 0
-  dt
 }
 
 
@@ -208,7 +185,7 @@ plot_cols <- c("gray80",
 )
 
 names(plot_cols) <- c("Non-veg.", "Woody veg.", "Cropland", "Grassland", 
-                      "Abandoned (>=5)", "Abandoned (>1)")
+                      "Abandoned (>=5)", "Abandoned (>=1)")
 as_factor(plot_cols)
 plot_cols <- plot_cols[order(names(plot_cols), decreasing = FALSE)]
 # fct_relevel(plot_cols, order(names(plot_cols), decreasing = FALSE))

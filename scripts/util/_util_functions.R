@@ -3707,6 +3707,7 @@ cc_extrapolate_abn_a2 <- function(extrapolate_to_year = 2050,
 # note that this process introduces a single cell border on the top and right edge of the SpatRaster filled with NA values. 
 # introducing terra::trim() fixes this issue. 
 # I have confirmed that the spatraster %>% dt_to_spatraster() %>% spatraster_to_dt() workflow results in an identical spatraster.
+# However, this would be worth additional checks to confirm that it works.
 
 dt_to_spatraster <- function(dt, trim = TRUE){
   spt <- dt %>%

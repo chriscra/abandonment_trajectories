@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=run_3_4                              # create a name for the job
+#SBATCH --job-name=feb_3_4                               # create a name for the job
 #SBATCH --nodes=1 					                              # node count
 #SBATCH --ntasks=1	 				                              # total number of tasks across all nodes
 #SBATCH --cpus-per-task=1                                 # cpu-cores per task (>1 if multi-threaded tasks)
@@ -27,15 +27,10 @@ Rscript ./4_lc_of_abn.R
 
 # # Send scripts
 # cd /Users/christophercrawford/work/projects/abandonment_trajectories/scripts/
-# scp ./cluster/_1_2.2.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
 # scp ./cluster/_3_4.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
-# scp ./cluster/1_prep_r_to_dt.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
-# scp ./cluster/2_analyze_abn.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
-# scp ./cluster/2.1_summarize_abn_dts_only.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
-# scp ./cluster/2.2_calc_recult_age.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
 # scp ./cluster/3_distill_lengths.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
 # scp ./cluster/4_lc_of_abn.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
-# 
+
 # # Send util scripts
 # scp ./util/_util_functions.R clc6@della:/home/clc6/abandonment_trajectories/scripts/util/
 # scp ./util/_util_misc.R clc6@della:/home/clc6/abandonment_trajectories/scripts/util/

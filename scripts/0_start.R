@@ -16,6 +16,7 @@ needed_packages <- c(
   "data.table", "raster", "terra", "rgdal", "sp", "sf", "mapview", 
   "gdalUtils", "gdata", "GISTools", "rgeos", "lwgeom", "fasterize",
   "ncdf4", # for opening NetCDF spatial files
+  "arrow", # for reading and writing parquet files
   
   "tidyverse", "lobstr", "pryr", "reshape2", "rlang",
   # tidyverse includes ggplot2, dplyr, tidyr, readr, purrr, tibble, stringr, and forcats
@@ -129,6 +130,9 @@ github_packages_inst <- sapply(github_packages, library, character.only = TRUE) 
 
 
 
+
 # ----- load other functions ----
 source(paste0(p_proj, "scripts/util/_util_main.R"))
+
+
 
