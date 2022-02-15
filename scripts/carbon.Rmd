@@ -1,0 +1,2479 @@
+---
+title: "Carbon sequestration"
+author: "Christopher L. Crawford"
+date: "11/16/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r initialize}
+source("/Users/christophercrawford/work/projects/abandonment_trajectories/scripts/0_start.R")
+```
+
+```{r load-files}
+source("/Users/christophercrawford/work/projects/abandonment_trajectories/scripts/util/_util_files.R")
+```
+
+# Methods
+
+Question: How much carbon could be sequestered over the course of the time series, for a) forests and, if possible, b) grasslands?
+
+This analysis requires maps of annual rates of potential carbon sequestration in forests (aboveground biomass) and soils (for grasslands, savannas, shrublands), and three steps:  
+1. Differentiate between forested and grassland/savanna regions
+2. Apply forest sequestration rates from @Cook-Patton2020 to forested areas, and 
+3. Apply soil carbon sequestration rates from @Sanderman2020 and @Woolf2020 to all other areas.
+4. Summarize results
+
+Step 1: separate forest from non-forest
+Differentiate between forested and grassland/savanna regions using the following methods:
+
+Crop using the Ecoregions 2017 layer [@Dinerstein2017], excluding any grassland, savanna, or shrubland biome (following @Cook-Patton2020).
+
+Step 2: forest carbon sequestration rates
+
+Within forested areas, estimate total carbon accumulated as a function of length of abandonment using data on annual carbon accumulation rates in aboveground biomass from @Cook-Patton2020.
+These pixel values correspond to the potential aboveground carbon accumulation rates for the first 30 years of natural forest regrowth (1km), in terms of Mg C / ha / year.
+
+@Cook-Patton2020 also includes 1) estimates of below-ground carbon sequestration rates (based on root-to-shoot ratio, and 2) estimates of soil organic carbon sequestration (SOC) in forest areas, based on a single global mean value of 0.42 Mg C / ha / year.
+
+In order to calculate the carbon accumulated in each pixel, I will add the sequestration rates together (aboveground + belowground + SOC) to get an overall sequestration rate (Mg C / ha / year), which I will then multiply by the age of each pixel (years), and the area of each pixel (ha), to get a map of the carbon accumulated in each pixel.
+
+\begin{equation}
+C_{accumulated} = MgC /ha /year * years (abandoned) * ha (area) = Mg C / pixel (\#eq:carbon-calculation)
+\end{equation}
+
+To calculate the total carbon accumulation, I then sum across all of these pixel values.
+
+This is akin to a maximum value, assuming perfect conditions, and represents the maximum amount of carbon that could be stored in forests. The full extent of the Cook-Patton layer is everywhere that could climatically support forests, not necessarily what is or was in forest (i.e. PNV).
+
+Note: Cook-Patton explicitly do not calculate sequestration rates in “grassland and shrubland” biomes, but they do in “savanna” biomes. These are the ones that need to be clipped out. 
+
+Step 3: Soil Carbon accumulation.
+
+Within non-forested areas (i.e., grasslands, savannas, etc.), we conservatively assume that all carbon being sequestered is being sequestered in soil organic carbon (SOC).
+We make use of SOC accumulation rate estimates from SoilsRevealed [@Sanderman2020; @Woolf2020] see: [data record](https://doi.org/10.7910/DVN/HA17D3) and [soilsrevealed.org](https://soilsrevealed.org/).
+
+The Soils Revealed analysis included multiple scenarios of SOC accumulation resulting from different agricultural practices. 
+We use estimates from the "rewilding" scenario, which models soil carbon sequestration resulting from a complete return of crop and grazing land to natural vegetation.
+There are two “rewilding” scenarios: SOC accumulation after 20 years ("Y20) and 80 years ("steady state, YSS"). 
+Because soil carbon does not accumulate linearly, I will use an annual rate based on the 20 year scenario for the first 20 years, and the annual rate derived from the 80 year layer for ages >20 years. 
+
+Because these maps model reversion of both cropland and grazing land, we need to isolate the estimates for the sequestration that takes place exclusively on cropland.
+In order to do this, we isolate pixels that are initially classified as cropland according to their IPCC land cover layers (which is in turn based on the 2015 Copernicus layer), and calculate the mean (min, max) change in SOC stock for just these pixels at each site as they transition to natural vegetation.
+
+Units are in Mg C / ha. 
+We then divide this mean change in SOC stock by the length of the time period in order to get a accumulation rate in terms of Mg C / ha / year.
+
+```{r}
+3.54 # Mg C / ha
+3.54/20
+```
+
+
+
+Alternative method: crop based on PNV land cover map (Hengl, Martin, Visconti 2020) – what can return to forest is given forest rates (if they exist, otherwise the SOC rate), and everything else is given SOC rates.
+Note that I decided to simply use the Ecoregions 2017 layer, because this is what was used by @Cook-Patton2020 and many others.
+
+# 1. Separate Forest from Grassland
+
+```{r prep-ecoregions2017}
+
+# ----------- load Ecoregions ---------- #
+tic()
+ecoregions2017 <- st_read(paste0(p_dat, "Habitats/Ecoregions2017/Ecoregions2017.shp")) %>%
+  st_make_valid()
+toc() # 20 seconds about. (making the geometries valid is quick!)
+
+
+# ----- take a look ------ #
+ecoregions2017 %>% names()
+ecoregions2017 %>% st_drop_geometry() %>% as_tibble()
+ecoregions2017 %>% st_drop_geometry() %>% select(BIOME_NAME) %>% unique() %>% arrange(BIOME_NAME)
+
+ecoregions2017 %>% st_drop_geometry() %>% filter(BIOME_NAME == "N/A")
+
+# Replace "N/A" with "Rock and Ice"
+ecoregions2017 <- ecoregions2017 %>%
+  mutate(BIOME_NAME = ifelse(BIOME_NAME == "N/A", "Rock and Ice", BIOME_NAME))
+
+
+# create a layer of just biomes ------------------ #
+
+# union ecoregions within each biome
+tic()
+biomes2017 <- ecoregions2017 %>% group_by(BIOME_NAME) %>% summarise()
+toc()
+
+biomes2017 %>% st_drop_geometry()
+
+# save biomes2017 sf file
+st_write(biomes2017, dsn = paste0(p_dat, "Habitats/Ecoregions2017/biomes2017.shp"))
+biomes2017 <- st_read(paste0(p_dat, "Habitats/Ecoregions2017/biomes2017.shp"))
+
+
+
+# --------- simplify polygons: ------------------------------ #
+
+ecoregions2017_simple <- st_simplify(ecoregions2017, dTolerance = 10000, preserveTopology = TRUE)
+obj_size(ecoregions2017_simple)
+
+biomes2017_simple <- st_simplify(biomes2017, dTolerance = 10000, preserveTopology = TRUE)
+obj_size(biomes2017_simple)
+
+
+
+
+# ---------------------- crop to sites: ---------------------- #
+site_ecoregions2017 <- lapply(1:11, function(i) {
+  temp <- st_crop(ecoregions2017, terra::ext(lcc[[i]]))
+  temp <- temp %>% mutate(site = site_df$site[i])
+  temp
+}) %>% bind_rows()
+
+
+site_biomes2017 <- lapply(1:11, function(i) {
+  temp <- st_crop(biomes2017, terra::ext(lcc[[i]]))
+  temp <- temp %>% mutate(site = site_df$site[i])
+  temp
+}) %>% bind_rows()
+
+# 
+# warnings()
+# 
+# plot(site_ecoregions2017$geometry)
+# obj_size(site_ecoregions2017)
+# site_ecoregions2017 %>% st_drop_geometry()
+# names(site_ecoregions2017)
+# 
+# site_ecoregions2017$ECO_NAME %>% unique()
+# site_ecoregions2017$BIOME_NAME %>% unique()
+
+
+# save files:
+st_write(site_ecoregions2017, dsn = paste0(p_dat_derived, "sf/site_ecoregions2017.shp"))
+st_write(site_biomes2017, dsn = paste0(p_dat_derived, "sf/site_biomes2017.shp"))
+
+st_write(ecoregions2017_simple, dsn = paste0(p_dat_derived, "sf/ecoregions2017_simple.shp"))
+st_write(biomes2017_simple, dsn = paste0(p_dat_derived, "sf/biomes2017_simple.shp"))
+
+
+site_ecoregions2017 <- st_read(paste0(p_dat_derived, "sf/site_ecoregions2017.shp"))
+site_biomes2017 <- st_read(paste0(p_dat_derived, "sf/site_biomes2017.shp"))
+
+ecoregions2017_simple <- st_read(paste0(p_dat_derived, "sf/ecoregions2017_simple.shp"))
+biomes2017_simple <- st_read(paste0(p_dat_derived, "sf/biomes2017_simple.shp"))
+
+```
+
+
+```{r plot-ecoregions}
+
+# plot
+ecoregions2017_simple %>% 
+  # st_drop_geometry() %>% 
+  filter(BIOME_NAME == "Rock and Ice") %>%
+  st_geometry() %>%
+  plot()
+
+
+# plot with Cook-Patton
+plot(forest_c_abg, col = brewer_pal(palette = "Greens")(9), colNA = "gray80")
+
+# savannas in red:
+ecoregions2017_simple %>% 
+  select(ECO_NAME, BIOME_NAME) %>%
+  # st_drop_geometry() %>%
+  filter(grepl("Savanna", BIOME_NAME)) %>%
+  st_geometry() %>% plot(border = "red", add = TRUE)
+
+# add site boundaries
+site_sf$geometry %>% plot(border = "orange", add= TRUE)
+
+
+site_ecoregions2017 %>% names()
+
+site_ecoregions2017 %>% st_drop_geometry() %>%
+  select(ECO_NAME, BIOME_NAME, site) %>%
+  as_tibble() %>% print(n = 30)
+
+
+# plotting colors:
+
+biome_pal <- gg_color_hue(length(site_biome_names))
+names(biome_pal) <- site_biomes2017$BIOME_NAME %>% unique() %>% sort()
+
+ecoregion_pal <- gg_color_hue(length(site_ecoregion_names))
+names(ecoregion_pal) <- site_ecoregions2017$ECO_NAME %>% unique() %>% sort()
+ 
+
+# save ecoregions
+gg_ecoregions_by_site_2017 <-
+  lapply(1:11, function(i){
+    ggplot(data = site_ecoregions2017 %>% 
+             filter(site == site_df$site[i]), 
+           aes(fill = str_wrap(ECO_NAME, 15))) +
+      theme_classic() + 
+      geom_sf() + 
+      labs(fill = NULL) +
+      theme(legend.position = "right",
+            axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) + 
+      guides(fill = guide_legend(ncol = 1)) + 
+      # scale_fill_manual(labels = str_wrap(names(biome_pal), 24)) +
+      # scale_fill_manual(values = biome_pal) + 
+      facet_wrap(vars(site), labeller = as_labeller(cap_update_labels))
+  })
+
+
+ggsave(plot = 
+         plot_grid(
+             plotlist = gg_ecoregions_by_site_2017, 
+             ncol = 4, nrow = 3),
+       filename = paste0(p_plots, "ecoregions2017_by_site_wide.pdf"), 
+    width = 15, height = 9, units = "in"
+)
+
+# save biomes
+
+# ------------------------------------------------------------ #
+# Ecoregions 2017 - biomes
+# ------------------------------------------------------------ #
+
+biome2017_pal <- gg_color_hue(9)
+names(biome2017_pal) <- site_ecoregions2017$BIOME_NAME %>% unique() %>% sort()
+
+gg_biomes2017_by_site <-
+  lapply(1:11, function(i){
+    ggplot(data = site_ecoregions2017 %>% 
+             filter(site == site_df$site[i]), 
+           aes(fill = BIOME_NAME)) +
+      theme_classic() + 
+      geom_sf() + 
+      labs(fill = NULL) +
+      theme(legend.position = "none",
+            axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) + 
+      guides(fill = guide_legend(ncol = 1)) + 
+      scale_fill_manual(values = biome2017_pal) + 
+      facet_wrap(vars(site), labeller = as_labeller(cap_update_labels))
+  })
+
+gg_biomes2017_all <-
+  ggplot(data = site_ecoregions2017, aes(fill = BIOME_NAME)) +
+  theme_classic() + 
+  geom_sf() + 
+  labs(fill = NULL) +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 7)) + 
+  guides(fill = guide_legend(ncol = 2)) +
+  scale_fill_manual(values = biome2017_pal, 
+                    labels = str_wrap(names(biome2017_pal), 24)
+                    ) + 
+  facet_wrap(vars(site), labeller = as_labeller(cap_update_labels))
+
+biome2017_legend <- ggpubr::get_legend(gg_biomes2017_all + 
+                                     guides(fill = guide_legend(nrow = 2)) +
+                                     theme(legend.position = "bottom"))
+
+ggsave(plot = 
+         plot_grid(
+           plot_grid(plotlist = gg_biomes2017_by_site, ncol = 4, nrow = 3),
+           as_ggplot(biome2017_legend),
+           nrow = 2, rel_heights = c(2, 0.2)),
+       filename = paste0(p_plots, "biomes2017_by_site.pdf"), 
+    width = 7.5, height = 6.75, units = "in"
+)
+
+```
+
+
+
+```{r separate-forest-vs-savanna}
+# Cook-Patton et al. 2020 should only be used for forested ecoregions.
+# This requires cropping out savannas, shrublands, and grasslands.
+
+ecoregions2017$BIOME_NAME
+
+ecoregions2017$ECO_NAME %>% grep("Ordos", ., value = TRUE)
+
+site_ecoregions2017 %>% 
+  st_drop_geometry() %>%
+  select(site, ECO_NAME)
+
+ecoregions2017 %>% 
+  filter(ECO_NAME == "Ordos Plateau Steppe") %>%
+  st_geometry() %>%
+  plot()
+
+
+plot(ext(lc$shaanxi$y2017) + 2)
+plot(ext(lc$shaanxi$y2017), add = T, border = "green")
+ecoregions %>% 
+  # filter(ECO_NAME == "Ordos Plateau Steppe") %>%
+  st_geometry() %>%
+  plot(add = T, col = "gray")
+
+crop1 <- st_crop(ecoregions, terra::ext(lc[[9]]) + 3)
+crop1 %>% st_drop_geometry()
+plot(crop1["biome"], leg = "bottom")
+plot(crop1$geometry)
+
+plot(ext(lc$shaanxi$y2017), add = T, border = "green")
+
+# ------------------------------------------------ #
+# filter and plot
+# ------------------------------------------------ #
+plot(forest_c, col = brewer_pal(palette = "Greens")(9), colNA = "gray80")
+
+ecoregions2017_simple %>% 
+  select(ECO_NAME, biome) %>%
+  filter(ECO_NAME %in% 
+           grep("Forest|Desert|Woodlands|Mountain|Range|Tundra|Mangroves|Lake|Ice", 
+                ecoregions_simple$ECO_NAME, 
+                value = TRUE, invert = TRUE)) %>%
+  st_geometry() %>% plot(add = T)
+
+
+
+
+
+# subset region:
+my_ext <- terra::draw()
+
+plot(forest_c, col = brewer_pal(palette = "Greens")(9), colNA = "gray80",
+     ext = my_ext + 1.5)
+
+ecoregions_simple %>% select(ECO_NAME) %>% plot(add = TRUE)
+plot(usa$geometry, add = TRUE)
+
+
+
+# ------------------------------------------------ #
+# simplest filtering: just "savanna" biome
+# ------------------------------------------------ #
+
+# add just savannas in red:
+ecoregions2017_simple %>% 
+  # st_drop_geometry() %>%
+  filter(grepl("Savanna", BIOME_NAME)) %>%
+  st_geometry() %>% plot(border = "red", add = TRUE)
+
+ecoregions2017_simple %>% 
+  st_drop_geometry() %>%
+  filter(!grepl("Savanna", BIOME_NAME)) %>%
+  select(BIOME_NAME) %>% unique()
+
+
+# Complex filtering
+ecoregions_simple %>% 
+  # st_drop_geometry() %>% 
+  select(ECO_NAME, biome) %>%
+  # .$ECO_NAME %>%
+  filter(ECO_NAME %in%
+           grep("Forest|Desert|Mountain|Range|Tundra|Mangroves|Lake|Ice", 
+                ecoregions_simple$ECO_NAME, 
+                value = TRUE, invert = TRUE),
+         biome %in%
+           grep("Forest|Tundra|Desert",
+                ecoregions_simple$biome,
+                value = TRUE, invert = TRUE)) %>%
+  st_geometry() %>% plot(border = "red", add = TRUE)
+  plot(extent = my_ext)
+
+plot(usa$geometry, graticule = TRUE, axes = TRUE, add = T, border = "red")
+
+
+
+ecoregions_simple %>% 
+  filter(ECO_NAME == "Ordos Plateau Steppe") %>%
+  st_geometry() %>% plot()
+  # plot(add = T, col = "gray")
+
+biomes_simple["biome"] %>% 
+  # st_drop_geometry() %>%
+  # filter(biome %in% grep("Savanna", biomes_simple$biome, value = TRUE)) %>%
+  # st_geometry() %>%
+  plot()
+
+grep("Savanna", biomes_simple$biome, value = TRUE)
+
+biomes_simple %>%
+  filter()
+  st_geometry() %>%
+  plot()
+
+site_ecoregions %>% 
+  filter(site == site_df$site[i])
+
+# ecoregions_by_site
+
+```
+```{r mn-biome}
+usa <- ne_states(returnclass = "sf", country = "United States of America")
+mn <- usa %>%
+  filter(name == "Minnesota")
+
+wi <- usa %>% filter(name == "Wisconsin")
+plot(mn$geometry)
+plot(wi$geometry)
+mn_biome <- st_crop(biomes, extent(mn))
+wi_biome <- st_crop(biomes, extent(wi))
+
+ggplot() +
+  theme_classic() + 
+  geom_sf(data = mn_biome, aes(fill = biome))
+
+ggplot() +
+  theme_classic() + 
+  geom_sf(data = wi_biome, aes(fill = biome))
+
+ggplot() + theme_classic() + 
+  geom_sf(data = mn_biome, aes(fill = biome)) +
+  geom_sf(data = wi_biome, aes(fill = biome))
+
+
+```
+
+
+
+
+
+# 2. Forest Sequestration Rates (Cook-Patton et al. 2020)
+
+
+See West et al. 2010 PNAS (they applied the IPCC carbon seq values to a PNV map (Ramankutty et al. 1999)). This is what Folberth et al. 2020 Nat. Sustain. used.
+
+Harris et al. 2021 - Nature Climate Change: Global maps of twenty-first century forest carbon fluxes https://www.nature.com/articles/s41558-020-00976-6.
+Github: https://github.com/wri/carbon-budget
+
+Harris et al. 2021 actually use Cook-Patton et al. 2020 to model natural regeneration.
+Cook-Patton et al. 2020 Nature - https://www.nature.com/articles/s41586-020-2686-x
+
+Cook-Patton et al. 2021 One Earth - https://www.reforestationhub.org/
+
+
+```{r load-crop-forest_c}
+
+# This dataset is the full extent of area that has the climatic potential to support forest - but not where the PNV or historical vegetation was in forest.
+# Cook-Patton then clip this based on the Griscom layer of forests. 
+# Yiwen has clipped this based on PNV forest vs. grassland. 
+
+ 
+forest_c <- rast(paste0(p_dat, "climate/Cook-Patton_2020/sequestration_rate_layer_in_full_extent.tif"))
+plot(forest_c, col = brewer_pal(palette = "Greens")(9), colNA = "gray80")
+plot(forest_c_abg, col = brewer_pal(palette = "Greens")(9), colNA = "gray80")
+
+
+# plot with Cook-Patton
+plot(forest_c_abg, col = brewer_pal(palette = "Greens")(9), colNA = "gray80")
+
+
+
+# add just savan
+
+forest_c_abg <- rast(
+  paste0(p_dat, "climate/Cook-Patton_2020/sequestration_rate__mean__aboveground__full_extent__Mg_C_ha_yr.tif"))
+forest_c_blg <- rast(
+  paste0(p_dat, "climate/Cook-Patton_2020/sequestration_rate__mean__belowground__full_extent__Mg_C_ha_yr.tif"))
+forest_c_abg_error <- rast(
+  paste0(p_dat, "climate/Cook-Patton_2020/sequestration_rate__error_ratio__aboveground__full_extent__unitless.tif"))
+
+# soil carbon in forested areas: 0.42 Mg C / ha / yr
+# "global average from our literature-derived data (0.42 Mg C ha−1 yr−1 ) for the shallower 0–30 cm profile"
+
+forest_c_total <- forest_c_abg + forest_c_blg #+ 0.42
+
+plot(forest_c_abg)
+plot(forest_c_blg)
+plot(forest_c_abg_error)
+
+
+# ---------------------------------------------- #
+# crop and resample multiple rasters, (with a buffer, to deal with NA issues)
+# ---------------------------------------------- #
+
+for (input in c("forest_c_abg", "forest_c_blg")) {
+  lapply(1:11, function(i) {
+    cc_crop_resample_r(
+      input_r = get(eval(input)), label = paste0("_", input),
+      site = site_df$site[i], 
+      output_path = paste0(p_dat_derived, "carbon/forests/"))
+  })
+  }
+
+
+# load back in
+
+# aboveground forest carbon sequestration, from Cook-Patton et al. 2020 Nature
+site_forest_c_abg_30 <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/forests/", 
+              site_df$site[i], "_forest_c_abg_30.tif"))
+})
+
+# belowground forest carbon sequestration, from Cook-Patton et al. 2020 Nature
+site_forest_c_blg_30 <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/forests/", 
+              site_df$site[i], "_forest_c_blg_30.tif"))
+})
+
+names(site_forest_c_abg_30) <- site_df$site
+names(site_forest_c_blg_30) <- site_df$site
+
+```
+
+```{r forest-c-accumulation}
+plot(site_savanna_mask[[9]])
+plot(site_forest_c_abg_30[[9]] + site_forest_c_blg_30[[9]] + 0.42)
+
+i
+plot(forest_c_seq_rate)
+
+lapply(1:11, function(i){
+  forest_c_seq_rate <- 
+    site_forest_c_abg_30[[i]] + site_forest_c_blg_30[[i]] + 0.42
+
+  forest_c_accumulation_tmp <- age_t[[i]] * forest_c_seq_rate
+  
+  # save
+  terra::writeRaster(forest_c_accumulation_tmp,
+                     filename = paste0(p_dat_derived, "carbon/forests/", 
+                                       site_df$site[i], "_forest_c_accumulation.tif"),
+                     overwrite = TRUE)
+  
+  tmpFiles(current=TRUE, orphan=TRUE, old=TRUE, 
+           remove=TRUE)
+  })
+
+```
+
+
+```{r save-forest-C-plot}
+pdf(file = paste0(p_output, "plots/forest_carbon_seq_rates.pdf"), width = 10, height = 7.5)
+mval <- 1.5
+par(mfrow = c(3, 4), 
+      # mar=c(0,0,0,0), 
+      oma=c(1,1,0,0), 
+      adj = 0,
+      cex.main = 1#,
+      # tcl = -0.2
+      )
+    
+for(i in 1:11) {
+  plot(site_forest_c[[i]], 
+       main = names(site_forest_c[i]),
+       mar = c(mval+0.5, mval, mval + 1.2, mval + 2) # bltr   
+       # type = "classes", #legend = FALSE,
+       )
+  }
+
+# plot.new()
+# plot(site_pnv[[i]], type = "classes",
+#      legend = "left",
+#      plg = list(cex = 0.7, title = "Potential Natural Vegetation", title.adj = 0),
+#      legend.only = TRUE,
+#      col = pnv_table$cols, 
+#      levels = pnv_table$labels
+#      )
+dev.off()
+
+```
+
+```{r resample-cp}
+
+# ----------------------------------------------- #
+# resolution
+# ----------------------------------------------- #
+res(site_forest_c$shaanxi) * 110 # = 0.9167 km grid (~ 1 km) at the equator, less at higher latitudes
+
+res(lc$shaanxi) * 110 # = 0.029644 km grid (~ 30 m) at the equator, less at higher latitudes
+
+0.9167/ 0.029644 # 30 times
+
+
+site_forest_c_30 <- lapply(1:11, function(i) {
+  terra::resample(
+    x = site_forest_c[[i]], y = lc[[i]]$y2017, method = "near",
+    filename = paste0(p_dat_derived, "site_forest_carbon/", names(lc[i]), "_forest_c_30.tif"),
+    names = paste0(names(lc[i]), "_forest_c_30"),
+    overwrite = TRUE)
+  }
+  )
+names(site_forest_c_30_b) <- site_df$site
+
+
+# load back in:
+site_forest_c_30 <- lapply(
+  list.files(paste0(p_dat_derived, "site_forest_carbon"), full.names = TRUE) %>% grep("_forest_c_30.tif", ., value = TRUE), 
+  function(i) rast(i)
+  )
+names(site_forest_c_30) <- site_df$site
+
+plot(site_forest_c$chongqing, main = "Original resolution, ~1km")
+plot(site_forest_c_30$chongqing, main = "Resampled to ~30 m")
+
+
+
+
+
+
+
+
+# exploring different methods for resampling (decided to stick with "near")
+
+fct3 <- lapply(3, function(i) {
+  terra::resample(
+    x = site_forest_c[[i]], y = lc[[i]]$y2017, method = "bilinear",
+    filename = paste0(p_dat_derived, "site_forest_carbon/", names(lc[i]), "_forest_c_30_bi.tif"),
+    names = paste0(names(lc[i]), "_forest_c_30"),
+    overwrite = TRUE)
+  }
+  )
+
+fct4 <- lapply(3, function(i) {
+  terra::resample(
+    x = site_forest_c[[i]], y = lc[[i]]$y2017, method = "cubic",
+    filename = paste0(p_dat_derived, "site_forest_carbon/", names(lc[i]), "_forest_c_30_cubic.tif"),
+    names = paste0(names(lc[i]), "_forest_c_30"),
+    overwrite = TRUE)
+  }
+  )
+
+par(mfrow = c(2,2))
+plot(site_forest_c$chongqing, main = "original, 1km")
+plot(fct1, main = "disagg, x30")
+plot(fct2[[1]], main = "resampled, 30m, near")
+plot(fct3[[1]], main = "resampled, 30m, bilinear", ext = ext(t_ext))
+plot(fct4[[1]], main = "resampled, 30m, cubic", ext = ext(t_ext))
+plot(fct4[[1]], main = "resampled, 30m, cubic")#, ext = ext(t_ext))
+warnings()
+dev.off()
+
+t_ext <- drawExtent()
+
+plot(site_forest_c$iraq, colNA = "blue")
+
+```
+
+```{r calc-total-carbon}
+
+# calculate the total carbon that could be accumulated in regenerating forest in abandoned croplands in each year
+# units are in terms of Mg C / ha / year.
+# so, multiplying the age of abandoned lands (in years) yields the total amount of carbon (in Mg C) accumulated in that pixel per ha.
+# to get to a total amount of carbon stored, I then need to multiply by the number of hectares in each pixel.
+# Mg C / ha / year * number of years * area of pixel in ha = Mg C per pixel
+
+# calculate Mg C per pixel:
+site_forest_c_30_per_pixel <- lapply(1:11, function(i) {
+  tmp <- site_forest_c_30[[i]] * 
+    site_area_ha[[i]]
+
+  writeRaster(tmp,
+              filename = paste0(p_dat_derived, "site_forest_carbon/", 
+                                site_df$site[i], "_forest_c_30_per_pixel.tif"),
+              overwrite = TRUE)
+}
+)
+names(site_forest_c_30_per_pixel) <- site_df$site
+
+
+
+
+site_forest_c_30$chongqing
+
+age_t$chongqing$y2017
+
+# total accumulation of forest carbon by the year 2017, at Chongqing
+total_carbon_per_ha_2017 <- 
+  site_forest_c_30$chongqing * 
+  age_t$chongqing$y2017
+
+tic()
+total_carbon_2017 <- lapply(1:11, function(i) {
+  tmp <- 
+    age_t[[i]]$y2017 * 
+    site_forest_c_30[[i]] * 
+    site_area_ha[[i]]
+
+  tmp
+}
+)
+toc() # 201 seconds (just over 3 minutes) for 11 sites, just 2017.
+total_carbon_2017
+names(total_carbon_2017) <- site_df$site
+
+
+
+# the full time series
+tic()
+site_carbon_acc <- lapply(1:11, function(i) {
+  tmp <- 
+    age_t[[i]] * 
+    site_forest_c_30_per_pixel[[i]]
+    # (site_forest_c_30[[i]] * 
+    # site_area_ha[[i]])
+
+  writeRaster(tmp,
+              filename = paste0(p_dat_derived, "site_forest_carbon/total/", 
+                                site_df$site[i], "_carbon_accumulation.tif"),
+              overwrite = TRUE)
+
+})
+toc() # 288 for CQ, 402 for CQ and Goias, 2600 seconds for all 11 sites
+names(site_carbon_acc) <- site_df$site
+
+# load it back in:
+# 
+# site_carbon_acc <- lapply(
+#   list.files(paste0(p_dat_derived, "site_forest_carbon/total"), full.names = TRUE), 
+#   function(i) rast(i)
+#   )
+# names(site_carbon_acc) <- site_df$site
+
+
+# ------------------------------- #
+# calculate the sum total amount of carbon accumulated at each site:
+# ------------------------------- #
+tic()
+site_carbon_df <- lapply(1:11, function(i) {
+  # tmp <- global(total_carbon_2017[[i]], fun = "sum", na.rm = TRUE) # Mg C
+  tmp <- global(site_carbon_acc[[i]], fun = "sum", na.rm = TRUE) # Mg C
+  tmp <- tmp %>% 
+    as_tibble() %>% 
+    rownames_to_column(var = "year") %>%
+    mutate(#year = gsub("y", "", year),
+           site = site_df$site[i]
+           )
+  tmp
+}) %>% bind_rows()
+toc()
+
+site_carbon_df <-
+  site_carbon_df %>% 
+  mutate(year = as.numeric(year) + 1986) %>%
+  rename(total_c_Mg = sum)
+
+# save site_carbon_df
+write_csv(site_carbon_df, 
+          file = paste0(p_dat_derived, "/site_carbon_df.csv")
+          )
+
+cq_fc
+
+
+
+dt1 <- data.table(v1 = 1:10, v2 = seq(from = 2, to = 20, by = 2))
+dt2 <- data.table(v3 = 1:10)
+dt1
+dt2
+dt1 * dt2$v3
+
+cdt <- spatraster_to_dt(c(age_t[[3]]$y2017,
+  site_forest_c_30[[i]], # forest carbon sequestration rates, in Mg C / ha / year
+      site_area_ha[[i]]))
+
+cdt[!is.na(y2017),][]
+
+my_ext <- drawExtent()
+
+terra::plot(forest_c, ext = ext(my_ext), type = "continuous")
+terra::plot(forest_c, ext = ext(age_t$chongqing), type = "continuous")
+plot(site_forest_c_30$chongqing, colNA= "blue", #ext = ext(my_ext), 
+     add = T)
+
+cq_plus <- crop(forest_c, ext(age_t$chongqing) + rep(0.1, 4))
+cq_plus_resam <- terra::resample(
+    x = cq_plus, y = lc[[i]]$y2017, method = "near")
+
+plot(cq_plus)
+plot(cq_plus_resam, colNA= "blue",
+     add = T)
+plot(cq_plus_resam)
+is.na(values(cq_plus_resam)) %>% sum()
+is.na(values(site_forest_c_30$chongqing)) %>% sum()
+
+plot(age_t$chongqing$y2017)
+plot(cq_plus_resam, add = T)
+
+# ok, so there is some issue with the NA strip... maybe something having to do with the cropping and resampling?
+
+# does this happen with other sites?
+w_plus <- crop(forest_c, ext(age_t$wisconsin) + rep(0.1, 4))
+plot(w_plus)
+plot(site_forest_c_30$wisconsin, colNA= "blue", #ext = ext(my_ext), 
+     add = T)
+
+w_age_na <- terra::mask(age_t[[3]]$y2017, site_forest_c_30[[3]], inverse = TRUE)
+plot(w_age_na)
+w1 <- terra::cellSize(w_age_na, unit = "ha", mask = TRUE) %>% global(fun = "sum", na.rm = TRUE)
+plot(w1)
+
+area_of_age_na1 <- 
+  lapply(1:11, function(i) {
+    terra::mask(age_t[[i]]$y2017, site_forest_c_30[[i]], inverse = TRUE) %>%
+      terra::cellSize(., unit = "ha", mask = TRUE) %>% 
+      global(fun = "sum", na.rm = TRUE)
+  }) %>% bind_rows(.id = "site") %>%
+   as_tibble() %>%
+  mutate(site = site_df$site)
+  
+area_of_age_na # original, without buffer:
+area_of_age_na1 # after doing the buffer
+area_of_age_na_b
+
+
+area_of_age_na_b
+area_of_age_na
+
+plot(site_forest_c_30_b$chongqing)
+plot(site_forest_c_30$chongqing)
+
+
+area_of_age_na_b <- 
+  lapply(1:11, function(i) {
+    terra::mask(age_t[[i]]$y2017, site_forest_c_30_b[[i]], inverse = TRUE) %>%
+      terra::cellSize(., unit = "ha", mask = TRUE) %>% 
+      global(fun = "sum", na.rm = TRUE)
+  }) %>% 
+  bind_rows(.id = "site") %>% 
+  as_tibble() %>%
+  mutate(site = site_df$site)
+
+
+area_summary_df %>% 
+  select(site, area_abn_ha_2017) %>%
+  left_join(., area_of_age_na, by= "site") %>%
+  mutate(prop = sum/area_abn_ha_2017 * 100)
+
+plot(w1)
+ext(lc[[i]]$y2017) == ext(age_t$chongqing$y2017)
+
+plot(site_forest_c_30$chongqing)
+plot(cq_plus)
+
+
+
+cdt[y2017>=5 & is.na(chongqing_forest_c_30), ]
+
+cdt_age <- fread(paste0(p_dat_derived, "age_dts/chongqing_age_2021_03_13.csv"))
+
+cdt_age_m <- merge(cdt_age[, .(x, y, y2010)], cdt[, !c("y2017")], by = c("x","y"), sort = FALSE)
+
+tdt <- cdt[, .(y2017)] * cdt$chongqing_forest_c_30 * cdt$chongqing_area_ha
+tdt[, sum(y2017, na.rm = TRUE)]
+
+cq_fc[31,] # checks out
+
+
+
+
+plot(total_carbon[[1:8]])
+
+plot(total_carbon[[31]])
+plot(total_carbon_2017)
+
+
+
+# ------------------------------- #
+# calculate sum across site:
+# ------------------------------- #
+total_carbon_2017
+
+total_c_2017 <- lapply(1:11, function(i) {
+  tmp <- global(total_carbon_2017[[i]], fun = "sum", na.rm = TRUE) # Mg C
+  tmp
+}) 
+
+total_c_2017 %>% bind_rows() %>%
+  rownames_to_column(var = "site") %>%
+  mutate(site = gsub("_forest_c_30", "", site))
+
+cq_fc <- global(total_carbon,  fun = "sum", na.rm = TRUE)
+
+
+tic()
+o_fc <- total_carbon_o %>% global(.,  fun = "sum", na.rm = TRUE)
+toc() # 50 seconds.
+
+cq_fc <- cq_fc %>% mutate(year = 1987:2017)
+ggplot(data = cq_fc) + 
+  geom_point(mapping = aes(x = year, y = sum))
+
+length(cq_fc)
+
+
+global(total_carbon, fun = "sum", na.rm = TRUE) # Mg C
+global(total_carbon, fun = "sum", na.rm = TRUE) # Mg C
+
+
+
+
+
+
+
+
+# ------------------------------- #
+# print a pdf of the maps
+# ------------------------------- #
+
+par(mfrow = c(2,2))
+plot(age_t$chongqing$y2017, main = "Abandonment age as of 2017")
+plot(site_forest_c_30$chongqing, main = "forest carbon accumulation rates")
+plot(total_carbon_per_ha_2017, main = "Accumulated carbon per ha in abandoned croplands as of 2017")
+plot(total_carbon, main = "Total accumulated carbon per pixel in abandoned croplands as of 2017")
+
+
+# Plot
+{
+  pdf(file = paste0(p_output, "plots/total_forest_c_accumulated_CQ.pdf"), width = 9, height = 7)
+  mval <- 1.5
+  
+  par(mfrow = c(2, 2), oma=c(1,1,0,0), adj = 0)
+  plot(age_t$chongqing$y2017, main = "Abandonment age as of 2017")
+  plot(site_forest_c_30$chongqing, main = "forest carbon accumulation rates")
+  plot(total_carbon_per_ha_2017, main = "Accumulated carbon per ha in abandoned croplands as of 2017")
+  plot(total_carbon_2017, main = "Total accumulated carbon per pixel in abandoned croplands as of 2017")  
+  dev.off()
+}
+
+
+
+# all eleven
+pdf(file = paste0(p_output, "plots/forest_carbon_seq_rates.pdf"), width = 10, height = 7.5)
+mval <- 1.5
+par(mfrow = c(3, 4), 
+      # mar=c(0,0,0,0), 
+      oma=c(1,1,0,0), 
+      adj = 0,
+      cex.main = 1#,
+      # tcl = -0.2
+      )
+    
+for(i in 1:11) {
+  plot(site_forest_c[[i]], 
+       main = names(site_forest_c[i]),
+       mar = c(mval+0.5, mval, mval + 1.2, mval + 2) # bltr   
+       # type = "classes", #legend = FALSE,
+       )
+}
+
+dev.off()
+
+```
+
+# 3. Soil Organic Carbon (SOC) sequestration rates (SoilsRevealed)
+
+## Grassland Exploration
+
+What is a good source for grassland carbon sequestration rates?
+
+Quoting from Chapter 2 when I talk about grasslands:
+Grassland biomes, where much of the abandonment we observed occurred, can also harbor substantial amounts of carbon sequestered in soils [@Lal2004].
+However, grassland soil carbon may accumulate even more slowly than aboveground forest biomass, taking a century or longer to return to reference levels [@Yang2019].
+For example, while abandoned croplands across Russia accumulated a total of 13.2 Mg C/ha in the top 5 cm of soil during the first 20 years following abandonment, these fields still had significantly less carbon sequestered than reference grasslands after 24 years of observation, and were expected to take >60 years to recover to reference levels [@Wertebach2017].
+
+Wertebach et al. 2019 was based on data collected in Tyumen Oblast, which is to the east of Orenburg.
+
+```{r tyumen}
+russia <- ne_countries(scale = 110, returnclass = "sf", country = "russia")
+russia <- ne_states(#scale = 110, 
+                    returnclass = "sf", country = "russia")
+
+plot(russia$geometry)
+
+russia$name %>% grep("Tyumen", ., value = TRUE)
+
+tyumen <- russia %>%
+  filter(name == "Tyumen'") %>% 
+  st_geometry
+
+tyumen %>%
+  plot()
+
+
+
+
+st_bbox(tyumen) %>% extent %>% terra::ext()
+
+
+tyumen_pnv <- terra::crop(pnv, terra::ext(extent(st_bbox(tyumen))))
+tyumen_for <- terra::crop(forest_c, terra::ext(extent(st_bbox(tyumen))))
+plot(tyumen_for)
+
+tyumen_biomes <- st_crop(biomes, st_bbox(tyumen))
+plot(tyumen_biomes[["biomes"]])
+plot(tyumen_biomes$geometry)
+plot(tyumen_biomes)
+
+
+tyumen_ext <- terra::draw()
+
+plot(tyumen_pnv,
+     col = filter(pnv_table, Number %in% freq(tyumen_pnv)[, "value"])$cols, 
+     levels = filter(pnv_table, Number %in% freq(tyumen_pnv)[, "value"])$labels,
+     ext = tyumen_ext)
+
+plot(tyumen, border = "red", add = T)
+
+
+# ------------------------------------------------------- #
+# wertebach's carbon sequestration rate for the average abandoned soils in Russia:
+13.2 / 20 # 0.66 Mg C / ha / year (for 0-5 cm soil depth)
+# stored more quickly in early stages of succession than in later stages
+# this is opposite what they found in Yang et al. 2019
+
+# 
+```
+
+## Analysis
+
+```{r load-soils.revealed}
+soils_revealed_files <- 
+  list.files(paste0(p_dat, "soil/soils_revealed"), 
+             full.names = TRUE)
+
+soils_rw_Y20 <- rast(
+  paste0(p_dat, "soil/soils_revealed/scenario_rewilding_dSOC_Y20.tif")
+)
+soils_rw_YSS <- rast(
+  paste0(p_dat, "soil/soils_revealed/scenario_rewilding_dSOC_YSS.tif")
+)
+
+soils_lc <- rast(
+  paste0(p_dat, "soil/soils_revealed/lc_ipcc.tif")
+  )
+
+
+
+soils_revealed_all <- rast(c(grep(".tif", 
+                                  soils_revealed_files, value = TRUE)
+                             ))
+
+soils_revealed_all <- rast(soils_revealed_files[c(2, 14, 15, 17)])
+
+
+
+# crop, resample
+
+for (input in c("soils_rw_Y20", "soils_rw_YSS",
+                "soils_lc"
+                )) {
+  lapply(1:11, function(i) {
+    cc_crop_resample_r(
+      input_r = get(eval(input)), label = paste0("_", input),
+      site = site_df$site[i], 
+      output_path = paste0(p_dat_derived, "carbon/soils/"))
+  })
+  }
+
+
+# load back in
+
+# soils revealed, rewilding scenario, year 20
+site_soils_rw_Y20_30 <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/soils/", 
+              site_df$site[i], "_soils_rw_Y20_30.tif"))
+})
+
+# soils revealed, rewilding scenario, Steady State (year 80)
+site_soils_rw_YSS_30 <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/soils/", 
+              site_df$site[i], "_soils_rw_YSS_30.tif"))
+})
+
+# IPCC land cover classes, used by Soils Revealed
+site_soils_lc_30 <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/soils/", 
+              site_df$site[i], "_soils_lc_30.tif"))
+})
+
+names(site_soils_rw_Y20_30) <- site_df$site
+names(site_soils_rw_YSS_30) <- site_df$site
+names(site_soils_lc_30) <- site_df$site
+```
+
+```{r calc-mean-rate-cropland}
+
+# lc_ipcc land cover classes are:
+# 1. Forest, 2. Cropland, 3. Grassland, 4. Wetlands, 5. Settlements, 6. Other, 7. Water??
+# 1. Forest land - This category includes all land with woody vegetation consistent with thresholds used to define forest land in the national GHG inventory, sub-divided into managed and unmanaged, and also by ecosystem type as specified in the IPCC Guidelines. It also includes systems with vegetation that currently fall below, but are expected to exceed, the threshold of the forest land category.
+# 2. Cropland - This category includes arable and tillage land, and agro-forestry systems where vegetation falls below the thresholds used for the forest land category, consistent with the selection of national definitions.
+# 3. Grassland - This category includes rangelands and pasture land that is not considered as cropland. It also includes systems with vegetation that fall below the threshold used in the forest land category and are not expected to exceed, without human intervention, the threshold used in the forest land category. The category also includes all grassland from wild lands to recreational areas as well as agricultural and silvi-pastural systems, subdivided into managed and unmanaged consistent with national definitions.
+# 4. Wetlands - This category includes land that is covered or saturated by water for all or part of the year (e.g., peatland) and that does not fall into the forest land, cropland, grassland or settlements categories. The category can be subdivided into managed and unmanaged according to national definitions. It includes reservoirs as a managed sub-division and natural rivers and lakes as unmanaged sub-divisions.
+# 5. Settlements - This category includes all developed land, including transportation infrastructure and human settlements of any size, unless they are already included under other categories. This should be consistent with the selection of national definitions.
+# 6. Other land - This category includes bare soil, rock, ice, and all unmanaged land areas that do not fall into any of the other five categories. It allows the total of identified land areas to match the national area, where data are available.
+# 7. Chris' assumption: NA values, or water, etc.
+
+i<- 9
+
+plot(site_soils_lc_30[[i]], 
+     type = "classes",
+     levels = c("1. Forest", "2. Cropland", "3. Grassland", 
+                "4. Wetlands", "5. Settlements", "6. Other", "7. Water")
+     )
+
+plot(site_soils_lc_30[[i]], 
+     levels = c("1. Forest", "2. Cropland", "3. Grassland", 
+                "4. Wetlands", "5. Settlements", "6. Other", "7. Water"),
+     range = c(1, 2))
+
+plot(age_t[[i]][[31]])
+
+
+# mask the rewilding layer by land cover class 2:
+# can use:
+terra::classify()
+terra::subst()
+
+i <- 9
+
+
+test_mask <- terra::mask(
+  x = site_soils_rw_Y20_30[[i]],
+  mask = site_soils_lc_30[[i]],
+  maskvalues = 2, inverse = TRUE,
+  filename = paste0(p_dat_derived, "carbon/soils/", 
+                    site_df$site[i], "_soils_rw_Y20_30_cropland_only.tif"),
+  overwrite = TRUE
+  )
+
+
+
+plot(test_mask)
+mean(test_mask)
+plot(site_soils_rw_Y20_30[[i]])
+
+global(test_mask, fun = "mean", na.rm = TRUE)
+
+# make a mask with just 
+
+
+
+# mask soil layer to only cropland:
+
+for (input in c("site_soils_rw_Y20_30", "site_soils_rw_YSS_30")) {
+  lapply(1:11, function(i) {
+    terra::mask(
+      x = get(eval(input))[[i]],
+      mask = site_soils_lc_30[[i]],
+      maskvalues = 2, inverse = TRUE,
+      filename = paste0(p_dat_derived, "carbon/soils/", 
+                        site_df$site[i], gsub("site", "", input), "_cropland_only.tif"),
+      overwrite = TRUE
+      )
+  })
+  }
+
+# load back in:
+
+# soils revealed, rewilding scenario, year 20
+site_soils_rw_Y20_30_cropland <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/soils/", 
+              site_df$site[i], "_soils_rw_Y20_30_cropland_only.tif"))
+})
+
+# soils revealed, rewilding scenario, Steady State (year 80)
+site_soils_rw_YSS_30_cropland <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/soils/", 
+              site_df$site[i], "_soils_rw_YSS_30_cropland_only.tif"))
+})
+
+
+names(site_soils_rw_Y20_30_cropland) <- site_df$site
+names(site_soils_rw_YSS_30_cropland) <- site_df$site
+
+soc_mean <- lapply(c("site_soils_rw_Y20_30_cropland", "site_soils_rw_YSS_30_cropland"), 
+       function(input) {
+         tibble(site = site_df$site,
+                mean_soc = sapply(1:11, function(i) {
+                  global(get(eval(input))[[i]], 
+                         fun = "mean", na.rm = TRUE) %>% as.numeric()
+                  }),
+                type = input)
+       }) %>%
+  bind_rows() %>% 
+  mutate(
+    timespan = 
+      case_when(grepl("Y20", type) ~ 20,
+                grepl("YSS", type) ~ 80),
+    mean_annual_soc = mean_soc/timespan)
+
+
+soc_mean
+# ok, with the mean value, then I multiply this value by the age of abandoned cropland
+
+```
+
+
+```{r calc-soc-accumulation}
+
+# ----------------------------------------------------------------- #
+# multiply decomposed age rasters by annual rates
+# ----------------------------------------------------------------- #
+soc_mean %>%
+  filter(site == site_df$site[i],
+         timespan == 20) %>%
+  .$mean_annual_soc
+
+i <- 9
+
+
+
+lapply(1:11, function(i){
+  # extract soc accumulation rates, for different timespans:
+  tmp_soc_rate_20 <- soc_mean %>%
+    filter(site == site_df$site[i],
+           timespan == 20) %>%
+    .$mean_annual_soc
+  
+  tmp_soc_rate_80 <- soc_mean %>%
+    filter(site == site_df$site[i],
+           timespan == 80) %>%
+    .$mean_annual_soc
+  
+  # calculate total accumulation in each year
+  soc_accumulation_tmp <- 
+    age_up_to_20[[i]] * tmp_soc_rate_20 + 
+    age_21_plus[[i]] * tmp_soc_rate_80
+
+  terra::writeRaster(soc_accumulation_tmp,
+                     filename = paste0(p_dat_derived, "carbon/soils/", 
+                                       site_df$site[i], "_soc_accumulation.tif"),
+                     overwrite = TRUE)
+  
+  tmpFiles(current=TRUE, orphan=TRUE, old=TRUE, 
+           remove=TRUE)
+  })
+
+
+
+# load back in:
+# soils revealed, rewilding scenario, Steady State (year 80)
+site_soc_accumulation <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/soils/", 
+              site_df$site[i], "_soc_accumulation.tif"))
+})
+names(site_soc_accumulation) <- site_df$site
+
+plot(site_soc_accumulation[[9]], 28:31)
+```
+
+
+
+
+```{r basic-plots}
+input <- "site_forest_soc_combined_per_pixel"
+i <- 9
+
+for (input in c(
+  # "site_forest_c_abg_30", "site_forest_c_blg_30",
+  # "site_soils_rw_Y20_30",
+  # "site_soils_rw_YSS_30",
+  # "site_savanna_mask"
+  "site_forest_soc_combined",   "site_forest_soc_combined_per_pixel"
+    # "site_forest_c_accumulation", "site_soc_accumulation"
+  )) {
+  pdf(file = paste0(p_output, "plots/", run_label, "/carbon/",
+                    gsub("site_", "", input), "_YSS",# "_annual",
+                    run_label, ".pdf"),
+      width = 7, height = 6)
+  
+  par(mfrow = c(3, 4), 
+      # mar=c(0,0,0,0), 
+      oma=c(1,1,0,0), 
+      adj = 0,
+      cex.main = 1#,
+      # tcl = -0.2
+      )
+  
+  for (i in 1:11) {
+    terra::plot(
+      get(eval(input))[[i]][[2]],#/80,#[[31]], 
+      type = ifelse(input == "site_savanna_mask", "classes", "continuous"),
+      col = viridis(n = 10, direction = -1), 
+      colNA = "gray95",
+      main = new_titles[i],
+      cex = 1, # controls title sizes
+      # mar = c(mval+0.5, mval, mval + 1.2, mval) # bltr 
+      mar = c(1, 1.5, 3, 3)
+       )
+  
+  }
+  
+  dev.off()
+
+}
+```
+
+
+```{r plot-soils.revealed-expl}
+site_soils_revealed_all[9] %>% names()
+
+save_3x4_site_plot <- function(the_raster,
+                               mval = 1.5,
+                               file_name,
+                               layer) {
+  
+  pdf(file = paste0(p_output, "plots/", file_name, ".pdf"), 
+      width = 10, height = 7.5)
+  
+  par(mfrow = c(3, 4), 
+        oma=c(1,1,0,0), 
+        adj = 0,
+        cex.main = 1#,
+        )
+      
+  for(i in 1:11) {
+    plot(the_raster[[i]][[layer]], 
+         main = names(the_raster[i]), breaks = c(1, 2, 3, 4, 7), 
+         col = c("dark green", "gold", "light green", "gray"),
+         type = "continuous",
+         #legend = FALSE,
+         mar = c(mval+0.5, mval, mval + 1.2, mval + 2) # bltr   
+         )
+    }
+  
+  dev.off()
+}
+
+
+save_3x4_site_plot(the_raster = site_soils_revealed_all,
+                   layer = 1,
+                   file_name = "soils_revealed_lc_ipcc")
+
+save_3x4_site_plot(the_raster = site_soils_revealed_all,
+                   layer = 2, 
+                   file_name = "soils_revealed_Y20")
+
+save_3x4_site_plot(the_raster = site_soils_revealed_all,
+                   layer = 3, 
+                   file_name = "soils_revealed_YSS")
+
+save_3x4_site_plot(the_raster = site_soils_revealed_all,
+                   layer = 4, 
+                   file_name = "soils_revealed_socref")
+
+
+save_3x4_site_plot(the_raster = lapply(site_soils_revealed_rewilding_Y20, function(i){i/20}), 
+                   file_name = "soils_revealed_Y20_rate")
+
+
+
+plot(site_soils_revealed_all[[9]])
+plot(site_soils_revealed_all[[9]]$lc_ipcc, type = "classes")
+plot(site_soils_revealed_all[[9]]$lc_ipcc, type = "interval", 
+     breaks = c(1, 2, 3, 4, 7),
+     levels = c("1. forest", "2. crop", "3. grass", "everything else"))
+
+plot(site_soils_revealed_all[[9]]$lc_ipcc, type = "classes")
+
+my_site <- 3
+# 1. Forest, 2. Cropland, 3. Grassland, 4. Wetlands, 5. Settlements, 6. Other, 7. Water??
+plot(site_soils_revealed_all[[my_site]]$lc_ipcc, breaks = c(1.9, 2.1))
+plot(site_soils_revealed_all[[my_site]]$scenario_rewilding_dSOC_Y20, 
+     type = "classes")
+
+hist(site_soils_revealed_all[[9]]$scenario_rewilding_dSOC_Y20)
+
+
+
+
+plot(lc$shaanxi$y2015, breaks = c(2.9, 3.1))
+plot(lc$shaanxi[[c(1,31)]], breaks = c(2.9, 3.1), legend = F)
+plot(lc$nebraska[[c(1,31)]], breaks = c(2.9, 3.1), legend = F)
+
+
+# lc_ipcc land cover classes are:
+# 1. Forest, 2. Cropland, 3. Grassland, 4. Wetlands, 5. Settlements, 6. Other, 7. Water??
+# 1. Forest land - This category includes all land with woody vegetation consistent with thresholds used to define forest land in the national GHG inventory, sub-divided into managed and unmanaged, and also by ecosystem type as specified in the IPCC Guidelines. It also includes systems with vegetation that currently fall below, but are expected to exceed, the threshold of the forest land category.
+# 2. Cropland - This category includes arable and tillage land, and agro-forestry systems where vegetation falls below the thresholds used for the forest land category, consistent with the selection of national definitions.
+# 3. Grassland - This category includes rangelands and pasture land that is not considered as cropland. It also includes systems with vegetation that fall below the threshold used in the forest land category and are not expected to exceed, without human intervention, the threshold used in the forest land category. The category also includes all grassland from wild lands to recreational areas as well as agricultural and silvi-pastural systems, subdivided into managed and unmanaged consistent with national definitions.
+# 4. Wetlands - This category includes land that is covered or saturated by water for all or part of the year (e.g., peatland) and that does not fall into the forest land, cropland, grassland or settlements categories. The category can be subdivided into managed and unmanaged according to national definitions. It includes reservoirs as a managed sub-division and natural rivers and lakes as unmanaged sub-divisions.
+# 5. Settlements - This category includes all developed land, including transportation infrastructure and human settlements of any size, unless they are already included under other categories. This should be consistent with the selection of national definitions.
+# 6. Other land - This category includes bare soil, rock, ice, and all unmanaged land areas that do not fall into any of the other five categories. It allows the total of identified land areas to match the national area, where data are available.
+# 7. Chris' assumption: NA values, or water, etc.
+```
+
+
+```{r calc-Y20-mean-rate}
+
+plot(site_soils_revealed_rewilding_Y20[[6]]/20, type = "continuous")
+
+# calculate the mean annual rate of SOC sequestration, by simply dividing the change over 20 years by 20:
+
+site_SOC_Y20_mean_rate <- 
+  lapply(1:11, function(i){
+    mean_rate <- global(site_soils_revealed_rewilding_Y20[[i]]/20, 
+                        fun = "mean", na.rm = TRUE)
+    
+    tmp_df <- tibble(index = i,
+                     site = site_df$site[i]) %>%
+      mutate(mean_rate = mean_rate)
+    
+    tmp_df
+  }) %>% bind_rows()
+
+
+site_soils_revealed_rewilding_Y20[[9]]/20
+global(site_soils_revealed_rewilding_Y20[[9]]/20, fun = "mean", na.rm = TRUE) # Mg C / ha / year
+
+
+```
+
+
+
+# 4. Combine forest and SOC accumulation
+
+SOC
+- extract values for just cropland
+- average to get a single annual soil organic carbon accumulation rate for both the 20 year timespan and the 80 year timespan 
+- separate age_t raster into two, ages <=20, and ages >21.
+- multiply these separated age rasters by the mean soc rates for each timespan to get two soc accumulation timeseries
+
+Forest
+- add aboveground and belowground forest carbon accumulation rate (annual) maps together, plus an extra 0.42 as the global mean soc accumulation rate for forests. 
+- multiply this total forest carbon accumulation rate layer by the age raster
+
+
+Steps:
+1. Mask out the "savanna/grassland" areas from the forest carbon layer, using the savanna mask
+2. Mask the SOC accumulation layer by the forest layer (masked).
+3. Convert NAs in both of these masked carbon accumulation layers to 0, to allow them to be added together. 
+4. Add the forest accumulation (masked) to the soc accumulation (masked).
+5. Multiply by area per pixel
+6. Summarize raster time series
+
+It'd probably be faster to do the savanna masking at an earlier stage, to avoid having to mask and update values across 31 layers.
+The challenge with the two SOC rates is that it requires multiplication by two decomposed age time series, but I can just create two per-pixel accumulation rates at the earlier stage.
+And, I should multiply by area at an earlier stage too, to speed things up.
+
+# Final workflow
+
+New plan:
+Forest:
+1. Add aboveground and belowground forest carbon accumulation rate (annual) maps together, plus an extra 0.42 as the global mean soc accumulation rate for forests, in order to get a total forest carbon accumulation rate layer.
+
+Soils:
+2. Extract soc accumulation values for just cropland for both Y20 (20) and Y22 (80).
+3. Average to get a single total soil organic carbon accumulation for year 20 and the steady state (year 80), and then divide by timespan to get two different annual soc accumulation rates.
+
+Mask and combine:
+4. Mask out the "savanna/grassland" areas from the forest carbon layer, using the savanna mask
+5. Mask the SOC accumulation layer by the forest layer (masked).
+6. Convert NAs in both of these masked carbon accumulation layers to 0, to allow them to be added together. 
+7. Add the forest accumulation (masked) to each of the soc accumulation layers (masked), to create two maps of forest/soil carbon accumulation at each site.
+8. Multiply each of these two layers (initially in terms of Mg C / ha / year) by pixel area (ha / pixel) in order to get a carbon accumulation rate layer in terms of Mg C / pixel / year.
+
+Multiply accumulation rate layers by age timeseries:
+9. Separate age_t raster into two parts: ages <=20, and ages >21.
+10. Multiply the two combined forest and soil carbon accumulation rate layers by the two separated age rasters.
+
+
+## Forest carbon (Cook-Patton et al. 2020)
+
+```{r prep-forest-c}
+
+forest_c_abg <- rast(
+  paste0(p_dat, "climate/Cook-Patton_2020/sequestration_rate__mean__aboveground__full_extent__Mg_C_ha_yr.tif"))
+forest_c_blg <- rast(
+  paste0(p_dat, "climate/Cook-Patton_2020/sequestration_rate__mean__belowground__full_extent__Mg_C_ha_yr.tif"))
+forest_c_abg_error <- rast(
+  paste0(p_dat, "climate/Cook-Patton_2020/sequestration_rate__error_ratio__aboveground__full_extent__unitless.tif"))
+
+# soil carbon in forested areas: 0.42 Mg C / ha / yr
+# "global average from our literature-derived data (0.42 Mg C ha−1 yr−1 ) for the shallower 0–30 cm profile"
+
+
+# ---------------------------------------------- #
+# crop and resample multiple rasters, (with a buffer, to deal with NA issues)
+# ---------------------------------------------- #
+
+for (input in c("forest_c_abg", "forest_c_blg")) {
+  lapply(1:11, function(i) {
+    cc_crop_resample_r(
+      input_r = get(eval(input)), label = paste0("_", input),
+      site = site_df$site[i], 
+      output_path = paste0(p_dat_derived, "carbon/forests/"))
+  })
+  }
+
+
+# load back in
+# Cropped, resampled to 30 m resolution:
+# aboveground forest carbon sequestration, from Cook-Patton et al. 2020 Nature
+site_forest_c_abg_30 <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/forests/", 
+              site_df$site[i], "_forest_c_abg_30.tif"))
+})
+
+# belowground forest carbon sequestration, from Cook-Patton et al. 2020 Nature
+site_forest_c_blg_30 <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/forests/", 
+              site_df$site[i], "_forest_c_blg_30.tif"))
+})
+
+names(site_forest_c_abg_30) <- site_df$site
+names(site_forest_c_blg_30) <- site_df$site
+
+
+
+# coarser resolution:
+
+# aboveground forest carbon sequestration, from Cook-Patton et al. 2020 Nature
+site_forest_c_abg_buff <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/forests/", site_df$site[i], "_forest_c_abg_buff.tif"))
+})
+
+# belowground forest carbon sequestration, from Cook-Patton et al. 2020 Nature
+site_forest_c_blg_buff <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/forests/", site_df$site[i], "_forest_c_blg_buff.tif"))
+})
+
+names(site_forest_c_abg_buff) <- site_df$site
+names(site_forest_c_blg_buff) <- site_df$site
+
+```
+
+```{r combine-total-forest-c}
+
+# save 
+lapply(1:11, function(i){
+  site_forest_c_total <- 
+    site_forest_c_abg_30[[i]] + site_forest_c_blg_30[[i]] + 0.42
+
+  # save
+  terra::writeRaster(site_forest_c_total,
+                     filename = paste0(p_dat_derived, "carbon/forests/", 
+                                       site_df$site[i], "_forest_c_total.tif"),
+                     names = paste0(site_df$site[i], "_forest_c_total"),
+                     overwrite = TRUE)
+  })
+
+
+# reload:
+site_forest_c_total <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/forests/", 
+              site_df$site[i], "_forest_c_total.tif"))
+})
+
+names(site_forest_c_total) <- site_df$site
+```
+
+
+
+## Soil organic carbon (SoilsRevealed, Sanderman et al. 2020, Woolf et al. 2020)
+
+```{r prep-soc}
+soils_rw_Y20 <- rast(paste0(p_dat, "soil/soils_revealed/scenario_rewilding_dSOC_Y20.tif"))
+soils_rw_YSS <- rast(paste0(p_dat, "soil/soils_revealed/scenario_rewilding_dSOC_YSS.tif"))
+soils_lc <- rast(paste0(p_dat, "soil/soils_revealed/lc_ipcc.tif"))
+
+
+
+# crop, resample
+
+for (input in c("soils_rw_Y20", "soils_rw_YSS",
+                "soils_lc"
+                )) {
+  lapply(1:11, function(i) {
+    cc_crop_resample_r(
+      input_r = get(eval(input)), label = paste0("_", input),
+      site = site_df$site[i], 
+      output_path = paste0(p_dat_derived, "carbon/soils/"))
+  })
+  }
+
+
+# load back in
+
+# soils revealed, rewilding scenario, year 20
+site_soils_rw_Y20_30 <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/soils/", 
+              site_df$site[i], "_soils_rw_Y20_30.tif"))
+})
+
+# soils revealed, rewilding scenario, Steady State (year 80)
+site_soils_rw_YSS_30 <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/soils/", 
+              site_df$site[i], "_soils_rw_YSS_30.tif"))
+})
+
+# IPCC land cover classes, used by Soils Revealed
+site_soils_lc_30 <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/soils/", 
+              site_df$site[i], "_soils_lc_30.tif"))
+})
+
+names(site_soils_rw_Y20_30) <- site_df$site
+names(site_soils_rw_YSS_30) <- site_df$site
+names(site_soils_lc_30) <- site_df$site
+
+# Note: lc_ipcc land cover classes are:
+# 1. Forest, 2. Cropland, 3. Grassland, 4. Wetlands, 5. Settlements, 6. Other, 7. Water (?)
+
+# 1. Forest land - This category includes all land with woody vegetation consistent with thresholds used to define forest land in the national GHG inventory, sub-divided into managed and unmanaged, and also by ecosystem type as specified in the IPCC Guidelines. It also includes systems with vegetation that currently fall below, but are expected to exceed, the threshold of the forest land category.
+# 2. Cropland - This category includes arable and tillage land, and agro-forestry systems where vegetation falls below the thresholds used for the forest land category, consistent with the selection of national definitions.
+# 3. Grassland - This category includes rangelands and pasture land that is not considered as cropland. It also includes systems with vegetation that fall below the threshold used in the forest land category and are not expected to exceed, without human intervention, the threshold used in the forest land category. The category also includes all grassland from wild lands to recreational areas as well as agricultural and silvi-pastural systems, subdivided into managed and unmanaged consistent with national definitions.
+# 4. Wetlands - This category includes land that is covered or saturated by water for all or part of the year (e.g., peatland) and that does not fall into the forest land, cropland, grassland or settlements categories. The category can be subdivided into managed and unmanaged according to national definitions. It includes reservoirs as a managed sub-division and natural rivers and lakes as unmanaged sub-divisions.
+# 5. Settlements - This category includes all developed land, including transportation infrastructure and human settlements of any size, unless they are already included under other categories. This should be consistent with the selection of national definitions.
+# 6. Other land - This category includes bare soil, rock, ice, and all unmanaged land areas that do not fall into any of the other five categories. It allows the total of identified land areas to match the national area, where data are available.
+# 7. Chris' assumption: NA values, or water, etc.
+```
+
+```{r mask-soc-to-cropland}
+# mask soil layer to only cropland:
+
+for (input in c("site_soils_rw_Y20_30", "site_soils_rw_YSS_30")) {
+  lapply(1:11, function(i) {
+    terra::mask(
+      x = get(eval(input))[[i]],
+      mask = site_soils_lc_30[[i]],
+      maskvalues = 2, inverse = TRUE,
+      filename = paste0(p_dat_derived, "carbon/soils/", 
+                        site_df$site[i], gsub("site", "", input), "_cropland_only.tif"),
+      overwrite = TRUE
+      )
+  })
+  }
+
+# load back in:
+
+# soils revealed, rewilding scenario, year 20
+site_soils_rw_Y20_30_cropland <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/soils/", 
+              site_df$site[i], "_soils_rw_Y20_30_cropland_only.tif"))
+})
+
+# soils revealed, rewilding scenario, Steady State (year 80)
+site_soils_rw_YSS_30_cropland <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/soils/", 
+              site_df$site[i], "_soils_rw_YSS_30_cropland_only.tif"))
+})
+
+
+names(site_soils_rw_Y20_30_cropland) <- site_df$site
+names(site_soils_rw_YSS_30_cropland) <- site_df$site
+```
+
+
+```{r extract-mean-soc-rate}
+soc_mean <- lapply(c("site_soils_rw_Y20_30_cropland", "site_soils_rw_YSS_30_cropland"), 
+       function(input) {
+         tibble(site = site_df$site,
+                mean_soc = sapply(1:11, function(i) {
+                  global(get(eval(input))[[i]], 
+                         fun = "mean", na.rm = TRUE) %>% as.numeric()
+                  }),
+                type = input)
+       }) %>%
+  bind_rows() %>% 
+  mutate(
+    timespan = 
+      case_when(grepl("Y20", type) ~ 20,
+                grepl("YSS", type) ~ 80),
+    mean_annual_soc = mean_soc/timespan)
+
+soc_mean
+
+# write to file:
+write_csv(soc_mean, file = paste0(p_derived2, "soc_mean.csv"))
+# soc_mean <- read_csv(file = paste0(p_derived2, "soc_mean.csv"))
+
+
+# ---------------------------------------------------------------- #
+# add this mean value to a spatraster, to then mask and combine with the forest carbon layer.
+# ---------------------------------------------------------------- #
+lapply(1:11, function(i) {
+  site_mean_soc <- rast(
+    resolution = terra::res(lcc[[i]]),
+    extent = terra::ext(lcc[[i]])[1:4],
+    nlyrs = 2)
+  
+  values(site_mean_soc[[1]]) <- 
+    soc_mean %>% 
+    filter(site == site_df$site[i], timespan == 20) %>% 
+    .$mean_annual_soc
+  
+  values(site_mean_soc[[2]]) <- 
+    soc_mean %>% 
+    filter(site == site_df$site[i], timespan == 80) %>% 
+    .$mean_annual_soc
+  
+  names(site_mean_soc) <- c("Y20", "YSS")
+  
+  terra::writeRaster(
+    site_mean_soc,
+    filename = paste0(p_dat_derived, "carbon/soils/", 
+                      site_df$site[i], "_mean_soc.tif"),
+    names = names(site_mean_soc),
+    overwrite = TRUE)
+  }
+  )
+
+
+# load back in:
+
+# mean soil carbon sequestration after 20 and 80 years (YSS) in former cropland, for the rewilding scenario (SoilsRevealed)
+site_mean_soc <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/soils/", 
+              site_df$site[i], "_mean_soc.tif"))
+})
+names(site_mean_soc) <- site_df$site
+
+# With this mean value, then I multiply this value by the age of abandoned cropland
+soc_mean %>% arrange(site) %>% print(n = 22)
+```
+
+
+## Mask and combine accumulation layers
+
+```{r create-forest-grassland-mask}
+names(ecoregions2017)
+ecoregions2017 %>%
+  st_drop_geometry() %>%
+  mutate(grassland_mask = case_when(
+    grepl("Savanna", BIOME_NAME) ~ 1,
+    TRUE ~ 0
+  ))
+
+
+site_ecoregions2017 %>%
+  st_drop_geometry() %>%
+  select(site, ECO_NAME, BIOME_NAME) %>%
+  filter(grepl("Savanna", BIOME_NAME))
+   
+site_ecoregions2017 %>%
+  st_drop_geometry() %>%
+  select(site, ECO_NAME, BIOME_NAME) %>%
+  filter(grepl("Forest", BIOME_NAME))
+
+site_ecoregions2017$BIOME_NAME %>% unique() %>% sort()
+
+
+# create savanna mask for each site:
+make_mask_coarse <- TRUE
+lapply(1:11, function(i) {
+  
+  savanna_mask <- 
+    site_ecoregions2017 %>%
+    # st_drop_geometry() %>%
+    # select(site, ECO_NAME, BIOME_NAME) %>%
+    
+    mutate(grassland_mask = case_when(
+      grepl("Forest", BIOME_NAME) ~ 1,
+      grepl("Savanna", BIOME_NAME) ~ 2,
+      grepl("Grassland", BIOME_NAME) ~ 3,
+      TRUE ~ 0
+      )) %>%
+    filter(site == site_df$site[i]) %>%
+    st_cast() 
+  
+  if(make_mask_coarse) {
+    # fasterize at a coarser resolution (1 km first, then resampled to 30 m)
+    savanna_mask <- 
+      fasterize(savanna_mask,
+                raster::raster(resolution = terra::res(site_forest_c_abg_buff[[i]]),
+                               ext = raster::extent(terra::ext(site_forest_c_abg_buff[[i]])[1:4])),
+                field = "grassland_mask"
+                ) %>% 
+      rast()
+    
+    # resample to finer resolution
+    terra::resample(
+      x = savanna_mask, 
+      y = lcc[[i]][["y2017"]], method = "near",
+      filename = paste0(p_dat_derived, "carbon/forests/", 
+                                  site_df$site[i], "_savanna_mask_coarse.tif"),
+      overwrite = TRUE)
+    } else {
+      # fasterize directly to 30 m
+      savanna_mask <- 
+        fasterize(savanna_mask, 
+                  raster::raster(resolution = terra::res(lcc[[i]]),
+                                 ext = raster::extent(terra::ext(lcc[[i]])[1:4])),
+                  field = "grassland_mask") %>% 
+        rast()
+      
+      writeRaster(savanna_mask, overwrite = TRUE,
+                  filename = paste0(p_dat_derived, "carbon/forests/",
+                                    site_df$site[i], "_savanna_mask.tif"))
+  }
+  
+  
+})
+
+plot(site_forest_c_abg_buff[[9]])
+
+# Forest (1), grassland (2), and savanna (3) ecoregions2017 
+site_savanna_mask <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/forests/", 
+              site_df$site[i], "_savanna_mask.tif"))
+})
+names(site_savanna_mask) <- site_df$site
+
+# "Coarse" in that the fasterize raster derived from the ecoregions2017 sf object was at the resolution of Cook-Patton 2020, no the 30 m resolution of the land cover maps.
+site_savanna_mask_coarse <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/forests/", 
+              site_df$site[i], "_savanna_mask_coarse.tif"))
+})
+names(site_savanna_mask_coarse) <- site_df$site
+
+plot(site_savanna_mask_coarse[[9]])
+
+```
+
+```{r mask-forest-c-and-soc}
+site_savanna_mask
+site_forest_c_total
+# i <- 9
+
+# Mask forest_c layer based on the grassland mask
+lapply(1:11, function(i) {
+
+    forest_c_masked <- 
+      terra::mask(
+      x = site_forest_c_total[[i]],
+      mask = site_savanna_mask_coarse[[i]],
+      maskvalues = 1, inverse = TRUE,
+      updatevalue = 0,
+      filename = paste0(p_dat_derived, "carbon/forests/",
+                        site_df$site[i], "_forest_c_total_masked.tif"),
+      overwrite = TRUE
+      )
+  })
+
+# Mask soc layers based on the grassland mask
+
+lapply(1:11, function(i) {
+    soc_masked <- 
+      terra::mask(
+      x = site_mean_soc[[i]],
+      mask = site_savanna_mask_coarse[[i]],
+      maskvalues = 1,
+      updatevalue = 0,
+      filename = paste0(p_dat_derived, "carbon/soils/",
+                        site_df$site[i], "_mean_soc_masked.tif"),
+      overwrite = TRUE
+      )
+  })
+
+
+
+
+# load back in:
+site_forest_c_masked <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/forests/", 
+              site_df$site[i], "_forest_c_total_masked.tif"))
+})
+
+names(site_forest_c_masked) <- site_df$site
+
+site_soc_masked <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/soils/", 
+              site_df$site[i], "_mean_soc_masked.tif"))
+})
+
+names(site_soc_masked) <- site_df$site
+
+
+# plot
+i <- 9
+plot(site_forest_c_total[[i]])
+plot(site_forest_c_masked[[i]], range = minmax(site_forest_c_total[[i]])[, 1])
+plot(site_savanna_mask[[i]])
+
+plot(site_mean_soc[[i]])
+plot(site_soc_masked[[i]])
+
+
+```
+
+```{r combine-forest-soc}
+
+# combine forest and soc layers, adjust by pixel area, and save:
+
+lapply(1:11, function(i) {
+  # Combine the two rasters:
+  combined_tmp <- site_forest_c_masked[[i]] + site_soc_masked[[i]]
+  names(combined_tmp) <- c("forest_soc_Y20", "forest_soc_YSS")
+  
+  writeRaster(combined_tmp, overwrite = TRUE,
+              filename = paste0(p_dat_derived, "carbon/",
+                                site_df$site[i], "_forest_soc_combined.tif"),
+              names = names(combined_tmp))
+  
+  # adjust by pixel area
+  combined_per_pixel <- combined_tmp * site_area_ha[[i]]
+
+  writeRaster(combined_per_pixel, overwrite = TRUE,
+              filename = paste0(p_dat_derived, "carbon/",
+                                site_df$site[i], "_forest_soc_combined_per_pixel.tif"),
+              names = paste0(names(combined_tmp), "_per_pixel"))
+  
+  })
+
+
+# load
+site_forest_soc_combined <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/", 
+              site_df$site[i], "_forest_soc_combined.tif"))
+})
+names(site_forest_soc_combined) <- site_df$site
+
+site_forest_soc_combined_per_pixel <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/", 
+              site_df$site[i], "_forest_soc_combined_per_pixel.tif"))
+})
+names(site_forest_soc_combined_per_pixel) <- site_df$site
+
+
+```
+
+
+## Multiply accumulation rate layers by age time series
+
+```{r separate-age-t}
+# Note: The first 20 years experience an annual rate based on Y20 (/20), and each year after that experiences an annual rate calculated from YSS (/80).
+
+
+# ----------------------------------------------------------------- #
+# Decompose the age_t rasters into two parts: 1) <= 20 years, 2) > 20 years.
+# ----------------------------------------------------------------- #
+
+# ----------- #
+# observed age rasters:
+# ----------- #
+
+for (i in 1:11) {
+  terra::classify(
+    age_t[[i]],
+    rcl = tibble(from = 21, to = 30, becomes = 20),
+    othersNA = FALSE, include.lowest = TRUE, right = TRUE,
+    filename = paste0(p_dat_derived, "age_rasters/", run_label, "/separated/",
+                      site_df$site[i], "_age_up_to_20", run_label, ".tif"),
+    overwrite = TRUE
+    )
+
+  terra::classify(
+    age_t[[i]] - 20,
+    rcl = tibble(from = -20, to = 0, becomes = 0),
+    othersNA = FALSE, include.lowest = TRUE, right = TRUE,
+    filename = paste0(p_dat_derived, "age_rasters/", run_label, "/separated/",
+                      site_df$site[i], "_age_21_plus", run_label, ".tif"),
+    overwrite = TRUE
+    )
+}
+
+# load back in:
+
+# age for up to 20 years
+age_up_to_20 <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "age_rasters/", run_label, "/separated/",
+              site_df$site[i], "_age_up_to_20", run_label, ".tif"))
+})
+
+# age for 21 years and beyond
+age_21_plus <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "age_rasters/", run_label, "/separated/",
+              site_df$site[i], "_age_21_plus", run_label, ".tif"))
+})
+
+names(age_up_to_20) <- site_df$site
+names(age_21_plus) <- site_df$site
+
+
+# ------------------------------------------------------------------- #
+# Potential age
+# ------------------------------------------------------------------- #
+for (i in 1:11) {
+  terra::classify(
+    potential_age_t[[i]],
+    rcl = tibble(from = 21, to = 30, becomes = 20),
+    othersNA = FALSE, include.lowest = TRUE, right = TRUE,
+    filename = paste0(p_dat_derived, "age_rasters/", run_label, "/separated/",
+                      site_df$site[i], "_potential_age_up_to_20", run_label, ".tif"),
+    overwrite = TRUE
+    )
+
+  terra::classify(
+    potential_age_t[[i]] - 20,
+    rcl = tibble(from = -20, to = 0, becomes = 0),
+    othersNA = FALSE, include.lowest = TRUE, right = TRUE,
+    filename = paste0(p_dat_derived, "age_rasters/", run_label, "/separated/",
+                      site_df$site[i], "_potential_age_21_plus", run_label, ".tif"),
+    overwrite = TRUE
+    )
+}
+
+# load back in:
+# age for up to 20 years
+potential_age_up_to_20 <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "age_rasters/", run_label, "/separated/",
+              site_df$site[i], "_potential_age_up_to_20", run_label, ".tif"))
+})
+
+# age for 21 years and beyond
+potential_age_21_plus <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "age_rasters/", run_label, "/separated/",
+              site_df$site[i], "_potential_age_21_plus", run_label, ".tif"))
+})
+
+names(potential_age_up_to_20) <- site_df$site
+names(potential_age_21_plus) <- site_df$site
+```
+
+```{r multiply-combined-layer-by-age}
+
+age_up_to_20
+age_21_plus
+potential_age_up_to_20
+potential_age_21_plus
+
+site_df$site
+
+lapply(1:11, function(i){
+  # calculate total accumulation in each year
+  total_c_accumulation <- 
+    age_up_to_20[[i]] * site_forest_soc_combined_per_pixel[[i]]$forest_soc_Y20_per_pixel + 
+    age_21_plus[[i]] * site_forest_soc_combined_per_pixel[[i]]$forest_soc_YSS_per_pixel
+
+  terra::writeRaster(total_c_accumulation,
+                     filename = paste0(p_dat_derived, "carbon/", 
+                                       site_df$site[i], "_total_c_accumulation", run_label,".tif"),
+                     overwrite = TRUE)
+  
+  terra::tmpFiles(current=TRUE, orphan=TRUE, old=TRUE, remove=TRUE)
+  })
+
+
+lapply(1:11, function(i){
+  # calculate total accumulation in each year in potential age rasters
+  potential_total_c_accumulation_20 <- 
+    site_forest_soc_combined_per_pixel[[i]]$forest_soc_Y20_per_pixel * potential_age_up_to_20[[i]]
+  
+  print(site_df$site[i])
+  print("potential_total_c_accumulation_20")
+  print(potential_total_c_accumulation_20)
+  
+  potential_total_c_accumulation_21_plus <-
+    site_forest_soc_combined_per_pixel[[i]]$forest_soc_YSS_per_pixel * potential_age_21_plus[[i]]
+
+  print("potential_total_c_accumulation_21_plus")
+  print(potential_total_c_accumulation_21_plus)
+  
+  potential_total_c_accumulation <- 
+    potential_total_c_accumulation_20 +
+    potential_total_c_accumulation_21_plus
+  
+  print("potential_total_c_accumulation")
+  print(potential_total_c_accumulation)
+  
+  terra::writeRaster(potential_total_c_accumulation,
+                     filename = paste0(p_dat_derived, "carbon/", 
+                                       site_df$site[i], "_potential_total_c_accumulation", run_label,".tif"),
+                     overwrite = TRUE)
+  
+  terra::tmpFiles(current=TRUE, orphan=TRUE, old=TRUE, remove=TRUE)
+  cat(fill = TRUE, "Finished potential_c_accumulation for", site_df$site[i])
+  })
+
+
+site_total_c_accumulation <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/",
+              site_df$site[i], "_total_c_accumulation", run_label, ".tif"))
+})
+
+site_potential_total_c_accumulation <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/",
+              site_df$site[i], "_potential_total_c_accumulation", run_label, ".tif"))
+})
+
+names(site_total_c_accumulation) <- site_df$site
+names(site_potential_total_c_accumulation) <- site_df$site
+
+
+for (i in seq_along(site_potential_total_c_accumulation)) {names(site_potential_total_c_accumulation[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
+
+for (i in seq_along(site_total_c_accumulation)) {names(site_total_c_accumulation[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
+
+
+i <- 9
+
+plot(site_potential_total_c_accumulation[[i]], 28:31)
+```
+
+## data.table
+
+A new issue: how do I exclude the carbon stored in uncultivated croplands that are less than 5 years, and therefore, not technically considered to be abandoned by our abandonment definition?
+Strictly speaking, our current carbon estimate is an overestimate of the carbon stored in abandoned croplands, because it includes carbon sequestration in fallow periods that last between 1-4 years.
+This isn't likely to be much, but it's something.
+
+So, my new approach is to exclude carbon sequestration in abandoned croplands that are younger than 5 years. 
+Ideally, I'd be able to remove periods of <5 years, but that would involve some tricky data.table wrangling, and the area statistics I report in the rest of the paper are restricted to >=5 years.
+
+```{r convert-total-c-to-dt}
+
+site_forest_soc_combined_per_pixel[[9]]
+
+total_c_seq_rate_dt <- spatraster_to_dt(site_forest_soc_combined_per_pixel[[9]])
+
+i
+site_df$site[i]
+
+# save as a parquet file
+write_parquet(x = total_c_seq_rate_dt, paste0(p_dat_derived, "carbon/", site_df$site[i],
+                                              "_forest_soc_combined_per_pixel.parquet"))
+toc()
+
+total_c_seq_rate_dt <- read_parquet(file = paste0(p_dat_derived, "carbon/", site_df$site[i],
+                                           "_forest_soc_combined_per_pixel.parquet"))
+
+colnames(total_c_seq_rate_dt) <- c("x", "y", "Y20", "YSS")
+max_age_dt
+total_c_seq_rate_dt
+age_dt
+
+```
+
+```{r combine-terra}
+
+mdt2 <- spatraster_to_dt(c(age_t[[9]], site_forest_soc_combined_per_pixel[[9]]))
+setnames(mdt2, old = "forest_soc_Y20_per_pixel", new = "Y20")
+setnames(mdt2, old = "forest_soc_YSS_per_pixel", new = "YSS")
+
+
+
+```
+
+
+```{r merge-combined-c-to-age}
+age_dt
+total_c_seq_rate_dt
+
+# round x and y columns to deal with floating point imprecision:
+round_digits1 <- 8
+age_dt[, ':='(x = round(x, round_digits1), 
+              y = round(y, round_digits1))]
+lc_dt[, ':='(x = round(x, round_digits1), 
+              y = round(y, round_digits1))]
+total_c_seq_rate_dt[, ':='(x = round(x, round_digits1), 
+                           y = round(y, round_digits1))]
+tic()
+mdt <- merge(
+  x = age_dt,#[, c("x", "y", paste0("y", 2010:2017))], 
+  y = total_c_seq_rate_dt, 
+  all.x = FALSE, 
+  by = c("x", "y"), sort = FALSE
+  )
+toc()
+
+nrow(lc_dt)
+nrow(total_c_seq_rate_dt)
+nrow(age_dt)
+nrow(mdt)
+
+mdt_r <- dt_to_raster(mdt, crs("+proj=longlat +datum=WGS84 +no_defs"))
+writeRaster(mdt_r, paste0(p_tmp, "mdt.tif"))
+mdt_r <- terra::rast(paste0(p_tmp, "mdt.tif"))
+plot(mdt_r)
+```
+
+
+```{r exclude-age<5}
+
+# first, confirm that the data.table approach yields the same result as with terra
+i <- 9
+mdt
+total_carbon_df
+cvals0 <- 
+  site_carbon_df %>% 
+  filter(site == site_df$site[i],
+         year %in% 2010:2015, type == "Observed") %>%
+  .$total_c_Mg
+
+my_year <- "y2011"
+
+cvals <- sapply(paste0("y", 1987:2017), function(my_year) {
+  mdt[get(my_year) >= 5 & get(my_year) < 21, sum(get(my_year) * Y20)] + 
+  mdt[get(my_year) >= 21, sum(get(my_year) * YSS)]})
+
+
+site_carbon_df %>% 
+  filter(site == site_df$site[i],
+         # year %in% 2010:2017,
+         type == "Observed") %>%
+  mutate(new = cvals,
+         pdiff = (new - total_c_Mg) / total_c_Mg)
+
+abandonment_threshold <- 5
+
+new_cdf <- cc_calc_carbon_accumulation(age_dt = mdt2, site = "shaanxi")
+new_cdf1 <- cc_calc_carbon_accumulation(age_dt = mdt2, site = "shaanxi", abandonment_threshold = 1)
+
+
+cc_calc_carbon_accumulation <- function(age_dt, site,
+                                        years_covered = 1987:2017,
+                                        abandonment_threshold = 5) {
+  carbon_df <- tibble(
+    year = years_covered,
+    C_up_to_20 = sapply(paste0("y", year), function(my_year) {
+      age_dt[get(my_year) >= abandonment_threshold & 
+               get(my_year) < 21, sum(get(my_year) * Y20)]
+      }),
+    C_21_30 = sapply(paste0("y", year), function(my_year) {
+      age_dt[get(my_year) >= 21, sum(get(my_year) * YSS)]
+      }),
+    total_c_Mg = C_up_to_20 + C_21_30,
+         site = site,
+         type = paste0(">=", abandonment_threshold))
+  
+  carbon_df
+}
+
+new_cdf 
+new_cdf2
+
+new_cdf2 <- 
+  rbind(
+    site_carbon_df %>% filter(site == site_df$site[i]),
+  tibble(year = 1987:2017,
+       total_c_Mg = sapply(paste0("y", year), function(my_year) {
+         mdt[get(my_year) >= 5 & get(my_year) < 21, sum(get(my_year) * Y20)] + 
+           mdt[get(my_year) >= 21, sum(get(my_year) * YSS)]}),
+       site = "shaanxi",
+       type = ">=5"
+       ),
+  tibble(year = 1987:2017,
+       total_c_Mg = sapply(paste0("y", year), function(my_year) {
+         mdt[get(my_year) >= 1 & get(my_year) < 21, sum(get(my_year) * Y20)] + 
+           mdt[get(my_year) >= 21, sum(get(my_year) * YSS)]}),
+       site = "shaanxi",
+       type = ">=1"
+       ))
+
+
+
+new_cdf
+
+
+ggplot(data = rbind(site_carbon_df %>% filter(site == site_df$site[9]), 
+                    new_cdf %>% select(year, total_c_Mg, site, type),
+                    new_cdf1 %>% select(year, total_c_Mg, site, type)), 
+         mapping = aes(x = year, y = total_c_Mg / 10^6, 
+                       color = type)) +
+  geom_line(#size = 1.5, 
+            # col = brewer_pal(palette = "Greens")(7)[c(6)]
+            ) + 
+  labs(x = "Year", 
+       y = expression("Carbon Accumulated in Abandoned Croplands  (10"^{6}*" Mg C)"),
+       linetype = "Scenario"
+       ) +
+  theme_classic() + 
+  theme(legend.position = c(0.88, 0.11),
+        legend.title = element_text(size = 9),
+        legend.spacing = unit(-1, units = "mm"),
+        legend.background = element_blank()
+        # legend.box.background = element_rect(colour = "black")
+        ) +
+  # guides(linetype = guide_legend(nrow = 2)) +
+    facet_wrap(vars(site), scales = "free", labeller = as_labeller(fancy_labels))
+
+
+# terra:
+global(site_total_c_accumulation[[i]][["y2010"]],
+       fun = "sum", na.rm = TRUE) %>% 
+    as_tibble() %>% 
+    rownames_to_column(var = "year") %>%
+    mutate(#year = gsub("y", "", year),
+           site = site_df$site[i]
+           )
+
+
+
+cdf2 <- sapply(grep('V', colnames(tdt), value = TRUE), function(i) {  
+  # subset rows that are greater than or equal to 5 (i.e., surpassing the abandonment threshold) and
+  # sum the column age values multiplied by the carbon accumulation rate
+  tdt[get(i) >= 5, sum(get(i) * M)] 
+  })
+
+
+mdt
+rm(tdt)
+tdt <- data.table::copy(mdt)
+
+indx <- grep('inc', colnames(tdt))
+
+for(j in indx){
+ set(DT, i=NULL, j=j, value=DT[[j]]*DT[['deflator']])
+}
+head(DT,2)
+
+```
+
+
+
+## Summarize results
+
+```{r summarize-combined-raster}
+
+# ------------------------------- #
+# calculate the sum total amount of carbon accumulated at each site:
+# ------------------------------- #
+site_total_c_accumulation
+site_potential_total_c_accumulation
+
+i <- 9
+
+site_carbon_df <- lapply(1:11, function(i) {
+  tmp <- global(
+    site_total_c_accumulation[[i]],
+                fun = "sum", na.rm = TRUE) # Mg C
+  tmp <- tmp %>% 
+    as_tibble() %>% 
+    rownames_to_column(var = "year") %>%
+    mutate(#year = gsub("y", "", year),
+           site = site_df$site[i]
+           )
+  tmp
+}) %>% bind_rows() %>% 
+  mutate(year = as.numeric(year) + 1986,
+         type = "Observed") %>%
+  rename(total_c_Mg = sum)
+
+
+
+site_potential_carbon_df <- lapply(1:11, function(i) {
+  tmp <- global(
+    site_potential_total_c_accumulation[[i]],
+                fun = "sum", na.rm = TRUE) # Mg C
+  
+  tmp <- tmp %>% 
+    as_tibble() %>% 
+    rownames_to_column(var = "year") %>%
+    mutate(#year = gsub("y", "", year),
+           site = site_df$site[i]
+           )
+  tmp
+}) %>% bind_rows() %>% 
+  mutate(year = as.numeric(year) + 1986,
+         type = "Potential") %>%
+  rename(total_c_Mg = sum)
+
+
+site_carbon_df <- site_carbon_df %>% 
+bind_rows(site_potential_carbon_df)
+
+
+# save site_carbon_df
+write_csv(site_carbon_df, 
+          file = paste0(p_derived2, "/site_carbon_df.csv")
+          )
+
+site_carbon_df_t <- read_csv(file = paste0(p_derived2, "/site_carbon_df_t.csv"))
+```
+
+```{r plot-carbon}
+
+# final version
+site_carbon_df <- read_csv(file = paste0(p_derived2, "/carbon_df", run_label,".csv"))
+site_carbon_df_terra <- read_csv(file = paste0(p_derived2, "/carbon_df_terra.csv"))
+
+site_carbon_df %>% rename(total_c_Mg = total_C_Mg) %>%
+  mutate(version = "final")
+
+site_carbon_df_terra %>% mutate(version = "terra", threshold = 1)
+site_carbon_dt %>% mutate(version = "first draft")
+
+
+# comparing
+site_carbon_df %>% 
+  filter(threshold == 1, type == "Observed") %>%
+  select(site, year, total_C_Mg) %>%
+  left_join(site_carbon_df_terra %>%
+              filter(type == "Observed") %>%
+              select(site, year, total_c_Mg),
+            by = c("site", "year")) %>%
+  mutate(diff = total_C_Mg - total_c_Mg,
+         eq = !all.equal(total_C_Mg, total_c_Mg)) %>%
+  .$eq %>% sum
+
+combo_tmp <- 
+  bind_rows(
+    site_carbon_df %>% 
+      rename(total_c_Mg = total_C_Mg) %>% 
+      mutate(version = "final"),
+    site_carbon_df_terra %>% 
+      mutate(version = "terra", threshold = 1),
+    site_carbon_dt %>% 
+      mutate(version = "first draft")
+  )
+
+# plot:
+
+gg_carbon_comparison <-
+  ggplot(data = combo_tmp %>% 
+           filter(type == "Observed",
+                  threshold == 1,
+                  # site == "shaanxi"
+                  ), 
+         mapping = aes(x = year, y = total_c_Mg / 10^6, 
+                       linetype = version,
+                       color = version)) +
+  geom_line(
+    # size = 1.5, 
+            # col = brewer_pal(palette = "Greens")(7)[c(6)],
+    alpha = 0.5
+            ) + 
+  labs(x = "Year", 
+       y = expression("Carbon Accumulated in Abandoned Croplands  (10"^{6}*" Mg C)"),
+       linetype = "Version"
+       ) +
+  theme_classic() + 
+  theme(legend.position = c(0.88, 0.11),
+        legend.title = element_text(size = 9),
+        legend.spacing = unit(-1, units = "mm"),
+        legend.background = element_blank()
+        # legend.box.background = element_rect(colour = "black")
+        ) +
+  # guides(linetype = guide_legend(nrow = 2)) +
+    facet_wrap(vars(site), scales = "free", labeller = as_labeller(fancy_labels)) 
+
+ggsave(plot = gg_carbon_comparison,
+       file = paste0(p_plots, run_label, "/carbon/carbon_comparison_fix2.pdf"), 
+       width = 7, height = 6)
+
+
+```
+
+
+## Extra
+
+
+```{r compare-with-hansen}
+# compare the carbon removal estimates with those from
+# 1. Hansen et al. global forest watch
+# 2. Harris et al. 2021 - Nature Climate Change: Global maps of twenty-first century forest carbon fluxes https://www.nature.com/articles/s41558-020-00976-6
+
+```
+
+
+# End
+
+```{r clean-up}
+env_size(ls())
+
+# 
+os <- get_sizes(ls())
+
+os %>% 
+  summarise(total_env_size = sum(size)) %>% 
+  mutate(gb = total_env_size / 1024^3)
+
+os %>% print(n = 20)
+
+rm(list = os$object[c(1:2)])
+
+
+terra::tmpFiles(current=TRUE, orphan=TRUE, old=TRUE, remove=TRUE)
+
+
+```
+
