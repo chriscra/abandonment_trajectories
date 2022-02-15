@@ -32,7 +32,8 @@ source("/home/clc6/abandonment_trajectories/scripts/util/_util_functions.R")
 site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
 
 # set run_label
-run_label <- "_2022_01_31" #"_2021_03_13" # "_2021-03-05"
+run_label <- format(Sys.time(), "_%Y_%m_%d") 
+# run_label <- "_2022_01_31" #"_2021_03_13" # "_2021-03-05"
 
 cat(fill = TRUE, "Distilling length data.tables for run:", run_label)
 
@@ -94,6 +95,33 @@ recult_length_distill_df <- recult_length_distill_df %>% bind_rows() %>% as.data
 write_csv(recult_length_distill_df, file = paste0(p_input_rasters, "recult_length_distill_df", run_label, ".csv"))
 
 cat(fill = TRUE, "Saved recult_length_distill_df to:", paste0(p_input_rasters, "recult_length_distill_df", run_label, ".csv"))
+
+
+
+# -------------------------------------------------------- #
+# Distill the *potential* length data, for use in histograms ----
+
+potential_length_distill_df <- lapply(site_df$site, function(x){
+
+  potential_length <- fread(input = paste0(p_input_rasters, x, "_potential_length", run_label, ".csv"))
+  
+  
+  dt <- potential_length[, .(freq = .N), by = length
+                      ][, ':='(site = x, length_type = "potential")]
+  
+  cat(fill = TRUE, "distilled:", x)
+  
+  # return dt
+  dt
+}
+) 
+
+potential_length_distill_df <- potential_length_distill_df %>% bind_rows() %>% as.data.frame()
+
+# save potential_length_distill_df
+write_csv(potential_length_distill_df, file = paste0(p_input_rasters, "potential_length_distill_df", run_label, ".csv"))
+
+cat(fill = TRUE, "Saved potential_length_distill_df to:", paste0(p_input_rasters, "potential_length_distill_df", run_label, ".csv"))
 
 
 
