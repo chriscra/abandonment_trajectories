@@ -100,12 +100,9 @@ knitr::write_bib(x = c(needed_packages, github_packages), file = 'packages.bib')
 
 ```{r load-files, include = FALSE}
 
-# set run:
-run_label <- "_2022_01_31" #"_2021_03_13"
+# set run: 
+run_label # check. See "_util_main.R"
 
-# Additional paths --------------------------------------------------- #
-p_plots <- "/Users/christophercrawford/work/projects/abandonment_trajectories/output/plots/"
-p_derived2 <- paste0(p_dat_derived, run_label, "/derived_data/")
 
 # load general spatial data on site locations --------------------------------------------------- #
 site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
@@ -152,7 +149,7 @@ turnover_dat <- read_csv(file = paste0(p_derived2, "turnover_dat", run_label, ".
 
 
 # load decay rate data
-load(file = paste0(p_derived2, "/decay_mod_coef_dfs.rds"), 
+load(file = paste0(p_derived2, "/decay_mod_coef_dfs", run_label, ".rds"), 
      verbose = TRUE)
 
 # load extrapolation data
@@ -165,7 +162,7 @@ extrapolate_df_l3_a2 <- read_csv(file = paste0(p_derived2, "/extrapolate_df_l3_a
 # load data for decay models --------------------------------------------------- #
 fitted_df_l3 <- read_csv(file = paste0(p_derived2, "/decay_mod_fitted_df_l3", run_label, ".csv"))
 
-load(file = paste0(p_derived2, "/decay_mod_coef_dfs.rds"), verbose = TRUE)
+load(file = paste0(p_derived2, "/decay_mod_coef_dfs", run_label, ".rds"), verbose = TRUE)
 # contains:
 # coef_df_l3, coef_df_wide_l3, mean_coef_df_l3, mean_coef_df_wide_l3, mean_coef_proj_l3, time_to_l3
 
@@ -403,7 +400,7 @@ Our results reveal the temporal nature of cropland abandonment and its potential
 
 ```{r maps-abn-duration, fig.cap = '(ref:caption-maps-abn-duration)', fig.pos = "h", echo=FALSE}
 # knitr::include_graphics(path = paste0(p_plots, run_label, "/site_locations_w_abn_age_rev", run_label,".pdf"))
-knitr::include_graphics(path = paste0(p_plots, "fig1_filled.pdf"))
+knitr::include_graphics(path = paste0(p_plots, "fig1_filled", run_label, ".pdf"))
 ```
 
 # Results {.unnumbered}
@@ -695,7 +692,7 @@ Abandonment duration also varied substantially within sites, with individual sit
 # knitr::include_graphics(path = paste0(p_plots, run_label, "/mean_lengths", run_label, ".pdf")) 
 
 # new version, flipped, with histograms
-knitr::include_graphics(path = paste0(p_plots, "fig2.pdf"))
+knitr::include_graphics(path = paste0(p_plots, "fig2", run_label, ".pdf"))
 ```
 
 ## Modeling abandonment decay & recultivation {.unnumbered}
@@ -720,7 +717,7 @@ The remaining sites had trends that were not significantly different from zero.
 (ref:caption-decay-curves-by-site) Mean decay trajectories for each site, based on a linear model predicting the proportion of abandoned land remaining abandoned as a function of time (including a linear and a logarithmic term of time). The function describing each site's mean trajectory is calculated by taking the mean of each time coefficient across all cohorts of abandonment at each site. The light gray dashed line at a proportion of 0.50 indicates the half-life at each site, defined as the time required for half of the croplands abandoned in a given year to be recultivated.
 
 ```{r decay-curves-by-site, fig.cap = '(ref:caption-decay-curves-by-site)', echo=FALSE}
-knitr::include_graphics(path = paste0(p_plots, "fig3.pdf"))
+knitr::include_graphics(path = paste0(p_plots, "fig3", run_label, ".pdf"))
 ```
 
 (ref:caption-abn-decay-s) Recultivation (decay) of abandoned land in Shaanxi/Shanxi (China), showing the proportion of each cohort of abandoned land (i.e., all pixels abandoned in a given year) remaining abandoned over time. Points represent actual observations by cohort (n = 351), dashed lines represent linear model predictions (fitted values) for each cohort as a function of time (including a linear and logarithmic term of time), and the solid black line represents the mean trend across all cohorts (calculated by taking the mean of each time coefficient value across all cohorts). Colors of both points and dashed lines correspond to roughly five-year groups of cohorts, ranging from dark purple (oldest cohorts) to green and yellow (most recent cohorts). See Fig. \@ref(fig:decay-model-grid) for model results for all sites.
@@ -728,8 +725,7 @@ knitr::include_graphics(path = paste0(p_plots, "fig3.pdf"))
 ```{r abn-decay-s, fig.cap = '(ref:caption-abn-decay-s)', out.width = "9cm", echo=FALSE}
 # knitr::include_graphics(path = paste0(p_plots, run_label, "persistence_proportion", run_label, "_s.png"))
 knitr::include_graphics(
-  path = paste0(p_plots, "fig4.pdf"
-                # run_label, "/decay/ms_fig_l3_cohort", run_label, "_s.pdf"
+  path = paste0(p_plots, "fig4", run_label, ".pdf"
                                  ))
 
 # persistence_dat %>% group_by(site) %>% summarise(n = n())
@@ -780,6 +776,7 @@ abn_2yr_stats <- list(
   percent_area_below_5_high_site = abn_2yr_overestimation %>% slice_max(percent_2yr_abn_area_less_than_5yrs_old) %>% .$description
   
 )
+
 
 abn_2yr_overestimation_char <- abn_2yr_overestimation %>%
   mutate(jaccard = jaccard %>% round(digits = 2), 
@@ -1437,13 +1434,13 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/turnover_grid", run_
 # knitr::include_graphics(path = paste0(p_plots, run_label, "/mean_lengths", run_label, ".pdf")) 
 
 # new version, flipped, with histograms
-knitr::include_graphics(path = paste0(p_plots, "fig2_w_max.pdf"))
+knitr::include_graphics(path = paste0(p_plots, "fig2_w_max", run_label, ".pdf"))
 ```
 
 (ref:caption-maps-max-abn-duration) Maximum duration of cropland abandonment (in years) observed at each pixel between 1987 and 2017 in our eleven study sites. This serves as a companion to maps of the abandonment duration as of 2017 shown in Fig. 1. Site locations are shown in Fig. \@ref(fig:global-map).
 
 ```{r maps-max-abn-duration, fig.cap = '(ref:caption-maps-max-abn-duration)', echo=FALSE}
-knitr::include_graphics(path = paste0(p_plots, "fig1_max.pdf"))
+knitr::include_graphics(path = paste0(p_plots, "fig1_max", run_label, ".pdf"))
 ```
 
 (ref:caption-abn-prop-lc) Proportion of abandoned cropland in each land cover class as of 2017.
