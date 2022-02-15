@@ -35,11 +35,9 @@ mean_length_df$abn_threshold %>% unique()
 
 ```{r initialize}
 source("/Users/christophercrawford/work/projects/abandonment_trajectories/scripts/0_start.R")
-source(paste0(p_proj, "scripts/util/_util_main.R"))
-
 ```
 
-```{r set-site-params}
+```{r set-site-params, eval = FALSE}
 # Make data.frame containing site names, labels, original land cover codes, and noting whether to 1) merge layers into a stack, 2) update land cover codes, or 3) trim extra years
 
 # Primary sites
@@ -168,19 +166,17 @@ write_csv(site_df, file = paste0(p_dat_derived, "site_df.csv"))
 
 # Prep datasets
 ```{r run-label}
-run_label <- "_2022_01_31" #"_2021_03_13"
-
+run_label # just check that this is the right one
+# see "_util_main.R"
 ```
 
 
-```{r persistence_dat}
-# find file path names to persistence data.frames:
-persistence_file_paths <- list.files(path = paste0(p_dat_derived, run_label)) %>% 
-  grep("pers", ., value = TRUE)
+```{r persistence-dat}
 
 # load csvs into a list
-persistence_dat <- lapply(persistence_file_paths, function(i) {
-  read.csv(file = paste0(p_dat_derived, run_label, "/", i))
+persistence_dat <- lapply(1:11, function(i) {
+  read.csv(file = paste0(p_dat_derived, run_label, "/", 
+                         site_df$site[i], "_result_persistence", run_label, ".csv"))
 })
 
 
@@ -199,7 +195,7 @@ persistence_dat <- left_join(persistence_dat,
 
 
 # save persistence_dat
-write_csv(persistence_dat, file = paste0(p_dat_derived, "persistence_dat", run_label, ".csv"))
+write_csv(persistence_dat, file = paste0(p_derived2, "persistence_dat", run_label, ".csv"))
 
 
 
@@ -230,22 +226,19 @@ persistence_dat$initial_area_abn # the area (in ha) initially abandoned in a giv
 ```
 
 ```{r area-dat}
-area_file_paths <- list.files(path = paste0(p_dat_derived, run_label)) %>% 
-  grep("area", ., value = TRUE)
 
 # load csvs into a list
-area_dat <- lapply(area_file_paths, function(i) {
-  read.csv(file = paste0(p_dat_derived, run_label, "/", i))
+area_dat <- lapply(1:11, function(i) {
+  read.csv(file = paste0(p_dat_derived, run_label, "/", 
+                         site_df$site[i], "_result_area", run_label, ".csv"))
 })
 
 names(area_dat) <- site_df$site
 area_dat <- area_dat %>% bind_rows(.id = "site") %>% as_tibble()
 
-area_dat <- area_dat %>% 
-  mutate(lc = replace(lc, lc == "Abandoned (>1)", "Abandoned (>=1)"))
 
-write_csv(area_dat, file = paste0(p_dat_derived, "area_dat", run_label, ".csv"))
-# area_dat <- read_csv(file = paste0(p_dat_derived, "area_dat", run_label, ".csv"))
+write_csv(area_dat, file = paste0(p_derived2, "area_dat", run_label, ".csv"))
+# area_dat <- read_csv(file = paste0(p_derived2, "area_dat", run_label, ".csv"))
 
 # ---------------------------------------------------------------------- #
 # plot facet grid
@@ -261,7 +254,7 @@ ggplot(data = area_dat %>% filter(lc != "Abandoned (>=1)")
          color = NULL #"Land Cover"
          ) + 
     geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
-                            group = lc, color = fct_reorder(lc, lc, .desc = TRUE)),
+                            group = lc, color = lc),
               size = 1.5) + 
     theme(legend.position = "bottom",
           legend.title = element_text(size = 10)) +
@@ -275,19 +268,17 @@ ggplot(data = area_dat %>% filter(lc != "Abandoned (>=1)")
 
 
 ```{r turnover-dat}
-turnover_file_paths <- list.files(path = paste0(p_dat_derived, run_label)) %>% 
-  grep("turnover", ., value = TRUE)
-
 # load csvs into a list
-turnover_dat <- lapply(turnover_file_paths, function(i) {
-  read.csv(file = paste0(p_dat_derived, run_label, "/", i))
+turnover_dat <- lapply(1:11, function(i) {
+  read.csv(file = paste0(p_dat_derived, run_label, "/", 
+                         site_df$site[i], "_result_turnover", run_label, ".csv"))
 })
 
 names(turnover_dat) <- site_df$site
 turnover_dat <- turnover_dat %>% bind_rows(.id = "site") %>% as_tibble()
 
-write_csv(turnover_dat, file = paste0(p_dat_derived, "turnover_dat", run_label, ".csv"))
-# turnover_dat <- read_csv(file = paste0(p_dat_derived, "turnover_dat", run_label, ".csv"))
+write_csv(turnover_dat, file = paste0(p_derived2, "turnover_dat", run_label, ".csv"))
+# turnover_dat <- read_csv(file = paste0(p_derived2, "turnover_dat", run_label, ".csv"))
 
 ggplot() +
     theme_classic() + 
@@ -313,7 +304,73 @@ ggplot() +
               mapping = aes(x = year, y = area_ha / (10^3), color = "Net Change in Area"),
               size = 1.5) + 
   facet_wrap(vars(site))
+```
 
+```{r potential-area-at}
+
+# load csvs into a list
+potential_area_dat <- lapply(1:11, function(i) {
+  read.csv(file = paste0(p_dat_derived, run_label, "/", 
+                         site_df$site[i], "_result_potential_area", run_label, ".csv"))
+})
+
+names(potential_area_dat) <- site_df$site
+potential_area_dat <- potential_area_dat %>% bind_rows(.id = "site") %>% as_tibble()
+
+write_csv(potential_area_dat, file = paste0(p_derived2, "potential_area_dat", run_label, ".csv"))
+# potential_area_dat <- read_csv(file = paste0(p_derived2, "potential_area_dat", run_label, ".csv"))
+
+# ---------------------------------------------------------------------- #
+# plot facet grid
+# ---------------------------------------------------------------------- #
+ggplot(data = potential_area_dat %>% filter(lc != "Abandoned (>=1)")
+    ) +
+    theme_classic() +
+    # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+    labs(y = expression("Area  (10"^{6}*" ha)") , 
+         x = "Year", 
+         title = "Area by Land Cover, with Abandonment",
+         #subtitle = subtitle,
+         color = NULL #"Land Cover"
+         ) + 
+    geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
+                            group = lc, color = lc),
+              size = 1.5) + 
+    theme(legend.position = "bottom",
+          legend.title = element_text(size = 10)) +
+    guides(color = guide_legend(nrow = 2, ncol = 3)) +
+    
+    scale_color_manual(values = plot_cols) + 
+  facet_wrap(vars(site))
+```
+
+
+```{r potential-persistence-dat}
+
+# load csvs into a list
+potential_persistence_dat <- lapply(1:11, function(i) {
+  read.csv(file = paste0(p_dat_derived, run_label, "/", 
+                         site_df$site[i], "_result_potential_persistence", run_label, ".csv"))
+})
+
+
+names(potential_persistence_dat) <- site_df$site
+potential_persistence_dat <- potential_persistence_dat %>% bind_rows(.id = "site") %>% as_tibble()
+
+potential_persistence_dat <- 
+  left_join(potential_persistence_dat,
+            potential_persistence_dat %>% filter(age == 5) %>% select(site, year_abn, initial_area_abn = area_ha), 
+            by = c("site", "year_abn")) %>%
+  mutate(year_abn_bins = cut(year_abn, breaks = 5, include.lowest = TRUE)) %>%
+  mutate(year_abn_bins = as_factor(year_abn_bins), # convert both to factors
+         time = age - 5,
+         time_1 = time + 1,
+         cohort = factor(year_abn)) %>% 
+  mutate(site = as_factor(site)) %>% filter(!is.na(proportion)) # remove all na proportions
+
+
+# save potential_persistence_dat
+write_csv(potential_persistence_dat, file = paste0(p_derived2, "potential_persistence_dat", run_label, ".csv"))
 
 ```
 
@@ -321,14 +378,16 @@ ggplot() +
 
 # load combined persistence, area, and turnover datasets:
 
-persistence_dat <- read_csv(file = paste0(p_dat_derived, "persistence_dat", run_label, ".csv")) %>%
+persistence_dat <- read_csv(file = paste0(p_derived2, "persistence_dat", run_label, ".csv")) %>%
   mutate(site = as.factor(site),
          bins = as.factor(bins),
          year_abn_bins = as.factor(year_abn_bins),
          cohort = as.factor(cohort))
 
-area_dat <- read_csv(file = paste0(p_dat_derived, "area_dat", run_label, ".csv"))
-turnover_dat <- read_csv(file = paste0(p_dat_derived, "turnover_dat", run_label, ".csv"))
+area_dat <- read_csv(file = paste0(p_derived2, "area_dat", run_label, ".csv"))
+turnover_dat <- read_csv(file = paste0(p_derived2, "turnover_dat", run_label, ".csv"))
+potential_area_dat <- read_csv(file = paste0(p_derived2, "potential_area_dat", run_label, ".csv"))
+
 
 site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
 
@@ -357,11 +416,10 @@ This involved using "length_distill_df" (a summary of the number of abandonment 
 
 # set up parameters:
 # data.frame of all sites contains information about sites
-site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
-
+site_df
 
 # 0. Load distilled length data
-length_distill_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", 
+length_distill_df <- read_csv(file = paste0(p_derived2,
                                             "length_distill_df", run_label, ".csv"))
 # length_distill_df %>% filter(site == "shaanxi") %>% select(length_type) %>% unique()
 
@@ -378,11 +436,11 @@ mean_length_df <- lapply(c(1, 3, 5, 7, 10), function(x) {
       sd_duration = sd(rep(length, freq))
       ) %>% 
     mutate(abn_threshold = x) 
-}) %>% bind_rows() %>% ungroup()
+}) %>% 
+  bind_rows() %>% 
+  ungroup() %>%
 
 # add order for plotting:
-mean_length_df <-
-  mean_length_df %>%
   left_join(., 
             filter(., abn_threshold == 5, length_type == "all") %>% 
               arrange(mean_duration) %>% 
@@ -391,11 +449,13 @@ mean_length_df <-
 
 
 # save mean_length_df
-write_csv(mean_length_df, file = paste0(p_dat_derived, run_label, "/", "mean_length_df", run_label, ".csv"))
-cat(fill = TRUE, "Saved mean_length_df to:", paste0(p_dat_derived, run_label, "/", "mean_length_df", run_label, ".csv"))
+write_csv(mean_length_df, file = paste0(p_derived2, "mean_length_df", run_label, ".csv"))
+cat(fill = TRUE, "Saved mean_length_df to:", paste0(p_derived2, "mean_length_df", run_label, ".csv"))
 
-# mean_length_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", "mean_length_df", run_label, ".csv"))
+# mean_length_df <- read_csv(file = paste0(p_derived2, "mean_length_df", run_label, ".csv"))
 ```
+
+
 
 
 
@@ -408,11 +468,11 @@ cat(fill = TRUE, "Saved mean_length_df to:", paste0(p_dat_derived, run_label, "/
 
 # load files ------------- #
 # load all length data (distilled)
-length_distill_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", 
+length_distill_df <- read_csv(file = paste0(p_derived2, 
                                             "length_distill_df", run_label, ".csv"))
 
 # load mean length data:
-mean_length_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", "mean_length_df", run_label, ".csv"))
+mean_length_df <- read_csv(file = paste0(p_derived2, "mean_length_df", run_label, ".csv"))
 
 mean_length_df %>% filter(abn_threshold == 5, length_type == "all") %>% .$sd_duration %>% summary()
 
@@ -472,13 +532,14 @@ mean_length_df %>%
 
 # save files:
 
-write_csv(summary_stats_all_sites, file = paste0(p_dat_derived, run_label, "/", "summary_stats_all_sites", run_label, ".csv"))
+write_csv(summary_stats_all_sites, 
+          file = paste0(p_derived2, "summary_stats_all_sites", run_label, ".csv"))
+write_csv(summary_stats_all_sites_pooled, 
+          file = paste0(p_derived2, "summary_stats_all_sites_pooled", run_label, ".csv"))
 
-write_csv(summary_stats_all_sites_pooled, file = paste0(p_dat_derived, run_label, "/", "summary_stats_all_sites_pooled", run_label, ".csv"))
 
-
-# summary_stats_all_sites <- read_csv(file = paste0(p_dat_derived, run_label, "/", "summary_stats_all_siteS", run_label, ".csv"))
-# summary_stats_all_sites_pooled <- read_csv(file = paste0(p_dat_derived, run_label, "/", "summary_stats_all_sites_pooled", run_label, ".csv"))
+# summary_stats_all_sites <- read_csv(file = paste0(p_derived2, "summary_stats_all_siteS", run_label, ".csv"))
+# summary_stats_all_sites_pooled <- read_csv(file = paste0(p_derived2, "summary_stats_all_sites_pooled", run_label, ".csv"))
 ```
 
 ## Save mean abandonment duration plots
@@ -747,6 +808,51 @@ length_distribution_max <- length_distribution_max %>%
               arrange(length_type, mean_duration) %>% 
               mutate(order = 1:n()) %>% select(site, order),
             by = "site")
+
+
+
+# -------------------------------------------------------------- #
+# recultivation length_distribution
+# -------------------------------------------------------------- #
+# Note: no recultivation threshold being used.
+
+recult_length_distribution <- recult_length_distill_df %>% as_tibble() %>% 
+    filter(#length >= 5,  # no recultivation threshold being used
+           length_type == "recult") %>% 
+  mutate(fr = round(freq/1000, digits = 0)) %>% 
+  group_by(site) %>%
+  summarise(site = unique(site), 
+            length = rep(length, fr),
+            mean = mean(length))
+
+# adding order based on site-level mean abandonment duration (max length per pixel)
+
+recult_length_distribution <- recult_length_distribution %>%
+  left_join(., 
+            mean_recult_length_df %>% 
+              filter(
+                #abn_threshold == "5", 
+                length_type == "recult") %>% 
+              arrange(length_type, mean_duration) %>% 
+              mutate(order = 1:n()) %>% select(site, order),
+            by = "site")
+
+
+# Save files:
+write_csv(length_distribution,
+          file = paste0(p_derived2, "length_distribution", run_label, ".csv"))
+
+write_csv(length_distribution_max,
+          file = paste0(p_derived2, "length_distribution_max", run_label, ".csv"))
+
+write_csv(recult_length_distribution,
+          file = paste0(p_derived2, "recult_length_distribution", run_label, ".csv"))
+
+# load files
+# length_distribution <- read_csv(file = paste0(p_derived2, "length_distribution", run_label, ".csv"))
+# length_distribution_max <- read_csv(file = paste0(p_derived2, "length_distribution_max", run_label, ".csv"))
+# recult_length_distribution <- read_csv(file = paste0(p_derived2, "recult_length_distribution", run_label, ".csv"))
+
 ```
 
 
@@ -798,7 +904,6 @@ ggsave(plot = gg_mean_w_violin,
 
 ```{r *fig2-ggridges}
 # Plot the mean abandonment length at each site, with the distribution of all abandonment lengths displayed behind it, plotted using the {ggridges} package.
-library(ggridges)
 
 show_col(hue_pal()(3)[1]) # default ggplot colors
 
@@ -848,17 +953,7 @@ gg_mean_length_ridges <-
   scale_color_discrete(labels = c(all = "Site-level mean",
                                    max = "Maximum duration\nper pixel")) +
   scale_y_discrete(expand = c(0.02, 0),
-                   labels = c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
-                              "bosnia_herzegovina" = "Bosnia &\nHerzegovina",
-                              "chongqing" = "Chongqing, China",
-                              "goias" = "Goiás, Brazil",
-                              "iraq" = "Iraq",
-                              "mato_grosso" = "Mato Grosso,\nBrazil",
-                              "nebraska" = "Nebraska /\nWyoming, USA",
-                              "orenburg" = "Orenburg, Russia /\nUralsk, Kazakhstan",
-                              "shaanxi" = "Shaanxi/Shanxi,\nChina",
-                              "volgograd" = "Volgograd, Russia",
-                              "wisconsin" = "Wisconsin, USA"),
+                   labels = fancy_labels,
                    position = "left"#, breaks = c(0, 0.1)
                    ) +
   
@@ -906,17 +1001,7 @@ ggsave(plot =
 # make labels
 fig2_labels1 <- levels(fct_reorder(length_distribution$site, desc(length_distribution$order)))
 fig2_labels_order <- sapply(1:11, function(i) {grep(fig2_labels1[i], site_df$site)})
-fig2_labels_long <- c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
-                  "bosnia_herzegovina" = "Bosnia &\nHerzegovina",
-                  "chongqing" = "Chongqing, China",
-                  "goias" = "Goiás, Brazil",
-                  "iraq" = "Iraq",
-                  "mato_grosso" = "Mato Grosso,\nBrazil",
-                  "nebraska" = "Nebraska /\nWyoming, USA",
-                  "orenburg" = "Orenburg, Russia /\nUralsk, Kazakhstan",
-                  "shaanxi" = "Shaanxi/Shanxi,\nChina",
-                  "volgograd" = "Volgograd, Russia",
-                  "wisconsin" = "Wisconsin, USA")
+fancy_labels # formerly fig2_labels_long 
 
 
 gg_mean_length_ridges_switch <-
@@ -936,7 +1021,7 @@ gg_mean_length_ridges_switch <-
                      sec.axis = 
                        sec_axis(~.,
                                 breaks = 1:length(fig2_labels1),
-                                labels = fig2_labels_long[fig2_labels_order]
+                                labels = fancy_labels[fig2_labels_order]
                                          )) + 
   
   geom_vline(data = mean_length_df %>%
@@ -998,17 +1083,7 @@ length_distribution_max
 
 fig2_max_labels1 <- levels(fct_reorder(length_distribution_max$site, desc(length_distribution_max$order)))
 fig2_max_labels_order <- sapply(1:11, function(i) {grep(fig2_max_labels1[i], site_df$site)})
-fig2_max_labels_long <- c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
-                  "bosnia_herzegovina" = "Bosnia &\nHerzegovina",
-                  "chongqing" = "Chongqing, China",
-                  "goias" = "Goiás, Brazil",
-                  "iraq" = "Iraq",
-                  "mato_grosso" = "Mato Grosso,\nBrazil",
-                  "nebraska" = "Nebraska /\nWyoming, USA",
-                  "orenburg" = "Orenburg, Russia /\nUralsk, Kazakhstan",
-                  "shaanxi" = "Shaanxi/Shanxi,\nChina",
-                  "volgograd" = "Volgograd, Russia",
-                  "wisconsin" = "Wisconsin, USA")
+fancy_labels # formerly, fig2_max_labels_long
 
 gg_mean_length_ridges_w_max <-
   ggplot() +
@@ -1027,7 +1102,7 @@ gg_mean_length_ridges_w_max <-
                      sec.axis = 
                        sec_axis(~.,
                                 breaks = 1:length(fig2_max_labels1),
-                                labels = fig2_max_labels_long[fig2_max_labels_order]
+                                labels = fancy_labels[fig2_max_labels_order]
                                          )) +
   
   # scale_y_discrete(expand = c(0.02, 0),
@@ -1093,6 +1168,210 @@ ggsave(plot = gg_mean_length_ridges_w_max +
 
 ```
 
+### Recultivation 
+
+```{r calc-mean-length-recultivation}
+# 0. Load distilled length data
+recult_length_distill_df <- read_csv(file = paste0(p_derived2, 
+                                            "recult_length_distill_df", run_label, ".csv"))
+
+
+mean_recult_length_df <- lapply(c(1, 3, 5, 7, 10), function(x) {
+  recult_length_distill_df %>% as_tibble() %>% 
+    mutate(product = length*freq) %>% 
+    filter(length >= x) %>% # to filter by length # this is important for max, since some pixels have max length of 0
+    group_by(site, length_type) %>% 
+    summarise(
+      n_abn_periods = sum(freq), # number of abandonment periods at each site:
+      mean_duration = sum(product)/sum(freq),
+      median_duration = median(rep(length, freq)),
+      sd_duration = sd(rep(length, freq))
+      ) %>% 
+    mutate(recult_threshold = x) 
+}) %>% bind_rows() %>% ungroup()
+
+# add order for plotting:
+mean_recult_length_df <-
+  mean_recult_length_df %>%
+  left_join(., 
+            filter(., 
+                   recult_threshold == 1,  # using the threshold of 1 (i.e., no threshold, for plot ordering)
+                   length_type == "recult") %>% 
+              arrange(mean_duration) %>% 
+              mutate(order = 1:n()) %>% select(site, order)
+            )
+
+# save mean_length_df
+write_csv(mean_recult_length_df, file = paste0(p_derived2, "mean_recult_length_df", run_label, ".csv"))
+cat(fill = TRUE, "Saved mean_recult_length_df to:", paste0(p_derived2, "mean_recult_length_df", run_label, ".csv"))
+
+
+# mean_recult_length_df <- read_csv(file = paste0(p_derived2, "mean_recult_length_df", run_label, ".csv"))
+```
+
+```{r recult-summary-stats}
+# ---------------------------------------------------------------- #
+# 1. Take mean of the site mean lengths:
+# note, this is the value given for the horizontal dashed lines on the main mean abn duration figure
+# knitr::include_graphics(path = paste0(p_plots, run_label, "/mean_lengths", run_label, ".png"))
+
+
+# load files ------------- #
+# load all recultivation length data (distilled)
+recult_length_distill_df <- read_csv(file = paste0(p_derived2, 
+                                            "recult_length_distill_df", run_label, ".csv"))
+
+# load mean length data:
+mean_recult_length_df <- read_csv(file = paste0(p_derived2, "mean_recult_length_df", run_label, ".csv"))
+
+mean_recult_length_df %>% 
+  filter(recult_threshold == 1, 
+         length_type == "recult") %>% 
+  .$sd_duration %>% summary()
+
+recult_summary_stats_all <- 
+  mean_recult_length_df %>% 
+  group_by(recult_threshold, length_type) %>%
+  summarise(mean_of_means = mean(mean_duration, na.rm = TRUE),
+            mean_of_medians = mean(median_duration, na.rm = TRUE),
+            mean_of_sds = mean(sd_duration, na.rm = TRUE)
+            )
+
+# just # our 1 year recultivation threshold: 
+recult_summary_stats_all_sites <- 
+  mean_recult_length_df %>%
+  filter(recult_threshold == 1,
+         length_type == "recult") %>% 
+  group_by(recult_threshold, length_type) %>%
+  summarise(mean_of_means = mean(mean_duration),
+            mean_of_medians = mean(median_duration),
+            sd_of_means = sd(mean_duration),
+            mean_of_sds = mean(sd_duration),
+            mean_n_abn_periods = mean(n_abn_periods)
+            )
+
+recult_summary_stats_all_sites$mean_of_means
+recult_summary_stats_all_sites$sd_of_means
+recult_summary_stats_all_sites$mean_of_sds
+
+sd(filter(mean_recult_length_df, length_type == "recult", recult_threshold == 1)$mean_duration)
+
+
+# ---------------------------------------------------------------- #
+# 2. Pool all raw abandonment periods together
+recult_summary_stats_all_sites_pooled <- recult_length_distill_df %>%
+  as_tibble() %>%
+  filter(length >= 1, length_type == "recult") %>%
+  mutate(product = length*freq) %>%
+  group_by() %>%
+  summarise(
+    total_n_abn_periods = sum(freq),
+    mean_duration = sum(product)/sum(freq),
+    median_duration = median(rep(length, freq)),
+    # mean_test = mean(rep(length, freq)), # same as above
+    sd_duration = sd(rep(length, freq))
+    )
+
+recult_summary_stats_all_sites_pooled$mean_duration
+
+# alternatively, calculate the weighted mean, using the number of abandonment periods at each site:
+
+mean_recult_length_df %>% 
+  filter(length_type == "recult", recult_threshold == 1) %>% 
+  mutate(prod = mean_duration * n_abn_periods) %>%
+  group_by() %>%
+  summarise(sum_prod = sum(prod),
+            sum_n = sum(n_abn_periods),
+            w_mean = sum_prod/sum_n)
+
+
+# save files:
+
+write_csv(recult_summary_stats_all_sites, 
+          file = paste0(p_derived2, "recult_summary_stats_all_sites", run_label, ".csv"))
+write_csv(recult_summary_stats_all_sites_pooled, 
+          file = paste0(p_derived2, "recult_summary_stats_all_sites_pooled", run_label, ".csv"))
+
+
+# recult_summary_stats_all_sites <- read_csv(file = paste0(p_derived2, "recult_summary_stats_all_siteS", run_label, ".csv"))
+# recult_summary_stats_all_sites_pooled <- read_csv(file = paste0(p_derived2, "recult_summary_stats_all_sites_pooled", run_label, ".csv"))
+```
+
+
+```{r si-fig2.2-recult-length-dist}
+
+fig2_recult_labels1 <- levels(fct_reorder(recult_length_distribution$site, desc(recult_length_distribution$order)))
+fig2_recult_labels_order <- sapply(1:11, function(i) {grep(fig2_recult_labels1[i], site_df$site)})
+fancy_labels # 
+
+gg_mean_recult_length <-
+  ggplot() +
+  
+  geom_density_ridges2(
+    data = recult_length_distribution, 
+    mapping = aes(y = as.numeric(fct_reorder(site, desc(order))), 
+                  x = length, group = site),
+    stat = "binline", bins = 26, 
+    scale = 0.95) + 
+  
+  scale_y_continuous(expand = c(0.02, 0),
+                     breaks = 1:length(fig2_recult_labels1),
+                     labels = NULL,
+                     position = "left",
+                     sec.axis =
+                       sec_axis(~.,
+                                breaks = 1:length(fig2_recult_labels1),
+                                labels = fancy_labels[fig2_recult_labels_order]
+                                         )) +
+
+  geom_vline(data = mean_recult_length_df %>% 
+               group_by(recult_threshold, length_type) %>%
+               summarise(overall_mean = mean(mean_duration, na.rm = TRUE)) %>% 
+               filter(recult_threshold == "1"),
+             mapping = aes(xintercept = overall_mean, 
+                           col = length_type, 
+                           linetype = "Mean\nacross\nall sites")) + 
+  scale_linetype_manual(values = c("Mean\nacross\nall sites" = "dashed")) +
+  
+    # add site mean values
+  geom_point(data = mean_recult_length_df %>%
+           filter(recult_threshold == "1"),
+             mapping = aes(y = as.numeric(fct_reorder(site, desc(order))),
+                           x = mean_duration, 
+                           color = length_type),
+             size = 3, alpha = 0.85) + 
+  scale_color_discrete(labels = c(recult = "All\nrecultivation\nperiods")) +
+    
+  scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30), expand = c(0, 0)) + 
+  theme_classic() +
+  labs(y = "Proportion", 
+       x = "Recultivation duration (years)",
+       color = "Site-level \nmean of:", linetype = NULL) + 
+  theme(legend.position = "bottom", #c(0,0.3), #
+        legend.margin=margin(),
+        axis.text.y = element_text(vjust = 0, size=8
+                                   ),
+        panel.grid.major.x = element_line()) + 
+  guides(color = guide_legend(order = 1, nrow = 1, 
+                              override.aes = list(linetype = 0)), 
+         linetype = guide_legend(order = 2, label.vjust = 0)) + 
+  coord_cartesian(clip = "off")
+
+
+gg_mean_recult_length
+
+# save plot
+ggsave(plot = gg_mean_recult_length + 
+         theme(legend.spacing.x = unit(0.5, "mm"),
+               legend.position = c(0.7, -0.17), legend.direction = "horizontal", 
+               legend.box = "horizontal",
+               plot.margin = margin(5, 5, 45, 5),
+               legend.box.just = "left",
+               legend.text.align = 0, 
+               legend.title.align = 1),
+       filename = paste0(p_plots, "/fig2_recult", run_label, ".pdf"), 
+    width = 3.42, height = 5, units = "in")
+```
 
 
 # Area abandoned
@@ -1106,28 +1385,12 @@ ggsave(plot = gg_mean_length_ridges_w_max +
 terraOptions()
 
 # prepared input rasters (derived by Chris)
-site_input_raster_files <- list.files(paste0(p_dat_derived, "input_rasters"), full.names = TRUE) %>%
-  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = TRUE)
-
-lct <- lapply(seq_along(site_input_raster_files), function(i) {rast(site_input_raster_files[i])})
-names(lct) <- site_df$site
-
-# rename raster layers:
-for (i in 1:11) {
-  if (names(lct[i]) == "nebraska") {
-    names(lct[[i]]) <- paste0("y", 1986:2018)
-  } else {
-    if (names(lct[i]) == "wisconsin") {
-      names(lct[[i]]) <- paste0("y", 1987:2018)
-    } else {
-      # everything else, just 1987:2017
-      names(lct[[i]]) <- paste0("y", 1987:2017)
-    }}}
+lcc
 
 
 tic()
-lc_total_crop_mask <- lapply(1:11, function(i) {
-  reclassified <- classify(lct[[i]], rcl = tribble(
+lcc_total_crop_mask <- lapply(1:11, function(i) {
+  reclassified <- classify(lcc[[i]], rcl = tribble(
   ~"is", ~"becomes", 
   0, NA,
   1, NA,
@@ -1135,23 +1398,23 @@ lc_total_crop_mask <- lapply(1:11, function(i) {
   3, 1,
   4, NA))
   
-  lc_crop_mask <- max(reclassified, na.rm = TRUE)
+  lcc_crop_mask <- max(reclassified, na.rm = TRUE)
   rm(reclassified)
   
   # write new total_crop_mask raster to file:
 
-  terra::writeRaster(lc_crop_mask,
+  terra::writeRaster(lcc_crop_mask,
               filename = paste0(p_dat_derived, "total_crop_mask/", 
-                                site_df$site[i], "_total_crop_mask.tif"),
+                                site_df$site[i], "_total_crop_mask_clean.tif"),
               overwrite = TRUE
               )
 
-  lc_crop_mask
+  lcc_crop_mask
 })
 toc()
 # 2033 seconds
 
-names(lc_total_crop_mask) <- site_df$site
+names(lcc_total_crop_mask) <- site_df$site
 
 ```
 
@@ -1205,19 +1468,12 @@ area_summary_df <-
 # ----------------------------------------------------------- #
 # 2. Calculate the area at each site that is abandoned at any point during the time series (>= 5 years)
 # ----------------------------------------------------------- #
-# load max age rasters
-max_age_files <- list.files(paste0(p_dat_derived, "max_age/", run_label), 
-                        full.names = TRUE) %>%
-  grep(".tif", ., value = TRUE)
-
-max_age_r <- lapply(seq_along(max_age_files), function(i) {
-  rast(max_age_files[i]) # brick(max_age_files[i]) # to load as rasters, not SpatRasters
-  })
-names(max_age_r) <- site_df$site
+# load max age rasters, see _util_files.R
+max_age_t
 
 tic()
 area_ever_abn <- lapply(1:11, function(i) {
-  max_age_mask <- max_age_r[[i]] %>%
+  max_age_mask <- max_age_t[[i]] %>%
     classify(., 
              rcl = tibble("is" = 0:31, 
                           becomes = if_else(is >= 5, 1, NA_real_)))
@@ -1239,19 +1495,20 @@ area_ever_abn %>% summarise(total_ever_abn_Mha = sum(area_ever_abn_ha)/1e6)
 # 3. Load the maximum extent of all cropland ever cultivated during time series
 # ----------------------------------------------------------- #
 
-total_crop_mask_files <- list.files(paste0(p_dat_derived, "total_crop_mask"), full.names = TRUE)
-lc_total_crop_mask <- lapply(
-  seq_along(total_crop_mask_files), 
+
+lcc_total_crop_mask <- lapply(
+  list.files(paste0(p_dat_derived, "total_crop_mask"), full.names = TRUE) %>%
+    grep("clean", ., value = TRUE, invert = FALSE), 
   function(i) {
-    rast(total_crop_mask_files[i])
+    rast(i)
     })
 
-names(lc_total_crop_mask) <- site_df$site
+names(lcc_total_crop_mask) <- site_df$site
 
 # calculate area
-lc_total_crop_mask_area_ha <- sapply(1:11, function(i) {
-  size <- cellSize(lc_total_crop_mask[[i]], unit = "ha", mask = TRUE)
-  # product <- size * lc_total_crop_mask[[i]]
+lcc_total_crop_mask_area_ha <- sapply(1:11, function(i) {
+  size <- cellSize(lcc_total_crop_mask[[i]], unit = "ha", mask = TRUE)
+  # product <- size * lcc_total_crop_mask[[i]]
   area_ha <- global(size, fun = "sum", na.rm = TRUE)
   
   as.numeric(area_ha)
@@ -1259,7 +1516,7 @@ lc_total_crop_mask_area_ha <- sapply(1:11, function(i) {
 
 
 total_crop_mask_area <- tibble(site = site_df$site,
-       total_crop_extent_ha = lc_total_crop_mask_area_ha
+       total_crop_extent_ha = lcc_total_crop_mask_area_ha
        )
 
 total_crop_mask_area
@@ -1291,24 +1548,26 @@ area_recultivated_df <-
 # 5. Proportion of each site's area in non-vegetated land
 # ----------------------------------------------------------- #
 area_dat %>% 
-  filter(lc %in% c("Non-veg.", "Woody veg.", "Cropland", "Grassland"), year == 2017) %>%
+  filter(lc %in% c("Non-veg.", "Woody veg.", "Cropland", "Grassland"), 
+         # year == 2017
+         ) %>%
   group_by(site) %>%
   summarise(total_site_area_ha = sum(area_ha)) %>% 
   left_join(area_dat, ., by = c("site")) %>% 
   mutate(prop_total_area = area_ha/total_site_area_ha) %>%
   group_by(site, lc) %>%
-  summarise(max_prop_in_non_veg = max(prop_total_area)) %>%
-  arrange(max_prop_in_non_veg) %>%
+  # summarise(max_prop = max(prop_total_area)) %>%
+  # arrange(max_prop) %>%
   
 # plot
-  filter(., lc == "Non-veg.") # %>%
+  # filter(., lc == "Non-veg.") %>%
   ggplot(data = .) +
     theme_classic() +
     labs(y = expression("Area  (10"^{6}*" ha)"), x = "Year", 
          title = "Area by Land Cover, with Abandonment",
          color = NULL) + 
     geom_line(mapping = aes(x = year, y = prop_total_area, #area_ha / (10^6), # convert to millions of ha
-                            group = lc, color = fct_reorder(lc, lc, .desc = TRUE)),
+                            group = lc, color = lc),
               size = 1.5) + 
     theme(legend.position = "bottom",
           legend.title = element_text(size = 10)) +
@@ -1340,8 +1599,8 @@ area_summary_df <- area_summary_df %>%
 # ----------------------------------------------------------- #
 # 7. save the summary file
 # ----------------------------------------------------------- #
-write_csv(area_summary_df, file = paste0(p_dat_derived, run_label, "/", "area_summary_df", run_label, ".csv"))
-# area_summary_df <- read_csv(file = paste0(p_dat_derived, run_label, "/", "area_summary_df", run_label, ".csv"))
+write_csv(area_summary_df, file = paste0(p_derived2, "area_summary_df", run_label, ".csv"))
+# area_summary_df <- read_csv(file = paste0(p_derived2, "area_summary_df", run_label, ".csv"))
 
 # area_summary_df_old_area <- read_csv(file = paste0(p_dat_derived, run_label, "_old_area", "/", "area_summary_df", run_label, ".csv"))
 ```
@@ -1404,17 +1663,7 @@ area_a <-
     x = "Area abandoned as of 2017\n(10\u00b3 ha)",
        y = "Site") + 
   scale_y_discrete(expand = c(0.02, 0),
-                   labels = c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
-                              "bosnia_herzegovina" = "Bosnia &\n Herzegovina",
-                              "chongqing" = "Chongqing, China",
-                              "goias" = "Goiás, Brazil",
-                              "iraq" = "Iraq",
-                              "mato_grosso" = "Mato Grosso,\nBrazil",
-                              "nebraska" = "Nebraska /\nWyoming, USA",
-                              "orenburg" = "Orenburg, Russia /\nUralsk, Kazakhstan",
-                              "shaanxi" = "Shaanxi/Shanxi,\nChina",
-                              "volgograd" = "Volgograd, Russia",
-                              "wisconsin" = "Wisconsin, USA"))
+                   labels = fancy_labels)
 
 # plot area abandoned at any point between 1987-2017 (thousands ha):
 area_b <-
@@ -1459,6 +1708,7 @@ ggsave(plot = plot_grid(area_a, area_b, area_c,
 
 ```{r prop-recultivated}
 # see chunk: area-abn-summary
+# note, area_recultivated_df has been joined to area_summary_df
 area_recultivated_df %>% names()
 
 area_recultivated_df %>% arrange(proportion_recultivated)
@@ -1528,8 +1778,8 @@ round(area_summary_df %>% summarise(total_ever_abn_Mha = sum(area_ever_abn_ha)/1
 # ----------------------------------------------------------- #
 # save the summary file
 # ----------------------------------------------------------- #
-write_csv(area_recult_threshold, file = paste0(p_dat_derived, run_label, "/", "area_recult_threshold", run_label, ".csv"))
-# area_recult_threshold <- read_csv(file = paste0(p_dat_derived, run_label, "/", "area_recult_threshold", run_label, ".csv"))
+write_csv(area_recult_threshold, file = paste0(p_derived2, "area_recult_threshold", run_label, ".csv"))
+# area_recult_threshold <- read_csv(file = paste0(p_derived2, "area_recult_threshold", run_label, ".csv"))
 
 
 
@@ -1543,12 +1793,17 @@ gg_recultivation <-
                      x = proportion_recultivated,
                      group = as_factor(abn_threshold), fill = as_factor(abn_threshold))) + 
   geom_col(position = position_dodge(), width = 0.6) +
+     scale_y_discrete(expand = c(0.02, 0),
+                      labels = fancy_labels) +
   theme_classic() + 
   labs(x = "Proportion of abandoned lands \nrecultivated by 2017", y = "Site",
-       fill = "Abandonment \nthreshold") + 
+       fill = "Abandonment\nthreshold") + 
   theme(#axis.text.y = element_blank(), axis.title.y = element_blank(),
-        plot.margin = margin(3, 6, 3, 15),
-        legend.position = "top")
+        # plot.margin = margin(3, 6, 3, 15),
+        legend.position = c(0.83, 0.85),
+        legend.background = element_blank(),
+        # legend.box.background = element_rect(colour = "black")
+        )
 
 ggsave(plot = gg_recultivation,
        filename = paste0(p_plots, run_label, "/recultivation_rates_by_threshold", run_label, ".pdf"), 
@@ -1563,9 +1818,9 @@ What proportion of abandoned land is classified as woody vegetation vs. grassy v
 See "cluster/4_lc_of_abn.R"
 
 ```{r}
-abn_lc_area_2017 <- read_csv(file = paste0(p_dat_derived, run_label, "/", "abn_lc_area_2017", run_label, ".csv"))
+abn_lc_area_2017 <- read_csv(file = paste0(p_derived2, "abn_lc_area_2017", run_label, ".csv"))
 
-abn_prop_lc_2017 <- read_csv(file = paste0(p_dat_derived, run_label, "/", "abn_prop_lc_2017", run_label, ".csv"))
+abn_prop_lc_2017 <- read_csv(file = paste0(p_derived2, "abn_prop_lc_2017", run_label, ".csv"))
 ```
 
 
@@ -1578,40 +1833,26 @@ abn_prop_lc_2017 <- read_csv(file = paste0(p_dat_derived, run_label, "/", "abn_p
 # 1. load land cover rasters
 # ---------------------------------------------------------------- #
 # prepared input rasters (derived by Chris)
-site_input_raster_files <- list.files(paste0(p_dat_derived, "input_rasters"), full.names = TRUE) %>%
-  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = TRUE)
-
-lct <- lapply(seq_along(site_input_raster_files), function(i) {rast(site_input_raster_files[i])})
-names(lct) <- site_df$site
-
-# rename raster layers:
-for (i in 1:11) {
-  if (names(lct[i]) == "nebraska") {
-    names(lct[[i]]) <- paste0("y", 1986:2018)
-  } else {
-    if (names(lct[i]) == "wisconsin") {
-      names(lct[[i]]) <- paste0("y", 1987:2018)
-    } else {
-      # everything else, just 1987:2017
-      names(lct[[i]]) <- paste0("y", 1987:2017)
-    }}}
+lcc # see _util_files.R
 
 
 # ---------------------------------------------------------------- #
 # 2-4 all together:
 # ---------------------------------------------------------------- #
-
+# run_label, "/", 
+# ", run_label, "
 abn_2yr_mask <- lapply(1:11, 
                   function(i) {
   # 2. Extract only 2017 & 1987
-  lct_87_17_tmp <- lct[[i]] %>% 
+  lcc_87_17_tmp <- lcc[[i]] %>% 
     subset(., c("y1987", "y2017"),
-           filename = paste0(p_dat_derived, "abn_2yr/", site_df$site[i], "_87_17.tif"),
+           filename = paste0(p_dat_derived, "abn_2yr/", run_label, "/", 
+                             site_df$site[i], "_87_17.tif"),
            overwrite=TRUE
            )
   
   # 3. reclassify the rasters, so that it's just cropland in 1987 (0-1), and just cropland in 2017 (0-1)
-  lct_87_17_tmp <- classify(lct_87_17_tmp, 
+  lcc_87_17_tmp <- classify(lcc_87_17_tmp, 
            rcl = tribble(
              ~"is", ~"becomes", 
              NA, NA,
@@ -1620,16 +1861,16 @@ abn_2yr_mask <- lapply(1:11,
              2, 0,
              3, 1,
              4, 0),
-           filename = paste0(p_dat_derived, "abn_2yr/", site_df$site[i], "_87_17_rcl.tif"),
+           filename = paste0(p_dat_derived, "abn_2yr/", run_label, "/", site_df$site[i], "_87_17_rcl.tif"),
            overwrite=TRUE)
   
   # 4. Subtract the two (1987 - 2017), so that pixels that were cropland (1) in 1987, but not in 2017 (0) (i.e. are "abandoned" by this definition) have a value of 1 - 0 = 1.
   # Pixels that are cropland in both will be 1 - 1 = 0 (as will pixels that are non cropland in both 0 - 0 = 0)
   # Pixels that are cropland in 2017 (1) but not in 1987 (0) will have a value of 0 - 1 = -1
-  subtract <- lct_87_17_tmp$y1987 - lct_87_17_tmp$y2017
+  subtract <- lcc_87_17_tmp$y1987 - lcc_87_17_tmp$y2017
   
   terra::writeRaster(subtract, 
-                     filename = paste0(p_dat_derived, "abn_2yr/", 
+                     filename = paste0(p_dat_derived, "abn_2yr/", run_label, "/", 
                                        site_df$site[i], "_87_17_sub.tif"),
                      overwrite=TRUE)
   
@@ -1640,7 +1881,8 @@ abn_2yr_mask <- lapply(1:11,
                        -1, NA_real_, # non-cropland in 1987 (0) but cropland in 2017 (1), 0-1 = -1
                        0, NA_real_, # cropland (1) in both 1987 & 2017 or non-cropland (0) in both, 1-1 = 0-0 = 0
                        1, 1), # cropland in 1987 (1) but not in 2017 (0), 1 - 0 = 1
-                   filename = paste0(p_dat_derived, "abn_2yr/", site_df$site[i], "_abn_2yr_mask.tif"),
+                   filename = paste0(p_dat_derived, "abn_2yr/", run_label, "/", 
+                                     site_df$site[i], "_abn_2yr_mask.tif"),
                    overwrite=TRUE
                    )
   mask
@@ -1655,7 +1897,8 @@ plot(abn_2yr_mask$shaanxi)
 # ---------------------------------------------------------------- #
 
 abn_2yr_mask <- lapply(1:11, function(i) {
-  rast(x = paste0(p_dat_derived, "abn_2yr/", site_df$site[i], "_abn_2yr_mask.tif"))
+  rast(x = paste0(p_dat_derived, "abn_2yr/", run_label, "/",
+                  site_df$site[i], "_abn_2yr_mask.tif"))
   })
 
 names(abn_2yr_mask) <- site_df$site # (note that the layer name still have y1987, since it was calculated as y1987 - y2017)
@@ -1679,13 +1922,7 @@ abn_2yr_area_ha <- sapply(1:11,
 
 # load abandonment age rasters
 # abandonment age maps (produced by Chris)
-age_files <- list.files(paste0(p_dat_derived, "age_rasters/", run_label), 
-                        full.names = TRUE) %>%
-  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
-
-age_t <- lapply(seq_along(age_files), function(i) {rast(age_files[i])})
-names(age_t) <- site_df$site
-for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
+age_t # see _util_files.R
 
 # area in 2017
 freq(age_t$shaanxi$y2017)
@@ -1697,17 +1934,19 @@ abn_cc_2017_mask <- lapply(1:11, function(i) {
   classify(age_t[[i]]$y2017, 
            # takes way longer to change values to 0 than to NA_real_
            rcl = tibble("is" = 0:30, becomes = if_else(is < 5, NA_real_, 1)), 
-           filename = paste0(p_dat_derived, "abn_cc/", site_df$site[i], "_abn_cc_2017_mask.tif"),
+           filename = paste0(p_dat_derived, "abn_2yr/", run_label, "/",
+                             site_df$site[i], "_abn_cc_2017_mask.tif"),
                    overwrite=TRUE)
            })
 
 # reload
 abn_cc_2017_mask <- lapply(1:11, function(i) {
-  rast(x = paste0(p_dat_derived, "abn_cc/", site_df$site[i], "_abn_cc_2017_mask.tif"))
+  rast(x = paste0(p_dat_derived, "abn_2yr/", run_label, "/",
+                  site_df$site[i], "_abn_cc_2017_mask.tif"))
   })
 
 names(abn_cc_2017_mask) <- site_df$site
-plot(abn_cc_2017_mask$shaanxi)
+# plot(abn_cc_2017_mask$shaanxi)
 
 # calculate area abandoned in 2017
 abn_cc_2017_area_ha <- sapply(1:11, 
@@ -1739,10 +1978,12 @@ area_summary_df %>%
 
 # load two abandonment masks
 
-abn_2yr_mask <- lapply(1:11, function(i) {rast(paste0(p_dat_derived, "abn_2yr/", site_df$site[i], "_abn_2yr_mask.tif"))})
+abn_2yr_mask <- lapply(1:11, function(i) {rast(paste0(p_dat_derived, "abn_2yr/", run_label, "/",
+                                                      site_df$site[i], "_abn_2yr_mask.tif"))})
 names(abn_2yr_mask) <- site_df$site
 
-abn_cc_2017_mask <- lapply(1:11, function(i) {rast(paste0(p_dat_derived, "abn_cc/", site_df$site[i], "_abn_cc_2017_mask.tif"))})
+abn_cc_2017_mask <- lapply(1:11, function(i) {rast(paste0(p_dat_derived, "abn_2yr/", run_label, "/",
+                                                          site_df$site[i], "_abn_cc_2017_mask.tif"))})
 names(abn_cc_2017_mask) <- site_df$site
 
 
@@ -1750,18 +1991,23 @@ names(abn_cc_2017_mask) <- site_df$site
 # J = intersection of A and B / union of A and B
 # sum of cells that = 2 / sum of cells > 0
 
+# i <- 9 # for testing
 jaccard_similarity <- sapply(1:11, function(i) {
   # both masks are 1 for abandoned (in 2017) and NA for not abandoned.
   # adding to an NA value yields NA, so this is now the intersection, 
   # where cells where both masks show abandonment have a value of 
   # 1 + 1 = 2
-  intersection <- abn_2yr_mask[[i]] + abn_cc_2017_mask[[i]]
   
-  terra::writeRaster(intersection, 
-                     filename = paste0(p_dat_derived, "abn_2yr_cc_intersection/", 
+  # calculate intersection, if necessary:
+  intersection <- abn_2yr_mask[[i]] + abn_cc_2017_mask[[i]]
+  terra::writeRaster(intersection,
+                     filename = paste0(p_dat_derived, "abn_2yr/", run_label, "/",
                                        site_df$site[i], "_abn_2yr_cc_intersection.tif"),
                      overwrite=TRUE)
-  
+
+  # # load, if intersection has already been created:
+  # intersection <- rast(paste0(p_dat_derived, "abn_2yr/", run_label, "/",
+  #                           site_df$site[i], "_abn_2yr_cc_intersection.tif"))
   
   intersection_area <- intersection %>% 
     cellSize(., unit = "ha", mask = TRUE) %>% 
@@ -1802,7 +2048,8 @@ t_a <- classify(abn_cc_2017_mask[[9]],
                        ~"is", ~"becomes", 
                        NA_real_, 0,
                        1, 1), 
-           filename = paste0(p_dat_derived, "abn_2yr_cc_intersection/test/", site_df$site[9], "_abn_cc_2017_mask_01.tif"),
+           filename = paste0(p_dat_derived, "abn_2yr",  run_label, "/test/", 
+                             site_df$site[9], "_abn_cc_2017_mask_01.tif"),
                    overwrite=TRUE)
 
 t_b <- classify(abn_2yr_mask[[9]], 
@@ -1811,7 +2058,8 @@ t_b <- classify(abn_2yr_mask[[9]],
                        ~"is", ~"becomes", 
                        NA_real_, 0,
                        1, 1), 
-           filename = paste0(p_dat_derived, "abn_2yr_cc_intersection/test/", site_df$site[9], "_abn_2yr_mask_01.tif"),
+           filename = paste0(p_dat_derived, "abn_2yr",  run_label, "/test/", 
+                             site_df$site[9], "_abn_2yr_mask_01.tif"),
                    overwrite=TRUE)
 
 plot(t_b)
@@ -1826,7 +2074,8 @@ t_union <- classify(t_add,
                        0, NA_real_,
                        1, 1,
                        2, 1), 
-           filename = paste0(p_dat_derived, "abn_2yr_cc_intersection/test/", site_df$site[9], "_t_union.tif"),
+           filename = paste0(p_dat_derived, "abn_2yr",  run_label, "/test/", 
+                             site_df$site[9], "_t_union.tif"),
                    overwrite=TRUE)
 
 t_intersection <- classify(t_add,
@@ -1836,7 +2085,8 @@ t_intersection <- classify(t_add,
                        0, NA_real_,
                        1, NA_real_,
                        2, 1), 
-           filename = paste0(p_dat_derived, "abn_2yr_cc_intersection/test/", site_df$site[9], "_t_intersection.tif"),
+           filename = paste0(p_dat_derived, "abn_2yr",  run_label, "/test/", 
+                             site_df$site[9], "_t_intersection.tif"),
                    overwrite=TRUE)
 
 t_union_area <- t_union %>% 
@@ -1868,7 +2118,7 @@ abn_2yr_ages_summary_df
 
 # load 2 yr mask (2017) rasters (produced up above):
 abn_2yr_mask <- lapply(1:11, function(i) {
-  rast(x = paste0(p_dat_derived, "abn_2yr/", site_df$site[i], "_abn_2yr_mask.tif"))
+  rast(x = paste0(p_dat_derived, "abn_2yr/",  run_label, "/", site_df$site[i], "_abn_2yr_mask.tif"))
   })
 
 names(abn_2yr_mask) <- site_df$site
@@ -1876,36 +2126,26 @@ names(abn_2yr_mask) <- site_df$site
 
 
 # load abandonment age rasters (produced by Chris)
-age_files <- list.files(paste0(p_dat_derived, "age_rasters/", run_label), 
-                        full.names = TRUE) %>%
-  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
-
-# as Raster*
-age_r <- lapply(seq_along(age_files), function(i) {raster::brick(age_files[i])})
-names(age_r) <- site_df$site
-for (i in seq_along(age_r)) {names(age_r[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
-
-# as SpatRaster (for area calculation)
-age_t <- lapply(seq_along(age_files), function(i) {terra::rast(age_files[i])})
-names(age_t) <- site_df$site
-for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
-
+age_t
 
 # ---------------------------------------------------------------- #
 # calculate the age of the "abandonment" identified in the 2-yr-mask (i.e. those pixels that were cropland in 1987 and non-crop in 2017) for all sites.
 # ---------------------------------------------------------------- #
+# i <- 9 # for testing
 
 abn_2yr_ages_df <- lapply(1:11, FUN = function(i){
-  tmp_b <- stack(
-    raster(abn_2yr_mask[[i]]), # abandonment identified using the two-year method (2017-1987)
-    age_r[[i]]$y2017, # abandonment age in 2017, calculated using annual time series, five year abandonment definition
-    raster(terra::cellSize(abn_2yr_mask[[i]], unit = "ha", mask = FALSE)) # area (ha), calculated as SpatRaster, then converted to Raster*
+  # temp SpatRaster
+  
+  tmp_b <- c(
+    abn_2yr_mask[[i]], # abandonment identified using the two-year method (2017-1987)
+    age_t[[i]]$y2017, # abandonment age in 2017, calculated using annual time series, five year abandonment definition
+    terra::cellSize(abn_2yr_mask[[i]], unit = "ha", mask = FALSE) # area (ha), calculated as SpatRaster, then converted to Raster*
                )
-  
   names(tmp_b) <- c("twoyr_2017", "age_2017", "area_ha")
-  
+
   # convert to data.table
-  tmp_dt <- as.data.table.raster(tmp_b)
+  
+  tmp_dt <- spatraster_to_dt(tmp_b)
   
   # calculate the sum of area, pixels, etc.
   twoyr_age_df <- tmp_dt[twoyr_2017 > 0, 
@@ -1919,12 +2159,10 @@ abn_2yr_ages_df <- lapply(1:11, FUN = function(i){
 
 # write to file:
 write_csv(abn_2yr_ages_df, 
-          file = paste0(p_dat_derived, run_label, 
-                        "/derived_data/", "abn_2yr_ages_df", run_label, ".csv"))
+          file = paste0(p_derived2, "abn_2yr_ages_df", run_label, ".csv"))
 
 
-abn_2yr_ages_df <- read_csv(file = paste0(p_dat_derived, run_label, 
-                                          "/derived_data/", "abn_2yr_ages_df", run_label, ".csv"))
+abn_2yr_ages_df <- read_csv(file = paste0(p_derived2, "abn_2yr_ages_df", run_label, ".csv"))
 
 total_area_by_site <- 
   abn_2yr_ages_df %>%
@@ -2006,33 +2244,7 @@ freq(s_2yr_age>0)
 # -One idea for future work would be to apply this 5- and 8-year moving window filters to all land cover classes, not just crop and non-crop pixels. Specifically, we could potentially recover some pixels that include only one year in non-veg, in the middle of a longer string of a different land cover code. For example, 33133 (non-veg), 22122 (grassland), or 44144 (woody)
 
 
-
-
-# load land cover:
-# prepared input rasters (derived by Chris)
-{
-  site_input_raster_files <- list.files(paste0(p_dat_derived, "input_rasters"), full.names = TRUE) %>%
-  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = TRUE)
-
-  lc <- lapply(seq_along(site_input_raster_files), function(i) {rast(site_input_raster_files[i])})
-  names(lc) <- site_df$site
-
-  # rename raster layers:
-  for (i in 1:11) {
-    if (names(lc[i]) == "nebraska") {
-      names(lc[[i]]) <- paste0("y", 1986:2018)
-    } else {
-      if (names(lc[i]) == "wisconsin") {
-        names(lc[[i]]) <- paste0("y", 1987:2018)
-      } else {
-        # everything else, just 1987:2017
-        names(lc[[i]]) <- paste0("y", 1987:2017)
-      }}}
-}
-
-
-
-terra::animate(lc$shaanxi, 
+terra::animate(lcc$shaanxi, 
      levels = plot_cols1$name,
      col = plot_cols1$color,
      type = "classes",
@@ -2062,14 +2274,14 @@ abn_2yr_overestimation <- abn_2yr_overestimation %>%
 # ----------------------------------------------------------- #
 # save the summary file
 # ----------------------------------------------------------- #
-write_csv(abn_2yr_overestimation, file = paste0(p_dat_derived, run_label, "/derived_data/", "abn_2yr_overestimation", run_label, ".csv"))
-# abn_2yr_overestimation <- read_csv(file = paste0(p_dat_derived, run_label, "/", "abn_2yr_overestimation", run_label, ".csv"))
+write_csv(abn_2yr_overestimation, file = paste0(p_derived2, "abn_2yr_overestimation", run_label, ".csv"))
+# abn_2yr_overestimation <- read_csv(file = paste0(p_derived2, "abn_2yr_overestimation", run_label, ".csv"))
 
 # ----------------------------------------------------------- #
 # Plot the overestimation
 # ----------------------------------------------------------- #
 abn_2yr_overestimation <- 
-  read_csv(file = paste0(p_dat_derived, run_label, "/", 
+  read_csv(file = paste0(p_derived2, 
                          "abn_2yr_overestimation", run_label, ".csv"))
 
 
@@ -2108,7 +2320,7 @@ install.packages("gt")
 library(gt)
 
 abn_2yr_overestimation <- 
-  read_csv(file = paste0(p_dat_derived, run_label, "/", 
+  read_csv(file = paste0(p_derived2, 
                          "abn_2yr_overestimation", run_label, ".csv")) %>%  
   arrange(percent_diff) %>% 
   mutate(
@@ -2181,6 +2393,36 @@ dt_diff <- cc_diff_dt(dt_age)
 al_df <- cc_extract_length(dt_diff, length_type = "abandonment")
 }
 
+dm <- data.table(M = rep(1:3, each = 5))
+dt * dm
+
+tdt <- cbind(dt_age, dm)
+tdt[V8 >= 5, 
+    .("total_c" = sum(V8*M))]
+tdt[V9 >= 5, .("total_c" = sum(V9*M))]
+tdt[V10 >= 5, .("total_c" = sum(V10*M))]
+
+tdt[, lapply(.SD, max)]
+
+i <- "V9"
+grep('V', colnames(tdt), value = TRUE)
+cdf <- sapply(grep('V', colnames(tdt)), function(i) {
+    # subset rows that are greater than or equal to 5 (i.e., surpassing the abandonment threshold) and
+    tdt[get(names(tdt)[i]) >= 5, 
+        
+        # sum the column age calues multiplied by the carbon accumulation rate
+        sum(get(names(tdt)[i]) * M)] 
+  })
+
+cdf2 <- sapply(grep('V', colnames(tdt), value = TRUE), function(i) {  
+  # subset rows that are greater than or equal to 5 (i.e., surpassing the abandonment threshold) and
+  # sum the column age calues multiplied by the carbon accumulation rate
+  tdt[get(i) >= 5, sum(get(i) * M)] 
+  })
+
+cdf
+cdf2
+cc_create_dt()
 # now, produce a mock script
 
 # tomorrow: write a script to load in the necessary data.tables, then write out the dt_recult.
@@ -2306,29 +2548,97 @@ dt_age <- data.table::copy(dt)
 cc_calc_age(dt_age)
 cc_erase_non_abn_periods(dt_age)
 dt_diff <- cc_diff_dt(dt_age)
-al_df <- cc_extract_length(dt_diff, length_type = "abandonment")
+length_dt <- cc_extract_length(dt_diff, length_type = "abandonment")
+length_dt <- data.table(length = length_dt)
 
 # recultivation age
+dt_xy <- data.table::copy(dt)
+dt_xy[, ':='(x = NA, y = NA)][, paste0("V", 1:25) := NULL]
+
 dt_recult_age <- data.table::copy(dt)
-dt_recult_age <- cc_calc_recult_age(dt = dt_recult_age, dt_age = dt_age, dt_diff = dt_diff, abn_threshold = 1)
+dt_recult_age <- cc_calc_recult_age(dt = cbind(dt_xy, dt_recult_age), 
+                                    dt_age = cbind(dt_xy, dt_age), 
+                                    dt_diff = cbind(dt_xy, dt_diff), 
+                                    abn_threshold = 1)
 dt_recult_diff <- cc_diff_dt(dt_recult_age)
 recult_length <- cc_extract_length(dt_recult_diff, length_type = "recultivation")
 recult_length <- data.table(length = recult_length)
 
 
-dt_combo <- dt_age - dt_recult_age
+dt_combo <- cbind(dt_xy, dt_age) + dt_recult_age
 }
 
 dt_age
 dt_recult_age
 dt_combo
+
+dtt <- data.table::copy(dt)
+
+for (i in 2:ncol(dtt)) {
+    # subset rows that are greater than 0 (i.e. 1, for noncrop), and
+    dtt[get(names(dtt)[i]) > 0, 
+       
+       # set them equal to the previous column's value in that row, plus 1.
+       names(dtt)[i] := get(names(dtt)[i-1]) + 1] 
+}
+
+# start with age dt, and filter to ages that last longer than 5 years, and see what it amounts to by the end of the time series:
+dttt <- data.table::copy(dtt)
+
+cc_calc_potential_age(dttt)
+dttt_diff <- cc_diff_dt(dttt)
+length_dttt <- cc_extract_length(dttt_diff, length_type = "abandonment")
+length_dttt <- data.table(length = length_dttt)
+length_dttt[length >=5, ]
+
+for (i in 2:ncol(dttt) - 1) {
+    # subset rows that are greater than 0 (i.e. 1, for noncrop), and
+    dttt[get(names(dttt)[i]) >= 5, 
+       
+       # set them equal to the previous column's value in that row, plus 1.
+       names(dttt)[i+1] := get(names(dttt)[i]) + 1] 
+}
+
+dtt
+dttt
+
+# compare row by row
+dtt_comp <- rbind(dtt[, ':='("type" = "obs", row = .I)], 
+                  dttt[, ':='("type" = "no_recult", row = .I)])
+
+setcolorder(dtt_comp, c("row", "type", paste0("V", 1:25)))
+dtt_comp[order(row, type)]
+
 ```
 
+# test new results
+```{r test}
+list.files(path = paste0(p_dat_derived, run_label)) %>% 
+  grep("area", ., value = TRUE)
 
-```{r terra-extrapolate-no-recultivation}
-# terra solution:
-age_t[[9]]
+list.files(path = paste0(p_dat_derived, "_2022_02_07"), full.names = T) %>% grep("iraq", ., value = TRUE) %>% grep(".rds", ., value = T, invert = T)
 
+
+test_site <- site_df$site[6]
+
+for(test_site in site_df$site) {
+test1 <- lapply(list.files(path = paste0(p_dat_derived, "_2022_02_07"), full.names = T) %>% 
+                  grep(test_site, ., value = TRUE) %>% 
+                  grep(".rds", ., value = T, invert = T),
+                function(i) {read.csv(i)})
+
+
+test2 <- lapply(list.files(path = paste0(p_dat_derived, "_2022_01_31"), full.names = T) %>% 
+                  grep(test_site, ., value = TRUE) %>% 
+                  grep(".rds", ., value = T, invert = T),
+                function(i) {read.csv(i)})
+
+all.equal(test1[[1]], test2[[1]]) %>% print()
+all.equal(test1[[2]], test2[[2]]) %>% print()
+all.equal(test1[[4]], test2[[3]]) %>% print()
+}
+test1[[3]]
+test2[[3]]
 
 ```
 
@@ -2337,7 +2647,7 @@ age_t[[9]]
 
 ```{r seff}
 # extract run codes:
-list.files("scripts/cluster/slurm_out") %>% grep("*run*", ., value = TRUE) %>%
+list.files("scripts/cluster/slurm_out") %>% grep("*potential*", ., value = TRUE) %>%
   str_extract(., "[0-9]{6,10}_[0-9]{1,2}") %>%
   paste0("seff ", .) %>%
   paste(., collapse = "; ") %>%
@@ -2353,16 +2663,11 @@ cat(
 # Use the above to make seff calls to get the full times and memory usage for the full array run
 # then copy and paste this output into a 
 
-
 paste("seff", paste0("39537809_", c(1, 7, 8, 10)), collapse = "; ")
-paste("seff", paste0("39537810_", c(2, 4, 5, 11)), collapse = "; ")
-paste("seff", paste0("39537811_", c(3, 6)), collapse = "; ")
-paste("seff", paste0("39537812_", 9), collapse = "; ")
 
 
+txt <- read_csv("scripts/ref/seff_out_5_potential_age.csv")
 txt <- read_csv("scripts/ref/seff_out_run_1_2.2.csv")
-txt <- read_csv("scripts/ref/seff_out_aoh_abn_lc.csv")
-txt <- read_csv("scripts/ref/seff_out_max.csv")
 
 txt %>% print(n = 15)
 
@@ -2381,7 +2686,8 @@ seff <- tibble(
     array_id = str_extract(array_id, "[0-9]{6,10}_[0-9]{1,2}"),
     array = str_extract(array_id, "_[0-9]{1,2}") %>% gsub("_", "", .) %>% as.numeric(),
     time = str_extract(time, "[0-9][0-9]:[0-9][0-9]:[0-9][0-9]"),
-    mem_used = str_extract(mem_used, "[0-9]{2,3}.[0-9][0-9]") %>% as.numeric(),
+    mem_used = str_extract(mem_used, "[0-9]{2,3}.[0-9][0-9]..."),# %>% as.numeric(),
+    mem_used_p = str_extract(mem_given, "[0-9]{1,2}.[0-9][0-9]%"),
     mem_given = str_extract(mem_given, "[0-9]{2,3}.[0-9][0-9] GB") %>% 
       gsub(" GB", "", .) %>% as.numeric()
     )
@@ -2389,6 +2695,9 @@ seff <- tibble(
 seff %>% arrange(array) %>% print(n = 30)
 seff %>% filter(grepl("COMPLETED", state)) %>% arrange(array) %>% print(n = 30)
 
+
+
+lcc
 
 ```
 
