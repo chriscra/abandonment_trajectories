@@ -17,9 +17,7 @@ source("/Users/christophercrawford/work/projects/abandonment_trajectories/script
 ```
 
 ```{r load-data}
-run_label <- "_2021_03_13" 
-# run_label <- "_2021-03-05"
-# run_label <- "_b1"
+run_label # check. See "_util_main.R"
 
 
 # for use on cluster:
@@ -463,6 +461,47 @@ ggsave(plot = gg_age_class_bins_grid,
        width = 7, height = 5, units = "in", dpi = 400
 )
 
+
+
+# add line for area:
+
+gg_age_class_bins_grid
+
+gg_age_class_bins_grid + 
+  geom_line(data = area_dat %>% filter(lc == "Abandoned (>=5)"),
+            mapping = aes(x = year, y = area_ha / (10^3)),
+            size = 2, alpha = 0.8)
+
+
+# save a version of the above, with the total area abandoned (>= 5, and >=1 years)
+ggsave(plot = gg_age_class_bins_grid + 
+         geom_line(data = area_dat %>% filter(grepl("Abandoned", lc)),
+                   mapping = aes(x = year, y = area_ha / (10^3),
+                                 group = lc, color = lc), 
+                   size = 1.5) +
+         scale_color_manual(values = plot_cols[grep("Abandoned", names(plot_cols))],
+                            name = "Total area abandoned"),
+       filename = paste0(p_plots, run_label,
+                         "/abn_area_by_age_grid_w_total", run_label, ".pdf"),
+       width = 7.5, height = 6, units = "in", dpi = 400
+)
+
+
+
+# save a version of the above, with the total area abandoned (>= 5) and the potential area abandoned
+ggsave(plot = gg_age_class_bins_grid + 
+         geom_line(data = 
+                     bind_rows(area_dat %>% mutate(type = "Observed"),
+                     potential_area_dat %>% mutate(type = "Potential")) %>%
+                     filter(lc %in% c("Abandoned (>=5)")),
+                   mapping = aes(x = year, y = area_ha / (10^3),
+                                 group = type, linetype = type), 
+                   size = 1.5),
+       filename = paste0(p_plots, run_label,
+                         "/abn_area_by_age_grid_w_potential", run_label, ".pdf"),
+       width = 7.5, height = 6, units = "in", dpi = 400
+)
+
 ```
 
 ```{r area-land-cover-facet-grid}
@@ -470,21 +509,21 @@ ggsave(plot = gg_age_class_bins_grid,
 # plot area in each land cover class in a facet grid
 # ---------------------------------------------------------------------- #
 gg_area_lc_facet_grid <-
-  ggplot(data = area_dat %>% filter(lc != "Abandoned (>=1)")) +
+  ggplot(data = area_dat %>% filter(lc != "Abandoned (>=1)")
+         ) +
   theme_classic() +
   # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
   labs(y = expression("Area  (10"^{6}*" ha)") , 
        x = "Year", 
        color = NULL) + 
   geom_line(mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
-                          group = lc, color = fct_reorder(lc, lc)),
+                          group = lc, color = lc),
             size = 1.5) + 
   theme(legend.position = c(0.9, 0.12),
         legend.title = element_text(size = 10)) +
-  scale_color_manual(values = plot_cols[-2]) +
-  
-  guides(color = guide_legend(nrow = 5, ncol = 1)) +
-
+  scale_color_manual(values = plot_cols[-1]
+                     ) +
+  guides(color = guide_legend(ncol = 1)) +
   facet_wrap(vars(site),
              labeller = as_labeller(cap_update_labels),
              scales = "free")
@@ -492,10 +531,199 @@ gg_area_lc_facet_grid <-
 
 
 ggsave(plot = gg_area_lc_facet_grid,
+       filename = paste0(p_plots, run_label, "/area_by_lc_grid_all", run_label, ".pdf"), 
+    width = 7, height = 5, units = "in"
+)
+
+
+ggsave(plot = gg_area_lc_facet_grid,
        filename = paste0(p_plots, run_label, "/area_by_lc_grid", run_label, ".pdf"), 
     width = 7, height = 5, units = "in"
 )
+
 ```
+
+
+```{r potential-vs-obs-area-abn}
+# ---------------------------------------------------------------------- #
+# plot observed area abandoned vs. potential area abandoned, assuming no recultivation
+# ---------------------------------------------------------------------- #
+gg_potential_area_facet_grid <-
+  ggplot(data = 
+           bind_rows(area_dat %>% mutate(type = "Observed"),
+                     potential_area_dat %>% mutate(type = "Potential")) %>%
+           filter(grepl("Abandoned", lc)),
+         mapping = aes(x = year, y = area_ha / (10^6), # convert to millions of ha
+                       # group = interaction(lc, type), 
+                       color = lc, linetype = type)) +
+  theme_classic() +
+  # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  labs(y = expression("Area  (10"^{6}*" ha)") , 
+       x = "Year", 
+       # title = "Observed Abandonment vs. Potential Abandonment without recultivation",
+       color = "Abandonment\ndefinition", linetype = "Scenario") + 
+  geom_line(size = 1.5) + 
+  theme(legend.position = c(0.88, 0.11),
+        legend.title = element_text(size = 9),
+        legend.spacing = unit(-1, units = "mm"),
+        legend.background = element_blank(),
+        # legend.box.background = element_rect(colour = "black")
+        ) +
+  guides(color = guide_legend(nrow = 2),
+         linetype = guide_legend(nrow = 2)) +
+    # guides(color = guide_legend(nrow = 5, ncol = 1)) +
+
+  # scale_color_viridis(discrete = TRUE) +
+  scale_color_manual(values = brewer_pal(palette = "Greens")(7)[c(2,6)]) +
+  # scale_color_manual(values = plot_cols[1:2]) +
+  facet_wrap(vars(site), scales = "free", labeller = as_labeller(fancy_labels))
+
+
+
+ggsave(plot = gg_potential_area_facet_grid,
+       filename = paste0(p_plots, run_label, "/potential_area_grid", run_label, ".pdf"), 
+    width = 7, height = 6, units = "in"
+)
+
+
+show_col(brewer_pal(palette = "Greens")(7))
+```
+
+```{r total-carbon}
+# load 
+# final version
+# site_carbon_df <- read_csv(file = paste0(p_derived2, "/carbon_df", run_label,".csv"))
+# site_carbon_df_terra <- read_csv(file = paste0(p_derived2, "/carbon_df_terra.csv"))
+
+site_carbon_df
+
+# plot:
+
+gg_total_c <-
+  ggplot(data = site_carbon_df %>% filter(threshold == 5), 
+         mapping = aes(x = year, y = total_C_Mg / 10^6,
+                       # group = interaction(type, threshold),
+                       # color = as_factor(threshold),
+                       linetype = type
+                       )) +
+  geom_line(size = 1.5, 
+            col = brewer_pal(palette = "Greens")(7)[6]) + 
+  # scale_color_manual(values = brewer_pal(palette = "Greens")(7)[c(3, 6)]) +
+  labs(x = "Year", 
+       y = expression("Carbon Accumulated (10"^{6}*" Mg C)"),
+       linetype = "Scenario"
+       ) +
+  theme_classic() + 
+  theme(legend.position = c(0.88, 0.11),
+        legend.title = element_text(size = 9),
+        legend.spacing = unit(-1, units = "mm"),
+        legend.background = element_blank()
+        # legend.box.background = element_rect(colour = "black")
+        ) +
+  guides(linetype = guide_legend(nrow = 2)) +
+    facet_wrap(vars(site), scales = "free", labeller = as_labeller(cap_update_labels))
+
+
+
+ggsave(gg_total_c,
+       file = paste0(p_plots, run_label,
+                     "/carbon/carbon_accumulated_over_time.pdf"), 
+       width = 7, height = 6)
+
+
+# add inset 
+gg_carbon_inset <-
+  ggplot(data = 
+           site_carbon_df %>% 
+           filter(type == "Observed", threshold == 5) %>%
+           left_join(area_summary_df %>% 
+                       select(site, 
+                              area_abn_ha_2017,
+                              total_site_area_ha_2017, 
+                              total_crop_extent_ha,
+                              area_2017_as_prop_total_crop), by = "site") %>%
+           mutate(var = total_C_Mg /
+                    # 10^6 /
+                    area_abn_ha_2017
+                    # total_crop_extent_ha
+                    # area_2017_as_prop_total_crop 
+                  ), 
+         mapping = aes(x = year, y = var, #linetype = type,
+                       color = fct_reorder(site, var, .desc = TRUE))) +
+  geom_line(size = 1.5) + 
+  labs(x = "Year", 
+       y = expression(#"10"^{6}*
+         "Mg C / total area abandoned in 2017 (ha)"),
+       linetype = "Scenario", color = "Site"
+       ) +
+  scale_color_discrete(labels = fancy_labels) + 
+  theme_classic() + 
+  theme(
+    # legend.position = c(0.88, 0.11),
+        legend.title = element_text(size = 9),
+        legend.spacing = unit(-1, units = "mm"),
+        legend.background = element_blank()
+        # legend.box.background = element_rect(colour = "black")
+        )
+```
+
+
+```{r potential-age-bins}
+gg_potential_area_age_bins
+
+potential_area_dat
+potential_persistence_dat
+
+gg_potential_area_age_bins <-
+    ggplot(data = potential_persistence_dat) + 
+    theme_classic() +
+    labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
+         x = "Year", 
+         #title = "Area of Abandoned Land, by Age Class",
+         #subtitle = subtitle,
+         fill = "Age (years)",
+         linetype = NULL) +
+    geom_col(mapping = aes(x = year, y = area_ha / 10^3, 
+                           fill = fct_reorder(bins, age)),
+             position = position_stack(reverse = FALSE)) +
+    theme(
+      #legend.position = c(0.1, 0.8),
+      #legend.position = "bottom",
+      legend.title = element_text(size = 10)
+      ) +
+    scale_fill_brewer(palette = "Greens", direction = 1) +
+      
+      facet_wrap(vars(site), scales = "free_y", labeller = as_labeller(cap_update_labels)) +  # see _util_misc.R
+    theme(legend.position = c(0.885, 0.12), 
+        legend.spacing = unit(2, units = "mm"), 
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) + 
+      guides(fill = guide_legend(nrow = 3, ncol = 2)) + 
+      
+      
+      # add total area:
+  geom_line(data = 
+           bind_rows(area_dat %>% mutate(type = "Observed"),
+                     potential_area_dat %>% mutate(type = "Potential")) %>%
+           filter(lc == "Abandoned (>=5)"
+             # grepl("Abandoned", lc)
+                  ),
+         mapping = aes(x = year, y = area_ha / (10^3), # convert to millions of ha
+                       # group = interaction(lc, type), 
+                       # color = lc, 
+                       linetype = type),
+         size = 1.5)
+
+
+
+# save
+ggsave(plot = gg_potential_area_age_bins,
+       filename = paste0(p_plots, run_label,
+       "/potential_area_age_bins", run_label, ".pdf"),
+       width = 7, height = 5, units = "in", dpi = 400
+)
+
+```
+
 
 ```{r turnover-grid}
 turnover_dat <- read_csv(file = paste0(p_dat_derived, "turnover_dat", run_label, ".csv"))
@@ -864,8 +1092,60 @@ site_sf <- st_read(paste0(p_dat_derived, "site_sf.shp"))
 st_crs(site_sf) <-  "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
 site_sf <- site_sf %>% st_make_valid()
 # bind sf with df
-left_join(site_sf, site_df, by = site)
+left_join(site_sf, site_df, by = "site")
 site_sf$site[9] == site_df$site[9]
+```
+
+```{r simplify-states}
+install.packages("rmapshaper")
+library(rmapshaper)
+
+world_states
+world_10
+
+object_size(world_states)
+object_size(world_10)
+
+plot(world_10_simple)
+
+world_states_simple <- ms_simplify(world_states, keep = 0.1,
+                                   keep_shapes = FALSE)
+world_states_simple <- st_make_valid(world_states_simple)
+
+world_10_simple <- ms_simplify(world_10, keep = 0.1,
+                               keep_shapes = FALSE)
+world_10_simple <- st_make_valid(world_10_simple)
+
+world_states_simple %>% st_drop_geometry() %>% as_tibble() %>% select(name, name_alt, type_en, adm0_label, adm0_a3, geonunit)
+
+# --------------------------- #
+# union state boundaries
+states_union_simple <- world_states_simple %>% 
+  group_by(admin) %>%
+  summarise(dissolved = "what") %>% st_cast()
+
+states_union <- world_states %>% 
+  group_by(admin) %>%
+  summarise(dissolved = "what") %>% st_cast()
+
+states_union %>% filter(geonunit == "Afghanistan") %>% st_geometry() %>% plot()
+world_states_simple %>% filter(geonunit == "Afghanistan") %>% st_geometry() %>% plot()
+
+states_union %>% filter(geonunit == "Bosnia and Herzegovina") %>% st_geometry() %>% plot()
+world_states_simple %>% filter(geonunit == "Bosnia and Herzegovina") %>% st_geometry() %>% plot()
+
+world_states %>% filter(geonunit == "Bosnia and Herzegovina") %>% st_geometry() %>% plot()
+world_states %>% filter(name_en == "Bosnia and Herzegovina") %>% st_geometry() %>% plot()
+world_10 %>% filter(name_en == "Bosnia and Herzegovina") %>% st_geometry() %>% plot()
+
+
+world_states %>% filter(grepl("Bosnia", admin)) %>% st_geometry() %>% plot()
+world_states_simple %>% filter(grepl("Bosnia", admin)) %>% st_geometry() %>% plot()
+states_union %>% filter(grepl("Bosnia", admin)) %>% st_geometry() %>% plot()
+states_union_simple %>% filter(grepl("Bosnia", admin)) %>% st_geometry() %>% plot()
+states_union_simple
+names(world_states)
+states_union$geonunit
 ```
 
 ```{r si-fig0-global-site-map}
@@ -1045,14 +1325,7 @@ gg_world_crop
 # reclassify age rasters into bins of 5 years.
 
 # load rasters:
-age_files <- list.files(paste0(p_dat_derived, "age_rasters/", run_label), 
-                        full.names = TRUE) %>%
-  grep(".tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = FALSE)
-
-# SpatRaster
-age_t <- lapply(seq_along(age_files), function(i) {rast(age_files[i])})
-names(age_t) <- site_df$site
-for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
+age_t # see _util_files.R
 
 
 # reclassification tibble:
@@ -1074,7 +1347,8 @@ age_t_bins <- lapply(1:11, function(i) {
   terra::classify(
   age_t[[i]]$y2017,
   rcl = select(rcl_df, is, becomes), 
-  filename = paste0(p_dat_derived, "age_rasters/2017_bins/", site_df$site[i], "_y2017_bins.tif"),
+  filename = paste0(p_dat_derived, "age_rasters/", run_label, "/2017_bins/", 
+                    site_df$site[i], "_y2017_bins", run_label, ".tif"),
   overwrite = TRUE)
 }
 )
@@ -1082,12 +1356,13 @@ names(age_t_bins) <- site_df$site
 
 
 
-# reclassify max_age rastersinto bins
+# reclassify max_age rasters into bins
 max_age_t_bins <- lapply(1:11, function(i) {
   terra::classify(
   max_age_t[[i]],
   rcl = select(rcl_df, is, becomes), 
-  filename = paste0(p_dat_derived, "max_age/bins/", site_df$site[i], "_max_age_bins.tif"),
+  filename = paste0(p_dat_derived, "max_age/", run_label, "/bins/", 
+                    site_df$site[i], "_max_age_bins", run_label, ".tif"),
   overwrite = TRUE)
 }
 )
@@ -1106,19 +1381,20 @@ new_titles <- inset_map_titles
 new_titles[1] <- "(b) Vitebsk, Belarus /\nSmolensk, Russia"
 new_titles[8] <- "(o) Orenburg, Russia /\nUralsk, Kazakhstan"
 
-age_t_bins <- lapply(1:11, function(i) {rast(paste0(p_dat_derived, "age_rasters/2017_bins/", site_df$site[i], "_y2017_bins.tif"))})
-names(age_t_bins) <- site_df$site
+age_t_bins # see "_util_files.R"
 
 # ----------------------------------------------------- #
 # horizontal
 # ----------------------------------------------------- #
 mval <- 1
+include_borders_simple <- FALSE
 include_borders <- FALSE
 
 {
   pdf(file = paste0(p_output, "plots/fig1", 
-                    if(include_borders) {"_borders_simple"},
-                    ".pdf"),
+                    if(include_borders) {"_borders"},
+                    if(include_borders_simple) {"_borders_simple"},
+                    run_label, ".pdf"),
       width = 7, height = 6)
   
   par(mfrow = c(3, 4), 
@@ -1135,19 +1411,37 @@ include_borders <- FALSE
        col = viridis(n = 5, direction = -1), 
        colNA = "gray95",
        main = new_titles[i], #inset_map_titles[i],
-       legend = FALSE,
+       legend = FALSE, 
+       cex = 1, # controls title sizes
        mar = c(mval+0.5, mval, mval + 1.2, mval) # bltr     
        )
     
     if(include_borders) {
-      plot(world_states_simple %>%
-             {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
-             st_geometry(), add = T, border = "gray50")
+      plot(
+        world_states %>% 
+          {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
+          st_geometry(), 
+        add = T, border = "gray50")
       
-      plot(states_union %>%
-             {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
-             st_geometry(), add = T, border = "black")
-      }
+      plot(        
+        states_union %>%
+          {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
+          st_geometry(), add = T, border = "black")
+    }
+    
+    if(include_borders_simple) {
+      plot(
+        world_states_simple %>% 
+          {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
+          st_geometry(), 
+        add = T, border = "gray50")
+      
+      plot(        
+        states_union_simple %>%
+          {if (i == 6) . else  st_crop(., extent(site_sf[i, ]))} %>%
+          st_geometry(), add = T, border = "black")
+    }
+    
   
   }
   
@@ -1168,10 +1462,7 @@ include_borders <- FALSE
 
 
 ```{r si-fig1-max-age-maps}
-max_age_t_bins <- lapply(1:11, function(i) {rast(paste0(p_dat_derived, "max_age/bins/", site_df$site[i], "_max_age_bins.tif"))})
-names(max_age_t_bins) <- site_df$site
-
-
+max_age_t_bins # see _util_files.R
 
 
 mval <- 1
@@ -1180,7 +1471,7 @@ include_borders <- FALSE
 {
   pdf(file = paste0(p_output, "plots/fig1_max", #run_label, "/maps/max_age_maps", 
                     if(include_borders) {"_borders"},
-                    ".pdf"),
+                    run_label, ".pdf"),
     width = 7, height = 6)
   
   par(mfrow = c(3, 4), 
@@ -1196,7 +1487,7 @@ include_borders <- FALSE
        levels = rcl_df$labels %>% unique() %>% .[-1],
        col = viridis(n = 5, direction = -1), colNA = "gray95",
        main = new_titles[i], #inset_map_titles[i],
-       legend = FALSE,
+       legend = FALSE, cex = 1,
        mar = c(mval+0.5, mval, mval + 1.2, mval) # bltr     
        )
     
@@ -1250,7 +1541,7 @@ cc_save_fig1_inset <- function(i, include_borders = FALSE, titles_vector = inset
  pdf(file = paste0(p_output, "plots/fig1/", 
                    "fig1_inset",
                     if(!include_borders) {""} else {"_borders"}, 
-                    site_df$label[i], ".pdf"),
+                    site_df$label[i], run_label, ".pdf"),
     width = myw, height = myh)
 
   par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0), adj = 0)
@@ -1288,7 +1579,7 @@ lapply(1:11, function(i) cc_save_fig1_inset(i = i, myh = 4.25, myw = 4.25))
 # ------------------------------------------------------------------ #
 
 {
-pdf(file = paste0(p_output, "plots/fig1/fig1_inset_legends.pdf"), 
+pdf(file = paste0(p_output, "plots/fig1/fig1_inset_legends", run_label, ".pdf"), 
     width = 4, height = 5)
 plot.new()
 par(bg=NA, mar=c(0,0,0,0), oma=c(0,0,0,0))
@@ -1590,39 +1881,35 @@ time_to_l3 %>% filter(p == 0.5) %>%
   # mutate(time_to_value_high = ifelse(is.na(time_to_value_high), 0, time_to_value_high)) %>%
   arrange(time_to_value)
 
+time_to_combo %>% filter(mod == "l3", type == "mean", proportion == 0.5)
+
 
 quadrant_df <- area_summary_df %>% 
   select(site, area_abn_ha_2017, area_ever_abn_ha, area_2017_as_prop_total_crop) %>%
-  left_join(time_to_l3 %>% 
-              filter(p == 0.5) %>%
-              select(site, time_to_value_low, time_to_value, time_to_value_high, p),
+  left_join(
+    time_to_combo %>% filter(mod == "l3", type == "mean", proportion == 0.5),
+    # time_to_l3 %>% 
+  #             filter(p == 0.5) %>%
+  #             select(site, time_to_value_low, time_to_value, time_to_value_high, p),
             by = "site") %>%
   left_join(., site_df %>% select(site, description), by = "site") %>%
   mutate(description = ifelse(site == "belarus", "Vitebsk, Belarus /\nSmolensk, Russia", description),
          description = ifelse(site == "orenburg", "Orenburg, Russia /\nUralsk, Kazakhstan", description))
 
-quadrant_endpoints <- 
-  endpoint_half_lives %>%
-  left_join(area_summary_df %>% 
-              select(site, area_abn_ha_2017, area_ever_abn_ha, area_2017_as_prop_total_crop),
-  by = "site")
 
-quadrant_endpoints %>%
-  group_by(site) %>%
-  summarise(mean_hl = mean(mean))
 
 # plot
 gg_quadrant <-
   ggplot(data = quadrant_df, 
        mapping = aes(x = area_2017_as_prop_total_crop,
-                     y = time_to_value,
+                     y = time_to,
                      label = description,
                      size = area_abn_ha_2017/10^3,
                      # color = site
                      )) + 
   geom_vline(xintercept = mean(quadrant_df$area_2017_as_prop_total_crop), 
              linetype="dashed", alpha = 0.4, colour = "red") +
-  geom_hline(yintercept = mean(quadrant_df$time_to_value), 
+  geom_hline(yintercept = mean(quadrant_df$time_to), 
              linetype="dashed", alpha = 0.4, colour = "red") +
   geom_point(alpha = 0.6) + 
   geom_text_repel(
@@ -1640,7 +1927,7 @@ gg_quadrant <-
   labs(x = "Area abandoned as a percent (%) of total cropland extent",
        y = "Half-life (years)",
        size = "Area abandoned \n(2017, kha)",
-       caption = "Dashed red lines represent mean values") +
+       caption = "Dashed red lines represent mean values.\nHalf lives derived from mean trajectories.") +
   theme_classic() + 
     theme(legend.position = c(0.15, 0.8)) + 
     scale_size_continuous(range = c(0.1, 10))
@@ -1654,59 +1941,79 @@ ggsave(plot = gg_quadrant,
        # width = 3.42, height = 3.4, 
        units = "in")
 
+```
+
+```{r quad-endpoints}
+
+quadrant_endpoints <-
+  endpoint_half_lives %>%
+  left_join(area_summary_df %>% 
+              select(site, area_abn_ha_2017, area_ever_abn_ha, area_2017_as_prop_total_crop),
+  by = "site")
+
+# derive mean half-live
+quad_end_mean <- 
+  quadrant_endpoints %>%
+  group_by(site, area_2017_as_prop_total_crop, area_abn_ha_2017) %>%
+  summarise(mean_hl = mean(mean))
+
+quadrant_endpoints %>%
+  group_by(site) %>%
+  summarise(mean_hl = mean(mean))
+
+
 # ------------------------------------------------------------------------------- #
 # Quadrant, with endpoint derived half-lives
 # ------------------------------------------------------------------------------- #
-# gg_quadrant_endpoints <-
+gg_quadrant_endpoints_all <-
   ggplot(data = quadrant_endpoints, 
        mapping = aes(x = area_2017_as_prop_total_crop,
                      y = mean,
-                     label = site,
                      size = area_abn_ha_2017/10^3,
                      # group = site,
                      color = endpoint, 
                      group = site
                      )) + 
-  geom_vline(xintercept = mean(quadrant_df$area_2017_as_prop_total_crop), 
+  geom_vline(xintercept = mean(quadrant_endpoints$area_2017_as_prop_total_crop), 
              linetype="dashed", alpha = 0.4, colour = "red") +
-  geom_hline(yintercept = mean(quadrant_df$time_to_value), 
+  geom_hline(yintercept = mean(quadrant_endpoints$mean, na.rm = TRUE), 
              linetype="dashed", alpha = 0.4, colour = "red") +
+    
+    # add half-lives by endpoint:
   geom_point(alpha = 0.6, 
              # position = position_dodge(0.2)
              ) + 
-    geom_point(data = quadrant_endpoints %>%
-                 group_by(site, area_2017_as_prop_total_crop, area_abn_ha_2017) %>%
-                 summarise(mean_hl = mean(mean)),
+          scale_color_viridis(direction = -1) +
+
+    # add point for mean half-live across 
+    geom_point(data = quad_end_mean, # see mean below,
                mapping = aes(x = area_2017_as_prop_total_crop,
                              y = mean_hl,
                              size = area_abn_ha_2017/10^3
                              ),
                inherit.aes = F) +
-    geom_path(alpha = 0) +
-      scale_color_viridis(direction = -1) +
-    # geom_text_repel(box.padding = 1, point.padding = 1, min.segment.length = 0, 
-    #                 size = 3, segment.color = 'grey10') +
-  geom_textpath(mapping = aes(x = area_2017_as_prop_total_crop,
-                              y = mean, label = site), 
-                # size = 3, 
-                # hjust = -1, 
-                vjust = 0.7,
-                inherit.aes = F, text_only = T) +
-
     
-  labs(x = "Area abandoned as a percent (%) of total cropland extent",
+    geom_text_repel(data = quad_end_mean, # see mean below,
+               mapping = aes(x = area_2017_as_prop_total_crop,
+                             y = mean_hl,
+                             label = cap_update_labels(site),
+                             size = area_abn_ha_2017/10^3
+                             ),
+               inherit.aes = FALSE,
+               box.padding = 1, point.padding = 1, min.segment.length = 0,
+                    size = 3, segment.color = 'grey10') +
+  labs(x = "Area abandoned in 2017 as a percent (%) of total cropland extent",
        y = "Half-life (years)",
-       size = "Area abandoned \n(2017, kha)",
-       caption = "Dashed red lines represent mean values") +
-  theme_classic() + 
-    theme(legend.position = c(0.15, 0.8)) + 
-    # scale_size_continuous(range = c(0.1, 10)) + 
-  coord_cartesian(ylim = c(0, 50))
+       size = "Area abandoned\n(2017, kha)",
+       caption = "Dashed red lines represent mean values",
+       color = "Endpoint\n(Years)") +
+  theme_classic() +
+      theme(legend.position = c(0.15, 0.6))
 
 
 # save 
-ggsave(plot = gg_quadrant_endpoints,
-       filename = paste0(p_plots, run_label, "/quadrant_endpoints", run_label, ".pdf"), 
+ggsave(plot = gg_quadrant_endpoints_all,
+       filename = paste0(p_plots, run_label, "/quadrant_endpoints_all", run_label, ".pdf"), 
        # width = 9, height = 7,
        width = 7, height = 6,
        # width = 3.42, height = 3.4, 
@@ -1714,28 +2021,22 @@ ggsave(plot = gg_quadrant_endpoints,
 
 
 
-
-
 # ------------------------------------------------------------------------------- #
 # just the mean values derived from the endpoints analysis:
 # ------------------------------------------------------------------------------- #
-quad_end_tmp <- 
-  quadrant_endpoints %>%
-  group_by(site, area_2017_as_prop_total_crop, area_abn_ha_2017) %>%
-  summarise(mean_hl = mean(mean))
   
 gg_quadrant_endpoints_mean <- 
-  ggplot(data = quad_end_tmp, 
+  ggplot(data = quad_end_mean, 
        mapping = aes(x = area_2017_as_prop_total_crop,
                      y = mean_hl,
-                     label = site,
+                     label = cap_update_labels(site),
                      size = area_abn_ha_2017/10^3,
                      # color = site
                      )) + 
-  geom_vline(xintercept = mean(quad_end_tmp$area_2017_as_prop_total_crop), 
+  geom_vline(xintercept = mean(quad_end_mean$area_2017_as_prop_total_crop), 
              linetype="dashed", #alpha = 0.4, 
              colour = "red") +
-  geom_hline(yintercept = mean(quad_end_tmp$mean_hl), 
+  geom_hline(yintercept = mean(quad_end_mean$mean_hl), 
              linetype="dashed",# alpha = 0.4,
              colour = "red") +
   geom_point(alpha = 0.6) + 
@@ -1765,12 +2066,109 @@ ggsave(plot = gg_quadrant_endpoints_mean,
        width = 7, height = 6, units = "in")
 
 
-```
-
-```{r quad-endpoints}
 
 
 
+
+
+
+# subsets of endpoints:
+i <- 15
+i <- c(10, 15, 20, 25)
+for (i in c(10, 15, 20, 25)){
+  gg_quadrant_endpoints_subset <-
+  ggplot(data = quadrant_endpoints %>% filter(endpoint %in% i), 
+       mapping = aes(x = area_2017_as_prop_total_crop,
+                     y = mean,
+                     label = cap_update_labels(site),
+                     size = area_abn_ha_2017/10^3,
+                     # color = site, 
+                     # color = endpoint,
+                     group = site
+                     )) + 
+  geom_vline(xintercept = mean(quadrant_endpoints %>% filter(endpoint %in% i) %>%
+                                 .$area_2017_as_prop_total_crop), 
+             linetype="dashed", alpha = 0.4, colour = "red") +
+  geom_hline(yintercept = mean(quadrant_endpoints %>% filter(endpoint %in% i) %>% 
+                                 .$mean, na.rm = TRUE), 
+             linetype="dashed", alpha = 0.4, colour = "red") +
+    
+    # add half-lives by endpoint:
+  geom_point(alpha = 0.6) + 
+
+    geom_text_repel(box.padding = 1, point.padding = 1, min.segment.length = 0,
+                    size = 3, segment.color = 'grey10', color = "black") +
+  labs(x = "Area abandoned in 2017 as a percent (%) of total cropland extent",
+       y = "Half-life (years)",
+       size = "Area abandoned\n(2017, kha)",
+       caption = "Dashed red lines represent mean values",
+       color = "Endpoint\n(Years)") +
+  theme_classic() +
+      theme(legend.position = c(0.15, 0.7))
+
+
+# save 
+ggsave(plot = gg_quadrant_endpoints_subset,
+       filename = paste0(p_plots, run_label, "/quadrant_endpoints_", i, "yr", run_label, ".pdf"), 
+       width = 7, height = 6,
+       units = "in")
+}
+
+quadrant_endpoints %>% filter(endpoint %in% c(10, 15, 20, 25),
+                              site == "shaanxi")
+
+# subset 5, 10, 15, 20
+# gg_quadrant_endpoints_subset_10_25 <-
+  ggplot(data = quadrant_endpoints %>% filter(endpoint %in% c(10, 15, 20, 25)), 
+       mapping = aes(x = area_2017_as_prop_total_crop,
+                     y = mean,
+                     label = cap_update_labels(site),
+                     size = area_abn_ha_2017/10^3,
+                     # color = site, 
+                     color = as_factor(endpoint),
+                     group = site
+                     )) + 
+  geom_vline(xintercept = mean(quadrant_endpoints %>% 
+                                 filter(endpoint %in% c(10, 15, 20, 25)) %>%
+                                 .$area_2017_as_prop_total_crop), 
+             linetype="dashed", alpha = 0.4, colour = "red") +
+  geom_hline(yintercept = mean(quadrant_endpoints %>% 
+                                 filter(endpoint %in% c(10, 15, 20, 25)) %>%
+                                 .$mean, na.rm = TRUE), 
+             linetype="dashed", alpha = 0.4, colour = "red") +
+    
+    # add half-lives by endpoint:
+  geom_point(alpha = 0.6) + 
+    scale_color_viridis(direction = -1, discrete = TRUE) +
+    
+  # add mean label
+    geom_text_repel(data = quad_end_mean, # see mean below,
+               mapping = aes(x = area_2017_as_prop_total_crop,
+                             y = mean_hl,
+                             label = cap_update_labels(site),
+                             size = area_abn_ha_2017/10^3
+                             ),
+               inherit.aes = FALSE,
+               box.padding = 1, point.padding = 1, 
+               force = 3, 
+               max.time = 2,
+               min.segment.length = 0,
+                    size = 3, segment.color = 'grey10') +
+
+  labs(x = "Area abandoned in 2017 as a percent (%) of total cropland extent",
+       y = "Half-life (years)",
+       size = "Area abandoned\n(2017, kha)",
+       caption = "Dashed red lines represent mean values",
+       color = "Endpoint\n(Years)") +
+  theme_classic() +
+      theme(legend.position = c(0.15, 0.7))
+
+
+# save 
+ggsave(plot = gg_quadrant_endpoints_subset_10_25,
+       filename = paste0(p_plots, run_label, "/quadrant_endpoints_10_25yr", run_label, ".pdf"), 
+       width = 7, height = 6,
+       units = "in")
 ```
 
 
@@ -1785,6 +2183,7 @@ os %>%
 
 os %>% print(n = 30)
 
+rm(list = os$object[c(1:3)])
 # rm(list = os$object[c(3:18)])
 get(os$object[c(30)])
 
@@ -1799,6 +2198,8 @@ terra::tmpFiles(current=TRUE, orphan=TRUE, old=TRUE,
 raster::rasterTmpFile()
 raster::showTmpFiles()
 raster::removeTmpFiles()
+
+warnings()
 
 
 
