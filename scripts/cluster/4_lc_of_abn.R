@@ -29,7 +29,9 @@ source("/home/clc6/abandonment_trajectories/scripts/util/_util_functions.R")
 # set up parameters:
 site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
 
-run_label <- "_2022_01_31" #"_2021_03_13" # "_2021-03-05"
+# run_label (time stamp)
+run_label <- format(Sys.time(), "_%Y_%m_%d") 
+# run_label <- "_2022_01_31" #"_2021_03_13" # "_2021-03-05"
 
 
 
@@ -47,31 +49,9 @@ run_label <- "_2022_01_31" #"_2021_03_13" # "_2021-03-05"
 # load site input land cover rasters:
 # --------------- list of all sites ----------------- #
 # prepared input rasters (derived by Chris)
-site_input_raster_files <- list.files(p_input_rasters, full.names = TRUE) %>%
-  grep("clean.tif", ., value = TRUE) #%>% grep("age", ., value = TRUE, invert = TRUE)
 
-# as Raster*
-site_r <- lapply(seq_along(site_input_raster_files), function(i) {
-  raster::brick(site_input_raster_files[i])
-  })
-names(site_r) <- site_df$site
-
-# rename raster layers:
-for (i in 1:11) {
-  if (names(site_r[i]) == "nebraska") {
-    names(site_r[[i]]) <- paste0("y", 1986:2018)
-  } else {
-    if (names(site_r[i]) == "wisconsin") {
-      names(site_r[[i]]) <- paste0("y", 1987:2018)
-    } else {
-      # everything else, just 1987:2017
-      names(site_r[[i]]) <- paste0("y", 1987:2017)
-    }}}
-
-
-# as SpatRaster
-site_t <- lapply(seq_along(site_input_raster_files), function(i) {
-  terra::rast(site_input_raster_files[i])
+site_t <- lapply(1:11, function(i) {
+  terra::rast(paste0(p_input_rasters, site_df$site[i], "_clean.tif"))
 })
 names(site_t) <- site_df$site
 
@@ -89,19 +69,8 @@ for (i in 1:11) {
 
 # ----------------- load abandonment age rasters ---------------- #
 # abandonment age maps (produced by Chris)
-age_files <- list.files(p_input_rasters, full.names = TRUE) %>%
-  grep(paste0(run_label, ".tif"), ., value = TRUE) %>% grep("max_age", ., value = TRUE, invert = TRUE)
-
-# as Raster*
-age_r <- lapply(seq_along(age_files), function(i) {
-  raster::brick(age_files[i])
-  })
-names(age_r) <- site_df$site
-for (i in seq_along(age_r)) {names(age_r[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
-
-# as SpatRaster (for area calculation)
-age_t <- lapply(seq_along(age_files), function(i) {
-  terra::rast(age_files[i])
+age_t <- lapply(1:11, function(i) {
+  terra::rast(paste0(p_input_rasters, site_df$site[i], "_age", run_label, ".tif"))
 })
 names(age_t) <- site_df$site
 for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
@@ -112,16 +81,16 @@ for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # reme
 
 abn_lc_area_2017 <- lapply(site_df$site, function(i) {
   # Select just the years 2017, and convert to data.tables
-  r17 <- stack(
-    site_r[[i]]$y2017, # land cover in 2017 (Raster*)
-    age_r[[i]]$y2017, # abandonment age in 2017 (Raster*)
-    raster(terra::cellSize(age_t[[i]]$y2017, unit = "ha", mask = FALSE)) # area (ha), calculated as SpatRaster, then converted to Raster*,
+  r17 <- c(
+    site_t[[i]]$y2017, # land cover in 2017 (Raster*)
+    age_t[[i]]$y2017, # abandonment age in 2017 (Raster*)
+    terra::cellSize(age_t[[i]]$y2017, unit = "ha", mask = FALSE) # area (ha), calculated as SpatRaster,
   )
   names(r17) <- c("lc_2017", "age_2017", "area_ha")
   # plot(r17)
 
   # convert to data.tables
-  dt17 <- as.data.table.raster(r17)
+  dt17 <- spatraster_to_dt(r17)
   
   # where age is greater than or equal to 5, what is the land cover class breakdown?
   # calculate the sum of area, pixels, etc.
