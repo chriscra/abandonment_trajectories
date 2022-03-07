@@ -599,7 +599,7 @@ gg_AIC_mega <-
 gg_AIC_mega
 
 ggsave(plot = gg_AIC_mega, 
-       filename = paste0(p_plots, run_label, "/decay/", "mod_AIC_mega_plot", run_label, ".png"), 
+       filename = paste0(p_plots, run_label, "/decay/", "mod_AIC_mega_plot", run_label, ".pdf"), 
     width = 5, height = 4, units = "in")
 
 
@@ -614,7 +614,7 @@ plot(lm_mega_lin_log_lin_l)
 
 qqnorm(residuals(lm_mega_lin_log_lin_l), main = paste0("QQ: mega"))
 
-car::qqPlot(update(lm_mega_lin_log_lin_trim, data = dat_trim[-c(2014, 2036),]),
+car::qqPlot(update(lm_mega_lin_log_lin_l, data = dat_trim[-c(2014, 2036),]),
        ylab = "Sample Quantiles",
        main = paste0("QQ: mega"))
 
@@ -623,11 +623,18 @@ car::qqPlot(update(lm_mega_lin_log_lin_trim, data = dat_trim[-c(2014, 2036),]),
 # mega lm
 dev.off()
 
-png(filename = paste0(p_plots, run_label, "/decay/", "l3_cohort_diag_combo", run_label, ".png"), 
+png(filename = paste0(p_plots, run_label, "/decay/", "decay_mod_diagnostics_l3_combo", run_label, ".png"), 
     width = 8, height = 5, units = "in", res = 400)
 par(mfrow = c(1, 2))
-plot(lm_mega_lin_log_lin_l, 1:2)
+# plot(lm_mega_lin_log_lin_l, 1:2)
+plot(update(lm_mega_lin_log_lin_l, data = persistence_dat[-2092, ]), 1:2)
 dev.off()
+
+
+plot(update(lm_mega_lin_log_lin_l, data = persistence_dat[-2092, ]), 1:2)
+
+
+
 
 persistence_dat[c(324, 349), ]
 
@@ -1637,6 +1644,7 @@ fitted_combo <-
   
 
 fitted_combo %>% select(mod, type) %>% unique()
+
 ```
 
 ```{r time-to-combo}
@@ -2294,16 +2302,20 @@ for(i in c("a", "b"#, "all"
     # c("b")
     ){
   sites_tmp_switch <- i
-  sites_tmp <- if(sites_tmp_switch == "a") {site_df$site[1:6]
-    } else {if(sites_tmp_switch == "b") {site_df$site[c(7:11)]} else {site_df$site}}
+  sites_tmp <- if(sites_tmp_switch == "a") {site_df$site[1:5]
+    } else {if(sites_tmp_switch == "b") {site_df$site[c(6:11)]} else {site_df$site}}
 
 
 gg_endpoints_by_site_5_25 <-
   ggplot(data = common_endpoint_dat %>% 
-           filter(endpoint %in% c(10, 15, 20, 25), 
-                  # site == "shaanxi",
-                  site %in% sites_tmp
-                  ),
+           filter(endpoint %in% c(10, 15, 20, 25)) %>% 
+           mutate(endpoint = as_factor(endpoint)) %>%
+
+           # add full observations
+           bind_rows(persistence_dat %>% 
+                       mutate(endpoint = "full model", 
+                              endpoint = as_factor(endpoint))) %>%
+           filter(site %in% sites_tmp),
        mapping = aes(x = age, y = proportion, 
                      group = year_abn, color = year_abn)) + 
   theme_classic() + 
@@ -2312,29 +2324,34 @@ gg_endpoints_by_site_5_25 <-
   facet_grid(site~endpoint,# nrow = 3,
              labeller = as_labeller(cap_update_labels),
              scales = "free_x", space = "free") +
-  # scale_x_continuous(n.breaks = 6) +
-  scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30)#,
-                     # limits = c(5, 30)
-                     ) +
+  scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30)) +
 
   geom_hline(yintercept = 0.5, linetype = "dashed") + 
   labs(x = "Time since initial abandonment (years)", 
        y = "Proportion of abandoned land remaining") + 
-  theme(
-    # legend.position = c(0.9, 0.15),
-    # legend.spacing = unit(2, units = "mm"), 
-    legend.background = element_blank(),
-    legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
-  # coord_cartesian(ylim = c(0.3, 1)) +
+  theme(legend.background = element_blank(),
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0),
+        strip.text.y.right = element_text(size = 8)) +
 
 # fitted lines
     geom_line(data = augment_endpoints %>% 
-                filter(endpoint %in% c(10, 15, 20, 25), 
-                       # site == "shaanxi",
-                       site %in% sites_tmp
-                       ),
+                filter(endpoint %in% c(10, 15, 20, 25)) %>% 
+                mutate(endpoint = as_factor(endpoint)) %>%
+
+                # add observations for the full dataset
+                bind_rows(
+                  augment(lm_mega_lin_log_lin_l, se_fit = TRUE) %>%
+                    mutate(time = round(exp(`log(time + 1)`), digits = 0) - 1,
+                           age = time + 5,
+                           proportion = .fitted + 1,
+                           year_abn = as.numeric(levels(cohort))[cohort],
+                           endpoint = "full model", 
+                           endpoint = as_factor(endpoint)
+                           )
+                  ) %>%
+                filter(site %in% sites_tmp),
               linetype = 5,
-              aes(alpha = "Fitted"), show.legend = TRUE) +
+              aes(alpha = "Fitted\nvalues"), show.legend = TRUE) +
       scale_alpha_manual(name = NULL,
                      values = c(1), # breaks = c(0, "Fitted"),
                      guide = guide_legend(
@@ -2345,24 +2362,27 @@ gg_endpoints_by_site_5_25 <-
   geom_line(data = lapply(10:29, function(i) {filter(fitted_endpoints, endpoint == i, age <= i)}) %>%
               bind_rows() %>% 
               filter(endpoint %in% c(10, 15, 20, 25), 
-                     # site == "shaanxi",
                      site %in% sites_tmp
                      ), 
             mapping = aes(x = age, y = proportion, 
-                          color = site
+                          color = "Mean\ntrajectory"
                           ),
-                          color = "red",
+                          # color = "red",
               size = 1, inherit.aes = FALSE) + 
-  scale_color_discrete(name = "Mean trajectory", labels = fancy_labels)
-  
+  scale_colour_manual(name = NULL, 
+                      #labels = "Mean\ntrajectory", # can specify here too, but not necessary
+                      values = "red" 
+                      )
+
+gg_endpoints_by_site_5_25
 
 ggsave(gg_endpoints_by_site_5_25,
-  filename = paste0(p_plots, run_label, "/decay/common_endpoints/",
-                    "endpoints_by_site_5_25",
+  filename = paste0(p_plots, run_label, "/decay/",
+                    "endpoints_by_site_5_25_",
                     sites_tmp_switch, run_label, ".pdf"), 
-  width = ifelse(sites_tmp_switch == "a|b", 7, 7),
+  width = ifelse(sites_tmp_switch == "a|b", 6.5, 6.5),
   height = ifelse(sites_tmp_switch %in% c("a", "b"), 
-                  ifelse(sites_tmp_switch == "a", 9.5, 8), 
+                  ifelse(sites_tmp_switch == "a", 7, 8), 
                   10), 
   units = "in"
   )
@@ -2661,6 +2681,13 @@ ggsave(plot = gg_half_life_endpoints_by_obs,
        filename = paste0(p_plots, run_label, "/decay/", "half_lives_endpoints_by_obs", run_label, ".pdf"), 
        width = 7, height = 6, units = "in")
 
+  
+ggsave(plot = gg_half_life_endpoints_by_obs + 
+         theme(panel.grid.major = element_line(colour = "gray85"), 
+               panel.grid.minor = element_line(colour = "gray95")),
+       filename = paste0(p_plots, run_label, "/decay/", "half_lives_endpoints_by_obs", run_label, "_grid.pdf"), 
+       width = 7, height = 6, units = "in")
+
 
 ggsave(plot = gg_half_life_endpoints_by_obs %+% 
          filter(endpoint_half_lives, endpoint %in% c(10:25)),
@@ -2671,10 +2698,69 @@ ggsave(plot = gg_half_life_endpoints_by_obs %+%
 # -------------------------------------------------------- # 
 # this is the final figure to go into the main text of the manuscript
 # -------------------------------------------------------- # 
+
+# test with just circles, rather than a continuous color gradient
+ggplot(data = endpoint_half_lives %>% 
+           filter(endpoint %in% c(10, 15, 20, 25)) %>%
+         mutate(var = paste0(endpoint, " years\n(", n_cohorts, " cohorts)")), 
+       mapping = aes(x = mean, y = fct_reorder(site, mean), 
+                     color = as_factor(var), group = endpoint, 
+                     # fill = as_factor(n_cohorts), 
+                     size = total_obs)) +
+  geom_point(position = position_dodge(0.7), alpha = 0.7) + 
+  scale_color_viridis(direction = -1, discrete = T) +
+  
+  # add another fill scale geom with number of cohorts, to get a corresponding color bar into the legend
+  scale_fill_viridis(breaks = c(6, 11, 16, 21), discrete = T) +
+  scale_size_continuous(range = c(2, 6), 
+                        breaks = c(126, 176)
+                        ) + 
+  scale_x_continuous(breaks = seq(from = 10, to = 240, by = 20)) +
+  scale_y_discrete(labels = fancy_labels) + 
+  labs(x = "Half-life (Years)", y = "Site", 
+       color = "Endpoint\n(n cohorts)", size = "Observations\n(n)",
+       fill = "Cohorts\n(n)",) +
+  
+  theme_classic() +
+  theme(legend.position = c(0.725, 0.2),
+        legend.spacing = unit(3, units = "mm"),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(colour = "black"),
+        legend.box = "horizontal"
+        ) + 
+  guides(color = guide_legend(order = 1, override.aes = list(size = 4)), 
+         size = guide_legend(order = 2#, override.aes = list(alpha = 1)
+                             ))
+
+
 ggsave(plot = gg_half_life_endpoints_by_obs %+% 
-         filter(endpoint_half_lives, endpoint %in% c(10, 15, 20, 25)),
+         filter(endpoint_half_lives, endpoint %in% c(10, 15, 20, 25)) + 
+         scale_x_continuous(breaks = seq(from = 10, to = 240, by = 10)) +
+         theme(legend.position = c(0.675, 0.23),
+               legend.spacing = unit(0, units = "mm"),
+               legend.text = element_text(size = 9),
+               legend.title = element_text(size = 9),
+               legend.background = element_blank(),
+               legend.box.background = element_rect(colour = "black"),
+               legend.box = "horizontal"),
        filename = paste0(p_plots, run_label, "/decay/", "half_lives_endpoints_by_obs_10_25", run_label, ".pdf"), 
-       width = 7, height = 6, units = "in")
+       width = 5, height = 4.5, units = "in")
+
+
+# with grid lines
+ggsave(plot = gg_half_life_endpoints_by_obs %+% 
+         filter(endpoint_half_lives, endpoint %in% c(10, 15, 20, 25)) + 
+         theme(legend.position = c(0.675, 0.23),
+               legend.spacing = unit(0, units = "mm"),
+               legend.text = element_text(size = 9),
+               legend.title = element_text(size = 9),
+               panel.grid.major = element_line(colour = "gray85"), 
+               panel.grid.minor = element_line(colour = "gray95"), 
+               # legend.box.background = element_rect(colour = "black"),
+               legend.background = element_rect(colour = "white"),
+               legend.box = "horizontal"),
+       filename = paste0(p_plots, run_label, "/decay/", "half_lives_endpoints_by_obs_10_25", run_label, "_grid.pdf"), 
+       width = 5, height = 4.5, units = "in")
 
 
 
@@ -3898,32 +3984,13 @@ gg_decay_mega <-
                                    include.lowest = TRUE))) + 
     theme_classic() + 
   
-    # mean trajectory
-  geom_line(
-    data = fitted_combo %>% 
-      filter(mod == "l3", 
-             type %in% c("mean"#, "conf.low", "conf.high"
-                         ),
-             age < 31),
-    # data = fitted_l3_mega %>% filter(mod == "l3"), 
-            mapping = aes(x = age, y = proportion, 
-                          # linetype = mod
-                          linetype = type
-                          ),
-              # color = brewer_pal(palette = "PiYG")(11)[2], # dark pink
-              color = "black",
-              size = 1, inherit.aes = FALSE) +
-  
-  scale_linetype_discrete(label = c("mean" = "Mean Decay Rate\n(Across Cohorts)",
-                                    "l3" = "Mean Decay Rate\n(Across Cohorts)",
-                                      "l3_no_cohort" = "Decay Rate (No F.E.)")) + 
-  
     geom_point(size = 0.8) + 
     scale_color_viridis(discrete = TRUE) +
     # scale_color_distiller(palette = "Greens", discrete = TRUE) + 
     scale_x_continuous(n.breaks = 6) +
     geom_hline(yintercept = 0.5, linetype = "dashed") + 
-    labs(caption = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
+    labs(
+      #caption = "lm formula: (proportion - 1) ~ 0 + log(time + 1):cohort + (time):cohort",
          x = "Time since initial abandonment (years)", 
          y = "Proportion of abandoned land remaining",
          color = "Cohort \n(Year Abandoned)",
@@ -3947,7 +4014,7 @@ gg_decay_mega <-
                          # color = brewer_pal(palette = "Greens")(6)[6]
                        ))) +
 
-  theme(legend.position = c(0.9, 0.13),
+  theme(legend.position = c(0.89, 0.12),
         legend.spacing = unit(-2, units = "mm"), legend.background = element_blank(),
         legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
   coord_cartesian(ylim = c(0.3, 1)) +
@@ -3957,12 +4024,40 @@ gg_decay_mega <-
                               override.aes = list(size = 5, linetype = NULL)))
 
 
+# save basic plot
 ggsave(plot = gg_decay_mega, 
        filename = paste0(p_plots, run_label, "/decay/", "decay_mod_grid", run_label, ".pdf"), 
+    width = 7, height = 6.5, units = "in")
+
+
+gg_decay_mega_w_mean <- gg_decay_mega +
+  # mean trajectory
+  geom_line(
+    data = fitted_combo %>% 
+      filter(mod == "l3", 
+             type %in% c("mean"#, "conf.low", "conf.high"
+                         ),
+             age < 31),
+            mapping = aes(x = age, y = proportion, 
+                          # linetype = mod
+                          linetype = type
+                          ),
+              # color = brewer_pal(palette = "PiYG")(11)[2], # dark pink
+              color = "black",
+              size = 1, inherit.aes = FALSE) +
+  
+  scale_linetype_discrete(label = c("mean" = "Mean Decay Rate\n(Across Cohorts)",
+                                    "l3" = "Mean Decay Rate\n(Across Cohorts)",
+                                      "l3_no_cohort" = "Decay Rate (No F.E.)"))
+
+# with the mean trajectory
+ggsave(plot = gg_decay_mega_w_mean, 
+       filename = paste0(p_plots, run_label, "/decay/", "decay_mod_grid_w_mean_traj", run_label, ".pdf"), 
     width = 8, height = 8, units = "in")
 
 
 
+# continuous color scale
 ggsave(plot = gg_decay_mega + scale_color_viridis(discrete = FALSE), 
        filename = paste0(p_plots, run_label, "/decay/", "decay_mod_grid_cont", run_label, ".pdf"), 
     width = 8, height = 8, units = "in")
@@ -6384,7 +6479,7 @@ gg_cohort_coefs_grid <-
   theme_classic() +
   geom_point(position = position_jitter()) + 
   labs(y = "Half-life (time for 50% recultivation, in years)",
-       x = "Year of initial abandonment", 
+       x = "Cohort (year of initial abandonment)", 
        color = "Site") + 
   theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0), 
         legend.position = "bottom",
@@ -6482,6 +6577,10 @@ par(mfrow = c(1, 2))
 plot(lm_coef_l3, 1:2)
 dev.off()
 
+
+glance(lm_coef_l3)
+tidy(lm_coef_l3, conf.int = TRUE) %>%
+  select(term, p.value) %>% .$p.value
 ```
 
 ```{r *l3-roc-lincom}
@@ -6496,6 +6595,8 @@ library(multcomp)
 
 coef_sites <- names(coef(lm_coef_l3)) %>% #Extract the coefficient names, tidy(lm_coef_l3)$term also works
   grep("abn", ., value = TRUE)
+
+glance(lm_coef_l3)
 
 lm_coef_l3 %>%
   glht(., linfct = paste0("year_abn + ", coef_sites[2], " = 0")) %>%
@@ -6528,7 +6629,7 @@ gg_roc_lincom <-
   geom_point() + 
   geom_errorbar(mapping = aes(xmin = conf.low, xmax = conf.high), width = 0.2) +
   geom_vline(xintercept = 0, linetype = "dashed") + 
-  scale_y_discrete(labels = cap_update_labels) + 
+  scale_y_discrete(labels = fancy_labels) + 
   labs(y = NULL, #"Site", 
        x = "Change in half-life over time\n(in terms of years per year)") + 
   theme(legend.position = "none",
