@@ -538,7 +538,7 @@ write_csv(summary_stats_all_sites_pooled,
           file = paste0(p_derived2, "summary_stats_all_sites_pooled", run_label, ".csv"))
 
 
-# summary_stats_all_sites <- read_csv(file = paste0(p_derived2, "summary_stats_all_siteS", run_label, ".csv"))
+# summary_stats_all_sites <- read_csv(file = paste0(p_derived2, "summary_stats_all_sites", run_label, ".csv"))
 # summary_stats_all_sites_pooled <- read_csv(file = paste0(p_derived2, "summary_stats_all_sites_pooled", run_label, ".csv"))
 ```
 
@@ -688,10 +688,103 @@ ggsave(plot = gg_mean_length_by_threshold_old,
        filename = paste0(p_plots, run_label, "/mean_lengths_by_threshold_old", run_label, ".pdf"), 
     width = 8.5, height = 5, units = "in")
 
-ggsave(plot = gg_mean_length_by_threshold_side + scale_fill_manual(values = viridis(n = 5)) + scale_color_manual(values = viridis(n = 5)),
-       filename = paste0(p_plots, run_label, "/mean_lengths_by_threshold", run_label, ".pdf"), 
+ggsave(plot = gg_mean_length_by_threshold_side + 
+         scale_fill_manual(values = viridis(n = 5)) + 
+         scale_color_manual(values = viridis(n = 5)),
+       filename = paste0(p_plots, run_label, "/mean_lengths_by_threshold_side", run_label, ".pdf"), 
     width = 8.5, height = 5, units = "in")
+
+
+
+
+
+
+
+
+gg_mean_length_by_threshold_flipped <-
+  ggplot(data = mean_length_df,
+         mapping = aes(y = fct_reorder(site, mean_duration), 
+                       x = mean_duration, fill = as_factor(abn_threshold))) + 
+  theme_classic() +
+  labs(linetype = NULL,
+       fill = "Abandonment\nthreshold\n(years)", 
+       x = "Mean length of time abandoned (years)",
+       y = "Site") +
+  geom_col(width = 0.75,
+           position = position_dodge()) +
+  scale_y_discrete(labels = fancy_labels) +
+  facet_grid(.~length_type,
+             labeller = labeller(length_type = c(all = "All periods", #old = "new",
+                                                 max = "Max. length per pixel"))) +
+  geom_vline(data = mean_length_df %>% 
+               group_by(abn_threshold, length_type) %>%
+               summarise(overall_mean = mean(mean_duration, na.rm = TRUE)), 
+             mapping = aes(xintercept = overall_mean, 
+                           linetype = "Mean",
+                           color = as_factor(abn_threshold)),
+             show.legend = TRUE, #color = "black",
+             size = 0.75
+             ) + 
+  scale_linetype_manual(values = c("Mean" = "dashed"), labels = "Mean\nacross\nsites") +
+  guides(
+    fill = guide_legend(override.aes = list(linetype = 0)),
+    # fill = "none",
+    color = "none"
+    )  + 
+  scale_fill_manual(values = viridis(n = 5)) + 
+  scale_color_manual(values = viridis(n = 5)) + 
+  coord_cartesian(xlim = c(5, 21))
+
+
+ggsave(plot = gg_mean_length_by_threshold_flipped,
+       filename = paste0(p_plots, run_label, "/mean_lengths_by_threshold", run_label, ".pdf"), 
+    width = 8.5, height = 6, units = "in")
 ```
+
+```{r recult-duration-by-threshold}
+
+gg_mean_recult_length_by_threshold_flipped <-
+  ggplot(data = mean_recult_length_df,
+         mapping = aes(y = fct_reorder(site, mean_duration), 
+                       x = mean_duration, fill = as_factor(recult_threshold))) + 
+  theme_classic() +
+  labs(linetype = NULL,
+       fill = "Recultivation\nthreshold\n(years)", 
+       x = "Mean length of time recultivated (years)",
+       y = "Site") +
+  geom_col(width = 0.75,
+           position = position_dodge()) +
+  scale_y_discrete(labels = fancy_labels) +
+  # facet_grid(.~length_type, 
+  #            labeller = labeller(length_type = c(all = "All periods", #old = "new",
+  #                                                max = "Max. length per pixel"))) +
+  geom_vline(data = mean_recult_length_df %>% 
+               group_by(recult_threshold, length_type) %>%
+               summarise(overall_mean = mean(mean_duration, na.rm = TRUE)), 
+             mapping = aes(xintercept = overall_mean, 
+                           linetype = "Mean",
+                           color = as_factor(recult_threshold)),
+             show.legend = TRUE, #color = "black",
+             size = 0.75
+             ) + 
+  scale_linetype_manual(values = c("Mean" = "dashed"), labels = "Mean\nacross\nsites") +
+  guides(
+    fill = guide_legend(override.aes = list(linetype = 0)),
+    # fill = "none",
+    color = "none"
+    )  + 
+  scale_fill_manual(values = viridis(n = 5)) + 
+  scale_color_manual(values = viridis(n = 5)) #+ 
+  # coord_cartesian(xlim = c(5, 21))
+
+
+ggsave(plot = gg_mean_recult_length_by_threshold_flipped,
+       filename = paste0(p_plots, run_label, "/mean_recult_lengths_by_threshold", run_label, ".pdf"), 
+    width = 6, height = 5, units = "in")
+
+
+```
+
 
 
 ## Distributions of abandonment lengths (durations)
@@ -831,7 +924,7 @@ recult_length_distribution <- recult_length_distribution %>%
   left_join(., 
             mean_recult_length_df %>% 
               filter(
-                #abn_threshold == "5", 
+                recult_threshold == "1",
                 length_type == "recult") %>% 
               arrange(length_type, mean_duration) %>% 
               mutate(order = 1:n()) %>% select(site, order),
@@ -852,7 +945,6 @@ write_csv(recult_length_distribution,
 # length_distribution <- read_csv(file = paste0(p_derived2, "length_distribution", run_label, ".csv"))
 # length_distribution_max <- read_csv(file = paste0(p_derived2, "length_distribution_max", run_label, ".csv"))
 # recult_length_distribution <- read_csv(file = paste0(p_derived2, "recult_length_distribution", run_label, ".csv"))
-
 ```
 
 
@@ -902,7 +994,7 @@ ggsave(plot = gg_mean_w_violin,
     width = 6, height = 5, units = "in")
 ```
 
-```{r *fig2-ggridges}
+```{r fig2-ggridges}
 # Plot the mean abandonment length at each site, with the distribution of all abandonment lengths displayed behind it, plotted using the {ggridges} package.
 
 show_col(hue_pal()(3)[1]) # default ggplot colors
@@ -1072,7 +1164,7 @@ ggsave(plot =
                legend.text.align = 0,
                legend.title.align = 1),
        
-       filename = paste0(p_plots, "/fig2", run_label, ".pdf"), 
+       filename = paste0(p_plots, "/fig2_0", run_label, ".pdf"), 
     width = 3.42, height = 5, units = "in")
 ```
 
@@ -1163,10 +1255,274 @@ ggsave(plot = gg_mean_length_ridges_w_max +
                legend.box.just = "left",
                legend.text.align = 0, 
                legend.title.align = 1),
-       filename = paste0(p_plots, "/fig2_w_max", run_label, ".pdf"), 
+       filename = paste0(p_plots, "/fig2_w_max0", run_label, ".pdf"), 
     width = 3.42, height = 5, units = "in")
 
 ```
+
+### Potential abandonment
+
+```{r potential-mean-lengths}
+mean_length_df
+# 0. Load distilled length data
+potential_length_distill_df <- read_csv(
+  file = paste0(p_derived2,
+                "potential_length_distill_df", run_label, ".csv"))
+
+
+
+potential_mean_length_df <- lapply(c(1, 3, 5, 7, 10), function(x) {
+  potential_length_distill_df %>% as_tibble() %>% 
+    mutate(product = length*freq) %>% 
+    filter(length >= x) %>% # to filter by length # this is important for max, since some pixels have max length of 0
+    group_by(site, length_type) %>% 
+    summarise(
+      n_abn_periods = sum(freq), # number of abandonment periods at each site:
+      mean_duration = sum(product)/sum(freq),
+      median_duration = median(rep(length, freq)),
+      sd_duration = sd(rep(length, freq))
+      ) %>% 
+    mutate(abn_threshold = x) 
+}) %>% 
+  bind_rows() %>% 
+  ungroup()
+
+# add order for plotting:
+potential_mean_length_df <- 
+  potential_mean_length_df %>% 
+  left_join(., 
+            filter(., abn_threshold == 5, 
+                   length_type == "potential") %>% 
+              arrange(mean_duration) %>% 
+              mutate(order = 1:n()) %>% select(site, order)
+            )
+
+
+# save potential_mean_length_df
+write_csv(potential_mean_length_df, 
+          file = paste0(p_derived2, "potential_mean_length_df", run_label, ".csv"))
+cat(fill = TRUE, "Saved potential_mean_length_df to:", paste0(p_derived2, "potential_mean_length_df", run_label, ".csv"))
+
+# potential_mean_length_df <- read_csv(file = paste0(p_derived2, "potential_mean_length_df", run_label, ".csv"))
+```
+
+```{r potential-summary-stats}
+potential_mean_length_df
+endpoint_half_lives$endpoint %>% unique()
+
+# load files ------------- #
+# load all length data (distilled)
+potential_length_distill_df <- read_csv(
+  file = paste0(p_derived2, 
+                "potential_length_distill_df", run_label, ".csv"))
+
+# load mean length data:
+potential_mean_length_df <- read_csv(
+  file = paste0(p_derived2, "potential_mean_length_df", run_label, ".csv"))
+
+potential_mean_length_df %>% filter(abn_threshold == 5, length_type == "potential") %>% .$sd_duration %>% summary()
+
+potential_summary_stats_all <- potential_mean_length_df %>% 
+  group_by(abn_threshold, length_type) %>%
+  summarise(mean_of_means = mean(mean_duration, na.rm = TRUE),
+            mean_of_medians = mean(median_duration, na.rm = TRUE),
+            mean_of_sds = mean(sd_duration, na.rm = TRUE)
+            )
+
+# just # our standard 5 year abandonment threshold: 
+potential_summary_stats_all_sites <- potential_mean_length_df %>%
+  filter(abn_threshold == 5,
+         length_type == "potential") %>% 
+  group_by(abn_threshold, length_type) %>%
+  summarise(mean_of_means = mean(mean_duration),
+            mean_of_medians = mean(median_duration),
+            sd_of_means = sd(mean_duration),
+            mean_of_sds = mean(sd_duration),
+            mean_n_abn_periods = mean(n_abn_periods)
+            )
+
+potential_summary_stats_all_sites$mean_of_means
+potential_summary_stats_all_sites$sd_of_means
+potential_summary_stats_all_sites$mean_of_sds
+
+sd(filter(potential_mean_length_df, 
+          length_type == "potential", abn_threshold == 5)$mean_duration)
+
+
+# ---------------------------------------------------------------- #
+# 2. Pool all raw abandonment periods together
+potential_summary_stats_all_sites_pooled <- potential_length_distill_df %>%
+  as_tibble() %>%
+  filter(length >= 5, length_type == "potential") %>%
+  mutate(product = length*freq) %>%
+  group_by() %>%
+  summarise(
+    total_n_abn_periods = sum(freq),
+    mean_duration = sum(product)/sum(freq),
+    median_duration = median(rep(length, freq)),
+    # mean_test = mean(rep(length, freq)), # same as above
+    sd_duration = sd(rep(length, freq))
+    )
+
+potential_summary_stats_all_sites_pooled$mean_duration
+
+# alternatively, calculate the weighted mean, using the number of abandonment periods at each site:
+
+potential_mean_length_df %>% 
+  filter(length_type == "potential", abn_threshold == 5) %>% 
+  mutate(prod = mean_duration * n_abn_periods) %>%
+  group_by() %>%
+  summarise(sum_prod = sum(prod),
+            sum_n = sum(n_abn_periods),
+            w_mean = sum_prod/sum_n)
+
+
+# save files:
+
+write_csv(potential_summary_stats_all_sites, 
+          file = paste0(p_derived2, "potential_summary_stats_all_sites", run_label, ".csv"))
+write_csv(potential_summary_stats_all_sites_pooled, 
+          file = paste0(p_derived2, "potential_summary_stats_all_sites_pooled", run_label, ".csv"))
+
+
+# potential_summary_stats_all_sites <- read_csv(file = paste0(p_derived2, "potential_summary_stats_all_sites", run_label, ".csv"))
+# potential_summary_stats_all_sites_pooled <- read_csv(file = paste0(p_derived2, "potential_summary_stats_all_sites_pooled", run_label, ".csv"))
+```
+
+
+```{r potential-length-dist}
+
+# -------------------------------------------------------------- #
+# potential area abandoned, assuming no recultivation:
+# -------------------------------------------------------------- #
+potential_length_distribution
+
+potential_length_distribution <- 
+  potential_length_distill_df %>% as_tibble() %>% 
+    filter(length >= 5,
+           # site == "shaanxi",
+           length_type == "potential") %>% # to filter by length # this is important for max, since some pixels have max length of 0 
+  mutate(fr = round(freq/1000, 
+                    digits = 0)) %>% 
+  group_by(site) %>%
+  summarise(site = unique(site), 
+            length = rep(length, fr),
+            mean = mean(length))
+
+
+# adding order based on site-level mean abandonment duration (all periods)
+potential_length_distribution <- 
+  potential_length_distribution %>%
+  left_join(., potential_mean_length_df %>% 
+              filter(abn_threshold == "5", 
+                     length_type == "potential") %>% 
+              arrange(length_type, mean_duration) %>% 
+              mutate(order = 1:n()) %>% select(site, order),
+            by = "site")
+
+
+
+write_csv(potential_length_distribution,
+          file = paste0(p_derived2, "potential_length_distribution", run_label, ".csv"))
+# potential_length_distribution <- read_csv(file = paste0(p_derived2, "potential_length_distribution", run_label, ".csv"))
+
+```
+
+
+```{r si-fig2-potential}
+
+# ------------------------------------------------------------------------ #
+# plotting site descriptions on the right side of the figure.
+# ------------------------------------------------------------------------ #
+
+# make labels
+fig2_potential_labels1 <- 
+  levels(fct_reorder(potential_length_distribution$site, 
+                     desc(potential_length_distribution$order)))
+
+
+fig2_potential_labels_order <- sapply(1:11, function(i) {grep(fig2_potential_labels1[i], site_df$site)})
+
+fancy_labels # formerly fig2_labels_long 
+
+# Update 
+potential_length_distribution
+potential_mean_length_df
+
+
+gg_mean_length_ridges_potential <-
+  ggplot() +
+  
+  geom_density_ridges2(
+    data = potential_length_distribution, 
+    mapping = aes(
+      y = as.numeric(fct_reorder(site, desc(order))), 
+      x = length, group = site),
+    stat = "binline", bins = 26, 
+    scale = 0.95) + 
+
+  scale_y_continuous(expand = c(0.02, 0),
+                     breaks = 1:length(fig2_potential_labels1),
+                     labels = NULL,
+                     position = "left",
+                     sec.axis =
+                       sec_axis(~.,
+                                breaks = 1:length(fig2_potential_labels1),
+                                labels = fancy_labels[fig2_potential_labels_order]
+                                         )) +
+
+  geom_vline(data = potential_mean_length_df %>%
+               group_by(abn_threshold, length_type) %>%
+               summarise(overall_mean = mean(mean_duration, na.rm = TRUE)) %>%
+               filter(abn_threshold == "5", 
+                      length_type == "potential"),
+             mapping = aes(xintercept = overall_mean,
+                           linetype = "Mean across all sites"),
+             color = hue_pal()(3)[1]) +
+  
+  scale_linetype_manual(values = c("Mean across all sites" = "dashed")) +
+  
+  geom_point(data = potential_mean_length_df %>%
+           filter(abn_threshold == "5", length_type == "potential"),
+             mapping = aes(y = as.numeric(fct_reorder(site, desc(order))),
+                           x = mean_duration, 
+                           color = length_type),
+             size = 3, alpha = 0.85) + 
+  scale_color_discrete(labels = c(potential = "Site-level mean")) +
+  
+  scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30), expand = c(0, 0)) +
+  theme_classic() +
+  labs(y = "Proportion of abandonment periods at given length",
+       x = "Potential abandonment duration (yrs),\nassuming no recultivation",
+       color = NULL, linetype = NULL) + 
+  theme(
+        axis.text.y = element_text(vjust = 0, size=8),
+        panel.grid.major.x = element_line()) + 
+  guides(color = guide_legend(order = 1, nrow = 1, 
+                              override.aes = list(linetype = 0)), 
+         linetype = guide_legend(order = 2, nrow = 1)) + 
+  coord_cartesian(clip = "off") + 
+  theme(axis.text.y = element_text(vjust = 0, size=8),
+        panel.grid.major.x = element_line(),
+        legend.spacing.x = unit(0.5, "mm"),
+        legend.position = c(0.6, -0.17), 
+        legend.direction = "horizontal",
+        legend.box = "horizontal",
+        plot.margin = margin(5, 5, 27, 5),
+        legend.background = element_blank(),
+        legend.box.just = "left",
+        legend.text.align = 0,
+        legend.title.align = 1)
+
+
+
+# save plot
+ggsave(plot = gg_mean_length_ridges_potential,
+       filename = paste0(p_plots, "/fig2_potential0", run_label, ".pdf"), 
+    width = 3.42, height = 5, units = "in")
+```
+
+
 
 ### Recultivation 
 
@@ -1234,20 +1590,21 @@ recult_summary_stats_all <-
   group_by(recult_threshold, length_type) %>%
   summarise(mean_of_means = mean(mean_duration, na.rm = TRUE),
             mean_of_medians = mean(median_duration, na.rm = TRUE),
-            mean_of_sds = mean(sd_duration, na.rm = TRUE)
+            mean_of_sds = mean(sd_duration, na.rm = TRUE),
+            mean_n_abn_periods = mean(n_abn_periods)
             )
 
 # just # our 1 year recultivation threshold: 
-recult_summary_stats_all_sites <- 
+recult_summary_stats_all_sites <-
   mean_recult_length_df %>%
-  filter(recult_threshold == 1,
-         length_type == "recult") %>% 
+  filter(recult_threshold == 1, length_type == "recult") %>%
   group_by(recult_threshold, length_type) %>%
   summarise(mean_of_means = mean(mean_duration),
             mean_of_medians = mean(median_duration),
             sd_of_means = sd(mean_duration),
             mean_of_sds = mean(sd_duration),
-            mean_n_abn_periods = mean(n_abn_periods)
+            mean_n_abn_periods = mean(n_abn_periods),
+            n_abn_periods = sum(n_abn_periods)
             )
 
 recult_summary_stats_all_sites$mean_of_means
@@ -1293,7 +1650,7 @@ write_csv(recult_summary_stats_all_sites_pooled,
           file = paste0(p_derived2, "recult_summary_stats_all_sites_pooled", run_label, ".csv"))
 
 
-# recult_summary_stats_all_sites <- read_csv(file = paste0(p_derived2, "recult_summary_stats_all_siteS", run_label, ".csv"))
+# recult_summary_stats_all_sites <- read_csv(file = paste0(p_derived2, "recult_summary_stats_all_sites", run_label, ".csv"))
 # recult_summary_stats_all_sites_pooled <- read_csv(file = paste0(p_derived2, "recult_summary_stats_all_sites_pooled", run_label, ".csv"))
 ```
 
@@ -1369,11 +1726,449 @@ ggsave(plot = gg_mean_recult_length +
                legend.box.just = "left",
                legend.text.align = 0, 
                legend.title.align = 1),
-       filename = paste0(p_plots, "/fig2_recult", run_label, ".pdf"), 
+       filename = paste0(p_plots, "/fig2_recult0", run_label, ".pdf"), 
     width = 3.42, height = 5, units = "in")
 ```
 
+### manual fig 2
 
+```{r man-fig2}
+
+gg_fig2_manual <-
+  length_distill_df %>% 
+  filter(length >= 5, length_type == "all") %>%
+  bind_rows(
+    tibble(length = 4, freq = 0, site = site_df$site, length_type = "all"),
+    tibble(length = 31, freq = 0, site = site_df$site, length_type = "all")) %>%
+  left_join(mean_length_df %>% filter(abn_threshold == 5, length_type == "all"),
+            by = c("site")
+            ) %>%
+  mutate(height = freq / n_abn_periods,
+         site = fct_reorder(site, order)) %>%
+  # .$site %>% levels()
+  
+  # plot
+  ggplot() + 
+  geom_col(aes(x = length, y = height, group = site),
+           fill = "gray70", color = "gray70") +
+  geom_step(aes(x = length, y = height, group = site),
+            direction = "mid", size = 0.5) +
+  geom_hline(yintercept = 0) +
+  geom_point(
+    data = mean_length_df %>%
+      filter(abn_threshold == "5", length_type == "all") %>%
+      mutate(site = fct_reorder(site, order)),
+    mapping = aes(y = 0, x = mean_duration, color = length_type),
+    inherit.aes = FALSE,
+    size = 3, alpha = 0.85) +
+  scale_alpha_manual(values=c(0.5))+
+  facet_grid(vars(site), scales = "free_x",
+             labeller = as_labeller(fancy_labels)
+             ) + 
+  theme_classic() + 
+  scale_y_continuous(
+    # breaks = c(0, 0.1, 0.2), labels = c("0", "0.1", "0.2")
+                     n.breaks = 3) + 
+  labs(y = "Proportion of abandonment periods by duration", 
+       x = "Abandonment duration (years)",
+       color = NULL, linetype = NULL) +
+  geom_vline(
+    data = . %>% select(site, mean_duration) %>% unique() %>% 
+      summarise(overall_mean = mean(mean_duration, na.rm = TRUE)),
+    mapping = aes(xintercept = overall_mean,
+                  linetype = "Mean across all sites"),
+    color = hue_pal()(3)[1]) +
+  
+  scale_linetype_manual(values = c("Mean across all sites" = "dashed")) +
+  scale_color_discrete(labels = c(potential = "Site-level mean")) +
+  
+  scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30), expand = c(0, 0)) +
+  guides(color = guide_legend(order = 1, nrow = 1, 
+                              override.aes = list(linetype = 0)), 
+         linetype = guide_legend(order = 2, nrow = 1)) + 
+  coord_cartesian(clip = "off") +
+  theme(axis.line.x = element_blank(),
+        axis.text.y = element_text(vjust = 0.35, size = 6),
+        strip.text.y.right = element_text(size = 8, angle = 0, hjust = 0, vjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        plot.background = element_blank(),
+        panel.spacing = unit(1, "mm"),
+        panel.grid.major.x = element_line(),
+        legend.spacing.x = unit(0.5, "mm"),
+        legend.position = c(0.6, -0.12),
+        legend.direction = "horizontal",
+        legend.box = "horizontal",
+        plot.margin = margin(5, 0, 25, 5),
+        legend.background = element_blank(),
+        legend.box.just = "left",
+        legend.text.align = 0,
+        legend.title.align = 1)
+
+  
+# save plot
+ggsave(plot = gg_fig2_manual,
+       filename = paste0(p_plots, "/fig2", run_label, ".pdf"), 
+    width = 3.5, height = 5, units = "in")
+
+```
+```{r man-fig2-max}
+
+gg_fig2_manual_max <-
+  length_distill_df %>% 
+  filter(length >= 5, length_type == "max") %>%
+  bind_rows(
+    tibble(length = 4, freq = 0, site = site_df$site, length_type = "max"),
+    tibble(length = 31, freq = 0, site = site_df$site, length_type = "max")) %>%
+  left_join(mean_length_df %>% filter(abn_threshold == 5, length_type == "max") %>%
+              arrange(mean_duration) %>%
+              mutate(order = 1:11),
+            by = c("site")
+            ) %>%
+  mutate(height = freq / n_abn_periods,
+         site = fct_reorder(site, order)) %>%
+  # .$site %>% levels()
+  
+  # plot
+  ggplot() + 
+  geom_col(aes(x = length, y = height, group = site),
+           fill = "gray70", color = "gray70") +
+  geom_step(aes(x = length, y = height, group = site),
+            direction = "mid", size = 0.5) +
+  geom_hline(yintercept = 0) +
+  geom_vline(
+    data = mean_length_df %>%
+      filter(abn_threshold == "5"#, length_type == "all"
+             ) %>%
+      mutate(site = fct_reorder(site, order)) %>%
+      group_by(length_type) %>% 
+      summarise(overall_mean = mean(mean_duration, na.rm = TRUE)),
+    mapping = aes(xintercept = overall_mean, color = length_type, 
+                  linetype = "Mean\nacross\nall sites")) +
+  scale_linetype_manual(values = c("Mean\nacross\nall sites" = "dashed")) +
+
+  geom_point(
+    data = mean_length_df %>%
+      filter(abn_threshold == "5"#, length_type == "all"
+             ) %>%
+      mutate(site = fct_reorder(site, order)),
+    mapping = aes(y = 0, x = mean_duration, color = length_type),
+    inherit.aes = FALSE,
+    size = 3, alpha = 0.85) +
+  scale_alpha_manual(values=c(0.5))+
+  facet_grid(vars(site), scales = "free_x",
+             labeller = as_labeller(fancy_labels)
+             ) + 
+  scale_color_discrete(labels = c(all = "All abandonment periods",
+                                   max = "Maximum duration\nper pixel")) +  
+  theme_classic() + 
+  scale_y_continuous(
+    # breaks = c(0, 0.1, 0.2), labels = c("0", "0.1", "0.2")
+                     n.breaks = 3) + 
+  labs(y = "Proportion of abandonment periods by duration", 
+       x = "Abandonment duration (years)",
+       color = "Site-level \nmean of:", linetype = NULL) +
+  
+  scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30), expand = c(0, 0)) +
+  
+  guides(color = guide_legend(order = 1, nrow = 2, 
+                              override.aes = list(linetype = 0)), 
+         linetype = guide_legend(order = 2, label.vjust = 0)) + 
+  coord_cartesian(clip = "off") +
+  theme(axis.line.x = element_blank(),
+        axis.text.y = element_text(vjust = 0.35, size = 6),
+        strip.text.y.right = element_text(size = 8, angle = 0, hjust = 0, vjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        plot.background = element_blank(),
+        panel.spacing = unit(1, "mm"),
+        panel.grid.major.x = element_line(),
+        legend.spacing.x = unit(0.5, "mm"),
+        legend.position = c(0.65, -0.155),
+        legend.direction = "horizontal",
+        legend.box = "horizontal",
+        plot.margin = margin(5, 0, 40, 5),
+        legend.background = element_blank(),
+        legend.box.just = "left",
+        legend.text.align = 0,
+        legend.title.align = 1)
+
+  
+# save plot
+ggsave(plot = gg_fig2_manual_max,
+       filename = paste0(p_plots, "/fig2_w_max", run_label, ".pdf"), 
+    width = 3.5, height = 5, units = "in")
+
+
+```
+```{r man-fig2-potential}
+
+# save plot
+gg_fig2_manual_potential <-
+  potential_length_distill_df %>% 
+  filter(length >= 5) %>%
+  bind_rows(
+    tibble(length = 4, freq = 0, site = site_df$site, length_type = "potential"),
+    tibble(length = 31, freq = 0, site = site_df$site, length_type = "potential")) %>%
+  left_join(potential_mean_length_df %>% filter(abn_threshold == 5)) %>%
+  mutate(height = freq / n_abn_periods,
+         site = fct_reorder(site, order)) %>%
+  
+  # plot
+  ggplot() + 
+  geom_col(aes(x = length, y = height, group = site),
+           fill = "gray70", color = "gray70") +
+  geom_step(aes(x = length, y = height, group = site),
+            direction = "mid", size = 0.5) +
+  geom_hline(yintercept = 0) +
+  geom_point(data = . %>% select(site, mean_duration, length_type) %>% unique(),
+             mapping = aes(y = 0, x = mean_duration, color = length_type),
+             inherit.aes = FALSE,
+             size = 3, alpha = 0.85) +
+  scale_alpha_manual(values=c(0.5))+
+  facet_grid(vars(site), scales = "free_x",
+             labeller = as_labeller(fancy_labels)
+             ) + 
+  theme_classic() + 
+  scale_y_continuous(breaks = c(0, 0.1, 0.2), labels = c("0", "0.1", "0.2")) + 
+  labs(y = "Proportion of abandonment periods by duration", 
+       # x = "Abandonment duration (years)",
+       x = "Potential abandonment duration (years),\nassuming no recultivation",
+       color = NULL, linetype = NULL) +
+  geom_vline(
+    data = . %>% select(site, mean_duration) %>% unique() %>% 
+      summarise(overall_mean = mean(mean_duration, na.rm = TRUE)),
+    mapping = aes(xintercept = overall_mean,
+                  linetype = "Mean across all sites"),
+    color = hue_pal()(3)[1]) +
+  
+  scale_linetype_manual(values = c("Mean across all sites" = "dashed")) +
+  scale_color_discrete(labels = c(potential = "Site-level mean")) +
+  
+  scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30), expand = c(0, 0)) +
+  guides(color = guide_legend(order = 1, nrow = 1, 
+                              override.aes = list(linetype = 0)), 
+         linetype = guide_legend(order = 2, nrow = 1)) + 
+  coord_cartesian(clip = "off") +
+  theme(axis.line.x = element_blank(),
+        axis.text.y = element_text(vjust = 0.35, size = 6),
+        strip.text.y.right = element_text(size = 8, angle = 0, hjust = 0, vjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        plot.background = element_blank(),
+        panel.spacing = unit(1, "mm"),
+        panel.grid.major.x = element_line(),
+        legend.spacing.x = unit(0.5, "mm"),
+        legend.position = c(0.6, -0.17),
+        legend.direction = "horizontal",
+        legend.box = "horizontal",
+        plot.margin = margin(5, 5, 27, 5),
+        legend.background = element_blank(),
+        legend.box.just = "left",
+        legend.text.align = 0,
+        legend.title.align = 1)
+
+  
+# save plot
+ggsave(plot = gg_fig2_manual_potential,
+       filename = paste0(p_plots, "/fig2_potential", run_label, ".pdf"), 
+    width = 3.5, height = 5, units = "in")
+
+```
+```{r pot2}
+
+gg_fig2_manual_overlap_potential <- length_distill_df %>% 
+  select(-site_long) %>%
+  filter(length >= 5, length_type == "all") %>%
+  bind_rows(
+    tibble(length = 4, freq = 0, site = site_df$site, length_type = "all"),
+    tibble(length = 31, freq = 0, site = site_df$site, length_type = "all")) %>%
+  left_join(mean_length_df %>% filter(abn_threshold == 5, length_type == "all") %>%
+              arrange(mean_duration) %>% mutate(order = 1:11),
+            by = c("site", "length_type")
+            ) %>%
+  
+  bind_rows(
+    potential_length_distill_df %>% 
+  filter(length >= 5, length_type == "potential") %>%
+  bind_rows(
+    tibble(length = 4, freq = 0, site = site_df$site, length_type = "potential"),
+    tibble(length = 31, freq = 0, site = site_df$site, length_type = "potential")) %>%
+  left_join(potential_mean_length_df %>% filter(abn_threshold == 5, length_type == "potential") %>%
+              arrange(mean_duration) %>% mutate(order = 1:11),
+            by = c("site", "length_type")
+            )) %>%
+  
+  mutate(height = freq / n_abn_periods,
+         site = fct_reorder(site, order)) %>%
+  # select(length_type) %>% unique
+  # .$site %>% levels()
+  
+  # plot
+  ggplot() + 
+  geom_col(aes(x = length, y = height, # group = site, 
+               fill = length_type, group = length_type,
+               # color = length_type
+               ), 
+           position = "identity",
+           # position = "dodge",
+           alpha = 0.5,
+           show.legend = FALSE
+           # color = "gray70"
+           ) +
+  # geom_step(aes(x = length, y = height, #fill = length_type, 
+  #               group = length_type,
+  #              color = length_type),
+  #           direction = "mid", size = 0.5,
+  #           position = "identity",
+  #          alpha = 0.5) +
+  geom_hline(yintercept = 0) +
+  geom_vline(
+    data = bind_rows(
+      filter(mean_length_df, abn_threshold == "5", length_type == "all"),
+      filter(potential_mean_length_df, abn_threshold == "5", length_type == "potential")) %>%
+      mutate(site = fct_reorder(site, order)) %>%
+      group_by(length_type) %>% 
+      summarise(overall_mean = mean(mean_duration, na.rm = TRUE)),
+    mapping = aes(xintercept = overall_mean, color = length_type, 
+                  linetype = "Mean\nacross\nall sites")) +
+  scale_linetype_manual(values = c("Mean\nacross\nall sites" = "dashed")) +
+
+  geom_point(
+    data = bind_rows(
+      filter(mean_length_df, abn_threshold == "5", length_type == "all"),
+      filter(potential_mean_length_df, abn_threshold == "5", length_type == "potential")) %>%
+      mutate(site = fct_reorder(site, order)),
+    mapping = aes(y = 0, x = mean_duration, color = length_type),
+    inherit.aes = FALSE,
+    size = 3, alpha = 0.85) +
+  scale_alpha_manual(values=c(0.5))+
+  facet_grid(vars(site), scales = "free_x",
+             labeller = as_labeller(fancy_labels)
+             ) + 
+  scale_color_discrete(labels = c(all = "Observed",
+                                   potential = "Potential")) +  
+  theme_classic() + 
+  scale_y_continuous(
+    # breaks = c(0, 0.1, 0.2), labels = c("0", "0.1", "0.2")
+                     n.breaks = 3) + 
+  labs(y = "Proportion of abandonment periods by duration", 
+       x = "Abandonment duration (years)",
+       color = "Site-level \nmean of:", linetype = NULL, fill = NULL) +
+  
+  scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30), expand = c(0, 0)) +
+  
+  guides(color = guide_legend(order = 1, nrow = 2, 
+                              override.aes = list(linetype = 0)), 
+         linetype = guide_legend(order = 2, label.vjust = 0)) + 
+  coord_cartesian(clip = "off") +
+  theme(axis.line.x = element_blank(),
+        axis.text.y = element_text(vjust = 0.35, size = 6),
+        strip.text.y.right = element_text(size = 8, angle = 0, hjust = 0, vjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        plot.background = element_blank(),
+        panel.spacing = unit(1, "mm"),
+        panel.grid.major.x = element_line(),
+        legend.spacing.x = unit(0.5, "mm"),
+        legend.position = c(0.65, -0.155),
+        legend.direction = "horizontal",
+        legend.box = "horizontal",
+        plot.margin = margin(5, 0, 40, 5),
+        legend.background = element_blank(),
+        legend.box.just = "left",
+        legend.text.align = 0,
+        legend.title.align = 1)
+
+
+# save plot
+ggsave(plot = gg_fig2_manual_overlap_potential,
+       filename = paste0(p_plots, "/fig2_overlap_potential", run_label, ".pdf"), 
+    width = 3.5, height = 5, units = "in")
+
+```
+
+
+```{r man-fig2-recult}
+
+# save plot
+gg_fig2_manual_recult <-
+  recult_length_distill_df %>% 
+  bind_rows(
+    tibble(length = 0, freq = 0, site = site_df$site, length_type = "recult"),
+    tibble(length = 26, freq = 0, site = site_df$site, length_type = "recult")) %>%
+  left_join(mean_recult_length_df %>% filter(recult_threshold == 1)) %>%
+  mutate(height = freq / n_abn_periods,
+         site = fct_reorder(site, order)) %>%
+  
+  # plot
+  ggplot() + 
+  geom_col(aes(x = length, y = height, group = site),
+           fill = "gray70", color = "gray70") +
+  geom_step(aes(x = length, y = height, group = site),
+            direction = "mid", size = 0.5) +
+  geom_hline(yintercept = 0) +
+  geom_point(data = . %>% select(site, mean_duration, length_type) %>% unique(),
+             mapping = aes(y = 0, x = mean_duration, color = length_type),
+             inherit.aes = FALSE,
+             size = 3, alpha = 0.85) +
+  scale_alpha_manual(values=c(0.5))+
+  facet_grid(vars(site), scales = "free_x",
+             labeller = as_labeller(fancy_labels)
+             ) + 
+  theme_classic() + 
+  scale_y_continuous(
+    # breaks = c(0, 0.1, 0.2), labels = c("0", "0.1", "0.2")
+    n.breaks = 3
+                     ) + 
+  labs(y = "Proportion of abandonment periods by duration", 
+       x = "Recultivation duration (years)",
+       color = "Site-level \nmean of:", linetype = NULL) +
+  geom_vline(
+    data = . %>% select(site, mean_duration) %>% unique() %>% 
+      summarise(overall_mean = mean(mean_duration, na.rm = TRUE)),
+    mapping = aes(xintercept = overall_mean,
+                  linetype = "Mean across\nall sites"),
+    color = hue_pal()(3)[1]) +
+  
+  scale_linetype_manual(values = c("Mean across\nall sites" = "dashed")) +
+  scale_color_discrete(labels = c(recult = "All recultivation\nperiods")) +
+  
+  scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30), expand = c(0, 0)) +
+  guides(color = guide_legend(order = 1, nrow = 1, 
+                              override.aes = list(linetype = 0)), 
+         linetype = guide_legend(order = 2, nrow = 1)) + 
+  coord_cartesian(clip = "off") +
+  theme(axis.line.x = element_blank(),
+        axis.text.y = element_text(vjust = 0.35, size = 6),
+        strip.text.y.right = element_text(size = 8, angle = 0, hjust = 0, vjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        plot.background = element_blank(),
+        panel.spacing = unit(1, "mm"),
+        panel.grid.major.x = element_line(),
+        legend.spacing.x = unit(0.5, "mm"),
+        legend.position = c(0.6, -0.14),
+        legend.direction = "horizontal",
+        legend.box = "horizontal",
+        plot.margin = margin(5, 0, 33, 5),
+        legend.background = element_blank(),
+        legend.box.just = "left",
+        legend.text.align = 0,
+        legend.title.align = 1)
+
+  
+# save plot
+ggsave(plot = gg_fig2_manual_recult,
+       filename = paste0(p_plots, "/fig2_recult", run_label, ".pdf"), 
+    width = 3.5, height = 5, units = "in")
+
+```
 # Area abandoned
 
 ```{r total-cropland-extent}
@@ -1760,7 +2555,7 @@ area_recult_threshold <- lapply(c(5, 7, 10), function(i) {
               mutate(order = 1:n()) %>% select(site, order)
             )
 
-# note: the sum of the "initial area abandoned" values is higher than the "area ever abandoned" because some pixels were abandoned multiple times, and therefore show up more than once in the intial area abandoned. 
+# note: the sum of the "initial area abandoned" values is higher than the "area ever abandoned" because some pixels were abandoned multiple times (and recultivated multiple times), and therefore show up more than once in the initial area abandoned. 
 area_recult_threshold %>% 
   group_by(abn_threshold) %>%
   # filter(abn_threshold == 5) %>%
@@ -1793,21 +2588,43 @@ gg_recultivation <-
                      x = proportion_recultivated,
                      group = as_factor(abn_threshold), fill = as_factor(abn_threshold))) + 
   geom_col(position = position_dodge(), width = 0.6) +
-     scale_y_discrete(expand = c(0.02, 0),
+    
+    scale_y_discrete(expand = c(0.02, 0),
                       labels = fancy_labels) +
+
+  geom_vline(data = area_recult_threshold %>% 
+               group_by(abn_threshold) %>%
+               summarise(overall_mean = mean(proportion_recultivated, na.rm = TRUE)), 
+             mapping = aes(xintercept = overall_mean, 
+                           linetype = "Mean",
+                           color = as_factor(abn_threshold)),
+             show.legend = TRUE, #color = "black",
+             size = 0.75
+             ) + 
+  scale_linetype_manual(values = c("Mean" = "dashed"), labels = "Mean\nacross\nsites",
+                        name = NULL) +
+    scale_fill_viridis(discrete = TRUE) + 
+    scale_color_viridis(discrete = TRUE) + 
+    
+    # scale_fill_manual(values = viridis(n = 3)) + 
+    # scale_color_manual(values = viridis(n = 3)) + 
+
   theme_classic() + 
-  labs(x = "Proportion of abandoned lands \nrecultivated by 2017", y = "Site",
+  labs(x = "Proportion of abandoned lands recultivated by 2017", y = "Site",
        fill = "Abandonment\nthreshold") + 
   theme(#axis.text.y = element_blank(), axis.title.y = element_blank(),
         # plot.margin = margin(3, 6, 3, 15),
-        legend.position = c(0.83, 0.85),
+    legend.spacing.y = unit(1, "mm"),
+        legend.position = c(0.87, 0.75),
         legend.background = element_blank(),
         # legend.box.background = element_rect(colour = "black")
-        )
+        ) + 
+    guides(fill = guide_legend(override.aes = list(linetype = 0)),
+           color = "none")
 
 ggsave(plot = gg_recultivation,
        filename = paste0(p_plots, run_label, "/recultivation_rates_by_threshold", run_label, ".pdf"), 
-       width = 4.5, height = 4.5, units = "in")
+       width = 5.5, height = 4.5, units = "in")
 
 ```
 
@@ -1819,7 +2636,6 @@ See "cluster/4_lc_of_abn.R"
 
 ```{r}
 abn_lc_area_2017 <- read_csv(file = paste0(p_derived2, "abn_lc_area_2017", run_label, ".csv"))
-
 abn_prop_lc_2017 <- read_csv(file = paste0(p_derived2, "abn_prop_lc_2017", run_label, ".csv"))
 ```
 
@@ -2701,3 +3517,182 @@ lcc
 
 ```
 
+
+
+
+
+
+# sandbox for manuscript
+
+
+```{r get-decay-stats, include = FALSE}
+
+fitted_combo$type %>% unique()
+
+# update here
+# from endpoints_files.rds
+common_endpoint_dat
+endpoint_n
+coef_l3_endpoints
+augment_endpoints
+fitted_endpoints
+time_to_endpoints
+# exploration
+
+
+endpoint_half_lives_10_25_tmp %>%
+  slice_min(mean) %>% 
+  .$mean %>% floor()
+
+
+endpoint_half_lives_10_25_tmp %>%
+  filter(!grepl("bosnia", site)) %>%
+  slice_max(mean) %>% 
+  .$mean %>% ceiling() # wisconsin
+
+endpoint_half_lives %>%
+  filter(!grepl("bosnia", site)) %>%
+  arrange(desc(mean)) %>%
+  ggplot(mapping = aes(x = endpoint, y = mean#, group = site
+                       )) + 
+  geom_boxplot(notch = T) +
+  geom_jitter()
+
+endpoint_half_lives_10_25_tmp %>%
+  # filter(!grepl("bosnia", site)) %>%
+  .$mean %>% boxplot(notch = T)
+
+endpoint_half_lives %>%
+  filter(!grepl("bosnia", site), 
+         endpoint <= 25, endpoint >= 10) %>%
+  .$mean %>% mean() %>% round(digits = 2)
+
+endpoint_half_lives %>%
+  filter(grepl("bosnia", site)) %>% arrange(endpoint) %>%
+  filter(mean < 50)
+
+# shaanxi
+
+endpoint_half_lives %>%
+  filter(grepl("shaanxi", site)) %>%
+  .$mean %>% min()
+  # slice_min(mean)
+slice_max(mean)
+
+
+fitted_endpoints
+
+fitted_endpoints %>% filter(age == 20) %>%
+  left_join(endpoint_n, by = "endpoint") %>%
+  group_by(site, age) %>% 
+  summarise(median = median(proportion)) %>%
+  ggplot(aes(y = fct_reorder(site, median), 
+             # x = proportion,
+             x = median,
+             # group = endpoint, color = endpoint, size = total_obs
+             )) +
+  geom_point(position = position_dodge(0.7), alpha = 0.7) + 
+  scale_color_viridis(direction = -1)
+
+fitted_endpoints %>% filter(age == 20) %>% arrange(fitted) %>% slice_min(fitted) %>% .$fitted %>% round(digits = 4) * 100
+
+
+
+# ------------------------------------------------ #
+
+endpoint_half_lives_10_25_tmp <- 
+  endpoint_half_lives %>%
+  left_join(site_labels) %>%
+  filter(endpoint <= 25, endpoint >= 10)
+
+decay_stats <- list(
+  "hl_mean" = endpoint_half_lives %>%
+    filter(!grepl("bosnia", site), 
+           endpoint <= 25, endpoint >= 10) %>%
+    .$mean %>% mean() %>% round(digits = 2),
+  "hl_sd" = endpoint_half_lives %>%
+    filter(!grepl("bosnia", site), 
+           endpoint <= 25, endpoint >= 10) %>%
+    .$mean %>% sd() %>% round(digits = 2),
+  
+  "t0.5_min" = endpoint_half_lives_10_25_tmp %>%
+    slice_min(mean) %>% .$mean %>% floor(),
+  "t0.5_max" = endpoint_half_lives_10_25_tmp %>%
+    filter(!grepl("bosnia", site)) %>%
+    slice_max(mean) %>% .$mean %>% ceiling(),
+  
+  "t0.5_min_site" = endpoint_half_lives_10_25_tmp %>%
+    slice_min(mean) %>% .$site_long,
+  "t0.5_max_site" = endpoint_half_lives_10_25_tmp %>%
+    filter(!grepl("bosnia", site)) %>%
+    slice_max(mean) %>% .$site_long
+)
+
+# ---------------------------------------------------------------------- #
+# simple scenario without recultivation
+sum(potential_v_obs_2017_df$area_ha_Observed) / 
+  sum(potential_v_obs_2017_df$area_ha_Potential)
+
+```
+
+```{r carbon-stats, include = FALSE}
+endpoint_half_lives %>%
+  arrange(desc(mean)) %>% print (n =40)
+
+potential_v_obs_2017_df %>%
+  select(-c(site, site_long)) %>%
+  as.matrix() %>%
+  colSums(., dims = 1)/10^6
+
+potential_v_obs_2017_df %>%
+  summarise(total_area = sum(area_ha_Observed),
+             total_MgC = sum(Mg_C_Observed)) %>%
+  mutate(MgC_per_ha = total_MgC / total_area) %>%
+  .$total_MgC / 10^6
+
+round(100* sum(potential_v_obs_2017_df$Mg_C_Observed) / sum(potential_v_obs_2017_df$Mg_C_Potential), digits = 2)
+
+carbon_tmp <-
+  potential_v_obs_2017_df %>%
+  mutate(MgC_per_ha_Observed = Mg_C_Observed / area_ha_Observed,
+         MgC_per_ha_Potential = Mg_C_Potential / area_ha_Potential) %>%
+  arrange(MgC_per_ha_Observed) %>%
+  select(site, site_long, MgC_per_ha_Observed, MgC_per_ha_Potential)
+
+carbon_tmp
+carbon_tmp %>% filter(MgC_per_ha_Observed < 4) %>% .$site_long %>% cat(sep = "; ")
+
+carbon_tmp %>% filter(site == "goias") %>% .$MgC_per_ha_Observed %>% round(digits = 2)
+
+potential_v_obs_2017_df
+
+carbon_stats <- list(
+  "total_observed"
+)
+
+persistence_dat$bins <- factor(persistence_dat$bins, levels = levels(persistence_dat$bins)[c(5, 1, 2, 3, 4)])
+
+
+persistence_dat %>% filter(year == 2017) %>%
+  group_by(bins, site) %>%
+  summarise(area_ha = sum(area_ha)) %>%
+  left_join(area_dat %>% filter(grepl(">=5", lc), year == 2017) %>% 
+              rename(total = area_ha), by = "site") %>%
+  mutate(prop = area_ha/total) %>%
+  arrange(site)
+
+persistence_dat %>% filter(year == 2017, age >= 20) %>% group_by(site) %>%
+  summarise(area_ha = sum(area_ha)) %>%
+    left_join(area_dat %>% filter(grepl(">=5", lc), year == 2017) %>% 
+                rename(total = area_ha), by = "site") %>%
+  mutate(prop_over_20 = area_ha/total)
+
+
+
+
+site_forest_soc_combined$belarus$forest_soc_Y20 %>% plot()
+site_forest_soc_combined$belarus$forest_soc_YSS %>% plot()
+
+
+
+```
