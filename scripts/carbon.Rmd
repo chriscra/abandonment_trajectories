@@ -212,7 +212,7 @@ gg_ecoregions_by_site_2017 <-
   lapply(1:11, function(i){
     ggplot(data = site_ecoregions2017 %>% 
              filter(site == site_df$site[i]), 
-           aes(fill = str_wrap(ECO_NAME, 15))) +
+           aes(fill = str_wrap(ECO_NAME, 11))) +
       theme_classic() + 
       geom_sf() + 
       labs(fill = NULL) +
@@ -231,6 +231,15 @@ ggsave(plot =
              ncol = 4, nrow = 3),
        filename = paste0(p_plots, "ecoregions2017_by_site_wide.pdf"), 
     width = 15, height = 9, units = "in"
+)
+
+
+ggsave(plot = 
+         plot_grid(
+             plotlist = gg_ecoregions_by_site_2017, 
+             ncol = 3, nrow = 4),
+       filename = paste0(p_plots, "ecoregions2017_by_site_tall.pdf"), 
+    width = 9.5, height = 9.5, units = "in"
 )
 
 # save biomes
@@ -279,7 +288,58 @@ ggsave(plot =
            plot_grid(plotlist = gg_biomes2017_by_site, ncol = 4, nrow = 3),
            as_ggplot(biome2017_legend),
            nrow = 2, rel_heights = c(2, 0.2)),
-       filename = paste0(p_plots, "biomes2017_by_site.pdf"), 
+       filename = paste0(p_plots, "biomes2017_by_site2.pdf"), 
+    width = 7.5, height = 6.75, units = "in"
+)
+
+
+
+# ----------------------------------------------------------------------- #
+# save plot of forest, savanna, grassland biomes
+# ----------------------------------------------------------------------- #
+gg_biomes2017_for_nonfor <-
+  lapply(1:11, function(i){
+    ggplot(data = site_ecoregions2017 %>%
+    # st_drop_geometry() %>%
+    # select(site, ECO_NAME, BIOME_NAME) %>%
+    
+    mutate(grassland_mask = case_when(
+      grepl("Forest", BIOME_NAME) ~ "Forest",
+      # grepl("Savanna", BIOME_NAME) ~ "Savanna",
+      # grepl("Grassland", BIOME_NAME) ~ "Grassland",
+      TRUE ~ "Non-forest"
+      )) %>%
+    filter(site == site_df$site[i]) %>%
+    st_cast(), 
+           aes(fill = grassland_mask)) +
+      theme_classic() + 
+      geom_sf() + 
+      labs(fill = NULL) +
+      theme(legend.position = "none",
+            axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) + 
+      guides(fill = guide_legend(ncol = 1)) + 
+      scale_fill_manual(
+        values = c("Forest" = "#276419",
+                   # "Savanna" = "#D39200",
+                   # "Grassland" = "#619CFF",
+                   "Non-forest" = "#7FBC41"
+                   )
+        # values = biome2017_pal
+                        ) +
+      facet_wrap(vars(site), labeller = as_labeller(cap_update_labels))
+  })
+
+gg_biomes2017_for_nonfor_legend <- ggpubr::get_legend(gg_biomes2017_for_nonfor[[1]] + 
+                                     guides(fill = guide_legend(nrow = 1)) +
+                                     theme(legend.position = "bottom"))
+
+
+ggsave(plot = 
+         plot_grid(
+           plot_grid(plotlist = gg_biomes2017_for_nonfor, ncol = 4, nrow = 3),
+           as_ggplot(gg_biomes2017_for_nonfor_legend),
+           nrow = 2, rel_heights = c(2, 0.2)),
+       filename = paste0(p_plots, "biomes2017_forest_nonforest.pdf"), 
     width = 7.5, height = 6.75, units = "in"
 )
 
@@ -1259,50 +1319,6 @@ plot(site_soc_accumulation[[9]], 28:31)
 
 
 
-```{r basic-plots}
-input <- "site_forest_soc_combined_per_pixel"
-i <- 9
-
-for (input in c(
-  # "site_forest_c_abg_30", "site_forest_c_blg_30",
-  # "site_soils_rw_Y20_30",
-  # "site_soils_rw_YSS_30",
-  # "site_savanna_mask"
-  "site_forest_soc_combined",   "site_forest_soc_combined_per_pixel"
-    # "site_forest_c_accumulation", "site_soc_accumulation"
-  )) {
-  pdf(file = paste0(p_output, "plots/", run_label, "/carbon/",
-                    gsub("site_", "", input), "_YSS",# "_annual",
-                    run_label, ".pdf"),
-      width = 7, height = 6)
-  
-  par(mfrow = c(3, 4), 
-      # mar=c(0,0,0,0), 
-      oma=c(1,1,0,0), 
-      adj = 0,
-      cex.main = 1#,
-      # tcl = -0.2
-      )
-  
-  for (i in 1:11) {
-    terra::plot(
-      get(eval(input))[[i]][[2]],#/80,#[[31]], 
-      type = ifelse(input == "site_savanna_mask", "classes", "continuous"),
-      col = viridis(n = 10, direction = -1), 
-      colNA = "gray95",
-      main = new_titles[i],
-      cex = 1, # controls title sizes
-      # mar = c(mval+0.5, mval, mval + 1.2, mval) # bltr 
-      mar = c(1, 1.5, 3, 3)
-       )
-  
-  }
-  
-  dev.off()
-
-}
-```
-
 
 ```{r plot-soils.revealed-expl}
 site_soils_revealed_all[9] %>% names()
@@ -1566,6 +1582,8 @@ soils_rw_Y20 <- rast(paste0(p_dat, "soil/soils_revealed/scenario_rewilding_dSOC_
 soils_rw_YSS <- rast(paste0(p_dat, "soil/soils_revealed/scenario_rewilding_dSOC_YSS.tif"))
 soils_lc <- rast(paste0(p_dat, "soil/soils_revealed/lc_ipcc.tif"))
 
+soils_rw_Y20 %>% res() %>% .[1] * 110000 # meters
+forest_c_abg %>% res() %>% .[1] * 110000
 
 
 # crop, resample
@@ -1651,6 +1669,22 @@ site_soils_rw_YSS_30_cropland <- lapply(1:11, function(i) {
 
 names(site_soils_rw_Y20_30_cropland) <- site_df$site
 names(site_soils_rw_YSS_30_cropland) <- site_df$site
+
+plot(site_soils_rw_Y20_30_cropland[[9]])
+```
+
+
+
+```{r calc-diff-80-20}
+site_indx <- 3
+plot(c(site_soils_rw_Y20_30_cropland[[site_indx]], 
+       site_soils_rw_YSS_30_cropland[[site_indx]]))
+
+sct <- site_soils_rw_YSS_30_cropland[[site_indx]] - site_soils_rw_Y20_30_cropland[[site_indx]]
+
+plot(sct)
+global(sct, fun = "mean", na.rm = TRUE) %>% as.numeric() / 60
+
 ```
 
 
@@ -1668,8 +1702,16 @@ soc_mean <- lapply(c("site_soils_rw_Y20_30_cropland", "site_soils_rw_YSS_30_crop
   mutate(
     timespan = 
       case_when(grepl("Y20", type) ~ 20,
-                grepl("YSS", type) ~ 80),
-    mean_annual_soc = mean_soc/timespan)
+                grepl("YSS", type) ~ 80)) %>% 
+  
+  # pivot wider, in order to flexibly calculate annual soc sequestration rate.
+  pivot_wider(id_cols = site, values_from = mean_soc, 
+              names_prefix = "mean_soc_",
+              names_from = timespan) %>%
+  mutate(mean_annual_soc_1_20 = mean_soc_20 / 20, # calculate a rate for the first 20 years, &
+         
+         # Calculate rate for years 21-80: (YSS - Y20) / (80 - 20)
+         mean_annual_soc_21_80 = (mean_soc_80 - mean_soc_20) / (80 - 20))
 
 soc_mean
 
@@ -1681,6 +1723,7 @@ write_csv(soc_mean, file = paste0(p_derived2, "soc_mean.csv"))
 # ---------------------------------------------------------------- #
 # add this mean value to a spatraster, to then mask and combine with the forest carbon layer.
 # ---------------------------------------------------------------- #
+
 lapply(1:11, function(i) {
   site_mean_soc <- rast(
     resolution = terra::res(lcc[[i]]),
@@ -1689,13 +1732,13 @@ lapply(1:11, function(i) {
   
   values(site_mean_soc[[1]]) <- 
     soc_mean %>% 
-    filter(site == site_df$site[i], timespan == 20) %>% 
-    .$mean_annual_soc
+    filter(site == site_df$site[i]) %>% 
+    .$mean_annual_soc_1_20
   
   values(site_mean_soc[[2]]) <- 
     soc_mean %>% 
-    filter(site == site_df$site[i], timespan == 80) %>% 
-    .$mean_annual_soc
+    filter(site == site_df$site[i]) %>% 
+    .$mean_annual_soc_21_80
   
   names(site_mean_soc) <- c("Y20", "YSS")
   
@@ -1719,7 +1762,6 @@ site_mean_soc <- lapply(1:11, function(i) {
 names(site_mean_soc) <- site_df$site
 
 # With this mean value, then I multiply this value by the age of abandoned cropland
-soc_mean %>% arrange(site) %>% print(n = 22)
 ```
 
 
@@ -1872,18 +1914,6 @@ site_soc_masked <- lapply(1:11, function(i) {
 })
 
 names(site_soc_masked) <- site_df$site
-
-
-# plot
-i <- 9
-plot(site_forest_c_total[[i]])
-plot(site_forest_c_masked[[i]], range = minmax(site_forest_c_total[[i]])[, 1])
-plot(site_savanna_mask[[i]])
-
-plot(site_mean_soc[[i]])
-plot(site_soc_masked[[i]])
-
-
 ```
 
 ```{r combine-forest-soc}
@@ -1928,7 +1958,11 @@ names(site_forest_soc_combined_per_pixel) <- site_df$site
 ```
 
 
-## Multiply accumulation rate layers by age time series
+## Calculate total C accumulation
+
+See script: 6_carbon.R
+
+### Using {terra} for final carbon calculation
 
 ```{r separate-age-t}
 # Note: The first 20 years experience an annual rate based on Y20 (/20), and each year after that experiences an annual rate calculated from YSS (/80).
@@ -2076,6 +2110,7 @@ lapply(1:11, function(i){
   })
 
 
+
 site_total_c_accumulation <- lapply(1:11, function(i) {
   rast(paste0(p_dat_derived, "carbon/",
               site_df$site[i], "_total_c_accumulation", run_label, ".tif"))
@@ -2090,227 +2125,146 @@ names(site_total_c_accumulation) <- site_df$site
 names(site_potential_total_c_accumulation) <- site_df$site
 
 
+for (i in seq_along(site_total_c_accumulation)) {names(site_total_c_accumulation[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
 for (i in seq_along(site_potential_total_c_accumulation)) {names(site_potential_total_c_accumulation[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
 
-for (i in seq_along(site_total_c_accumulation)) {names(site_total_c_accumulation[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
 
 
 i <- 9
 
 plot(site_potential_total_c_accumulation[[i]], 28:31)
+
+plot(age_t[[9]], 31)
+plot(lcc[[9]], 31, type = "classes",
+     col = lc_plot_cols$color, levels = lc_plot_cols$name)
+
+plot(site_total_c_accumulation[[9]], 31)
 ```
 
-## data.table
+```{r greater-than-5-terra-2017}
 
-A new issue: how do I exclude the carbon stored in uncultivated croplands that are less than 5 years, and therefore, not technically considered to be abandoned by our abandonment definition?
-Strictly speaking, our current carbon estimate is an overestimate of the carbon stored in abandoned croplands, because it includes carbon sequestration in fallow periods that last between 1-4 years.
-This isn't likely to be much, but it's something.
+plot(site_total_c_accumulation[[9]], 31)
 
-So, my new approach is to exclude carbon sequestration in abandoned croplands that are younger than 5 years. 
-Ideally, I'd be able to remove periods of <5 years, but that would involve some tricky data.table wrangling, and the area statistics I report in the rest of the paper are restricted to >=5 years.
+plot(age_up_to_20[[i]][["y2017"]])
+plot(age_5_to_20, colNA = "black")
 
-```{r convert-total-c-to-dt}
-
-site_forest_soc_combined_per_pixel[[9]]
-
-total_c_seq_rate_dt <- spatraster_to_dt(site_forest_soc_combined_per_pixel[[9]])
-
-i
-site_df$site[i]
-
-# save as a parquet file
-write_parquet(x = total_c_seq_rate_dt, paste0(p_dat_derived, "carbon/", site_df$site[i],
-                                              "_forest_soc_combined_per_pixel.parquet"))
-toc()
-
-total_c_seq_rate_dt <- read_parquet(file = paste0(p_dat_derived, "carbon/", site_df$site[i],
-                                           "_forest_soc_combined_per_pixel.parquet"))
-
-colnames(total_c_seq_rate_dt) <- c("x", "y", "Y20", "YSS")
-max_age_dt
-total_c_seq_rate_dt
-age_dt
-
-```
-
-```{r combine-terra}
-
-mdt2 <- spatraster_to_dt(c(age_t[[9]], site_forest_soc_combined_per_pixel[[9]]))
-setnames(mdt2, old = "forest_soc_Y20_per_pixel", new = "Y20")
-setnames(mdt2, old = "forest_soc_YSS_per_pixel", new = "YSS")
+age_5_to_20 <- rast(paste0(p_dat_derived, "age_rasters/", run_label, "/separated/",
+                      site_df$site[i], "_age_5_to_20", run_label, ".tif"))
 
 
+# first, extract just the age of 5-20: for both observed and potential
 
-```
+lapply(1:11, function(i){
+  # reclassify to get age of abandonment >= 5 years.
+  terra::classify(
+    age_up_to_20[[i]]$y2017,
+    rcl = tibble(from = 0, to = 4, becomes = NA),
+    othersNA = FALSE, include.lowest = TRUE, right = TRUE,
+    filename = paste0(p_dat_derived, "age_rasters/", run_label, "/separated/",
+                      site_df$site[i], "_age_5_to_20", run_label, ".tif"),
+    overwrite = TRUE
+    )
+})
 
-
-```{r merge-combined-c-to-age}
-age_dt
-total_c_seq_rate_dt
-
-# round x and y columns to deal with floating point imprecision:
-round_digits1 <- 8
-age_dt[, ':='(x = round(x, round_digits1), 
-              y = round(y, round_digits1))]
-lc_dt[, ':='(x = round(x, round_digits1), 
-              y = round(y, round_digits1))]
-total_c_seq_rate_dt[, ':='(x = round(x, round_digits1), 
-                           y = round(y, round_digits1))]
-tic()
-mdt <- merge(
-  x = age_dt,#[, c("x", "y", paste0("y", 2010:2017))], 
-  y = total_c_seq_rate_dt, 
-  all.x = FALSE, 
-  by = c("x", "y"), sort = FALSE
-  )
-toc()
-
-nrow(lc_dt)
-nrow(total_c_seq_rate_dt)
-nrow(age_dt)
-nrow(mdt)
-
-mdt_r <- dt_to_raster(mdt, crs("+proj=longlat +datum=WGS84 +no_defs"))
-writeRaster(mdt_r, paste0(p_tmp, "mdt.tif"))
-mdt_r <- terra::rast(paste0(p_tmp, "mdt.tif"))
-plot(mdt_r)
-```
+lapply(1:11, function(i){
+  # reclassify to get age of abandonment >= 5 years (potential)
+  terra::classify(
+    potential_age_up_to_20[[i]]$y2017,
+    rcl = tibble(from = 0, to = 4, becomes = NA),
+    othersNA = FALSE, include.lowest = TRUE, right = TRUE,
+    filename = paste0(p_dat_derived, "age_rasters/", run_label, "/separated/",
+                      site_df$site[i], "_potential_age_5_to_20", run_label, ".tif"),
+    overwrite = TRUE
+    )
+})
+ 
 
 
-```{r exclude-age<5}
-
-# first, confirm that the data.table approach yields the same result as with terra
-i <- 9
-mdt
-total_carbon_df
-cvals0 <- 
-  site_carbon_df %>% 
-  filter(site == site_df$site[i],
-         year %in% 2010:2015, type == "Observed") %>%
-  .$total_c_Mg
-
-my_year <- "y2011"
-
-cvals <- sapply(paste0("y", 1987:2017), function(my_year) {
-  mdt[get(my_year) >= 5 & get(my_year) < 21, sum(get(my_year) * Y20)] + 
-  mdt[get(my_year) >= 21, sum(get(my_year) * YSS)]})
-
-
-site_carbon_df %>% 
-  filter(site == site_df$site[i],
-         # year %in% 2010:2017,
-         type == "Observed") %>%
-  mutate(new = cvals,
-         pdiff = (new - total_c_Mg) / total_c_Mg)
-
-abandonment_threshold <- 5
-
-new_cdf <- cc_calc_carbon_accumulation(age_dt = mdt2, site = "shaanxi")
-new_cdf1 <- cc_calc_carbon_accumulation(age_dt = mdt2, site = "shaanxi", abandonment_threshold = 1)
-
-
-cc_calc_carbon_accumulation <- function(age_dt, site,
-                                        years_covered = 1987:2017,
-                                        abandonment_threshold = 5) {
-  carbon_df <- tibble(
-    year = years_covered,
-    C_up_to_20 = sapply(paste0("y", year), function(my_year) {
-      age_dt[get(my_year) >= abandonment_threshold & 
-               get(my_year) < 21, sum(get(my_year) * Y20)]
-      }),
-    C_21_30 = sapply(paste0("y", year), function(my_year) {
-      age_dt[get(my_year) >= 21, sum(get(my_year) * YSS)]
-      }),
-    total_c_Mg = C_up_to_20 + C_21_30,
-         site = site,
-         type = paste0(">=", abandonment_threshold))
+# ------------------------------------------------------------ #
+# now calculate the total accumulation in 2017 (observed and potential)
+# ------------------------------------------------------------ #
+lapply(1:11, function(i){
+  # calculate total accumulation in 2017, constraining to only abandonment >= 5 years.
   
-  carbon_df
-}
+  age_5_to_20_tmp <- rast(paste0(p_dat_derived, "age_rasters/", run_label, "/separated/",
+                                 site_df$site[i], "_age_5_to_20", run_label, ".tif"))
+  
+  total_c_accumulation_5_2017 <- 
+    age_5_to_20_tmp * site_forest_soc_combined_per_pixel[[i]]$forest_soc_Y20_per_pixel + 
+    age_21_plus[[i]]$y2017 * site_forest_soc_combined_per_pixel[[i]]$forest_soc_YSS_per_pixel
 
-new_cdf 
-new_cdf2
-
-new_cdf2 <- 
-  rbind(
-    site_carbon_df %>% filter(site == site_df$site[i]),
-  tibble(year = 1987:2017,
-       total_c_Mg = sapply(paste0("y", year), function(my_year) {
-         mdt[get(my_year) >= 5 & get(my_year) < 21, sum(get(my_year) * Y20)] + 
-           mdt[get(my_year) >= 21, sum(get(my_year) * YSS)]}),
-       site = "shaanxi",
-       type = ">=5"
-       ),
-  tibble(year = 1987:2017,
-       total_c_Mg = sapply(paste0("y", year), function(my_year) {
-         mdt[get(my_year) >= 1 & get(my_year) < 21, sum(get(my_year) * Y20)] + 
-           mdt[get(my_year) >= 21, sum(get(my_year) * YSS)]}),
-       site = "shaanxi",
-       type = ">=1"
-       ))
-
-
-
-new_cdf
-
-
-ggplot(data = rbind(site_carbon_df %>% filter(site == site_df$site[9]), 
-                    new_cdf %>% select(year, total_c_Mg, site, type),
-                    new_cdf1 %>% select(year, total_c_Mg, site, type)), 
-         mapping = aes(x = year, y = total_c_Mg / 10^6, 
-                       color = type)) +
-  geom_line(#size = 1.5, 
-            # col = brewer_pal(palette = "Greens")(7)[c(6)]
-            ) + 
-  labs(x = "Year", 
-       y = expression("Carbon Accumulated in Abandoned Croplands  (10"^{6}*" Mg C)"),
-       linetype = "Scenario"
-       ) +
-  theme_classic() + 
-  theme(legend.position = c(0.88, 0.11),
-        legend.title = element_text(size = 9),
-        legend.spacing = unit(-1, units = "mm"),
-        legend.background = element_blank()
-        # legend.box.background = element_rect(colour = "black")
-        ) +
-  # guides(linetype = guide_legend(nrow = 2)) +
-    facet_wrap(vars(site), scales = "free", labeller = as_labeller(fancy_labels))
-
-
-# terra:
-global(site_total_c_accumulation[[i]][["y2010"]],
-       fun = "sum", na.rm = TRUE) %>% 
-    as_tibble() %>% 
-    rownames_to_column(var = "year") %>%
-    mutate(#year = gsub("y", "", year),
-           site = site_df$site[i]
-           )
-
-
-
-cdf2 <- sapply(grep('V', colnames(tdt), value = TRUE), function(i) {  
-  # subset rows that are greater than or equal to 5 (i.e., surpassing the abandonment threshold) and
-  # sum the column age values multiplied by the carbon accumulation rate
-  tdt[get(i) >= 5, sum(get(i) * M)] 
+  terra::writeRaster(total_c_accumulation_5_2017,
+                     filename = paste0(p_dat_derived, "carbon/", 
+                                       site_df$site[i], "_total_c_accumulation_5_2017", run_label,".tif"),
+                     overwrite = TRUE)
+  
+  terra::tmpFiles(current=TRUE, orphan=TRUE, old=TRUE, remove=TRUE)
   })
 
 
-mdt
-rm(tdt)
-tdt <- data.table::copy(mdt)
 
-indx <- grep('inc', colnames(tdt))
+lapply(1:11, function(i){
+  # calculate potential total accumulation in 2017, constraining to only abandonment >= 5 years.
+  
+  potential_age_5_to_20_tmp <- rast(paste0(p_dat_derived, "age_rasters/", run_label, "/separated/",
+                                 site_df$site[i], "_potential_age_5_to_20", run_label, ".tif"))
+  
+  potential_total_c_accumulation_5_2017 <- 
+    potential_age_5_to_20_tmp * site_forest_soc_combined_per_pixel[[i]]$forest_soc_Y20_per_pixel + 
+    potential_age_21_plus[[i]]$y2017 * site_forest_soc_combined_per_pixel[[i]]$forest_soc_YSS_per_pixel
 
-for(j in indx){
- set(DT, i=NULL, j=j, value=DT[[j]]*DT[['deflator']])
-}
-head(DT,2)
+  terra::writeRaster(potential_total_c_accumulation_5_2017,
+                     filename = paste0(p_dat_derived, "carbon/", 
+                                       site_df$site[i], "_potential_total_c_accumulation_5_2017", run_label,".tif"),
+                     overwrite = TRUE)
+  
+  terra::tmpFiles(current=TRUE, orphan=TRUE, old=TRUE, remove=TRUE)
+  })
+
+
+# ------------------------------------------------------------ #
+# load back in
+# ------------------------------------------------------------ #
+
+# Observed
+total_c_accumulation_5_2017 <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/", site_df$site[i], 
+              "_total_c_accumulation_5_2017", run_label,".tif"))
+})
+
+# Potential
+potential_total_c_accumulation_5_2017 <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "carbon/", site_df$site[i], 
+              "_potential_total_c_accumulation_5_2017", run_label,".tif"))
+})
+
+names(total_c_accumulation_5_2017) <- site_df$site
+names(potential_total_c_accumulation_5_2017) <- site_df$site
+
+
+
+# sum to test
+site_carbon_df %>%
+  filter(threshold == 5, year == 2017, type == "Observed") %>%
+  mutate(test = sapply(1:11, function(i) {
+    global(total_c_accumulation_5_2017[[i]], fun = "sum", na.rm = TRUE) %>% .$sum
+    }),
+    eq = all.equal(total_C_Mg, test)
+    )
+# confirmed! They're equal.
+
+site_carbon_df %>%
+  filter(threshold == 5, year == 2017, type == "Potential") %>%
+  mutate(test = sapply(1:11, function(i) {
+    global(potential_total_c_accumulation_5_2017[[i]], fun = "sum", na.rm = TRUE) %>% .$sum
+    }),
+    eq = all.equal(total_C_Mg, test)
+    )
+# confirmed! They're equal.
+
 
 ```
 
-
-
-## Summarize results
 
 ```{r summarize-combined-raster}
 
@@ -2370,7 +2324,30 @@ write_csv(site_carbon_df,
 site_carbon_df_t <- read_csv(file = paste0(p_derived2, "/site_carbon_df_t.csv"))
 ```
 
-```{r plot-carbon}
+### Using {data.table} for final carbon calculation
+
+One issue with the {terra} code above: how do I exclude the carbon stored in uncultivated croplands that are less than 5 years, and therefore, not technically considered to be abandoned by our abandonment definition?
+Strictly speaking, the carbon estimate with {terra} is an overestimate of the carbon stored in abandoned croplands, because it includes carbon sequestration in fallow periods that last between 1-4 years.
+This isn't likely to be much, but it's something.
+
+So, our new approach is to exclude carbon sequestration in abandoned croplands that are younger than 5 years. 
+(Ideally, I'd be able to remove periods of <5 years, but that would involve some tricky data.table wrangling, and the area statistics I report in the rest of the paper are restricted to >=5 years.)
+
+See "scripts/cluster/6_carbon.R".
+This script does the following:
+1. loads the combined forest and SOC layer and max_age rasters,
+2. applies the custom function "cc_calc_carbon_accumulation()", which:
+a. loads the input age data.table (either "_age" or "_potential_age"),
+b. converts the carbon accumulation layer and the max_age rasters to data.tables
+c. masks the carbon data.table by max_age
+d. combines this masked carbon layer with the input age data.table
+e. and finally calculates the total carbon accumulated in each year by variably applying the 1-20 year annual accumulation rates and the 21-30 year annual accumulation rates.
+
+
+```{r compare-approaches}
+
+# first, confirm that the data.table approach yields the same result as with terra
+
 
 # final version
 site_carbon_df <- read_csv(file = paste0(p_derived2, "/carbon_df", run_label,".csv"))
@@ -2443,7 +2420,112 @@ ggsave(plot = gg_carbon_comparison,
 
 ```
 
+## Save basic plots
 
+```{r basic-plots}
+input <- "site_forest_soc_combined_per_pixel"
+i <- 9
+
+for (input in c(
+  # "site_forest_c_abg_30", "site_forest_c_blg_30",
+  # "site_soils_rw_Y20_30",
+  # "site_soils_rw_YSS_30",
+  # "site_savanna_mask"
+  "site_forest_soc_combined",   "site_forest_soc_combined_per_pixel"
+  # "site_forest_c_accumulation", "site_soc_accumulation"
+  )) {
+  pdf(file = paste0(p_output, "plots/", run_label, "/carbon/",
+                    gsub("site_", "", input), "_YSS",# "_annual",
+                    run_label, ".pdf"),
+      width = 7, height = 6)
+  
+  par(mfrow = c(3, 4), 
+      # mar=c(0,0,0,0), 
+      oma=c(1,1,0,0), 
+      adj = 0,
+      cex.main = 1#,
+      # tcl = -0.2
+      )
+  
+  for (i in 1:11) {
+    terra::plot(
+      get(eval(input))[[i]][[2]],#/80,#[[31]], 
+      type = ifelse(input == "site_savanna_mask", "classes", "continuous"),
+      col = viridis(n = 10, direction = -1), 
+      colNA = "gray95",
+      main = new_titles[i],
+      cex = 1, # controls title sizes
+      # mar = c(mval+0.5, mval, mval + 1.2, mval) # bltr 
+      mar = c(1, 1.5, 3, 3)
+       )
+  
+  }
+  dev.off()
+}
+
+
+for (input in c(
+  "site_forest_soc_combined",   "site_forest_soc_combined_per_pixel"
+  )) {
+  pdf(file = paste0(p_output, "plots/", run_label, "/carbon/",
+                    gsub("site_", "", input), 
+                    # "_Y20",
+                    "_YSS",
+                    run_label, ".pdf"),
+      width = 7, height = 6)
+  
+  par(mfrow = c(3, 4), 
+      oma=c(1,1,0,0), 
+      adj = 0,
+      cex.main = 1)
+  
+  for (i in 1:11) {
+    terra::plot(
+      get(eval(input))[[i]][[2]],
+      type = ifelse(input == "site_savanna_mask", "classes", "continuous"),
+      col = viridis(n = 10, direction = -1), 
+      colNA = "gray95",
+      main = new_titles[i],
+      cex = 1, # controls title sizes
+      # mar = c(mval+0.5, mval, mval + 1.2, mval) # bltr 
+      mar = c(1, 1.5, 3, 3)
+       )
+  
+  }
+  dev.off()
+}
+
+
+for (input in c(
+  "total_c_accumulation_5_2017", "potential_total_c_accumulation_5_2017"
+  )) {
+  pdf(file = paste0(p_output, "plots/", run_label, "/carbon/",
+                    input, run_label, ".pdf"),
+      width = 7, height = 6)
+  
+  par(mfrow = c(3, 4), 
+      # mar=c(0,0,0,0), 
+      oma=c(1,1,0,0), 
+      adj = 0,
+      cex.main = 1#,
+      # tcl = -0.2
+      )
+  
+  for (i in 1:11) {
+    terra::plot(
+      get(eval(input))[[i]],
+      type = ifelse(input == "site_savanna_mask", "classes", "continuous"),
+      col = viridis(n = 10, direction = -1), 
+      colNA = "gray95",
+      main = new_titles[i],
+      cex = 1, # controls title sizes
+      # mar = c(mval+0.5, mval, mval + 1.2, mval) # bltr 
+      mar = c(1, 1.5, 3, 3.5)
+       )
+  }
+  dev.off()
+}
+```
 ## Extra
 
 
