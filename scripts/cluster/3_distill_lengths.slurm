@@ -8,7 +8,7 @@
 #SBATCH --mem-per-cpu=60G			                            # memory per cpu-core (4 GB is default).
 #SBATCH --mail-type=all				                            
 #SBATCH --mail-user=clc6@princeton.edu
-#SBATCH --output=slurm/slurm_out_%x_%A_%a.txt             # "%x" = job name, "%A" = job ID, "%a" = array index
+#SBATCH --output=slurm_out/%x_%A_%a.txt             # "%x" = job name, "%A" = job ID, "%a" = array index
 
 
 echo "Executing on the machine:" $(hostname)
