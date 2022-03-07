@@ -112,8 +112,9 @@ cap_update_labels <- function(string) {
 # or scale_y_discrete(labels = cap_update_labels)
 
 # ------------------------ #
-# capitalize site labels & and add breaks
+# capitalize site labels & and add breaks ----
 # ------------------------ #
+# update site labels
 
 fancy_labels <- c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
                   "bosnia_herzegovina" = "Bosnia &\nHerzegovina",
@@ -127,6 +128,24 @@ fancy_labels <- c("belarus" = "Vitebsk, Belarus /\nSmolensk, Russia",
                   "volgograd" = "Volgograd, Russia",
                   "wisconsin" = "Wisconsin, USA")
 
+long_labels <- c("belarus" = "Vitebsk, Belarus / Smolensk, Russia",
+                 "bosnia_herzegovina" = "Bosnia & Herzegovina",
+                 "chongqing" = "Chongqing, China",
+                 "goias" = "Goiás, Brazil",
+                 "iraq" = "Iraq",
+                 "mato_grosso" = "Mato Grosso, Brazil",
+                 "nebraska" = "Nebraska/Wyoming, USA",
+                 "orenburg" = "Orenburg, Russia / Uralsk, Kazakhstan",
+                 "shaanxi" = "Shaanxi/Shanxi, China",
+                 "volgograd" = "Volgograd, Russia",
+                 "wisconsin" = "Wisconsin, USA")
+
+site_labels <- 
+  tibble(
+    site = names(long_labels),
+    site_long = long_labels,
+    # fancy = fancy_labels,
+  )
 
 
 

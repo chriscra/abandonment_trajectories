@@ -447,7 +447,7 @@ habitat_age_req <- read_csv(file = paste0(p_derived, "iucn_habitat_age_req.csv")
 # ------------------- Carbon ---------------------  
 # ------------------------------------------------------------ # 
 site_carbon_df <- read_csv(file = paste0(p_derived2, "/carbon_df", run_label,".csv"))
-
+# site_carbon_df_terra <- read_csv(file = paste0(p_derived2, "/carbon_df_terra.csv"))
 
 # ----------------------- #
 # ---- forest carbon ---- #
