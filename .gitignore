@@ -9,6 +9,7 @@ scripts/cluster/old/
 scripts/cluster/slurm_out/
 scripts/ref/
 scripts/verbose_backups/
+presentations/
 writing/
 
 # specific files to ignore
