@@ -880,6 +880,13 @@ endpoint_half_lives %>%
   summary(mean)
 
 decay_stats <- list(
+  "hl_min" = endpoint_half_lives_10_25_tmp %>%
+    filter(!grepl("bosnia", site)) %>%
+    .$mean %>% min() %>% round(digits = 2),
+  "hl_max" = endpoint_half_lives_10_25_tmp %>%
+    filter(!grepl("bosnia", site)) %>%
+    .$mean %>% max() %>% round(digits = 2) %>% format(nsmall = 2),
+  
   "hl_mean" = endpoint_half_lives %>%
     filter(!grepl("bosnia", site), 
            endpoint <= 25, endpoint >= 10) %>%
@@ -888,13 +895,6 @@ decay_stats <- list(
     filter(!grepl("bosnia", site), 
            endpoint <= 25, endpoint >= 10) %>%
     .$mean %>% sd() %>% round(digits = 2),
-  
-  "hl_min" = endpoint_half_lives_10_25_tmp %>%
-    filter(!grepl("bosnia", site)) %>%
-    .$mean %>% min() %>% round(digits = 2),
-  "hl_max" = endpoint_half_lives_10_25_tmp %>%
-    filter(!grepl("bosnia", site)) %>%
-    .$mean %>% max() %>% round(digits = 2),
   
   "hl_q1" = endpoint_half_lives_10_25_tmp %>%
     filter(!grepl("bosnia", site)) %>%
@@ -1033,7 +1033,7 @@ For comparison, these observed mean abandonment durations were much shorter than
 Compared to their potential values, our observed mean durations declined by between `r potential_abn_duration_stats$p_diff_min`% (`r potential_abn_duration_stats$p_diff_min_site`) and `r potential_abn_duration_stats$p_diff_max`% (`r potential_abn_duration_stats$p_diff_max_site`).
 Observed abandonment duration also varied substantially within sites, with individual site standard deviations ranging from `r abn_duration_stats$sd_min` (`r abn_duration_stats$sd_min_site`) to `r abn_duration_stats$sd_max` years (`r abn_duration_stats$sd_max_site`), for an average of `r abn_duration_stats$mean_of_sds_duration` years across all sites.
 We also found that recultivation at most sites was usually short-term, lasting `r recult_duration_stats$mean_of_means_duration` years on average (SD = `r recult_duration_stats$sd_of_mean_duration`).
-`r recult_duration_stats$duration_max_site`, had a mean recultivation length of `r recult_duration_stats$duration_max` years, whereas recultivation at the other sites lasted between `r recult_duration_stats$duration_min` and `r recult_duration_stats$duration_2nd_highest` years; see Fig. \@ref(fig:mean-recult-duration)).
+`r recult_duration_stats$duration_max_site`, had a mean recultivation length of `r recult_duration_stats$duration_max` years, whereas recultivation at the other sites lasted between `r recult_duration_stats$duration_min` and `r recult_duration_stats$duration_2nd_highest` years (Fig. \@ref(fig:mean-recult-duration)).
 
 ## Estimated carbon sequestration in abandoned croplands {.unnumbered}
 
@@ -1043,7 +1043,7 @@ However, this was only `r carbon_stats$total_diff`% of the `r carbon_stats$total
 At individual sites, recultivation reduced estimated carbon accumulation by between `r potential_v_obs_stats$min_carbon_diff`% and `r potential_v_obs_stats$max_carbon_diff`% by 2017 (Fig. \@ref(fig:carbon-over-time)).
 
 Carbon sequestration potential was not equally distributed across our sites (Figs. \@ref(fig:carbon-map-2017-observed)-\@ref(fig:carbon-map-2017-potential)), due partially to differences between sites in the age distribution of abandoned croplands, but more substantially to differences between forest and non-forest biomes (Figs. \@ref(fig:site-biomes)-\@ref(fig:site-ecoregions); annual carbon accumulation rates are shown in Figs. \@ref(fig:carbon-map-Y20-rate)-\@ref(fig:carbon-map-YSS-rate)).
-Sites in largely non-forest biomes (`r carbon_tmp %>% filter(MgC_per_ha_Observed < 4) %>% .$site_long %>% paste0(collapse = "; ")`) accumulated much less carbon per hectare by 2017 (<3.50 Mg C per ha, on average) than sites in forest biomes (`r carbon_tmp %>% filter(MgC_per_ha_Observed > 10) %>% .$site_long %>% paste0(collapse = "; ")`), which accumulated `r carbon_stats$MgC_for_min` - `r carbon_stats$MgC_for_max` Mg C per ha on average (Table \@ref(tab:carbon-table), Fig \@ref(fig:carbon-per-ha)).
+Sites in largely non-forest biomes accumulated much less carbon per hectare by 2017 (<3.50 Mg C per ha, on average, at `r carbon_tmp %>% filter(MgC_per_ha_Observed < 4) %>% .$site_long %>% paste0(collapse = "; ")`) than sites in forest biomes, which accumulated `r carbon_stats$MgC_for_min` - `r carbon_stats$MgC_for_max` Mg C per ha on average (`r carbon_tmp %>% filter(MgC_per_ha_Observed > 10) %>% .$site_long %>% paste0(collapse = "; ")`; see Table \@ref(tab:carbon-table), Fig \@ref(fig:carbon-per-ha)).
 Goiás, Brazil, which is mostly tropical grassland, savanna, and shrubland, but with a small area in forest, had intermediate carbon accumulation per ha, at `r carbon_tmp %>% filter(site == "goias") %>% .$MgC_per_ha_Observed %>% round(digits = 2)` Mg C per ha on average (Table \@ref(tab:carbon-table), Fig \@ref(fig:carbon-per-ha)).
 
 ## Modeling abandonment recultivation as decay {.unnumbered}
@@ -1055,16 +1055,16 @@ Given that some abandonment periods are inherently limited by the length of our 
 These models also allow us to explore how recultivation rates changed over time at each site, and to compare mean recultivation (or "decay") trajectories among sites (see Materials and Methods).
 
 Our models show that recultivation occurred quickly: we predict that >50% of abandoned croplands will be recultivated within 30 years of initial abandonment at almost all sites (Fig. \@ref(fig:endpoint-half-lives)).
-At all sites except Bosnia & Herzegovina, the half-life (defined as the time required for half of the croplands abandoned in a given year to be recultivated) ranged from `r decay_stats$t0.5_min` to `r decay_stats$t0.5_max` years for endpoints between 10 and 25 years (mean $\pm$ sd: `r decay_stats$hl_mean` $\pm$ `r decay_stats$hl_sd` years).
+At all sites except Bosnia & Herzegovina, the half-life (defined as the time required for half of the croplands abandoned in a given year to be recultivated) ranged from `r decay_stats$hl_min` to `r decay_stats$hl_max` years for endpoints between 10 and 25 years (mean $\pm$ sd: `r decay_stats$hl_mean` $\pm$ `r decay_stats$hl_sd` years, interquartile range: `r decay_stats$hl_q1`-`r decay_stats$hl_q3` years^[We could report other summary stats, such as the mean, median, and interquartile range, or for a different subset of the data. For endpoints 10-25, excluding Bosnia & Herzegovnia, these are: `r tmp_2 %>% mutate(paste = paste0(cols, ": ", round(value, digits = 2))) %>% .$paste %>% paste0(collapse = ", ")`. For 10-25, but including BH, they are: `r tmp_1 %>% mutate(paste = paste0(cols, ": ", round(value, digits = 2))) %>% .$paste %>% paste0(collapse = ", ")`. When including all sites and all endpoints (7-29), they are `r tmp_all %>% mutate(paste = paste0(cols, ": ", round(value, digits = 2))) %>% .$paste %>% paste0(collapse = ", ")`. What do you think would be easiest for the reader?]; Fig. \@ref(fig:endpoint-half-lives)).
 Interestingly, these half-lives were similar regardless of how widespread abandonment was at each site (Fig. \@ref(fig:quadrant)). 
-Bosnia & Herzegovina was a notable exception; here, our models predicted much longer half-lives, greater than 50 years for endpoints of 16 years or longer (Figs. \@ref(fig:endpoint-half-lives) and \@ref(fig:endpoint-half-lives-all)).
-This is apparent in Fig. \@ref(fig:decay-model-grid), which shows that early cohorts of abandonment in Bosnia & Herzegovina were remarkably durable, declining much more slowly than more recent cohorts.
+Bosnia & Herzegovina, which had the longest mean abandonment duration, was a notable exception.
+Here, our models predicted much longer half-lives: greater than 50 years for endpoints of 16 years or longer (Figs. \@ref(fig:endpoint-half-lives) and \@ref(fig:endpoint-half-lives-all)).
 Shaanxi/Shanxi, China, also showed relatively more durable abandonment than other sites, with half-lives between `r filter(endpoint_half_lives, grepl("shaanxi", site))$mean %>% min() %>% round(digits = 2)`-`r filter(endpoint_half_lives, grepl("shaanxi", site))$mean %>% max() %>% round(digits = 2)` years for all endpoints we considered.
 
 In modeling recultivation for each abandonment cohort, we also investigated whether recultivation of abandoned cropland accelerated.
 Many sites showed decay trajectories growing steeper over time (Fig. \@ref(fig:decay-model-grid)), indicating that abandoned croplands were being recultivated more quickly in more recent years.
 This is also apparent in Fig. \@ref(fig:endpoint-half-lives), which shows the half-live declining for shorter endpoints, which incorporate more recent cohorts to a greater extent.
-This pattern was strongest in Bosnia & Herzegovina: a linear regression on the half-life confirmed that Bosnia & Herzegovina was the only site to show a statistically significant and negative rate of change in half-life (Fig. \@ref(fig:decay-rate-of-change)).
+This pattern was strongest in Bosnia & Herzegovina^[indicating that future persistence may be relatively limited], and a linear regression on the half-life confirmed this to be the only site to have a statistically significant and negative rate of change in half-life, where more recent cohorts were recultivated more quickly (Fig. \@ref(fig:decay-rate-of-change)).
 
 # Discussion {.unnumbered}
 
@@ -1130,18 +1130,7 @@ While this `r 100 - carbon_stats$total_diff`% loss is not as significant as has 
 Abandonment taking place in forested biomes had much higher carbon accumulation, and correspondingly higher opportunity costs of recultivation (Table \@ref(tab:carbon-table)), yet grassland biomes, where much of the abandonment we observed occurred, can also harbor substantial amounts of carbon sequestered in soils [@Lal2004].
 However, grassland soil carbon may accumulate even more slowly than aboveground forest biomass, taking a century or longer to return to reference levels [@Yang2019].
 For example, while abandoned croplands across Russia accumulated a total of 13.2 Mg C/ha in the top 5 cm of soil during the first 20 years following abandonment, these fields still had significantly less carbon sequestered than reference grasslands after 24 years of observation, and were expected to take >60 years to recover to reference levels [@Wertebach2017]. 
-Yet we estimate accumulation of only `r carbon_stats$MgC_grass_min` - `r carbon_stats$MgC_grass_max` Mg C per ha on average (see Table \@ref(tab:carbon-table)) at our predominantly grassland sites - only a fraction of the total observed by ref. [@Wertebach2017], largely a result of the short abandonment lengths at these sites.
-
-
-## Methodological advances
-
-*Maybe move this to the methods?*
-Similarly, our method for modeling half-lives based on common endpoints allows us to draw fair but conservative comparisons across cohorts, without assigning disproportionate weight to cohorts with fewer observations.
-However, we prioritize intermediate endpoints in our reporting of the results: longer endpoints are biased towards older cohorts (by excluding more recent abandonment), and while shorter endpoints incorporate a more complete set of cohorts, they make use of fewer observations overall and place relatively more weight on the initial stages of abandonment.
-For example, Bosnia & Herzegovina, which had the longest mean abandonment duration, showed the longest half-lives for longer endpoints (i.e., $\geq15$ years), but experienced accelerating recultivation in recent years, causing half-lives to decline for shorter endpoints, indicating that future persistence may be relatively limited.
-As a result, these endpoint results should be interpreted with a careful consideration of the number of cohorts and observations that went into each specific model run.
-Yet no matter how we subset these data, one primary conclusion stands out: half-lives at almost all sites are almost always short.
-For endpoints between 10-25 years, half-lives range from `r decay_stats$hl_min`-`r decay_stats$hl_max` years (interquartile range: `r decay_stats$hl_q1`-`r decay_stats$hl_q3` years)^[We could report other summary stats, such as the mean, median, and interquartile range, or for a different subset of the data. For endpoints 10-25, excluding Bosnia & Herzegovnia, these are: `r tmp_2 %>% mutate(paste = paste0(cols, ": ", round(value, digits = 2))) %>% .$paste %>% paste0(collapse = ", ")`. For 10-25, but including BH, they are: `r tmp_1 %>% mutate(paste = paste0(cols, ": ", round(value, digits = 2))) %>% .$paste %>% paste0(collapse = ", ")`. When including all sites and all endpoints (7-29), they are `r tmp_all %>% mutate(paste = paste0(cols, ": ", round(value, digits = 2))) %>% .$paste %>% paste0(collapse = ", ")`. What do you think would be easiest for the reader?] for all sites but Bosnia & Herzegovina (Fig. \@ref(fig:endpoint-half-lives)).
+Yet we estimate accumulation of only `r carbon_stats$MgC_grass_min`-`r carbon_stats$MgC_grass_max` Mg C per ha on average (see Table \@ref(tab:carbon-table)) at our predominantly grassland sites – only a fraction of the total observed by ref. [@Wertebach2017], largely a result of the short abandonment lengths at these sites.
 
 ## Limitations {.unnumbered}
 
@@ -1172,12 +1161,20 @@ Without new policies and incentives to discourage recultivation, abandoned areas
 Our results reinforce growing calls for enhanced monitoring of regeneration after abandonment [@Cook-Patton2021], and the development of a stronger policy framework for managing such lands [@Chazdon2020].
 In some cases, active management of abandoned sites will be needed to achieve biodiversity and carbon goals.
 
-Harnessing abandonment as an environmental opportunity will require an understanding of the local drivers of abandonment.
-These drivers are complex and site-specific, but include conflict, demographic shifts, sociopolitical upheaval, and globalization.
-[@Yin2019; @Prishchepov2021].
-^[This is where we could insert a few more sentences or a paragraph to address Reviewer 4's first comment. However, we do have a more detailed description of the drivers at our sites in our new methods section.]
+Harnessing abandonment as an environmental opportunity will require an understanding of the drivers of abandonment and recultivation. 
+At the most basic level, abandonment is related to agricultural suitability [@Levers2018]. 
+However, the proximate drivers are complex and site-specific, but often encompass a combination of state policy, socioeconomic and demographic changes, and environmental factors [@Yin2019; @Prishchepov2021; @Meyfroidt2016; @Levers2018]. 
+Abandonment is often a byproduct of urban migration and rural depopulation, particularly in Europe, East Asia, and Latin America [@ReyBenayas2007; Sloan2022].
+Other cases are more directly related to sociopolitical changes. 
+For example, the collapse of the Soviet Union triggered large-scale abandonment in Eastern Europe, especially in less productive areas that had been supported by state subsidies (e.g., Orenburg, Russia/Uralsk, Kazakhstan) [@Prishchepov2013; @Estel2015; @Alcantara2013; @Meyfroidt2016].
+Abandonment in these economically marginal lands is more likely to persist [@Smaliychuk2016]. 
+In northern China, on the other hand, abandonment (and reforestation) was encouraged through one of the world’s largest reforestation schemes: the “Grain for Green Program” (also known as the Sloping Land Conversion Program), which provides financial incentives to reforest croplands for erosion control and other forest-related ecosystem services [@Hua2016].
+Indeed, we found relatively durable abandonment in Shaanxi/Shanxi (with some of the most consistently long half-lives), suggesting the effectiveness of China’s reforestation policy. 
+The persistence of abandonment in this region, however, depends on the consistency and continuity of national land use policy [@Yin2018a].
+Recultivation may occur following abandonment when short-term stressors are removed, as is frequently observed in post-conflict regions [@Yin2019; @Olsen2021], when subsidies for cultivation are reestablished [@Meyfroidt2016], when incentives for reforestation are removed [@Yin2018a], or when migration pathways are disrupted [@Sloan2022]. 
+Our research demonstrates the value of long-term analysis at annual intervals, which has the potential to improve our understanding the drivers of abandonment and recultivation.
 
-There is a range of socioeconomic and political barriers hindering habitat regeneration in abandoned croplands.
+Even once abandonment occurs, there are many socioeconomic and political barriers hindering habitat regeneration in abandoned croplands.
 These include policies that obligate farmers to cultivate land, a lack of incentives to protect and foster regenerating habitats, and perhaps most importantly, negative cultural perceptions of "abandonment" and the "messy" landscapes that result [@Chazdon2020].
 Agricultural abandonment is a consequence of complex societal changes, and the loss of certain types of landscapes and rural ways of life is sometimes accompanied by substantial emotional distress, often motivating efforts to avoid or reverse abandonment [@ReyBenayas2007; @Meyfroidt2016; @Li2017; @Munroe2013].
 Behavioral research highlights the importance of human factors such as corruption, political and institutional support, and demographic changes for decisions to abandon or recultivate cropland, alongside biophysical and environmental conditions [@Prishchepov2021a].
@@ -1187,9 +1184,10 @@ Reducing recultivation and lengthening regeneration on abandoned croplands may b
 When recultivation occurred, its duration was relatively short (Fig. \@ref(fig:mean-recult-duration)). These short recultivation periods may partly be a function of when recultivation took place (which must follow abandonment by at least five years, by definition), but could also indicate that these croplands continue to be marginal economically, and that taking them out of production for longer periods of time may be an option.
 
 Encouraging the persistence of abandonment could be achieved by designating abandoned fields as protected areas, incorporating natural regeneration into payments for ecosystem service programs to allow landowners to benefit economically, or by taking steps to support sustainable long-term cultivation of some sites, thereby reducing turnover among fields that have previously been part of long-term fallowing cycles.
-As a case in point, the relative durability of abandonment in Shaanxi/Shanxi may be due to large-scale ecosystem restoration programs that began in the late 1990s and created economic incentives to reforest croplands.^[Reviewer 4 encourages us to include more detail on “rewilding”]
-This is encouraging, even though there continues to be a need to improve the biodiversity outcomes of such programs [@Hua2016].
-We stress that any policies should be developed jointly with local communities to address trade-offs between biodiversity, carbon storage, and livelihoods.
+The relative durability of cropland abandonment in Shaanxi/Shanxi Province provides some evidence that such incentive programs designed to restore or reforest cropland are indeed possible. 
+This is encouraging, yet there continues to be a need to improve the biodiversity outcomes of such programs, many of which prioritize the planting of non-native forests at the expense of local biodiversity, ecosystem stability, and local livelihoods [@Hua2016]. 
+More concerningly, recent evidence indicates that some large-scale reforestation programs fail to provide either environmental or livelihood benefits; this may especially be the case when non-forested biomes are targeted for afforestation, or when programs lack appropriate consideration of the local socioeconomic context [@Coleman2021]. 
+Clearly, more research is needed to improve the outcomes of these sorts of programs, and we stress that any policies should be developed jointly with local communities to address trade-offs between biodiversity, carbon storage, and livelihoods.
 
 Our results make one thing clear: if cropland abandonment continues to be as short-lived as we show here, the large potential benefits of regenerating habitats to both store carbon and sustain biodiversity will remain an untapped opportunity.
 
@@ -1330,6 +1328,10 @@ We repeated this analysis for the full range of possible common endpoints that i
 Half-lives for a few select endpoints (10, 15, 20, and 25 years) are shown in Fig. \@ref(fig:endpoint-half-lives), and model results for these subsets and their corresponding mean decay trajectories are shown in Figs. \@ref(fig:endpoint-panel-a) - \@ref(fig:endpoint-panel-b).
 Half-lives for all modeled endpoints (7 through 29 years) are shown in Fig. \@ref(fig:endpoint-half-lives-all).
 
+This method for modeling half-lives based on common endpoints allows us to draw fair but conservative comparisons across cohorts, without assigning disproportionate weight to cohorts with fewer observations.
+We prioritize intermediate endpoints in our reporting of the results for two reasons: longer endpoints are biased towards older cohorts (by excluding more recent abandonment), and while shorter endpoints incorporate a more complete set of cohorts, they make use of fewer observations overall and place relatively more weight on the initial stages of abandonment.
+As a result, these endpoint results should be interpreted with a careful consideration of the number of cohorts and observations that went into each specific model run.
+
 To estimate changes in persistence over time, we calculated the half-life for each cohort at each site and parameterized a linear model on these half-life values (*n* = 26 at each site) to identify temporal changes in recultivation patterns at each of our eleven sites (Section \@ref(section-methods-rate-of-change)).
 Trends were considered statistically significant when the 95% confidence interval for model coefficients did not include zero (Fig. \@ref(fig:decay-rate-of-change)).
 
@@ -1343,7 +1345,7 @@ Trends were considered statistically significant when the 95% confidence interva
 
 # Acknowledgements {.unnumbered}
 
-We thank the following researchers at the University of Wisconsin-Madison, whose land cover maps made our analysis possible, and who generously shared their data: Amintas Brandão, Johanna Buchner, David Helmers, Benjamin G. Iuliano, Niwaeli E. Kimambo, Katarzyna E. Lewińska, Elena Razenkova, Afag Rizayeva, Natalia Rogova, Seth A. Spawn, and Yanhua Xie.
+We thank the following researchers at the University of Wisconsin-Madison, whose land cover maps made our analysis possible, and who generously shared their data: Amintas Brandão, Johanna Buchner, David Helmers, Benjamin G. Iuliano, Niwaeli E. Kimambo, Katarzyna E. Lewińska, Elena Razenkova, Afag Rizayeva, Natalia Rogova, Seth A. Spawn-Lee, and Yanhua Xie.
 We thank J. Leighton Reid, three anonymous reviewers, and editor Shahid Naeem, whose helpful reviews greatly strengthened our manuscript.
 We are deeply indebted to Alex Wiebe, whose statistical advice significantly improved our models of abandonment decay and recultivation.
 We also thank the Drongos research group for advice and companionship.
