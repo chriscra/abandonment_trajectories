@@ -2526,36 +2526,5 @@ for (input in c(
   dev.off()
 }
 ```
-## Extra
 
-
-```{r compare-with-hansen}
-# compare the carbon removal estimates with those from
-# 1. Hansen et al. global forest watch
-# 2. Harris et al. 2021 - Nature Climate Change: Global maps of twenty-first century forest carbon fluxes https://www.nature.com/articles/s41558-020-00976-6
-
-```
-
-
-# End
-
-```{r clean-up}
-env_size(ls())
-
-# 
-os <- get_sizes(ls())
-
-os %>% 
-  summarise(total_env_size = sum(size)) %>% 
-  mutate(gb = total_env_size / 1024^3)
-
-os %>% print(n = 20)
-
-rm(list = os$object[c(1:2)])
-
-
-terra::tmpFiles(current=TRUE, orphan=TRUE, old=TRUE, remove=TRUE)
-
-
-```
 

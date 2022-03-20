@@ -18,11 +18,12 @@ This document is loosely organized as follows:
 2. Running linear models of decay, with a range of specifications. The final form of these models was linear-log-linear: `stats::lm(formula = I(proportion - 1)  ~ 0 + log(time + 1):cohort + I(time):cohort, ...)`
   a. Assessing model fit, checking assumptions, diagnostic plots for SI
 3. Producing figures 
-  a. for the main text of the manuscript (including Figure 4), 
+  a. for the main text of the manuscript (Fig. 6 & 7), 
   b. exploratory data analysis, 
-  c. linear model coefficients (including average decay trajectories at each site, Figure 3),
-  d. alternative model specifications, and 
-  e. basic plots for presentations.
+  c. linear model coefficients,
+  d. half-lives across a range of common end points
+  e. alternative model specifications, and 
+  f. basic plots for presentations.
 4. Calculating the rate of change of half-lives at each site over time.
 5. Projecting abandonment into the future through two versions of an Extrapolation
 

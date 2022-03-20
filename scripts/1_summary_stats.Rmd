@@ -2200,7 +2200,8 @@ lcc_total_crop_mask <- lapply(1:11, function(i) {
 
   terra::writeRaster(lcc_crop_mask,
               filename = paste0(p_dat_derived, "total_crop_mask/", 
-                                site_df$site[i], "_total_crop_mask_clean.tif"),
+                                site_df$site[i], "_total_crop_mask_clean",
+                                run_label, ".tif"),
               overwrite = TRUE
               )
 

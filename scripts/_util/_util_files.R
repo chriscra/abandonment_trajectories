@@ -1,6 +1,6 @@
 # --------------------------------------------------------------- #
 #
-# Loading required files
+# Loading required files ("abandonment_trajectories")
 # 
 # --------------------------------------------------------------- #
 
@@ -228,10 +228,12 @@ for (i in seq_along(potential_age_t)) {names(potential_age_t[[i]]) <- paste0("y"
 # 3. Load the maximum extent of all cropland ever cultivated during time series
 # ----------------------------------------------------------- #
 lcc_total_crop_mask <- lapply(
-  list.files(paste0(p_dat_derived, "total_crop_mask"), full.names = TRUE) %>%
-    grep("clean", ., value = TRUE, invert = FALSE), 
+  1:11, 
   function(i) {
-    rast(i)
+    rast(paste0(p_dat_derived, "total_crop_mask/", 
+                site_df$site[i], "_total_crop_mask_clean",
+                run_label,
+                ".tif"))
   })
 
 names(lcc_total_crop_mask) <- site_df$site
@@ -516,7 +518,7 @@ site_mean_soc <- lapply(1:11, function(i) {
 })
 names(site_mean_soc) <- site_df$site
 
-# --------------------------
+# -------------------------- #
 # Savanna mask, derived from Ecoregions2017
 
 # Forest (1), grassland (2), and savanna (3) Ecoregions2017 

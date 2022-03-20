@@ -16,6 +16,37 @@ Chunks are meant to be walked through sequentially.
 source("/Users/christophercrawford/work/projects/abandonment_trajectories/scripts/0_start.R")
 ```
 
+```{r clean-up}
+os <- get_sizes(ls())
+
+os %>% 
+  summarise(total_env_size = sum(size)) %>% 
+  mutate(gb = total_env_size / 1024^3)
+
+os %>% print(n = 30)
+
+rm(list = os$object[c(1:3)])
+# rm(list = os$object[c(3:18)])
+get(os$object[c(30)])
+
+
+# terra and raster temp files
+terra::tmpFiles(current=TRUE, orphan=FALSE, old=FALSE, 
+                remove=TRUE)
+
+terra::tmpFiles(current=TRUE, orphan=TRUE, old=TRUE)
+
+terra::tmpFiles(current=TRUE, orphan=TRUE, old=TRUE, 
+                remove=TRUE)
+
+raster::rasterTmpFile()
+raster::showTmpFiles()
+raster::removeTmpFiles()
+
+warnings()
+
+```
+
 ```{r load-data}
 run_label # check. See "_util_main.R"
 
@@ -2376,39 +2407,6 @@ ggsave(plot = gg_quadrant_endpoints_subset_10_25,
        units = "in")
 ```
 
-
-# End
-
-```{r clean-up}
-os <- get_sizes(ls())
-
-os %>% 
-  summarise(total_env_size = sum(size)) %>% 
-  mutate(gb = total_env_size / 1024^3)
-
-os %>% print(n = 30)
-
-rm(list = os$object[c(1:3)])
-# rm(list = os$object[c(3:18)])
-get(os$object[c(30)])
-
-
-# terra and raster temp files
-terra::tmpFiles(current=TRUE, orphan=FALSE, old=FALSE, 
-                remove=TRUE)
-
-terra::tmpFiles(current=TRUE, orphan=TRUE, old=TRUE, 
-                remove=TRUE)
-
-raster::rasterTmpFile()
-raster::showTmpFiles()
-raster::removeTmpFiles()
-
-warnings()
-
-
-
-```
 
 
 
