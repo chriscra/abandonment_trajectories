@@ -9,8 +9,8 @@ editor_options:
 
 This document includes code for exploratory data analysis and the production of various figures for the Crawford, et al. See: https://github.com/chriscra/abandonment_trajectories. 
 
-Not all of the code is necessary, and this script is included largely for exploratory purposes.
-Chunks are meant to be walked through sequentially.
+Not all of the code is necessary; this script is included largely for exploratory purposes.
+Code chunks are meant to be walked through sequentially.
 
 ```{r initialize}
 source("/Users/christophercrawford/work/projects/abandonment_trajectories/scripts/0_start.R")
