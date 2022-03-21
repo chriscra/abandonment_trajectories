@@ -25,14 +25,14 @@ terraOptions(tempdir = p_tmp)
 rasterOptions(tmpdir = p_tmp)
 
 # source functions:
-source("/home/clc6/abandonment_trajectories/scripts/util/_util_functions.R")
+source("/home/clc6/abandonment_trajectories/scripts/_util/_util_functions.R")
 
 # set up parameters:
 # data.frame of all sites contains information about sites
 site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
 
 # set run_label
-run_label <- format(Sys.time(), "_%Y_%m_%d") 
+run_label <- format(Sys.time(), "_%Y_%m_%d")
 # run_label <- "_2022_01_31" #"_2021_03_13" # "_2021-03-05"
 
 cat(fill = TRUE, "Distilling length data.tables for run:", run_label)

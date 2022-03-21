@@ -27,7 +27,7 @@ terraOptions(tempdir = p_tmp)
 rasterOptions(tmpdir = p_tmp)
 
 # source functions:
-source("/home/clc6/abandonment_trajectories/scripts/util/_util_functions.R")
+source("/home/clc6/abandonment_trajectories/scripts/_util/_util_functions.R")
 
 
 

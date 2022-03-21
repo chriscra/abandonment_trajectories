@@ -16,7 +16,7 @@ p_tmp           <-    "/scratch/gpfs/clc6/abandonment_trajectories/data_derived/
 
 
 # source functions:
-source("/home/clc6/abandonment_trajectories/scripts/util/_util_functions.R")
+source("/home/clc6/abandonment_trajectories/scripts/_util/_util_functions.R")
 
 
 # set up parameters:
@@ -24,7 +24,8 @@ source("/home/clc6/abandonment_trajectories/scripts/util/_util_functions.R")
 site_df <- read.csv(file = paste0(p_dat_derived, "site_df.csv"))
 
 # time stamp
-run_label <- "_2022_02_07"
+run_label <- format(Sys.time(), "_%Y_%m_%d") 
+# run_label <- "_2022_02_07"
 
 abandonment_threshold <- 5
 

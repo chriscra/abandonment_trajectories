@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=feb_1_thru_5                              # create a name for the job
+#SBATCH --job-name=run_1_4                              # create a name for the job
 #SBATCH --nodes=1 					                              # node count
 #SBATCH --ntasks=1	 				                              # total number of tasks across all nodes
 #SBATCH --cpus-per-task=1                                 # cpu-cores per task (>1 if multi-threaded tasks)
@@ -20,44 +20,43 @@ cd /home/clc6/abandonment_trajectories/scripts
 # r script passing array job number to the script
 Rscript ./1_prep_r_to_dt.R $SLURM_ARRAY_TASK_ID
 Rscript ./2_analyze_abn.R $SLURM_ARRAY_TASK_ID
-Rscript ./2.2_calc_recult_age.R $SLURM_ARRAY_TASK_ID
-Rscript ./5_potential_age_without_recultivation.R $SLURM_ARRAY_TASK_ID
+Rscript ./3_calc_recult_age.R $SLURM_ARRAY_TASK_ID
+Rscript ./4_potential_age_without_recultivation.R $SLURM_ARRAY_TASK_ID
 
 # ---------------------- #
-# before running....
-# sbatch _1_5.slurm
-
-
-# # Send scripts
-# cd /Users/christophercrawford/work/projects/abandonment_trajectories/scripts/
-# scp ./cluster/_1_5.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
-# scp ./cluster/_3_4.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
-# scp ./cluster/1_prep_r_to_dt.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
-# scp ./cluster/2_analyze_abn.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
-# scp ./cluster/2.1_summarize_abn_dts_only.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
-# scp ./cluster/2.2_calc_recult_age.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
-# scp ./cluster/3_distill_lengths.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
-# scp ./cluster/4_lc_of_abn.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
-# scp ./cluster/5_potential_age* clc6@della:/home/clc6/abandonment_trajectories/scripts/
-# 
-# # Send util scripts
-# cd /Users/christophercrawford/work/projects/abandonment_trajectories/scripts/
-# scp ./util/_util_functions.R clc6@della:/home/clc6/abandonment_trajectories/scripts/util/
-# scp ./util/_util_misc.R clc6@della:/home/clc6/abandonment_trajectories/scripts/util/
-
-
-# ---------- #
 # To submit a specific set of array sub-jobs, use the comma delimiter in the array index list.
 # Just make sure to turn off the array and mem per cpu variables
 # You can do a similar thing to set specific memory allocation.
 # Use the following in the future to manually set memory:
 
+# IMPORTANT NOTE: because each script automatically logs the date to label the run, 
+# the full script must be run on the same calendar day (i.e., not crossing midnight).
+
 # # final memory allocation:
-# sbatch --array [1,8,10] --mem-per-cpu=220G _1_5.slurm
-# sbatch --array [2,7] --mem-per-cpu=170G _1_5.slurm
-# sbatch --array [4,5,11] --mem-per-cpu=130G _1_5.slurm
-# sbatch --array [3,6] --mem-per-cpu=75G _1_5.slurm
-# sbatch --array [9] --mem-per-cpu=45G _1_5.slurm
+# sbatch --array [1,8,10] --mem-per-cpu=220G _1_4.slurm
+# sbatch --array [2,7] --mem-per-cpu=170G _1_4.slurm
+# sbatch --array [4,5,11] --mem-per-cpu=130G _1_4.slurm
+# sbatch --array [3,6] --mem-per-cpu=75G _1_4.slurm
+# sbatch --array [9] --mem-per-cpu=45G _1_4.slurm
+
+# ---------------------- #
+# # Send scripts
+# cd /Users/christophercrawford/work/projects/abandonment_trajectories/scripts/
+# scp ./cluster/_1_4.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
+# scp ./cluster/_5_7.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
+# scp ./cluster/1_prep_r_to_dt.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
+# scp ./cluster/2_analyze_abn.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
+# scp ./cluster/2.1_summarize_abn_dts_only.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
+# scp ./cluster/3_calc_recult_age.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
+# scp ./cluster/4_potential_age* clc6@della:/home/clc6/abandonment_trajectories/scripts/
+# scp ./cluster/5_distill_lengths.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
+# scp ./cluster/6_lc_of_abn.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
+# scp ./cluster/7_carbon.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
+# 
+# # Send util scripts
+# cd /Users/christophercrawford/work/projects/abandonment_trajectories/scripts/
+# scp ./_util/_util_functions.R clc6@della:/home/clc6/abandonment_trajectories/scripts/_util/
+# scp ./_util/_util_misc.R clc6@della:/home/clc6/abandonment_trajectories/scripts/_util/
 
 
 # ----------------------------------------------------------------------------------------- #

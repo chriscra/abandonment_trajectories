@@ -23,7 +23,7 @@ p_tmp           <-    "/scratch/gpfs/clc6/abandonment_trajectories/data_derived/
 
 
 # source functions:
-source("/home/clc6/abandonment_trajectories/scripts/util/_util_functions.R")
+source("/home/clc6/abandonment_trajectories/scripts/_util/_util_functions.R")
 
 
 # set up parameters:

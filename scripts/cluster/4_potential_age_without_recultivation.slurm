@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=5_potential_age                          # create a name for the job
+#SBATCH --job-name=4_potential_age                          # create a name for the job
 #SBATCH --nodes=1 					                              # node count
 #SBATCH --ntasks=1	 				                              # total number of tasks across all nodes
 #SBATCH --cpus-per-task=1                                 # cpu-cores per task (>1 if multi-threaded tasks)
@@ -19,15 +19,15 @@ echo "Executing on the machine:" $(hostname)
 cd /home/clc6/abandonment_trajectories/scripts
 
 # r script passing array job number to the script
-Rscript ./5_potential_age_without_recultivation.R $SLURM_ARRAY_TASK_ID
-# Rscript ./5_potential_age_loop.R $SLURM_ARRAY_TASK_ID
+Rscript ./4_potential_age_without_recultivation.R $SLURM_ARRAY_TASK_ID
+# Rscript ./4_potential_age_loop.R $SLURM_ARRAY_TASK_ID
 
 
 
 # # Send scripts
 # cd /Users/christophercrawford/work/projects/abandonment_trajectories/scripts/
-# scp ./cluster/5_potential_age_without_recultivation.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
-# scp ./cluster/5_potential_age_loop.R clc6@della:/home/clc6/abandonment_trajectories/scripts/
+# scp ./cluster/4_potential_age_without_recultivation.* clc6@della:/home/clc6/abandonment_trajectories/scripts/
+# scp ./cluster/4_potential_age_loop.R clc6@della:/home/clc6/abandonment_trajectories/scripts/
 # 
 # # Send util scripts
 # cd /Users/christophercrawford/work/projects/abandonment_trajectories/scripts/

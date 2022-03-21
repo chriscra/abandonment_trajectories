@@ -5,7 +5,7 @@
 # producing data.tables for further analysis.
 # -------------------------------------------------------- #
 # Note: this script merges, recodes, and preps land cover rasters from Yin et al. 2020,
-# saving them for use in "2_analyze_abn.R", "2.2_calc_recult_age.R", and "3_distill_lengths.R"
+# saving them for use in "2_analyze_abn.R", "3_calc_recult_age.R", and "5_distill_lengths.R"
 
 # It contains the following steps:
 # 1. cc_merge_rasters() // Merge raw raster layers
@@ -37,7 +37,7 @@ terraOptions(tempdir = p_tmp)
 rasterOptions(tmpdir = p_tmp)
 
 # source functions:
-source("/home/clc6/abandonment_trajectories/scripts/util/_util_functions.R")
+source("/home/clc6/abandonment_trajectories/scripts/_util/_util_functions.R")
 
 
 # array set up -------
