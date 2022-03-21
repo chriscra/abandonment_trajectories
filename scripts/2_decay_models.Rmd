@@ -28,11 +28,15 @@ This document is loosely organized as follows:
 5. Projecting abandonment into the future through two versions of an Extrapolation
 
 ## Context
-Our main questions were: (1) How long does abandoned cropland stay abandoned on average (i.e., duration of abandonment), and how does this vary geographically? (2) How quickly is abandoned cropland recultivated (i.e., persistence of abandonment), and do recultivation (or “decay”) rates vary through time? (3) If abandonment and recultivation continue at current rates, what will ultimately be the mean age of abandoned croplands?
+Our main questions were: 
+(1) How long did abandoned cropland stay abandoned on average, and how did this vary among sites? 
+(2) If we model the persistence of abandonment as a decay process over time, how long did abandoned croplands persist before they were recultivated, and did recultivation (or “decay”) rates vary through time and among sites? 
+(3) How much carbon can accumulate in forests and grasslands as they regenerate in abandoned croplands (in the form of above and belowground biomass and soil organic carbon, respectively)? 
+(4) Finally, if abandoned croplands had not been recultivated as observed, how much area would have remained abandoned and how much carbon could have been accumulated by the end of our time series? 
 
-This script is oriented towards answering questions 2 and 3, which involved fitting linear models, and comparing mean site trajectories across sites. 
+This script is oriented towards answering question 2, which involved fitting linear models and modeling recultivation ("decay") trajectories at each site.
 
-These linear models involve grouping abandoned land into "cohorts" based on the year of initial abandonment.
+These linear models involve grouping abandoned land into "cohorts" based on the year of initial abandonment at each site.
 We then track the proportion of each cohort of abandoned land that remains abandoned through time following initial abandonment. 
 We defined cropland as abandoned when it has not been cultivated for at least five years in a row;
 in other words, when a pixel that was at one point classified as cropland has been classified as non-cropland (either woody or grassy vegetation) for five or more consecutive years.
@@ -42,12 +46,9 @@ For example, for the cropland first abandoned in the year 2001, this means it wa
 It has been abandoned for 5 years in the year 2005. 
 We begin modeling recultivation from here, and therefore set the proportion of that cohort of abandoned cropland that remains abandoned to 1.
 
-Question 2 led to a series of additional questions:  
-- What is the half-life of abandoned agricultural land? 
-- How does the half-life vary over time?
-- How does the average half-life and the rate of change of the half-life differ across sites?
-
-To provide a simple answer to this, I first calculated the half-life for each cohort at each of my sites, then look at how the half-life evolves over time at each of the sites.
+Because the number of observations varies across cohorts, we calculated the mean recultivation trajectory at each site after constraining our data to a range of common “endpoints” (ranging from 10-25 years), thereby ensuring that mean values were calculated across a common number of observations for each cohort.
+We subsequently calculated the half-life, defined as the time required for half of the croplands abandoned in a given year to be recultivated, based on the mean recultivation trajectory at each endpoint.
+We then investigated how half-lives varied over time and across sites.
 
 
 
@@ -188,100 +189,6 @@ lm_mega_0_l <- lm(log(proportion) ~ 0 + time,
 ```
 
 
-## Test model fit without low n cohorts
-
-```{r trim-small-cohorts}
-
-# Filter persistence dataset to exclude cohorts with < 5 observations (i.e., cohorts 2010, '11, '12, '13)
-dat_trim <- persistence_dat %>% 
-  filter(year_abn < 2010)
-
-# see AIC chunk above, list: mod_ll_mega
-# update all lm calls in the list to run on the trimmed dataset:
-mod_ll_mega_trim <- lapply(mod_ll_mega, FUN = function(i) update(i, data = dat_trim))
-names(mod_ll_mega_trim)
-
-
-# Calculate AIC
-mod_AIC_mega_trim <- lapply(mod_ll_mega_trim, function(x) glance(x)) %>% 
-  bind_rows(.id = "mod") %>%
-  select(mod, AIC, everything()) %>% 
-  arrange(AIC)
-
-
-# view results
-mod_AIC_mega_trim %>% 
-  arrange(AIC) %>% 
-  select(AIC, mod, adj.r.squared) %>% print(n = 150)
-
-
-
-# mega AIC figure
-gg_AIC_mega_trim <-
-  ggplot(data = mod_AIC_mega_trim,
-       mapping = aes(y = fct_reorder(mod, AIC), x = AIC, 
-                     group = fct_reorder(mod, AIC), fill = fct_reorder(mod, AIC))) + 
-  theme_classic() +
-  geom_col(position = position_dodge(0.9)) +
-  # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
-  labs(y = "Model Specification", x = "AIC Value", fill = "Model") +
-  theme(legend.position = "none",
-        plot.margin = margin(4, 20, 4, 4, "pt"))
-
-gg_AIC_mega_trim
-
-ggsave(plot = gg_AIC_mega_trim, 
-       filename = paste0(p_plots, run_label, "/decay/", "trimmed_data_mod_AIC", run_label, ".png"), 
-    width = 5, height = 4, units = "in")
-
-```
-
-```{r coef-trim}
-
-# extract the coefficients for the lin-log-lin model, run on only those cohorts with >=5 observations
-# ----------------------------------------------------------------------- #
-coef_l3_mega_trim <- 
-  mod_ll_mega_trim[[4]] %>% # this corresponds to the lin-log-lin model
-  tidy(conf.int = TRUE) %>%
-  mutate(site = gsub("site", "", str_extract(term, "site[a-z,_]*")),
-         year_abn = as.integer(str_extract(term, "[1-2][0-9][0-9][0-9]")),
-         cohort = as.factor(year_abn),
-         coef_term = ifelse(grepl("log", term), "log", "lin"),
-         uncertainty_range = conf.high - conf.low,
-         mod = "l3_trim") %>%
-  left_join(dat_trim %>%
-              group_by(site, year_abn) %>%
-              summarise(obs = n()) %>% 
-              ungroup()
-            ) %>%
-  select(mod, site, year_abn, cohort, coef_term, estimate, conf.low, conf.high, uncertainty_range, obs, everything())
-
-# ----------------------------------------------------------------------- #
-# calculate mean coefficients and their confidence intervals
-mean_coef_l3_mega_trim <- coef_l3_mega_trim %>%
-  group_by(site, coef_term) %>% # group by site and coef_term
-  # use a linear regression to calculate mean and confidence intervals
-  summarise(tidy(lm(estimate ~ 1), conf.int = TRUE, conf.level = 0.95)) %>% 
-  ungroup()
-
-
-
-# plot coefs with uncertainty
-
-gg_coef_uncertainty_mega +
-  geom_point(data = coef_l3_mega_trim, mapping = aes(x = year_abn, y = estimate, color = coef_term),
-           position = position_dodge(dodge_width), alpha = 0.3, # size = 1,
-           color = "red"
-             ) + 
-  geom_errorbar(data = coef_l3_mega_trim,
-                mapping = aes(ymin = conf.low, ymax = conf.high),
-                color = "red",
-                width = 0.5, position = position_dodge(dodge_width),
-                alpha = 0.3)
-
-gg_coef_uncertainty_mega %+% coef_l3_mega_trim
-
-```
 
 ## Extract coefficients
 
@@ -912,8 +819,254 @@ cowplot::plot_grid(
 
 ```
 
+
+There are a few different aspects of uncertainty
+- plot uncertainty around the individual coefficient estimates (2 model coefficients)
+- attempt to develop an estimate of the uncertainty estimate around the "half-life" estimation. One method would be to calculate a range of half-lives based on the range of coefficient values.
+- plot the trajectories with the 95% confidence intervals as a polygon around them.
+- 
+
+```{r plot-coef-uncertainty}
+# library(dotwhisker)
+# dotwhisker::dwplot(lm_lin_log_lin_l$shaanxi, effects="fixed") + 
+#   geom_vline(xintercept = 0, lty = 2) + 
+#   theme_classic()
+# for future reference...
+  
+# ------------------------------------------------------------------ #
+# uncertainty with pooled, mega model
+dodge_width <- 0.5
+
+# final plot for SI: 
+
+gg_coef_uncertainty_mega <-
+  ggplot(data = coef_l3_mega %>% filter(year_abn < 2013),
+       mapping = aes(x = year_abn, y = estimate, color = coef_term)) + 
+  geom_point(position = position_dodge(dodge_width), alpha = 0.8#, size = 1
+             ) + 
+  geom_errorbar(mapping = aes(ymin = conf.low, ymax = conf.high),
+                width = 0.5, position = position_dodge(dodge_width),
+                alpha = 0.8) +
+  facet_wrap(vars(site), scales = "free", nrow = 4,
+             labeller = as_labeller(cap_update_labels)) + 
+  geom_hline(yintercept = 0) + # horizontal orientation
+  theme_classic() +
+  # theme_linedraw() +
+  # theme_minimal_vgrid() +
+  labs(x = "Cohort (Year Abandoned)", y = "Model Coefficient Estimate", 
+       # title = "Coefficient estimates and uncertainty: pooled model",
+       # caption = "Error bars represent 95% Confidence Intervals around coefficient estimate",
+       color = "Coefficient term") + 
+  theme(legend.position = c(0.8, 0.15)) + 
+    # scale_color_manual(values = brewer.pal(9, "PiYG")[c(1,9)],
+                       # labels = c("log" = "Log", "lin" = "Linear"))
+  scale_color_manual(values = met.brewer(name="Hokusai3", n=2, type="discrete"),
+                     labels = c("log" = "Log", "lin" = "Linear")) 
+
+gg_coef_uncertainty_mega
+
+ggsave(#data = coef_l3_mega, 
+       plot = gg_coef_uncertainty_mega, 
+       filename = paste0(p_plots, run_label, "/decay/", "mod_coef_uncertainty_mega", run_label, ".pdf"), 
+    width = 9, height = 9, units = "in")
+
+
+
+
+# alternative: simply plot the uncertainty window:
+
+gg_uncertainty_window <- 
+  ggplot(data = coef_l3_mega %>% 
+         mutate(uncertainty_range = ifelse(coef_term == "lin", -1*uncertainty_range, uncertainty_range)),
+       mapping = aes(x = year_abn, y = uncertainty_range,
+                       group = coef_term, fill = coef_term)) + 
+  geom_col() + 
+  facet_wrap(vars(site), scales = "free", labeller = as_labeller(cap_update_labels)) + 
+  theme_classic() + 
+  scale_fill_manual(values = met.brewer(name="Hokusai3", n=2, type="discrete"),
+                     labels = c("log" = "Log", "lin" = "Linear")) +
+  labs(x = "Cohort (Year Abandoned)", y = "Model Coefficient Uncertainty Window (absolute value)", 
+       fill = "Coefficient\nTerm") + 
+  theme(legend.position = c(0.88, 0.19))
+
+
+ggsave(plot = gg_uncertainty_window, 
+       filename = paste0(p_plots, run_label, "/decay/", "mod_coef_uncertainty_window", run_label, ".pdf"), 
+    width = 8, height = 6, units = "in")
+
+
+
+
+# MEAN Coefficient plots, with uncertainty:
+library(MetBrewer)
+show_col(met.brewer(name="VanGogh3", n=2, type="discrete"))
+show_col(met.brewer(name="Derain", n=2, type="discrete"))
+show_col(met.brewer(name="Cassatt2", n=4, type="discrete"))
+show_col(met.brewer(name="Hokusai3", n=2, type="discrete"))
+show_col(met.brewer(name="Isfahan1", n=2, type="discrete"))
+
+# see coef-mega
+# plot mean coefficients and their confidence intervals
+# note, these confidence intervals are calculated using lm(estimate ~ 1) (see code chunk above: "coef-mega")
+
+gg_mean_coef_w_ci <-
+  mean_coef_l3_mega %>% 
+  ggplot(mapping = aes(x = estimate, y = site, color = coef_term)) + 
+    geom_vline(xintercept = 0, linetype = "dashed") + 
+  geom_point(position = position_dodge(0.4), size = 2) + 
+  geom_errorbar(mapping = aes(xmin = conf.low, xmax = conf.high), width = 0.3,
+                position = position_dodge(0.4)) +
+  scale_y_discrete(labels = fancy_labels) + 
+    theme_classic() +
+    labs(y = "Site", x = "Mean Coefficient Estimate (95% Confidence Interval)",
+         color = "Coefficient\nTerm") + 
+    scale_color_manual(
+      values = met.brewer(name="Hokusai3", n=2, type="discrete"),
+      labels = c("log" = "Log", "lin" = "Linear"))
+
+# gg_mean_coef_w_ci
+
+# cvd_grid(gg_mean_coef_w_ci)
+
+ggsave(plot = gg_mean_coef_w_ci, 
+       filename = paste0(p_plots, run_label, "/decay/", "mean_coef_ci", run_label, ".pdf"), 
+    width = 5.5, height = 4.5, units = "in")
+
+
+
+# comparing the different confidence interval estimates:
+
+coef_l3_mega %>% 
+  group_by(site, coef_term) %>% # group by site, term and coef_term (though you only need one of these)
+  summarise(mean = mean(estimate, na.rm = TRUE),
+            mean_low = mean(conf.low, na.rm = TRUE),
+            mean_high = mean(conf.high, na.rm = TRUE),
+            se = se(estimate),
+            ci.low = mean - 1.96*se,
+            ci.high = mean + 1.96*se,
+            tidy(lm(estimate ~ 1), conf.int = TRUE, conf.level = 0.95)) %>%
+  ungroup() %>%
+  ggplot(mapping = aes(y = site, color = coef_term)) + 
+  geom_point(mapping = aes(x = estimate, shape = coef_term),
+             position = position_dodge(0.5)) + 
+  geom_errorbar(mapping = aes(xmin = conf.low, xmax = conf.high), width = 0.3,
+                position = position_dodge(0.5)) + 
+  geom_errorbar(mapping = aes(xmin = ci.low, xmax = ci.high), width = 0.3,
+                position = position_dodge(0.5),
+                color = "black")
+
+
+# ----------------------------------------------------------------------- #
+
+# extras:
+
+# ------------------------------------------------------------- #
+# pooled model uncertainty, with log and linear term coefficients plotted separately.
+ggplot(data = filter(coef_l3_mega, 
+                     site %in% site_df$site[c(3,9)]
+                     ),
+       mapping = aes(y = year_abn, x = estimate, color = coef_term)) + 
+  geom_point(
+    # position = position_dodge(0.7)
+             ) + 
+  geom_errorbar(mapping = aes(xmin = conf.low, xmax = conf.high), width = 0.3,
+                position = position_dodge(0.7)) +
+  facet_wrap(vars(site, coef_term), scales = "free", #nrow = 4,
+             labeller = as_labeller(cap_update_labels)) + 
+  geom_vline(xintercept = 0) + 
+  theme_classic() + 
+    # theme(legend.position = c(0.9, 0.13)) +
+# coord_cartesian(ylim = c(-0.01, 0.01)) +
+  labs(x = "Cohort (Year Abandoned)", y = "Model Coefficient Estimate", 
+       title = "Coefficient estimates and uncertainty: pooled model",
+       caption = "Error bars represent 95% Confidence Intervals around coefficient estimate")
+
+
+
+# ----------------------------------------------------------------- #
+# plot whether the coefficients have p values <= 0.05.
+ggplot(data = filter(coef_l3_mega, !is.na(estimate)),
+       mapping = aes(x = year_abn, y = p.value <= 0.05, color = coef_term)) + 
+  geom_point() +
+  facet_grid(vars(site), scales = "free", #nrow = 4,
+             labeller = as_labeller(cap_update_labels)) + 
+  theme_classic() + 
+  labs(x = "Cohort (Year Abandoned)", y = "Coef. with p value <= 0.05")
+
+
+
+# ----------------------------------------------------------------- #
+# individual models
+
+gg_coef_uncertainty <- ggplot(data = coef_df_l3,
+       mapping = aes(x = year_abn, y = estimate, color = term)) + 
+  geom_point(position = position_dodge(0.7)) + 
+  geom_errorbar(mapping = aes(ymin = conf.low, ymax = conf.high), width = 0.3,
+                position = position_dodge(0.7)) +
+  facet_wrap(vars(site), scales = "free", nrow = 4,
+             labeller = as_labeller(cap_update_labels)) + 
+  geom_hline(yintercept = 0) + 
+  theme_classic() + 
+  labs(x = "Cohort (Year Abandoned)", y = "Model Coefficient Estimate", 
+       title = "Coefficient estimates and uncertainty: individual models",
+       caption = "Error bars represent 95% Confidence Intervals around coefficient estimate") + 
+  theme(legend.position = c(0.9, 0.13))
+gg_coef_uncertainty
+
+ggsave(plot = gg_coef_uncertainty, 
+       filename = paste0(p_plots, run_label, "/decay/", "mod_coef_uncertainty", run_label, ".pdf"), 
+    width = 9, height = 10, units = "in")
+
+
+
+# using the built in stat functions:
+
+# mean values:
+ggplot(data = coef_l3_mega %>% 
+         filter(year_abn < 2013, 
+                # site == "shaanxi"
+                ),
+       mapping = aes(x = site, y = estimate, color = coef_term)) + 
+
+  # geom_point(position = position_dodge(0.7)) + 
+  # geom_errorbar(mapping = aes(ymin = conf.low, ymax = conf.high),
+                # width = 0.3, position = position_dodge(0.7)) +
+  # facet_wrap(vars(site), scales = "free", nrow = 4,
+  #            labeller = as_labeller(cap_update_labels)) + 
+  # geom_hline(yintercept = 0) + # horizontal orientation
+  theme_classic() +
+  # theme_linedraw() +
+  # theme_minimal_vgrid() +
+  labs(x = "Cohort (Year Abandoned)", y = "Model Coefficient Estimate", 
+       # title = "Coefficient estimates and uncertainty: pooled model",
+       # caption = "Error bars represent 95% Confidence Intervals around coefficient estimate",
+       color = "Coefficient term") + 
+
+  theme(legend.position = c(0.86, 0.23)) + 
+    scale_color_manual(values = brewer.pal(9, "PiYG")[c(1,9)],
+                       labels = c("log" = "Log", "lin" = "Linear")
+                       ) + 
+  stat_summary(fun.data = "mean_cl_boot", 
+               mapping = aes(group = coef_term, color = coef_term),
+               # geom = "errorbar",
+               # width = 0.2,         
+               # inherit.aes = TRUE,
+               # colour = "red", 
+               size = 1
+               ) + 
+    stat_summary(fun = "mean", mapping = aes(group = coef_term, color = coef_term),
+                 site = 0.5, color = "black") + 
+  coord_flip()
+
+```
+
+
+
+
+
 ## Individual models per site:
 
+*After revisions, these individual site models are no longer used.* 
 Running a range of linear models `stats::lm()` with different specifications.
 
 ```{r run-lm-all-sites}
@@ -1866,219 +2019,9 @@ ggsave(plot = gg_all_half_lives,
 
 ```
 
-# Revision additions
+#  Modeling through common endpoints
 
-## Common end points
-
-### Grouping cohorts by number of observations
-
-The first interpretation of this is to run the model for groups of cohorts with similar numbers of observations, making these cohorts more reasonable to compare.
-This involves running linear models for groups of cohorts with similar numbers of observations (i.e., cohorts with 21-26, 16-20, 11-15, 6-10, and 1-5 observations).
-These linear models take the same form as the previous models, except including a "common" grouping variable as a fixed effect in place of "cohort."
-
-```{r common-groupings-by-obs}
-persistence_dat %>%
-  filter(year_abn < 2010) %>%
-  group_by(site, cohort) %>%
-  summarise(obs = n()) %>% 
-  ungroup() %>%
-  filter(site == "shaanxi") %>% tail
-
-common_dat <- persistence_dat %>% 
-  left_join(persistence_dat %>%
-              group_by(site, year_abn) %>%
-              summarise(obs = n()) %>% 
-              ungroup()
-            ) %>%
-  mutate(common = cut(obs, breaks = c(1, 5, 10, 15, 20, 26), include.lowest = TRUE, right = TRUE))
-
-ggplot(data = common_dat, 
-       mapping = aes(x = age, y = proportion, 
-                       group = site, color = site)) + 
-    theme_classic() + 
-    # scale_color_distiller(palette = "Greens") + scale_fill_distiller(palette = "Greens") +
-    # scale_color_viridis() + scale_fill_viridis() +
-    scale_color_discrete(labels = cap_update_labels) +
-    geom_point(alpha = 0.7) +
-
-    facet_wrap(.~common, scales = "free_x", #space = "free_x"
-               )
-
-# run a single lm, with only site fixed effects:
-lm_l3_common <- lm(I(proportion - 1)  ~ 0 + log(time + 1):common:site + I(time):common:site,  
-               data = common_dat)
-
-
-coef_l3_common <- 
-  tidy(lm_l3_common, conf.int = TRUE) %>%
-  mutate(site = str_extract(term, "site[a-z,_]*") %>% gsub("site", "", .),
-         common = str_extract(term, ".[0-9]+.[0-9]+."),
-         coef_term = ifelse(grepl("log", term), "log", "lin"))
-
-# ----------------------------------------------------------------------- #
-# calculate mean coefficients and their confidence intervals
-
-fitted_common <-
-# mean_coef_l3_mega <- 
-coef_l3_common %>%
-  group_by(site, coef_term) %>% # group by site and coef_term
-  # use a linear regression to calculate mean and confidence intervals
-  summarise(tidy(lm(estimate ~ 1), conf.int = TRUE, conf.level = 0.95)) %>% 
-  ungroup() %>%
-  pivot_wider(id_cols = c(site, coef_term), names_from = coef_term, values_from = estimate) %>% 
-  mutate(common = "mean") %>%
-  bind_rows(coef_l3_common %>%
-              pivot_wider(id_cols = c(site, common, coef_term), 
-                          names_from = coef_term, 
-                          values_from = estimate)) %>%
-  left_join(tibble(age = 5:150), by = character()) %>%
-  mutate(proportion = log * log(age-4) + lin * ((age-4) - 1) + 1,
-         proportion = ifelse(proportion >= 0, proportion, 0)) # fitted proportion can't be less than 0!
-
-```
-
-
-```{r plot-common-groups}
-# Plot the trends for each grouping of similar numbers of observations:
-gg_common_group_obs <- ggplot(data = common_dat, 
-       mapping = aes(x = age, y = proportion, 
-                       group = site, color = site)) + 
-    theme_classic() + 
-    # scale_color_viridis(discrete = TRUE) + 
-    scale_color_discrete(labels = cap_update_labels) +
-    geom_hline(yintercept = 0.5, linetype = "dashed") +
-
-    # geom_point(alpha = 0.7) + 
-  
-  geom_line(
-    data = augment(lm_l3_common, interval = "confidence") %>%
-      mutate(time = round(exp(`log(time + 1)`), digits = 0) - 1,
-             age = time + 5,
-             proportion = .fitted + 1),
-    size = 1.2) + 
-  facet_grid(.~common, scales = "free_x", space = "free_x"
-               ) + 
-  scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30)) +
-  labs(x = "Time since initial abandonment (years)", 
-       y = "Proportion of abandoned land remaining",
-       color = "Site",
-       linetype = "")
-
-ggsave(gg_common_group_obs,
-  filename = paste0(p_plots, run_label, "/decay/", "common_group_obs", run_label, ".pdf"), 
-    width = 10, height = 4, units = "in"
-  )
-
-# with CIs
-ggsave(gg_common_group_obs + 
-         geom_ribbon(data = 
-                augment(lm_l3_common, interval = "confidence") %>%
-                mutate(time = round(exp(`log(time + 1)`), digits = 0) - 1,
-                       age = time + 5,
-                       proportion = .fitted + 1),
-              mapping = aes(x = age, y = proportion, 
-                            ymin = .lower + 1, ymax = .upper + 1,
-                            group = site, color = site, fill = site),
-              alpha = 0.3, show.legend = FALSE),
-  filename = paste0(p_plots, run_label, "/decay/", "common_group_obs_CI", run_label, ".pdf"), 
-    width = 10, height = 4, units = "in"
-  )
-
-
-
-
-# Showing each site alone:
-gg_common_group_obs_by_site <-
-  ggplot(data = common_dat, 
-       mapping = aes(x = age, y = proportion, 
-                     group = fct_relevel(common, rev), color = fct_relevel(common, rev))) + 
-    theme_classic() + 
-    scale_color_viridis(discrete = TRUE) +
-    geom_hline(yintercept = 0.5, linetype = "dashed") +
-    # geom_point(alpha = 0.7) + 
-  geom_line(
-    data = augment(lm_l3_common) %>%
-      mutate(time = round(exp(`log(time + 1)`), digits = 0) - 1,
-             age = time + 5,
-             proportion = .fitted + 1),
-    size = 1.2) +
-  facet_wrap(vars(site), labeller = as_labeller(fancy_labels)) + 
-  scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30)) +
-  # scale_y_continuous(limits = c(0.3, 1)) +
-    coord_cartesian(ylim = c(0.3, 1)) +
-
-  labs(x = "Time since initial abandonment (years)", 
-       y = "Proportion of abandoned land remaining",
-       color = "Cohorts grouped \nby # observations",
-       linetype = "") + 
-    theme(legend.position = c(0.9, 0.15),
-          legend.spacing = unit(2, units = "mm"), 
-          legend.background = element_blank(),
-          legend.margin = margin(t = 0, r = 0, b = 0, l = 0))
-
-ggsave(gg_common_group_obs_by_site,
-  filename = paste0(p_plots, run_label, "/decay/", "common_group_obs_by_site", run_label, ".pdf"), 
-    width = 7, height = 7, units = "in"
-  )
-
-
-# save with mean trajectory:
-ggsave(
-  gg_common_group_obs_by_site + 
-  new_scale_color() +
-  geom_line(data = fitted_common %>% filter(age < 30, common == "mean"), 
-            aes(x = age, y = proportion, color = common),
-            inherit.aes = FALSE) + 
-  scale_color_discrete(labels = c("mean" = "Mean trajectory"),
-                       name = NULL),
-  filename = paste0(p_plots, run_label, "/decay/", "common_group_obs_by_site+", run_label, ".pdf"), 
-    width = 7, height = 7, units = "in"
-  )
-
-
-# ------------------------------------------------------------------------- #
-# extrapolating the mean trajectory to 150 years:
-# ------------------------------------------------------------------------- #
-gg_common_group_obs_150 <-
-  ggplot(data = fitted_common, 
-       mapping = aes(x = age, y = proportion, 
-                     color = site)) + 
-    theme_classic() + 
-    scale_color_discrete(label = fancy_labels) +
-  geom_line(size = 1.1) +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray70") +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  # scale_y_continuous(limits = c(0,1)) + 
-    coord_cartesian(ylim = c(0, 1)) +
-
-  labs(x = "Time since initial abandonment (years)", 
-       y = "Proportion of abandoned land remaining",
-       color = "Site") + 
-  facet_wrap(vars(as_factor(common)))
-
-
-ggsave(plot = gg_common_group_obs_150,
-       filename = paste0(p_plots, run_label, "/decay/", 
-                         "common_group_obs_150", run_label, ".pdf"), 
-       width = 13, height = 7.5, units = "in")
-
-```
-
-### Averaging across cohorts within smaller groups, with similar numbers of observations
-
-Similar in concept to the previous approach, but still calculating coefficients for each individual cohort.
-
-```{r}
-
-```
-
-### Modeling through common end points
-
-An alternative interpretation is to run individual models for different subsets of cohorts with
-
-Or, this could mean running a model comparing cohorts for common end points (all 10 years post abandonment, all 15 years post abandonment, etc.).
-
-```{r common-end-points}
+```{r common-endpoints}
 persistence_dat$age %>% unique() %>% sort()
 
 persistence_dat %>%
@@ -2574,6 +2517,8 @@ ggsave(plot = gg_endpoints_mean_traj_by_endpoint +
 ```
 
 ```{r *half-lives-by-endpoint}
+# Developing final figure (7)
+
 time_to_endpoints <-
   coef_l3_endpoints %>%
   group_by(site, endpoint, coef_term) %>% # group by site and coef_term
@@ -2987,6 +2932,337 @@ ggsave(gg_endpoints_example_panel_s,
 ```
 
 
+# Save files 
+```{r *save-files}
+
+# ------------------------------------------------------------------------ #
+# save coef data.frames
+# ------------------------------------------------------------------------ #
+save(lm_mega_lin_log_lin_l, 
+     mod_ll_mega, 
+     coef_l3_mega,
+     mean_coef_l3_mega, 
+     combo_mean_coefs, 
+     half_lives_all_cohorts_l3, 
+     half_life_mean_coefs_l3, 
+     mod_AIC_mega, 
+     combo_mean_coefs_w, 
+     fitted_combo, 
+     time_to_combo,
+     file = paste0(p_derived2, "/decay_mod_files", run_label, ".rds"))
+
+save(common_endpoint_dat, 
+     endpoint_n,
+     coef_l3_endpoints,
+     augment_endpoints,
+     fitted_endpoints,
+     time_to_endpoints,
+     endpoint_half_lives,
+     file = paste0(p_derived2, "/decay_endpoints_files", run_label, ".rds"))
+
+
+load(file = paste0(p_derived2, "/decay_mod_files", run_label, ".rds"), verbose = TRUE)
+load(file = paste0(p_derived2, "/decay_endpoints_files", run_label, ".rds"), verbose = TRUE)
+```
+
+
+
+# Testing other model specifications
+
+
+## Test model fit without low n cohorts
+
+```{r trim-small-cohorts}
+
+# Filter persistence dataset to exclude cohorts with < 5 observations (i.e., cohorts 2010, '11, '12, '13)
+dat_trim <- persistence_dat %>% 
+  filter(year_abn < 2010)
+
+# see AIC chunk above, list: mod_ll_mega
+# update all lm calls in the list to run on the trimmed dataset:
+mod_ll_mega_trim <- lapply(mod_ll_mega, FUN = function(i) update(i, data = dat_trim))
+names(mod_ll_mega_trim)
+
+
+# Calculate AIC
+mod_AIC_mega_trim <- lapply(mod_ll_mega_trim, function(x) glance(x)) %>% 
+  bind_rows(.id = "mod") %>%
+  select(mod, AIC, everything()) %>% 
+  arrange(AIC)
+
+
+# view results
+mod_AIC_mega_trim %>% 
+  arrange(AIC) %>% 
+  select(AIC, mod, adj.r.squared) %>% print(n = 150)
+
+
+
+# mega AIC figure
+gg_AIC_mega_trim <-
+  ggplot(data = mod_AIC_mega_trim,
+       mapping = aes(y = fct_reorder(mod, AIC), x = AIC, 
+                     group = fct_reorder(mod, AIC), fill = fct_reorder(mod, AIC))) + 
+  theme_classic() +
+  geom_col(position = position_dodge(0.9)) +
+  # theme(axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) +
+  labs(y = "Model Specification", x = "AIC Value", fill = "Model") +
+  theme(legend.position = "none",
+        plot.margin = margin(4, 20, 4, 4, "pt"))
+
+gg_AIC_mega_trim
+
+ggsave(plot = gg_AIC_mega_trim, 
+       filename = paste0(p_plots, run_label, "/decay/", "trimmed_data_mod_AIC", run_label, ".png"), 
+    width = 5, height = 4, units = "in")
+
+```
+
+```{r coef-trim}
+
+# extract the coefficients for the lin-log-lin model, run on only those cohorts with >=5 observations
+# ----------------------------------------------------------------------- #
+coef_l3_mega_trim <- 
+  mod_ll_mega_trim[[4]] %>% # this corresponds to the lin-log-lin model
+  tidy(conf.int = TRUE) %>%
+  mutate(site = gsub("site", "", str_extract(term, "site[a-z,_]*")),
+         year_abn = as.integer(str_extract(term, "[1-2][0-9][0-9][0-9]")),
+         cohort = as.factor(year_abn),
+         coef_term = ifelse(grepl("log", term), "log", "lin"),
+         uncertainty_range = conf.high - conf.low,
+         mod = "l3_trim") %>%
+  left_join(dat_trim %>%
+              group_by(site, year_abn) %>%
+              summarise(obs = n()) %>% 
+              ungroup()
+            ) %>%
+  select(mod, site, year_abn, cohort, coef_term, estimate, conf.low, conf.high, uncertainty_range, obs, everything())
+
+# ----------------------------------------------------------------------- #
+# calculate mean coefficients and their confidence intervals
+mean_coef_l3_mega_trim <- coef_l3_mega_trim %>%
+  group_by(site, coef_term) %>% # group by site and coef_term
+  # use a linear regression to calculate mean and confidence intervals
+  summarise(tidy(lm(estimate ~ 1), conf.int = TRUE, conf.level = 0.95)) %>% 
+  ungroup()
+
+
+
+# plot coefs with uncertainty
+
+gg_coef_uncertainty_mega +
+  geom_point(data = coef_l3_mega_trim, mapping = aes(x = year_abn, y = estimate, color = coef_term),
+           position = position_dodge(dodge_width), alpha = 0.3, # size = 1,
+           color = "red"
+             ) + 
+  geom_errorbar(data = coef_l3_mega_trim,
+                mapping = aes(ymin = conf.low, ymax = conf.high),
+                color = "red",
+                width = 0.5, position = position_dodge(dodge_width),
+                alpha = 0.3)
+
+gg_coef_uncertainty_mega %+% coef_l3_mega_trim
+
+```
+
+## Lumping cohorts by number of observations (e.g., 6-10 obs.)
+
+The first interpretation of this is to run the model for groups of cohorts with similar numbers of observations, making these cohorts more reasonable to compare.
+This involves running linear models for groups of cohorts with similar numbers of observations (i.e., cohorts with 21-26, 16-20, 11-15, 6-10, and 1-5 observations).
+These linear models take the same form as the previous models, except including a "common" grouping variable as a fixed effect in place of "cohort."
+
+```{r common-groupings-by-obs}
+persistence_dat %>%
+  filter(year_abn < 2010) %>%
+  group_by(site, cohort) %>%
+  summarise(obs = n()) %>% 
+  ungroup() %>%
+  filter(site == "shaanxi") %>% tail
+
+common_dat <- persistence_dat %>% 
+  left_join(persistence_dat %>%
+              group_by(site, year_abn) %>%
+              summarise(obs = n()) %>% 
+              ungroup()
+            ) %>%
+  mutate(common = cut(obs, breaks = c(1, 5, 10, 15, 20, 26), include.lowest = TRUE, right = TRUE))
+
+ggplot(data = common_dat, 
+       mapping = aes(x = age, y = proportion, 
+                       group = site, color = site)) + 
+    theme_classic() + 
+    # scale_color_distiller(palette = "Greens") + scale_fill_distiller(palette = "Greens") +
+    # scale_color_viridis() + scale_fill_viridis() +
+    scale_color_discrete(labels = cap_update_labels) +
+    geom_point(alpha = 0.7) +
+
+    facet_wrap(.~common, scales = "free_x", #space = "free_x"
+               )
+
+# run a single lm, with only site fixed effects:
+lm_l3_common <- lm(I(proportion - 1)  ~ 0 + log(time + 1):common:site + I(time):common:site,  
+               data = common_dat)
+
+
+coef_l3_common <- 
+  tidy(lm_l3_common, conf.int = TRUE) %>%
+  mutate(site = str_extract(term, "site[a-z,_]*") %>% gsub("site", "", .),
+         common = str_extract(term, ".[0-9]+.[0-9]+."),
+         coef_term = ifelse(grepl("log", term), "log", "lin"))
+
+# ----------------------------------------------------------------------- #
+# calculate mean coefficients and their confidence intervals
+
+fitted_common <-
+# mean_coef_l3_mega <- 
+coef_l3_common %>%
+  group_by(site, coef_term) %>% # group by site and coef_term
+  # use a linear regression to calculate mean and confidence intervals
+  summarise(tidy(lm(estimate ~ 1), conf.int = TRUE, conf.level = 0.95)) %>% 
+  ungroup() %>%
+  pivot_wider(id_cols = c(site, coef_term), names_from = coef_term, values_from = estimate) %>% 
+  mutate(common = "mean") %>%
+  bind_rows(coef_l3_common %>%
+              pivot_wider(id_cols = c(site, common, coef_term), 
+                          names_from = coef_term, 
+                          values_from = estimate)) %>%
+  left_join(tibble(age = 5:150), by = character()) %>%
+  mutate(proportion = log * log(age-4) + lin * ((age-4) - 1) + 1,
+         proportion = ifelse(proportion >= 0, proportion, 0)) # fitted proportion can't be less than 0!
+
+```
+
+
+```{r plot-common-groups}
+# Plot the trends for each grouping of similar numbers of observations:
+gg_common_group_obs <- ggplot(data = common_dat, 
+       mapping = aes(x = age, y = proportion, 
+                       group = site, color = site)) + 
+    theme_classic() + 
+    # scale_color_viridis(discrete = TRUE) + 
+    scale_color_discrete(labels = cap_update_labels) +
+    geom_hline(yintercept = 0.5, linetype = "dashed") +
+
+    # geom_point(alpha = 0.7) + 
+  
+  geom_line(
+    data = augment(lm_l3_common, interval = "confidence") %>%
+      mutate(time = round(exp(`log(time + 1)`), digits = 0) - 1,
+             age = time + 5,
+             proportion = .fitted + 1),
+    size = 1.2) + 
+  facet_grid(.~common, scales = "free_x", space = "free_x"
+               ) + 
+  scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30)) +
+  labs(x = "Time since initial abandonment (years)", 
+       y = "Proportion of abandoned land remaining",
+       color = "Site",
+       linetype = "")
+
+ggsave(gg_common_group_obs,
+  filename = paste0(p_plots, run_label, "/decay/", "common_group_obs", run_label, ".pdf"), 
+    width = 10, height = 4, units = "in"
+  )
+
+# with CIs
+ggsave(gg_common_group_obs + 
+         geom_ribbon(data = 
+                augment(lm_l3_common, interval = "confidence") %>%
+                mutate(time = round(exp(`log(time + 1)`), digits = 0) - 1,
+                       age = time + 5,
+                       proportion = .fitted + 1),
+              mapping = aes(x = age, y = proportion, 
+                            ymin = .lower + 1, ymax = .upper + 1,
+                            group = site, color = site, fill = site),
+              alpha = 0.3, show.legend = FALSE),
+  filename = paste0(p_plots, run_label, "/decay/", "common_group_obs_CI", run_label, ".pdf"), 
+    width = 10, height = 4, units = "in"
+  )
+
+
+
+
+# Showing each site alone:
+gg_common_group_obs_by_site <-
+  ggplot(data = common_dat, 
+       mapping = aes(x = age, y = proportion, 
+                     group = fct_relevel(common, rev), color = fct_relevel(common, rev))) + 
+    theme_classic() + 
+    scale_color_viridis(discrete = TRUE) +
+    geom_hline(yintercept = 0.5, linetype = "dashed") +
+    # geom_point(alpha = 0.7) + 
+  geom_line(
+    data = augment(lm_l3_common) %>%
+      mutate(time = round(exp(`log(time + 1)`), digits = 0) - 1,
+             age = time + 5,
+             proportion = .fitted + 1),
+    size = 1.2) +
+  facet_wrap(vars(site), labeller = as_labeller(fancy_labels)) + 
+  scale_x_continuous(breaks = c(5, 10, 15, 20, 25, 30)) +
+  # scale_y_continuous(limits = c(0.3, 1)) +
+    coord_cartesian(ylim = c(0.3, 1)) +
+
+  labs(x = "Time since initial abandonment (years)", 
+       y = "Proportion of abandoned land remaining",
+       color = "Cohorts grouped \nby # observations",
+       linetype = "") + 
+    theme(legend.position = c(0.9, 0.15),
+          legend.spacing = unit(2, units = "mm"), 
+          legend.background = element_blank(),
+          legend.margin = margin(t = 0, r = 0, b = 0, l = 0))
+
+ggsave(gg_common_group_obs_by_site,
+  filename = paste0(p_plots, run_label, "/decay/", "common_group_obs_by_site", run_label, ".pdf"), 
+    width = 7, height = 7, units = "in"
+  )
+
+
+# save with mean trajectory:
+ggsave(
+  gg_common_group_obs_by_site + 
+  new_scale_color() +
+  geom_line(data = fitted_common %>% filter(age < 30, common == "mean"), 
+            aes(x = age, y = proportion, color = common),
+            inherit.aes = FALSE) + 
+  scale_color_discrete(labels = c("mean" = "Mean trajectory"),
+                       name = NULL),
+  filename = paste0(p_plots, run_label, "/decay/", "common_group_obs_by_site+", run_label, ".pdf"), 
+    width = 7, height = 7, units = "in"
+  )
+
+
+# ------------------------------------------------------------------------- #
+# extrapolating the mean trajectory to 150 years:
+# ------------------------------------------------------------------------- #
+gg_common_group_obs_150 <-
+  ggplot(data = fitted_common, 
+       mapping = aes(x = age, y = proportion, 
+                     color = site)) + 
+    theme_classic() + 
+    scale_color_discrete(label = fancy_labels) +
+  geom_line(size = 1.1) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray70") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  # scale_y_continuous(limits = c(0,1)) + 
+    coord_cartesian(ylim = c(0, 1)) +
+
+  labs(x = "Time since initial abandonment (years)", 
+       y = "Proportion of abandoned land remaining",
+       color = "Site") + 
+  facet_wrap(vars(as_factor(common)))
+
+
+ggsave(plot = gg_common_group_obs_150,
+       filename = paste0(p_plots, run_label, "/decay/", 
+                         "common_group_obs_150", run_label, ".pdf"), 
+       width = 13, height = 7.5, units = "in")
+
+```
+
+
+
+
+
 
 ## Comparing pooled vs. single site models
 ```{r compare-pooled}
@@ -3117,522 +3393,6 @@ ggplot(data = filter(persistence_dat, site == site_df$site[9]),
                        ))) 
 ```
 
-
-
-
-
-
-
-
-```{r add-intercept}
-
-# linear - log - linear
-lm_pools <- lm(I(proportion - 1) ~ 0 + log(time + 1):cohort:site + I(time):cohort:site,  
-               data = filter(persistence_dat, site == "shaanxi"))
-
-lm_pool <- lm(I(proportion - 1) ~ 0 + log(time + 1):cohort:site + I(time):cohort:site,  
-               data = persistence_dat)
-
-tidy(lm_lin_log_lin_l[[9]])
-
-
-
-# coef_df_l3 <- 
-  lapply(lm_lin_log_lin_l, FUN = function(x) {
-  tidy(x, conf.int = TRUE) %>% 
-    mutate(coef_term = sub(":*cohort....:*", "", term),
-         year_abn = ifelse(coef_term == "log(time + 1)", gsub(".*cohort", "", term), parse_number(term)),
-         year_abn = as.numeric(year_abn),
-         cohort = as.factor(year_abn))
-}) %>% bind_rows(.id = "site") %>%
-    mutate(term_long = term,
-           term = as_factor(ifelse(coef_term == "I(time)", "lin", "log"))) %>%
-  select(site, cohort, term, estimate, coef_term, everything())
-
-coef_df_l3 %>% filter(site == "shaanxi")
-
-# calculate mean coefficients per site, for both lin and log terms
-# mean_coef_df_l3 <- 
-  coef_df_l3 %>% #filter(site == "shaanxi") %>% 
-  group_by(site, coef_term, term) %>% # group by site, term and coef_term (though you only need one of these)
-  summarise(mean = mean(estimate, na.rm = TRUE),
-            mean_low = mean(conf.low, na.rm = TRUE),
-            mean_high = mean(conf.high, na.rm = TRUE)) %>% ungroup()
-
-
-augment()
- 
-
-
-
-
-# simple plots
-ggplot(data = filter(persistence_dat, 
-                     site == site_df$site[9],
-                     # year_abn > 2009
-                     ),
-         mapping = aes(x = age, y = proportion, 
-                       color = cohort
-                       )) + 
-  theme_classic() + 
-  
-  # observed points
-  geom_point() + 
-  geom_line(data = mutate(augment(lm_lin_log_lin_l[[9]]),
-                          time = round(exp(`log(time + 1)`), digits = 0) - 1,
-                          age = time + 5,
-                          proportion = .fitted + 1,
-                          year_abn = as.numeric(levels(cohort))[cohort]) #%>%
-              # filter(year_abn > 2009)
-              ,
-            linetype = 5)
-```
-
-
-
-## Uncertainty
-
-There are a few different aspects of uncertainty
-- plot uncertainty around the individual coefficient estimates (2 model coefficients)
-- attempt to develop an estimate of the uncertainty estimate around the "half-life" estimation. One method would be to calculate a range of half-lives based on the range of coefficient values.
-- plot the trajectories with the 95% confidence intervals as a polygon around them.
-- 
-
-```{r plot-coef-uncertainty}
-# library(dotwhisker)
-# dotwhisker::dwplot(lm_lin_log_lin_l$shaanxi, effects="fixed") + 
-#   geom_vline(xintercept = 0, lty = 2) + 
-#   theme_classic()
-# for future reference...
-  
-# ------------------------------------------------------------------ #
-# uncertainty with pooled, mega model
-dodge_width <- 0.5
-
-gg_coef_uncertainty_mega <-
-  ggplot(data = coef_l3_mega %>% filter(year_abn < 2013),
-       mapping = aes(x = year_abn, y = estimate, color = coef_term)) + 
-  geom_point(position = position_dodge(dodge_width), alpha = 0.8#, size = 1
-             ) + 
-  geom_errorbar(mapping = aes(ymin = conf.low, ymax = conf.high),
-                width = 0.5, position = position_dodge(dodge_width),
-                alpha = 0.8) +
-  facet_wrap(vars(site), scales = "free", nrow = 4,
-             labeller = as_labeller(cap_update_labels)) + 
-  geom_hline(yintercept = 0) + # horizontal orientation
-  theme_classic() +
-  # theme_linedraw() +
-  # theme_minimal_vgrid() +
-  labs(x = "Cohort (Year Abandoned)", y = "Model Coefficient Estimate", 
-       # title = "Coefficient estimates and uncertainty: pooled model",
-       # caption = "Error bars represent 95% Confidence Intervals around coefficient estimate",
-       color = "Coefficient term") + 
-  theme(legend.position = c(0.8, 0.15)) + 
-    # scale_color_manual(values = brewer.pal(9, "PiYG")[c(1,9)],
-                       # labels = c("log" = "Log", "lin" = "Linear"))
-  scale_color_manual(values = met.brewer(name="Hokusai3", n=2, type="discrete"),
-                     labels = c("log" = "Log", "lin" = "Linear")) 
-
-gg_coef_uncertainty_mega
-
-ggsave(#data = coef_l3_mega, 
-       plot = gg_coef_uncertainty_mega, 
-       filename = paste0(p_plots, run_label, "/decay/", "mod_coef_uncertainty_mega", run_label, ".pdf"), 
-    width = 9, height = 9, units = "in")
-
-
-
-
-# alternative: simply plot the uncertainty window:
-
-gg_uncertainty_window <- 
-  ggplot(data = coef_l3_mega %>% 
-         mutate(uncertainty_range = ifelse(coef_term == "lin", -1*uncertainty_range, uncertainty_range)),
-       mapping = aes(x = year_abn, y = uncertainty_range,
-                       group = coef_term, fill = coef_term)) + 
-  geom_col() + 
-  facet_wrap(vars(site), scales = "free", labeller = as_labeller(cap_update_labels)) + 
-  theme_classic() + 
-  scale_fill_manual(values = met.brewer(name="Hokusai3", n=2, type="discrete"),
-                     labels = c("log" = "Log", "lin" = "Linear")) +
-  labs(x = "Cohort (Year Abandoned)", y = "Model Coefficient Uncertainty Window (absolute value)", 
-       fill = "Coefficient\nTerm") + 
-  theme(legend.position = c(0.88, 0.19))
-
-
-ggsave(plot = gg_uncertainty_window, 
-       filename = paste0(p_plots, run_label, "/decay/", "mod_coef_uncertainty_window", run_label, ".pdf"), 
-    width = 8, height = 6, units = "in")
-
-
-
-
-
-
-
-# extras:
-
-# ------------------------------------------------------------- #
-# pooled model uncertainty, with log and linear term coefficients plotted separately.
-ggplot(data = filter(coef_l3_mega, 
-                     site %in% site_df$site[c(3,9)]
-                     ),
-       mapping = aes(y = year_abn, x = estimate, color = coef_term)) + 
-  geom_point(
-    # position = position_dodge(0.7)
-             ) + 
-  geom_errorbar(mapping = aes(xmin = conf.low, xmax = conf.high), width = 0.3,
-                position = position_dodge(0.7)) +
-  facet_wrap(vars(site, coef_term), scales = "free", #nrow = 4,
-             labeller = as_labeller(cap_update_labels)) + 
-  geom_vline(xintercept = 0) + 
-  theme_classic() + 
-    # theme(legend.position = c(0.9, 0.13)) +
-# coord_cartesian(ylim = c(-0.01, 0.01)) +
-  labs(x = "Cohort (Year Abandoned)", y = "Model Coefficient Estimate", 
-       title = "Coefficient estimates and uncertainty: pooled model",
-       caption = "Error bars represent 95% Confidence Intervals around coefficient estimate")
-
-
-
-# ----------------------------------------------------------------- #
-# plot whether the coefficients have p values <= 0.05.
-ggplot(data = filter(coef_l3_mega, !is.na(estimate)),
-       mapping = aes(x = year_abn, y = p.value <= 0.05, color = coef_term)) + 
-  geom_point() +
-  facet_grid(vars(site), scales = "free", #nrow = 4,
-             labeller = as_labeller(cap_update_labels)) + 
-  theme_classic() + 
-  labs(x = "Cohort (Year Abandoned)", y = "Coef. with p value <= 0.05")
-
-
-
-# ----------------------------------------------------------------- #
-# individual models
-
-gg_coef_uncertainty <- ggplot(data = coef_df_l3,
-       mapping = aes(x = year_abn, y = estimate, color = term)) + 
-  geom_point(position = position_dodge(0.7)) + 
-  geom_errorbar(mapping = aes(ymin = conf.low, ymax = conf.high), width = 0.3,
-                position = position_dodge(0.7)) +
-  facet_wrap(vars(site), scales = "free", nrow = 4,
-             labeller = as_labeller(cap_update_labels)) + 
-  geom_hline(yintercept = 0) + 
-  theme_classic() + 
-  labs(x = "Cohort (Year Abandoned)", y = "Model Coefficient Estimate", 
-       title = "Coefficient estimates and uncertainty: individual models",
-       caption = "Error bars represent 95% Confidence Intervals around coefficient estimate") + 
-  theme(legend.position = c(0.9, 0.13))
-gg_coef_uncertainty
-
-ggsave(plot = gg_coef_uncertainty, 
-       filename = paste0(p_plots, run_label, "/decay/", "mod_coef_uncertainty", run_label, ".pdf"), 
-    width = 9, height = 10, units = "in")
-
-
-
-# using the built in stat functions:
-
-# mean values:
-ggplot(data = coef_l3_mega %>% filter(year_abn < 2013, 
-                                      # site == "shaanxi"
-                                      ),
-       mapping = aes(x = site, y = estimate, color = coef_term)) + 
-  # geom_point(position = position_dodge(0.7)) + 
-  # geom_errorbar(mapping = aes(ymin = conf.low, ymax = conf.high),
-                # width = 0.3, position = position_dodge(0.7)) +
-  # facet_wrap(vars(site), scales = "free", nrow = 4,
-  #            labeller = as_labeller(cap_update_labels)) + 
-  # geom_hline(yintercept = 0) + # horizontal orientation
-  theme_classic() +
-  # theme_linedraw() +
-  # theme_minimal_vgrid() +
-  labs(x = "Cohort (Year Abandoned)", y = "Model Coefficient Estimate", 
-       # title = "Coefficient estimates and uncertainty: pooled model",
-       # caption = "Error bars represent 95% Confidence Intervals around coefficient estimate",
-       color = "Coefficient term") + 
-  theme(legend.position = c(0.86, 0.23)) + 
-    scale_color_manual(values = brewer.pal(9, "PiYG")[c(1,9)],
-                       labels = c("log" = "Log", "lin" = "Linear")
-                       ) + 
-  stat_summary(fun.data = "mean_cl_boot", mapping = aes(group = coef_term, color = coef_term),
-               # geom = "errorbar",
-               # width = 0.2,         
-               # inherit.aes = TRUE,
-               # colour = "red", 
-               size = 1
-               ) + 
-    stat_summary(fun = "mean", mapping = aes(group = coef_term, color = coef_term),
-                 site = 0.5, color = "black")
-
-```
-
-```{r mean-coef-w-se}
-library(MetBrewer)
-show_col(met.brewer(name="VanGogh3", n=2, type="discrete"))
-show_col(met.brewer(name="Derain", n=2, type="discrete"))
-show_col(met.brewer(name="Cassatt2", n=4, type="discrete"))
-show_col(met.brewer(name="Hokusai3", n=2, type="discrete"))
-show_col(met.brewer(name="Isfahan1", n=2, type="discrete"))
-
-# see coef-mega
-# plot mean coefficients and their confidence intervals
-# note, these confidence intervals are calculated using lm(estimate ~ 1) (see code chunk above: "coef-mega")
-
-gg_mean_coef_w_ci <-
-  mean_coef_l3_mega %>% 
-  ggplot(mapping = aes(x = estimate, y = site, color = coef_term)) + 
-    geom_vline(xintercept = 0, linetype = "dashed") + 
-  geom_point(position = position_dodge(0.4), size = 2) + 
-  geom_errorbar(mapping = aes(xmin = conf.low, xmax = conf.high), width = 0.3,
-                position = position_dodge(0.4)) +
-  scale_y_discrete(labels = fancy_labels) + 
-    theme_classic() +
-    labs(y = "Site", x = "Mean Coefficient Estimate (95% Confidence Interval)",
-         color = "Coefficient\nTerm") + 
-    scale_color_manual(
-      values = met.brewer(name="Hokusai3", n=2, type="discrete"),
-      labels = c("log" = "Log", "lin" = "Linear"))
-
-# gg_mean_coef_w_ci
-
-# cvd_grid(gg_mean_coef_w_ci)
-
-ggsave(plot = gg_mean_coef_w_ci, 
-       filename = paste0(p_plots, run_label, "/decay/", "mean_coef_ci", run_label, ".pdf"), 
-    width = 5.5, height = 4.5, units = "in")
-
-
-
-
-
-
-
-
-# comparing the different confidence interval estimates:
-
-coef_l3_mega %>% 
-  group_by(site, coef_term) %>% # group by site, term and coef_term (though you only need one of these)
-  summarise(mean = mean(estimate, na.rm = TRUE),
-            mean_low = mean(conf.low, na.rm = TRUE),
-            mean_high = mean(conf.high, na.rm = TRUE),
-            se = se(estimate),
-            ci.low = mean - 1.96*se,
-            ci.high = mean + 1.96*se,
-            tidy(lm(estimate ~ 1), conf.int = TRUE, conf.level = 0.95)) %>%
-  ungroup() %>%
-  ggplot(mapping = aes(y = site, color = coef_term)) + 
-  geom_point(mapping = aes(x = estimate, shape = coef_term),
-             position = position_dodge(0.5)) + 
-  geom_errorbar(mapping = aes(xmin = conf.low, xmax = conf.high), width = 0.3,
-                position = position_dodge(0.5)) + 
-  geom_errorbar(mapping = aes(xmin = ci.low, xmax = ci.high), width = 0.3,
-                position = position_dodge(0.5),
-                color = "black")
-
-
-
-```
-
-
-
-
-```{r weight-by-uncertainty}
-# develop a "weight" associated with the uncertainty with each coefficient estimate.
-combo_mean_coefs <- 
-  bind_rows(coef_l3_mega,
-            coef_lin_log_mega,
-            coef_log2_lin_mega) %>%
-  group_by(mod, site, coef_term) %>% # group by site and coef_term
-  # use a linear regression to calculate mean and confidence intervals
-  summarise(tidy(lm(estimate ~ 1), conf.int = TRUE, conf.level = 0.95)) %>% 
-  ungroup()
-
-
-
-
-
-c
-  # filter(!is.na(estimate)) %>%
-  group_by(site, coef_term) %>% 
-  summarise(
-    # mean = mean(estimate, na.rm = TRUE),
-    weighted_mean = sum(estimate * weight, na.rm = TRUE) / sum(weight, na.rm = TRUE)) %>%
-  mutate(mod = "w_mean") %>%
-  rename(coef_term = term, estimate = weighted_mean) %>% ungroup()
-
-
-
-
-
-mean_traj_w_uncertainty <-
-  mean_coef_l3_mega %>%
-  # mean_coef_l3_mega_trim %>%
-  # filter(site == "shaanxi") %>%
-  select(site, coef_term, estimate, conf.low, conf.high) %>%
-  pivot_longer(cols = c(estimate, conf.low, conf.high), values_to = "value") %>%
-  pivot_wider(id_cols = c(site, name), names_from = coef_term, values_from = "value") %>%
-  left_join(
-    tibble(  
-      site = rep(site_df$site, each = length(time_span)),
-      age = rep(time_span, length(site_df$site))), 
-    by = "site") %>%
-  mutate(proportion = log * log(age-4) + lin * ((age-4) - 1) + 1) %>%
-    select(site, age, name, proportion) %>%
-    pivot_wider(id_cols = c(site, age), names_from = name, values_from = "proportion")
-
-
-mean_traj_ci_trim <- 
-  mean_coef_l3_mega_trim %>%
-  select(site, coef_term, estimate, conf.low, conf.high) %>%
-  pivot_longer(cols = c(estimate, conf.low, conf.high), values_to = "value") %>%
-  pivot_wider(id_cols = c(site, name), names_from = coef_term, values_from = "value") %>%
-  left_join(
-    tibble(  
-      site = rep(site_df$site, each = length(time_span)),
-      age = rep(time_span, length(site_df$site))), 
-    by = "site") %>%
-  mutate(proportion = log * log(age-4) + lin * ((age-4) - 1) + 1) %>%
-    select(site, age, name, proportion) %>%
-    pivot_wider(id_cols = c(site, age), names_from = name, values_from = "proportion")
-
-
-
-
-
-# ---------------------------------------------------------------------------- #
-# First, plot the full decay model grid with the mean trajectory as a confidence interval (based on the confidence interval around the mean value estimated by the linear regression above)
-# ---------------------------------------------------------------------------- #
-
-gg_decay_grid_w_mean_traj_ci_base <- 
-  ggplot(data = persistence_dat, 
-       mapping = aes(x = age, y = proportion, 
-                     group = year_abn, color = year_abn)) + 
-    theme_classic() + 
-  labs(x = "Time since initial abandonment (years)", 
-       y = "Proportion of abandoned land remaining",
-       color = "Cohort \n(Year Abandoned)",
-       caption = "Including all cohorts, irrespective of number of observations.") + 
-   geom_point(size = 1) + # raw data
-    scale_color_viridis(discrete = FALSE) +
-    facet_wrap(vars(site), nrow = 3,
-             labeller = as_labeller(cap_update_labels)) + 
-  
-   # fitted lines
-    geom_line(data = mutate(augment(lm_mega_lin_log_lin_l, se_fit = TRUE),
-                            time = round(exp(`log(time + 1)`), digits = 0) - 1,
-                            age = time + 5,
-                            proportion = .fitted + 1,
-                            year_abn = as.numeric(levels(cohort))[cohort]),
-              linetype = 5, #show.legend = FALSE,
-              aes(alpha = "Fitted")) +
-      scale_alpha_manual(name = NULL,
-                     values = c(1), # breaks = c(0, "Fitted"),
-                     guide = guide_legend(
-                       order = 2
-                       )) +
-
-    scale_x_continuous(n.breaks = 6) +
-    geom_hline(yintercept = 0.5, linetype = "dashed") +
-  
-  theme(
-    legend.position = c(0.9, 0.13),
-    legend.spacing = unit(0, units = "mm"), 
-    legend.background = element_blank(),
-    legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
-  coord_cartesian(ylim = c(0.3, 1))
-
-
-# untrimmed version
-gg_decay_grid_w_mean_traj_ci <- 
-  gg_decay_grid_w_mean_traj_ci_base +
-  # add mean trajectories
-  geom_line(data = mean_traj_ci %>% filter(age < 31), 
-            mapping = aes(x = age, y = estimate),
-              color = "red",
-              size = 1, inherit.aes = FALSE) +
-  
-  # add 95% confidence intervals
-  geom_ribbon(data = mean_traj_ci %>% filter(age < 31),
-                mapping = aes(x = age, 
-                              y = estimate, 
-                              ymin = conf.low,
-                              ymax = conf.high),
-              color = "red", fill = "red",
-                alpha = 0.1, inherit.aes = FALSE)
-
-# save:
-ggsave(plot = gg_decay_grid_w_mean_traj_ci,
-       filename = paste0(p_plots, run_label, "/decay/", "decay_mod_w_mean_traj_ci", run_label, ".pdf"),
-    width = 11, height = 9, units = "in")
-
-
-
-# now, plot the trimmed version (no. observations >= 5):
-rm(gg_decay_grid_w_mean_traj_ci_trim2)
-gg_decay_grid_w_mean_traj_ci_trim <- 
-  
-  ggplot(data = persistence_dat %>% filter(year_abn < 2010), 
-       mapping = aes(x = age, y = proportion, 
-                     group = year_abn, color = year_abn)) + 
-    theme_classic() + 
-  labs(x = "Time since initial abandonment (years)", 
-         y = "Proportion of abandoned land remaining",
-         color = "Cohort \n(Year Abandoned)",
-       caption = "Restricted to cohorts with >= 5 observations (excluding 2010, '11, '12, '13)") + 
-   geom_point(size = 1) + # raw data
-    scale_color_viridis(discrete = FALSE) +
-    facet_wrap(vars(site), nrow = 3,
-             labeller = as_labeller(cap_update_labels)) + 
-  
-   # fitted lines
-    geom_line(data = mutate(augment(lm_mega_lin_log_lin_l, se_fit = TRUE),
-                            time = round(exp(`log(time + 1)`), digits = 0) - 1,
-                            age = time + 5,
-                            proportion = .fitted + 1,
-                            year_abn = as.numeric(levels(cohort))[cohort]) %>%
-                filter(year_abn < 2010),
-              linetype = 5, #show.legend = FALSE,
-              aes(alpha = "Fitted")) +
-      scale_alpha_manual(name = NULL,
-                     values = c(1), # breaks = c(0, "Fitted"),
-                     guide = guide_legend(
-                       order = 2
-                       )) +
-
-    scale_x_continuous(n.breaks = 6) +
-    geom_hline(yintercept = 0.5, linetype = "dashed") +
-  
-  theme(
-    legend.position = c(0.9, 0.13),
-    legend.spacing = unit(0, units = "mm"), 
-    legend.background = element_blank(),
-    legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
-  coord_cartesian(ylim = c(0.3, 1)) +
-  
-  # add mean trajectories
-  geom_line(data = mean_traj_ci_trim %>% filter(age < 31), 
-            mapping = aes(x = age, y = estimate),
-              color = "red",
-              size = 1, inherit.aes = FALSE) +
-  
-  # add 95% confidence intervals
-  geom_ribbon(data = mean_traj_ci_trim %>% filter(age < 31),
-                mapping = aes(x = age, 
-                              y = estimate, 
-                              ymin = conf.low,
-                              ymax = conf.high),
-              color = "red", fill = "red",
-                alpha = 0.1, inherit.aes = FALSE)
-
-# save:
-ggsave(plot = gg_decay_grid_w_mean_traj_ci_trim,
-       filename = paste0(p_plots, run_label, "/decay/", "decay_mod_w_mean_traj_ci_trim", run_label, ".pdf"),
-    width = 11, height = 9, units = "in")
-
-
-
-```
 
 
 ## Cohort as a random effect
@@ -3769,38 +3529,666 @@ tidy(lmer_l3_random)#, conf.int = TRUE)
 
 ```
 
-# Save files 
-```{r save-files}
+## Plot alternative model specifications
 
-# ------------------------------------------------------------------------ #
-# save coef data.frames
-# ------------------------------------------------------------------------ #
-save(lm_mega_lin_log_lin_l, 
-     mod_ll_mega, 
-     coef_l3_mega,
-     mean_coef_l3_mega, 
-     combo_mean_coefs, 
-     half_lives_all_cohorts_l3, 
-     half_life_mean_coefs_l3, 
-     mod_AIC_mega, 
-     combo_mean_coefs_w, 
-     fitted_combo, 
-     time_to_combo,
-     file = paste0(p_derived2, "/decay_mod_files", run_label, ".rds"))
-
-save(common_endpoint_dat, 
-     endpoint_n,
-     coef_l3_endpoints,
-     augment_endpoints,
-     fitted_endpoints,
-     time_to_endpoints,
-     endpoint_half_lives,
-     file = paste0(p_derived2, "/decay_endpoints_files", run_label, ".rds"))
-
-
-load(file = paste0(p_derived2, "/decay_mod_files", run_label, ".rds"), verbose = TRUE)
-load(file = paste0(p_derived2, "/decay_endpoints_files", run_label, ".rds"), verbose = TRUE)
+Note that chunk labels refer to the list index corresponding to various models in "mod_ll_mega"
+```{r}
+names(mod_ll_mega)
 ```
+
+
+```{r decay-panel-with-any-model}
+# mod_ll_mega_trim
+names(mod_ll_mega)
+
+# cohort cut-off:
+# cohort_cut_off <- 2010
+cohort_cut_off <- 2014
+mod_index <- 8
+formula(mod_ll_mega[[mod_index]])
+
+gg_decay_grid0 <-
+  ggplot(data = persistence_dat %>% filter(year_abn < cohort_cut_off), 
+       mapping = aes(x = age, y = proportion, 
+                     group = year_abn, color = year_abn)) + 
+    theme_classic() + 
+  
+    geom_point(size = 1) + 
+    scale_color_viridis() +
+    scale_x_continuous(n.breaks = 6) +
+    geom_hline(yintercept = 0.5, linetype = "dashed") + 
+    labs(
+         x = "Time since initial abandonment (years)", 
+         y = "Proportion of abandoned land remaining",
+         color = "Cohort \n(Year Abandoned)",
+         linetype = "") + 
+
+  theme(legend.position = c(0.9, 0.13),
+        legend.spacing = unit(-2, units = "mm"), legend.background = element_blank(),
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
+  coord_cartesian(ylim = c(0.3, 1)) +
+  facet_wrap(vars(site), nrow = 3,
+             labeller = as_labeller(cap_update_labels))
+```
+
+```{r 1-2}
+names(mod_ll_mega)
+mod_index <- 1
+
+for(mod_index in c(1, 2)) {
+# mod_index <- 11
+# model fits:
+augment_tmp <- augment(
+  mod_ll_mega[[mod_index]], 
+  # mod_ll_mega_trim[[mod_index]], 
+  se_fit = TRUE,
+  interval = "confidence",
+  conf.level = 0.95) %>% 
+  mutate(
+    time = round(exp(`log(time + 1)`), digits = 0) - 1,
+    age = time + 5,
+    # proportion = .fitted + 1,
+    year_abn = as.numeric(levels(cohort))[cohort]
+    ) %>%
+  filter(year_abn < cohort_cut_off)
+
+# mean trajectory:
+# fitted_tmp <- fitted_l3_mega %>% filter(mod == "l3")
+
+# add model fits:
+gg_mod_tmp_fits <- 
+  gg_decay_grid0 +   
+    # fitted lines
+    geom_line(data = augment_tmp,
+              linetype = 5, #5, #"longdash"
+              aes(alpha = "Fitted", y = exp(.fitted))) +
+     scale_alpha_manual(name = NULL,
+                     values = c(1), # breaks = c(0, "Fitted"),
+                     guide = guide_legend(
+                       order = 2)) + 
+  labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
+
+# add confidence intervals:
+gg_mod_tmp_ci <- 
+  gg_decay_grid0 + 
+  geom_ribbon(data = augment_tmp,
+              mapping = aes(x = age, 
+                            y = exp(.fitted), 
+                            ymin = exp(.lower), 
+                            ymax = exp(.upper),
+                            group = year_abn, color = year_abn, fill = year_abn
+                              ),
+                alpha = 0.2,
+                show.legend = FALSE, inherit.aes = FALSE) + 
+      scale_fill_viridis() + 
+    labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
+
+
+ggsave(plot = gg_mod_tmp_fits,
+       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid",
+                         run_label,
+                         "_mod_", mod_index, "_fits.pdf"), 
+       width = 8, height = 8, units = "in")
+
+ggsave(plot = gg_mod_tmp_ci, 
+       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid",
+                         run_label, 
+                         "_mod_", mod_index, "_ci.pdf"), 
+       width = 8, height = 8, units = "in")
+}
+```
+```{r 3-4}
+for(mod_index in c(3, 4)) {
+# mod_index <- 11
+# model fits:
+augment_tmp <- augment(
+  mod_ll_mega[[mod_index]], 
+  # mod_ll_mega_trim[[mod_index]], 
+  se_fit = TRUE,
+  interval = "confidence",
+  conf.level = 0.95) %>% 
+  mutate(
+    time = round(exp(`log(time + 1)`), digits = 0) - 1,
+    age = time + 5,
+    proportion = .fitted + 1,
+    year_abn = as.numeric(levels(cohort))[cohort]
+    ) %>%
+  filter(year_abn < cohort_cut_off)
+
+# mean trajectory:
+# fitted_tmp <- fitted_l3_mega %>% filter(mod == "l3")
+
+# add model fits:
+gg_mod_tmp_fits <- 
+  gg_decay_grid0 +   
+    # fitted lines
+    geom_line(data = augment_tmp,
+              linetype = 5, #5, #"longdash"
+              aes(alpha = "Fitted")) +
+     scale_alpha_manual(name = NULL,
+                     values = c(1), # breaks = c(0, "Fitted"),
+                     guide = guide_legend(
+                       order = 2)) + 
+  labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
+
+# add confidence intervals:
+gg_mod_tmp_ci <- 
+  gg_decay_grid0 + 
+  geom_ribbon(data = augment_tmp,
+              mapping = aes(x = age, y = proportion, 
+                            ymin = .lower + 1, #proportion - .se.fit, 
+                            ymax = .upper + 1, #proportion + .se.fit, 
+                            group = year_abn, color = year_abn, fill = year_abn
+                              ),
+                alpha = 0.2,
+                show.legend = FALSE, inherit.aes = FALSE) + 
+      scale_fill_viridis() + 
+    labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
+
+
+  
+# gg_decay_grid0 +
+#   # mean trajectory
+#   geom_line(data = fitted_tmp, 
+#             mapping = aes(x = age, y = proportion, linetype = mod),
+#               # color = brewer_pal(palette = "PiYG")(11)[2], # dark pink
+#               color = "black",
+#               size = 1, inherit.aes = FALSE)
+
+
+ggsave(plot = gg_mod_tmp_fits,
+       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label,
+                         "_mod_", mod_index, "_fits.pdf"), 
+       width = 8, height = 8, units = "in")
+
+ggsave(plot = gg_mod_tmp_ci, 
+       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label, 
+                         "_mod_", mod_index, "_ci.pdf"), 
+       width = 8, height = 8, units = "in")
+}
+
+
+names(mod_ll_mega)
+
+
+# exponential decay (mod #8)
+```
+
+```{r 5}
+names(mod_ll_mega)
+
+for(mod_index in c(5)) {
+# mod_index <- 5
+# model fits:
+augment_tmp <- augment(
+  mod_ll_mega[[mod_index]], 
+  # mod_ll_mega_trim[[mod_index]], 
+  se_fit = TRUE,
+  interval = "confidence",
+  conf.level = 0.95) %>% 
+  mutate(
+    time = round(exp(`log(time + 1)`), digits = 0) - 1,
+    age = time + 5,
+    proportion = .fitted + 1,
+    # year_abn = as.numeric(levels(cohort))[cohort]
+    ) %>%
+  filter(
+    # year_abn < cohort_cut_off
+         )
+
+# mean trajectory:
+# fitted_tmp <- fitted_l3_mega %>% filter(mod == "l3")
+
+gg_decay_grid_tmp0 <-
+  ggplot(data = persistence_dat %>% filter(year_abn < cohort_cut_off), 
+       mapping = aes(x = age, y = proportion, 
+                     group = year_abn, color = year_abn)) + 
+    theme_classic() + 
+  
+    geom_point(size = 1) + 
+    scale_color_viridis() +
+    scale_x_continuous(n.breaks = 6) +
+    geom_hline(yintercept = 0.5, linetype = "dashed") + 
+    labs(
+         x = "Time since initial abandonment (years)", 
+         y = "Proportion of abandoned land remaining",
+         color = "Cohort \n(Year Abandoned)",
+         linetype = "") + 
+
+  theme(legend.position = c(0.9, 0.13),
+        legend.spacing = unit(-2, units = "mm"), legend.background = element_blank(),
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
+  coord_cartesian(ylim = c(0.3, 1)) +
+  facet_wrap(vars(site), nrow = 3,
+             labeller = as_labeller(cap_update_labels))
+
+# add model fits:
+gg_mod_tmp_fits <- 
+  gg_decay_grid_tmp0 +   
+    # fitted lines
+    geom_line(data = augment_tmp,
+              linetype = 5, #5, #"longdash"
+              aes(alpha = "Fitted",
+                  x = age, y = proportion),
+              inherit.aes = FALSE,
+              color = "red"
+              ) +
+     scale_alpha_manual(name = NULL,
+                     values = c(1), # breaks = c(0, "Fitted"),
+                     guide = guide_legend(
+                       order = 2)) + 
+  labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
+
+# add confidence intervals:
+gg_mod_tmp_ci <- 
+  gg_decay_grid_tmp0 + 
+  geom_ribbon(data = augment_tmp,
+              mapping = aes(x = age, 
+                            y = proportion, 
+                            ymin = .lower + 1, 
+                            ymax = .upper + 1,
+                            # group = year_abn, color = year_abn, fill = year_abn
+                              ),
+                alpha = 0.5,
+              color = "red", fill = "red",
+                show.legend = FALSE, inherit.aes = FALSE) + 
+      scale_fill_viridis() + 
+    labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
+
+
+ggsave(plot = gg_mod_tmp_fits,
+       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label,
+                         "_mod_", mod_index, "_fits.pdf"), 
+       width = 8, height = 8, units = "in")
+
+ggsave(plot = gg_mod_tmp_ci, 
+       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label, 
+                         "_mod_", mod_index, "_ci.pdf"), 
+       width = 8, height = 8, units = "in")
+}
+```
+
+```{r 6}
+names(mod_ll_mega)
+
+for(mod_index in c(6)) {
+# mod_index <- 6
+# model fits:
+augment_tmp <- augment(
+  mod_ll_mega[[mod_index]], 
+  # mod_ll_mega_trim[[mod_index]], 
+  se_fit = TRUE,
+  interval = "confidence",
+  conf.level = 0.95) %>% 
+  mutate(
+    time = round(exp(`log(time + 1)`), digits = 0) - 1,
+    age = time + 5,
+    # proportion = .fitted + 1,
+    # year_abn = as.numeric(levels(cohort))[cohort]
+    ) %>%
+  filter(
+    # year_abn < cohort_cut_off
+         )
+
+# mean trajectory:
+# fitted_tmp <- fitted_l3_mega %>% filter(mod == "l3")
+
+gg_decay_grid_tmp0 <-
+  ggplot(data = persistence_dat %>% filter(year_abn < cohort_cut_off), 
+       mapping = aes(x = age, y = proportion, 
+                     group = year_abn, color = year_abn)) + 
+    theme_classic() + 
+  
+    geom_point(size = 1) + 
+    scale_color_viridis() +
+    scale_x_continuous(n.breaks = 6) +
+    geom_hline(yintercept = 0.5, linetype = "dashed") + 
+    labs(
+         x = "Time since initial abandonment (years)", 
+         y = "Proportion of abandoned land remaining",
+         color = "Cohort \n(Year Abandoned)",
+         linetype = "") + 
+
+  theme(legend.position = c(0.9, 0.13),
+        legend.spacing = unit(-2, units = "mm"), legend.background = element_blank(),
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
+  coord_cartesian(ylim = c(0.3, 1)) +
+  facet_wrap(vars(site), nrow = 3,
+             labeller = as_labeller(cap_update_labels))
+
+# add model fits:
+gg_mod_tmp_fits <- 
+  gg_decay_grid_tmp0 +   
+    # fitted lines
+    geom_line(data = augment_tmp,
+              linetype = 5, #5, #"longdash"
+              aes(alpha = "Fitted", 
+                  x = age,
+                  y = exp(.fitted)),
+              inherit.aes = FALSE,
+               color = "red",) +
+     scale_alpha_manual(name = NULL,
+                     values = c(1), # breaks = c(0, "Fitted"),
+                     guide = guide_legend(
+                       order = 2)) + 
+  labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
+
+# add confidence intervals:
+gg_mod_tmp_ci <- 
+  gg_decay_grid_tmp0 + 
+  geom_ribbon(data = augment_tmp,
+              mapping = aes(x = age, 
+                            y = exp(.fitted), 
+                            ymin = exp(.lower), 
+                            ymax = exp(.upper),
+                            # group = year_abn, color = year_abn, fill = year_abn
+                              ),
+                alpha = 0.5,
+              color = "red", fill = "red",
+                show.legend = FALSE, inherit.aes = FALSE) + 
+      scale_fill_viridis() + 
+    labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
+
+
+ggsave(plot = gg_mod_tmp_fits,
+       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label,
+                         "_mod_", mod_index, "_fits.pdf"), 
+       width = 8, height = 8, units = "in")
+
+ggsave(plot = gg_mod_tmp_ci, 
+       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label, 
+                         "_mod_", mod_index, "_ci.pdf"), 
+       width = 8, height = 8, units = "in")
+}
+```
+
+```{r 7}
+names(mod_ll_mega)
+
+for(mod_index in c(7)) {
+# mod_index <- 7
+# model fits:
+augment_tmp <- augment(
+  mod_ll_mega[[mod_index]], 
+  # mod_ll_mega_trim[[mod_index]], 
+  se_fit = TRUE,
+  interval = "confidence",
+  conf.level = 0.95) %>% 
+  mutate(
+    time = round(exp(`log(time + 1)`), digits = 0) - 1,
+    age = time + 5,
+    # proportion = .fitted + 1,
+    # year_abn = as.numeric(levels(cohort))[cohort]
+    ) %>%
+  filter(
+    year_abn < cohort_cut_off
+         )
+
+# mean trajectory:
+# fitted_tmp <- fitted_l3_mega %>% filter(mod == "l3")
+
+gg_decay_grid_tmp0 <-
+  ggplot(data = persistence_dat %>% filter(year_abn < cohort_cut_off), 
+       mapping = aes(x = age, y = proportion, 
+                     group = year_abn, color = year_abn)) + 
+    theme_classic() + 
+  
+    geom_point(size = 1) + 
+    scale_color_viridis() +
+    scale_x_continuous(n.breaks = 6) +
+    geom_hline(yintercept = 0.5, linetype = "dashed") + 
+    labs(
+         x = "Time since initial abandonment (years)", 
+         y = "Proportion of abandoned land remaining",
+         color = "Cohort \n(Year Abandoned)",
+         linetype = "") + 
+
+  theme(legend.position = c(0.9, 0.13),
+        legend.spacing = unit(-2, units = "mm"), legend.background = element_blank(),
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
+  coord_cartesian(ylim = c(0.3, 1)) +
+  facet_wrap(vars(site), nrow = 3,
+             labeller = as_labeller(cap_update_labels))
+
+# add model fits:
+gg_mod_tmp_fits <- 
+  gg_decay_grid_tmp0 +   
+    # fitted lines
+    geom_line(data = augment_tmp,
+              linetype = 5, #5, #"longdash"
+              aes(alpha = "Fitted", 
+                  y = exp(.fitted)),
+              # inherit.aes = FALSE,
+              ) +
+     scale_alpha_manual(name = NULL,
+                     values = c(1), # breaks = c(0, "Fitted"),
+                     guide = guide_legend(
+                       order = 2)) + 
+  labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
+
+# add confidence intervals:
+gg_mod_tmp_ci <- 
+  gg_decay_grid_tmp0 + 
+  geom_ribbon(data = augment_tmp,
+              mapping = aes(x = age, 
+                            y = exp(.fitted), 
+                            ymin = exp(.lower), 
+                            ymax = exp(.upper),
+                            group = year_abn, color = year_abn, fill = year_abn
+                              ),
+                alpha = 0.5,
+              # color = "red", fill = "red",
+                show.legend = FALSE, inherit.aes = FALSE) + 
+      scale_fill_viridis() + 
+    labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
+
+
+ggsave(plot = gg_mod_tmp_fits,
+       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label,
+                         "_mod_", mod_index, "_fits.pdf"), 
+       width = 8, height = 8, units = "in")
+
+ggsave(plot = gg_mod_tmp_ci, 
+       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label, 
+                         "_mod_", mod_index, "_ci.pdf"), 
+       width = 8, height = 8, units = "in")
+}
+```
+
+```{r 8-decay-panel-exp-decay}
+names(mod_ll_mega)
+cohort_cut_off <- 2014
+
+gg_decay_grid0 <-
+  ggplot(data = persistence_dat %>% filter(year_abn < cohort_cut_off), 
+       mapping = aes(x = age, y = proportion, 
+                     group = year_abn, color = year_abn)) + 
+    theme_classic() + 
+  
+    geom_point(size = 1) + 
+    scale_color_viridis() +
+    scale_x_continuous(n.breaks = 6) +
+    geom_hline(yintercept = 0.5, linetype = "dashed") + 
+    labs(
+         x = "Time since initial abandonment (years)", 
+         y = "Proportion of abandoned land remaining",
+         color = "Cohort \n(Year Abandoned)",
+         linetype = "") + 
+
+  theme(legend.position = c(0.9, 0.13),
+        legend.spacing = unit(-2, units = "mm"), legend.background = element_blank(),
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
+  coord_cartesian(ylim = c(0.3, 1)) +
+  facet_wrap(vars(site), nrow = 3,
+             labeller = as_labeller(cap_update_labels))
+
+
+mod_index <- 8
+
+
+# model fits:
+augment_tmp <- augment(mod_ll_mega[[mod_index]], se_fit = TRUE,
+                       interval = "confidence",
+                       conf.level = 0.95) %>% 
+  mutate(
+    # time = round(exp(`log(time + 1)`), digits = 0) - 1,
+         age = time + 5,
+         proportion = exp(.fitted),
+         p = exp(`log(proportion)`),
+         year_abn = as.numeric(levels(cohort))[cohort]
+    ) %>%
+  filter(year_abn < cohort_cut_off)
+
+# mean trajectory:
+# fitted_tmp <- fitted_l3_mega %>% filter(mod == "l3")
+
+# add model fits:
+gg_mod_tmp_fits <-
+  gg_decay_grid0 +   
+    # fitted lines
+    geom_line(data = augment_tmp,
+              linetype = 5, #5, #"longdash"
+              aes(alpha = "Fitted")) +
+     scale_alpha_manual(name = NULL,
+                     values = c(1), # breaks = c(0, "Fitted"),
+                     guide = guide_legend(
+                       order = 2)) + 
+  labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
+
+# add confidence intervals:
+gg_mod_tmp_ci <-
+  gg_decay_grid0 + 
+  geom_ribbon(data = augment_tmp,
+              mapping = aes(x = age, 
+                            y = exp(.fitted),
+                            ymin = exp(.lower), #proportion - .se.fit, 
+                            ymax = exp(.upper), #proportion + .se.fit, 
+                            group = year_abn, color = year_abn, fill = year_abn
+                              ),
+                alpha = 0.2,
+                show.legend = FALSE, inherit.aes = FALSE) + 
+      scale_fill_viridis() + 
+    labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
+
+
+  
+# gg_decay_grid0 +
+#   # mean trajectory
+#   geom_line(data = fitted_tmp, 
+#             mapping = aes(x = age, y = proportion, linetype = mod),
+#               # color = brewer_pal(palette = "PiYG")(11)[2], # dark pink
+#               color = "black",
+#               size = 1, inherit.aes = FALSE)
+
+
+ggsave(plot = gg_mod_tmp_fits,
+       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label,
+                         "_mod_", mod_index, "_fits.pdf"), 
+       width = 8, height = 8, units = "in")
+
+ggsave(plot = gg_mod_tmp_ci, 
+       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label, 
+                         "_mod_", mod_index, "_ci.pdf"), 
+       width = 8, height = 8, units = "in")
+
+
+```
+
+```{r 11-decay-panel-l3-continuous}
+names(mod_ll_mega)
+
+# linear-log-linear model, with year_abn (continuous) rather than the categorical cohort fixed effects
+lm_mega_l3_cont <- lm(I(proportion - 1)  ~ 0 + log(time + 1):year_abn:site + I(time):year_abn:site,  
+               data = mutate(persistence_dat, 
+                             year_abn = year_abn - 1987
+                             ))
+
+tidy(lm_mega_l3_cont) %>% print(n = 50)
+
+# continuous lin-log-lin model:
+mod_index <- 11
+
+# model fits:
+augment_tmp <- augment(lm_mega_l3_cont, se_fit = TRUE,
+                       interval = "confidence",
+                       conf.level = 0.95) %>% 
+  mutate(
+    time = round(exp(`log(time + 1)`), digits = 0) - 1,
+         age = time + 5,
+         proportion = .fitted + 1,
+         #year_abn = as.numeric(levels(cohort))[cohort],
+    # year_abn = year_abn + 1987,
+    cohort = as_factor(year_abn) 
+    ) %>%
+  filter(year_abn < cohort_cut_off)
+
+# mean trajectory:
+# fitted_tmp <- fitted_l3_mega %>% filter(mod == "l3")
+
+gg_decay_grid0_cont <- ggplot(data = persistence_dat %>% filter(year_abn < cohort_cut_off), 
+       mapping = aes(x = age, y = proportion, 
+                     group = year_abn, color = year_abn)) + 
+    theme_classic() + 
+  
+    geom_point(size = 1) + 
+    scale_color_viridis() +
+    scale_x_continuous(n.breaks = 6) +
+    geom_hline(yintercept = 0.5, linetype = "dashed") + 
+    labs(
+         x = "Time since initial abandonment (years)", 
+         y = "Proportion of abandoned land remaining",
+         color = "Cohort \n(Year Abandoned)",
+         linetype = "") + 
+
+  theme(legend.position = c(0.9, 0.13),
+        legend.spacing = unit(-2, units = "mm"), legend.background = element_blank(),
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
+  coord_cartesian(ylim = c(0.3, 1)) +
+  facet_wrap(vars(site), nrow = 3,
+             labeller = as_labeller(cap_update_labels))
+
+# add model fits:
+gg_mod_tmp_fits <-
+  gg_decay_grid0_cont +
+    # fitted lines
+    geom_line(data = augment_tmp,
+              linetype = 5, #5, #"longdash"
+              aes(alpha = "Fitted")) +
+     scale_alpha_manual(name = NULL,
+                     values = c(1), # breaks = c(0, "Fitted"),
+                     guide = guide_legend(
+                       order = 2)) + 
+  labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
+
+
+# add confidence intervals:
+gg_mod_tmp_ci <- 
+  gg_decay_grid0_cont + 
+  geom_ribbon(data = augment_tmp,
+              mapping = aes(x = age, y = proportion, 
+                            ymin = .lower + 1, #proportion - .se.fit, 
+                            ymax = .upper + 1, #proportion + .se.fit, 
+                            group = year_abn, color = year_abn, fill = year_abn
+                              ),
+                alpha = 0.2,
+                show.legend = FALSE, inherit.aes = FALSE) + 
+      scale_fill_viridis() + 
+    labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
+
+ggsave(plot = gg_mod_tmp_fits,
+       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label,
+                         "_mod_", mod_index, "_fits.pdf"), 
+       width = 8, height = 8, units = "in")
+
+ggsave(plot = gg_mod_tmp_ci, 
+       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label, 
+                         "_mod_", mod_index, "_ci.pdf"), 
+       width = 8, height = 8, units = "in")
+# 
+
+```
+
+
 
 
 # Figures
@@ -4423,656 +4811,6 @@ ggsave(plot = gg_decay_grid_5c,
 
 ```
 
-```{r decay-panel-with-any-model}
-# mod_ll_mega_trim
-names(mod_ll_mega)
-
-# cohort cut-off:
-# cohort_cut_off <- 2010
-cohort_cut_off <- 2014
-mod_index <- 8
-formula(mod_ll_mega[[mod_index]])
-
-gg_decay_grid0 <-
-  ggplot(data = persistence_dat %>% filter(year_abn < cohort_cut_off), 
-       mapping = aes(x = age, y = proportion, 
-                     group = year_abn, color = year_abn)) + 
-    theme_classic() + 
-  
-    geom_point(size = 1) + 
-    scale_color_viridis() +
-    scale_x_continuous(n.breaks = 6) +
-    geom_hline(yintercept = 0.5, linetype = "dashed") + 
-    labs(
-         x = "Time since initial abandonment (years)", 
-         y = "Proportion of abandoned land remaining",
-         color = "Cohort \n(Year Abandoned)",
-         linetype = "") + 
-
-  theme(legend.position = c(0.9, 0.13),
-        legend.spacing = unit(-2, units = "mm"), legend.background = element_blank(),
-        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
-  coord_cartesian(ylim = c(0.3, 1)) +
-  facet_wrap(vars(site), nrow = 3,
-             labeller = as_labeller(cap_update_labels))
-```
-
-```{r 1-2}
-names(mod_ll_mega)
-mod_index <- 1
-
-for(mod_index in c(1, 2)) {
-# mod_index <- 11
-# model fits:
-augment_tmp <- augment(
-  mod_ll_mega[[mod_index]], 
-  # mod_ll_mega_trim[[mod_index]], 
-  se_fit = TRUE,
-  interval = "confidence",
-  conf.level = 0.95) %>% 
-  mutate(
-    time = round(exp(`log(time + 1)`), digits = 0) - 1,
-    age = time + 5,
-    # proportion = .fitted + 1,
-    year_abn = as.numeric(levels(cohort))[cohort]
-    ) %>%
-  filter(year_abn < cohort_cut_off)
-
-# mean trajectory:
-# fitted_tmp <- fitted_l3_mega %>% filter(mod == "l3")
-
-# add model fits:
-gg_mod_tmp_fits <- 
-  gg_decay_grid0 +   
-    # fitted lines
-    geom_line(data = augment_tmp,
-              linetype = 5, #5, #"longdash"
-              aes(alpha = "Fitted", y = exp(.fitted))) +
-     scale_alpha_manual(name = NULL,
-                     values = c(1), # breaks = c(0, "Fitted"),
-                     guide = guide_legend(
-                       order = 2)) + 
-  labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
-
-# add confidence intervals:
-gg_mod_tmp_ci <- 
-  gg_decay_grid0 + 
-  geom_ribbon(data = augment_tmp,
-              mapping = aes(x = age, 
-                            y = exp(.fitted), 
-                            ymin = exp(.lower), 
-                            ymax = exp(.upper),
-                            group = year_abn, color = year_abn, fill = year_abn
-                              ),
-                alpha = 0.2,
-                show.legend = FALSE, inherit.aes = FALSE) + 
-      scale_fill_viridis() + 
-    labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
-
-
-ggsave(plot = gg_mod_tmp_fits,
-       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid",
-                         run_label,
-                         "_mod_", mod_index, "_fits.pdf"), 
-       width = 8, height = 8, units = "in")
-
-ggsave(plot = gg_mod_tmp_ci, 
-       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid",
-                         run_label, 
-                         "_mod_", mod_index, "_ci.pdf"), 
-       width = 8, height = 8, units = "in")
-}
-```
-```{r 3-4}
-for(mod_index in c(3, 4)) {
-# mod_index <- 11
-# model fits:
-augment_tmp <- augment(
-  mod_ll_mega[[mod_index]], 
-  # mod_ll_mega_trim[[mod_index]], 
-  se_fit = TRUE,
-  interval = "confidence",
-  conf.level = 0.95) %>% 
-  mutate(
-    time = round(exp(`log(time + 1)`), digits = 0) - 1,
-    age = time + 5,
-    proportion = .fitted + 1,
-    year_abn = as.numeric(levels(cohort))[cohort]
-    ) %>%
-  filter(year_abn < cohort_cut_off)
-
-# mean trajectory:
-# fitted_tmp <- fitted_l3_mega %>% filter(mod == "l3")
-
-# add model fits:
-gg_mod_tmp_fits <- 
-  gg_decay_grid0 +   
-    # fitted lines
-    geom_line(data = augment_tmp,
-              linetype = 5, #5, #"longdash"
-              aes(alpha = "Fitted")) +
-     scale_alpha_manual(name = NULL,
-                     values = c(1), # breaks = c(0, "Fitted"),
-                     guide = guide_legend(
-                       order = 2)) + 
-  labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
-
-# add confidence intervals:
-gg_mod_tmp_ci <- 
-  gg_decay_grid0 + 
-  geom_ribbon(data = augment_tmp,
-              mapping = aes(x = age, y = proportion, 
-                            ymin = .lower + 1, #proportion - .se.fit, 
-                            ymax = .upper + 1, #proportion + .se.fit, 
-                            group = year_abn, color = year_abn, fill = year_abn
-                              ),
-                alpha = 0.2,
-                show.legend = FALSE, inherit.aes = FALSE) + 
-      scale_fill_viridis() + 
-    labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
-
-
-  
-# gg_decay_grid0 +
-#   # mean trajectory
-#   geom_line(data = fitted_tmp, 
-#             mapping = aes(x = age, y = proportion, linetype = mod),
-#               # color = brewer_pal(palette = "PiYG")(11)[2], # dark pink
-#               color = "black",
-#               size = 1, inherit.aes = FALSE)
-
-
-ggsave(plot = gg_mod_tmp_fits,
-       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label,
-                         "_mod_", mod_index, "_fits.pdf"), 
-       width = 8, height = 8, units = "in")
-
-ggsave(plot = gg_mod_tmp_ci, 
-       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label, 
-                         "_mod_", mod_index, "_ci.pdf"), 
-       width = 8, height = 8, units = "in")
-}
-
-
-names(mod_ll_mega)
-
-
-# exponential decay (mod #8)
-```
-
-```{r 5}
-names(mod_ll_mega)
-
-for(mod_index in c(5)) {
-# mod_index <- 5
-# model fits:
-augment_tmp <- augment(
-  mod_ll_mega[[mod_index]], 
-  # mod_ll_mega_trim[[mod_index]], 
-  se_fit = TRUE,
-  interval = "confidence",
-  conf.level = 0.95) %>% 
-  mutate(
-    time = round(exp(`log(time + 1)`), digits = 0) - 1,
-    age = time + 5,
-    proportion = .fitted + 1,
-    # year_abn = as.numeric(levels(cohort))[cohort]
-    ) %>%
-  filter(
-    # year_abn < cohort_cut_off
-         )
-
-# mean trajectory:
-# fitted_tmp <- fitted_l3_mega %>% filter(mod == "l3")
-
-gg_decay_grid_tmp0 <-
-  ggplot(data = persistence_dat %>% filter(year_abn < cohort_cut_off), 
-       mapping = aes(x = age, y = proportion, 
-                     group = year_abn, color = year_abn)) + 
-    theme_classic() + 
-  
-    geom_point(size = 1) + 
-    scale_color_viridis() +
-    scale_x_continuous(n.breaks = 6) +
-    geom_hline(yintercept = 0.5, linetype = "dashed") + 
-    labs(
-         x = "Time since initial abandonment (years)", 
-         y = "Proportion of abandoned land remaining",
-         color = "Cohort \n(Year Abandoned)",
-         linetype = "") + 
-
-  theme(legend.position = c(0.9, 0.13),
-        legend.spacing = unit(-2, units = "mm"), legend.background = element_blank(),
-        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
-  coord_cartesian(ylim = c(0.3, 1)) +
-  facet_wrap(vars(site), nrow = 3,
-             labeller = as_labeller(cap_update_labels))
-
-# add model fits:
-gg_mod_tmp_fits <- 
-  gg_decay_grid_tmp0 +   
-    # fitted lines
-    geom_line(data = augment_tmp,
-              linetype = 5, #5, #"longdash"
-              aes(alpha = "Fitted",
-                  x = age, y = proportion),
-              inherit.aes = FALSE,
-              color = "red"
-              ) +
-     scale_alpha_manual(name = NULL,
-                     values = c(1), # breaks = c(0, "Fitted"),
-                     guide = guide_legend(
-                       order = 2)) + 
-  labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
-
-# add confidence intervals:
-gg_mod_tmp_ci <- 
-  gg_decay_grid_tmp0 + 
-  geom_ribbon(data = augment_tmp,
-              mapping = aes(x = age, 
-                            y = proportion, 
-                            ymin = .lower + 1, 
-                            ymax = .upper + 1,
-                            # group = year_abn, color = year_abn, fill = year_abn
-                              ),
-                alpha = 0.5,
-              color = "red", fill = "red",
-                show.legend = FALSE, inherit.aes = FALSE) + 
-      scale_fill_viridis() + 
-    labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
-
-
-ggsave(plot = gg_mod_tmp_fits,
-       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label,
-                         "_mod_", mod_index, "_fits.pdf"), 
-       width = 8, height = 8, units = "in")
-
-ggsave(plot = gg_mod_tmp_ci, 
-       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label, 
-                         "_mod_", mod_index, "_ci.pdf"), 
-       width = 8, height = 8, units = "in")
-}
-```
-
-```{r 6}
-names(mod_ll_mega)
-
-for(mod_index in c(6)) {
-# mod_index <- 6
-# model fits:
-augment_tmp <- augment(
-  mod_ll_mega[[mod_index]], 
-  # mod_ll_mega_trim[[mod_index]], 
-  se_fit = TRUE,
-  interval = "confidence",
-  conf.level = 0.95) %>% 
-  mutate(
-    time = round(exp(`log(time + 1)`), digits = 0) - 1,
-    age = time + 5,
-    # proportion = .fitted + 1,
-    # year_abn = as.numeric(levels(cohort))[cohort]
-    ) %>%
-  filter(
-    # year_abn < cohort_cut_off
-         )
-
-# mean trajectory:
-# fitted_tmp <- fitted_l3_mega %>% filter(mod == "l3")
-
-gg_decay_grid_tmp0 <-
-  ggplot(data = persistence_dat %>% filter(year_abn < cohort_cut_off), 
-       mapping = aes(x = age, y = proportion, 
-                     group = year_abn, color = year_abn)) + 
-    theme_classic() + 
-  
-    geom_point(size = 1) + 
-    scale_color_viridis() +
-    scale_x_continuous(n.breaks = 6) +
-    geom_hline(yintercept = 0.5, linetype = "dashed") + 
-    labs(
-         x = "Time since initial abandonment (years)", 
-         y = "Proportion of abandoned land remaining",
-         color = "Cohort \n(Year Abandoned)",
-         linetype = "") + 
-
-  theme(legend.position = c(0.9, 0.13),
-        legend.spacing = unit(-2, units = "mm"), legend.background = element_blank(),
-        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
-  coord_cartesian(ylim = c(0.3, 1)) +
-  facet_wrap(vars(site), nrow = 3,
-             labeller = as_labeller(cap_update_labels))
-
-# add model fits:
-gg_mod_tmp_fits <- 
-  gg_decay_grid_tmp0 +   
-    # fitted lines
-    geom_line(data = augment_tmp,
-              linetype = 5, #5, #"longdash"
-              aes(alpha = "Fitted", 
-                  x = age,
-                  y = exp(.fitted)),
-              inherit.aes = FALSE,
-               color = "red",) +
-     scale_alpha_manual(name = NULL,
-                     values = c(1), # breaks = c(0, "Fitted"),
-                     guide = guide_legend(
-                       order = 2)) + 
-  labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
-
-# add confidence intervals:
-gg_mod_tmp_ci <- 
-  gg_decay_grid_tmp0 + 
-  geom_ribbon(data = augment_tmp,
-              mapping = aes(x = age, 
-                            y = exp(.fitted), 
-                            ymin = exp(.lower), 
-                            ymax = exp(.upper),
-                            # group = year_abn, color = year_abn, fill = year_abn
-                              ),
-                alpha = 0.5,
-              color = "red", fill = "red",
-                show.legend = FALSE, inherit.aes = FALSE) + 
-      scale_fill_viridis() + 
-    labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
-
-
-ggsave(plot = gg_mod_tmp_fits,
-       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label,
-                         "_mod_", mod_index, "_fits.pdf"), 
-       width = 8, height = 8, units = "in")
-
-ggsave(plot = gg_mod_tmp_ci, 
-       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label, 
-                         "_mod_", mod_index, "_ci.pdf"), 
-       width = 8, height = 8, units = "in")
-}
-```
-```{r 7}
-names(mod_ll_mega)
-
-for(mod_index in c(7)) {
-# mod_index <- 7
-# model fits:
-augment_tmp <- augment(
-  mod_ll_mega[[mod_index]], 
-  # mod_ll_mega_trim[[mod_index]], 
-  se_fit = TRUE,
-  interval = "confidence",
-  conf.level = 0.95) %>% 
-  mutate(
-    time = round(exp(`log(time + 1)`), digits = 0) - 1,
-    age = time + 5,
-    # proportion = .fitted + 1,
-    # year_abn = as.numeric(levels(cohort))[cohort]
-    ) %>%
-  filter(
-    year_abn < cohort_cut_off
-         )
-
-# mean trajectory:
-# fitted_tmp <- fitted_l3_mega %>% filter(mod == "l3")
-
-gg_decay_grid_tmp0 <-
-  ggplot(data = persistence_dat %>% filter(year_abn < cohort_cut_off), 
-       mapping = aes(x = age, y = proportion, 
-                     group = year_abn, color = year_abn)) + 
-    theme_classic() + 
-  
-    geom_point(size = 1) + 
-    scale_color_viridis() +
-    scale_x_continuous(n.breaks = 6) +
-    geom_hline(yintercept = 0.5, linetype = "dashed") + 
-    labs(
-         x = "Time since initial abandonment (years)", 
-         y = "Proportion of abandoned land remaining",
-         color = "Cohort \n(Year Abandoned)",
-         linetype = "") + 
-
-  theme(legend.position = c(0.9, 0.13),
-        legend.spacing = unit(-2, units = "mm"), legend.background = element_blank(),
-        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
-  coord_cartesian(ylim = c(0.3, 1)) +
-  facet_wrap(vars(site), nrow = 3,
-             labeller = as_labeller(cap_update_labels))
-
-# add model fits:
-gg_mod_tmp_fits <- 
-  gg_decay_grid_tmp0 +   
-    # fitted lines
-    geom_line(data = augment_tmp,
-              linetype = 5, #5, #"longdash"
-              aes(alpha = "Fitted", 
-                  y = exp(.fitted)),
-              # inherit.aes = FALSE,
-              ) +
-     scale_alpha_manual(name = NULL,
-                     values = c(1), # breaks = c(0, "Fitted"),
-                     guide = guide_legend(
-                       order = 2)) + 
-  labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
-
-# add confidence intervals:
-gg_mod_tmp_ci <- 
-  gg_decay_grid_tmp0 + 
-  geom_ribbon(data = augment_tmp,
-              mapping = aes(x = age, 
-                            y = exp(.fitted), 
-                            ymin = exp(.lower), 
-                            ymax = exp(.upper),
-                            group = year_abn, color = year_abn, fill = year_abn
-                              ),
-                alpha = 0.5,
-              # color = "red", fill = "red",
-                show.legend = FALSE, inherit.aes = FALSE) + 
-      scale_fill_viridis() + 
-    labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
-
-
-ggsave(plot = gg_mod_tmp_fits,
-       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label,
-                         "_mod_", mod_index, "_fits.pdf"), 
-       width = 8, height = 8, units = "in")
-
-ggsave(plot = gg_mod_tmp_ci, 
-       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label, 
-                         "_mod_", mod_index, "_ci.pdf"), 
-       width = 8, height = 8, units = "in")
-}
-```
-
-```{r 8-decay-panel-exp-decay}
-names(mod_ll_mega)
-cohort_cut_off <- 2014
-
-gg_decay_grid0 <-
-  ggplot(data = persistence_dat %>% filter(year_abn < cohort_cut_off), 
-       mapping = aes(x = age, y = proportion, 
-                     group = year_abn, color = year_abn)) + 
-    theme_classic() + 
-  
-    geom_point(size = 1) + 
-    scale_color_viridis() +
-    scale_x_continuous(n.breaks = 6) +
-    geom_hline(yintercept = 0.5, linetype = "dashed") + 
-    labs(
-         x = "Time since initial abandonment (years)", 
-         y = "Proportion of abandoned land remaining",
-         color = "Cohort \n(Year Abandoned)",
-         linetype = "") + 
-
-  theme(legend.position = c(0.9, 0.13),
-        legend.spacing = unit(-2, units = "mm"), legend.background = element_blank(),
-        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
-  coord_cartesian(ylim = c(0.3, 1)) +
-  facet_wrap(vars(site), nrow = 3,
-             labeller = as_labeller(cap_update_labels))
-
-
-mod_index <- 8
-
-
-# model fits:
-augment_tmp <- augment(mod_ll_mega[[mod_index]], se_fit = TRUE,
-                       interval = "confidence",
-                       conf.level = 0.95) %>% 
-  mutate(
-    # time = round(exp(`log(time + 1)`), digits = 0) - 1,
-         age = time + 5,
-         proportion = exp(.fitted),
-         p = exp(`log(proportion)`),
-         year_abn = as.numeric(levels(cohort))[cohort]
-    ) %>%
-  filter(year_abn < cohort_cut_off)
-
-# mean trajectory:
-# fitted_tmp <- fitted_l3_mega %>% filter(mod == "l3")
-
-# add model fits:
-gg_mod_tmp_fits <-
-  gg_decay_grid0 +   
-    # fitted lines
-    geom_line(data = augment_tmp,
-              linetype = 5, #5, #"longdash"
-              aes(alpha = "Fitted")) +
-     scale_alpha_manual(name = NULL,
-                     values = c(1), # breaks = c(0, "Fitted"),
-                     guide = guide_legend(
-                       order = 2)) + 
-  labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
-
-# add confidence intervals:
-gg_mod_tmp_ci <-
-  gg_decay_grid0 + 
-  geom_ribbon(data = augment_tmp,
-              mapping = aes(x = age, 
-                            y = exp(.fitted),
-                            ymin = exp(.lower), #proportion - .se.fit, 
-                            ymax = exp(.upper), #proportion + .se.fit, 
-                            group = year_abn, color = year_abn, fill = year_abn
-                              ),
-                alpha = 0.2,
-                show.legend = FALSE, inherit.aes = FALSE) + 
-      scale_fill_viridis() + 
-    labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
-
-
-  
-# gg_decay_grid0 +
-#   # mean trajectory
-#   geom_line(data = fitted_tmp, 
-#             mapping = aes(x = age, y = proportion, linetype = mod),
-#               # color = brewer_pal(palette = "PiYG")(11)[2], # dark pink
-#               color = "black",
-#               size = 1, inherit.aes = FALSE)
-
-
-ggsave(plot = gg_mod_tmp_fits,
-       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label,
-                         "_mod_", mod_index, "_fits.pdf"), 
-       width = 8, height = 8, units = "in")
-
-ggsave(plot = gg_mod_tmp_ci, 
-       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label, 
-                         "_mod_", mod_index, "_ci.pdf"), 
-       width = 8, height = 8, units = "in")
-
-
-```
-
-```{r 11-decay-panel-l3-continuous}
-names(mod_ll_mega)
-
-# linear-log-linear model, with year_abn (continuous) rather than the categorical cohort fixed effects
-lm_mega_l3_cont <- lm(I(proportion - 1)  ~ 0 + log(time + 1):year_abn:site + I(time):year_abn:site,  
-               data = mutate(persistence_dat, 
-                             year_abn = year_abn - 1987
-                             ))
-
-tidy(lm_mega_l3_cont) %>% print(n = 50)
-
-# continuous lin-log-lin model:
-mod_index <- 11
-
-# model fits:
-augment_tmp <- augment(lm_mega_l3_cont, se_fit = TRUE,
-                       interval = "confidence",
-                       conf.level = 0.95) %>% 
-  mutate(
-    time = round(exp(`log(time + 1)`), digits = 0) - 1,
-         age = time + 5,
-         proportion = .fitted + 1,
-         #year_abn = as.numeric(levels(cohort))[cohort],
-    # year_abn = year_abn + 1987,
-    cohort = as_factor(year_abn) 
-    ) %>%
-  filter(year_abn < cohort_cut_off)
-
-# mean trajectory:
-# fitted_tmp <- fitted_l3_mega %>% filter(mod == "l3")
-
-gg_decay_grid0_cont <- ggplot(data = persistence_dat %>% filter(year_abn < cohort_cut_off), 
-       mapping = aes(x = age, y = proportion, 
-                     group = year_abn, color = year_abn)) + 
-    theme_classic() + 
-  
-    geom_point(size = 1) + 
-    scale_color_viridis() +
-    scale_x_continuous(n.breaks = 6) +
-    geom_hline(yintercept = 0.5, linetype = "dashed") + 
-    labs(
-         x = "Time since initial abandonment (years)", 
-         y = "Proportion of abandoned land remaining",
-         color = "Cohort \n(Year Abandoned)",
-         linetype = "") + 
-
-  theme(legend.position = c(0.9, 0.13),
-        legend.spacing = unit(-2, units = "mm"), legend.background = element_blank(),
-        legend.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
-  coord_cartesian(ylim = c(0.3, 1)) +
-  facet_wrap(vars(site), nrow = 3,
-             labeller = as_labeller(cap_update_labels))
-
-# add model fits:
-gg_mod_tmp_fits <-
-  gg_decay_grid0_cont +
-    # fitted lines
-    geom_line(data = augment_tmp,
-              linetype = 5, #5, #"longdash"
-              aes(alpha = "Fitted")) +
-     scale_alpha_manual(name = NULL,
-                     values = c(1), # breaks = c(0, "Fitted"),
-                     guide = guide_legend(
-                       order = 2)) + 
-  labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
-
-
-# add confidence intervals:
-gg_mod_tmp_ci <- 
-  gg_decay_grid0_cont + 
-  geom_ribbon(data = augment_tmp,
-              mapping = aes(x = age, y = proportion, 
-                            ymin = .lower + 1, #proportion - .se.fit, 
-                            ymax = .upper + 1, #proportion + .se.fit, 
-                            group = year_abn, color = year_abn, fill = year_abn
-                              ),
-                alpha = 0.2,
-                show.legend = FALSE, inherit.aes = FALSE) + 
-      scale_fill_viridis() + 
-    labs(subtitle = names(mod_ll_mega_trim[mod_index]) %>% gsub("\n", "", .))
-
-ggsave(plot = gg_mod_tmp_fits,
-       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label,
-                         "_mod_", mod_index, "_fits.pdf"), 
-       width = 8, height = 8, units = "in")
-
-ggsave(plot = gg_mod_tmp_ci, 
-       filename = paste0(p_plots, run_label, "/decay/decay_grids_by_mod/", "decay_grid", run_label, 
-                         "_mod_", mod_index, "_ci.pdf"), 
-       width = 8, height = 8, units = "in")
-# 
-
-```
-
 
 ## Basic decay model plots
 
@@ -5353,6 +5091,8 @@ for (i in 1:11) {
 
 
 ## Model Coef. Plots (lin-log-lin)
+
+Note, these figures were removed during revisions. 
 
 ```{r plot-mean-coef-per-site-l3}
 
@@ -6901,6 +6641,8 @@ ggsave(plot = plot_grid(gg_cohort_coefs_grid,
 
 
 # Projecting (extrapolating) abandonment into the future
+
+*These extrapolations were removed during revisions, and are no longer necessary.*
 
 My main question: if decay rates remain about the same at each site, and a similar and constant area of cropland is newly abandoned each year, how does the persistence of abandoned cropland change into the future?
 
