@@ -4,8 +4,8 @@
 # 
 # --------------------------------------------------------------- #
 
-source("util/_util_misc_functions.R")
-source("util/_util_functions.R")
+source("_util/_util_misc.R")
+source("_util/_util_functions.R")
 
 # ------------------------- #
 # list the needed packages and load the libraries

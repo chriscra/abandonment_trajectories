@@ -34,7 +34,7 @@ p_raw_rasters   <-    "/scratch/gpfs/clc6/abandonment_trajectories/raw_rasters/"
 
 
 # source functions:
-source("/home/clc6/abandonment_trajectories/scripts/util/_util_functions.R")
+source("/home/clc6/abandonment_trajectories/scripts/_util/_util_functions.R")
 
 
 # array set up -------
@@ -49,7 +49,7 @@ site <- site_df$site[indx] # set site:
 site_label <- site_df$label[indx] # set label
 
 # specify run
-run_label <- "_2021_03_13"
+run_label <- "_2022_02_07"
 
 
 cat(fill = TRUE, "Set up site parameters:")

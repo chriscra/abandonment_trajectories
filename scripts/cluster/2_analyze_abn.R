@@ -28,6 +28,7 @@
 # 2nd run, with temporal filters but NOT filtering the edge (_2021_03_13) (filter_edge = FALSE)
 # 3rd run, after moving the temporal filtering stage to raw land cover dts, 
 #   and adding recultivation calculator (_2022_01_31).
+# Final run, with all changes for revisions. (_2022_02_07)
 
 # -------------------------------------------------------- #
 # load libraries
@@ -49,7 +50,7 @@ terraOptions(tempdir = p_tmp)
 rasterOptions(tmpdir = p_tmp)
 
 # source functions:
-source("/home/clc6/abandonment_trajectories/scripts/util/_util_functions.R")
+source("/home/clc6/abandonment_trajectories/scripts/_util/_util_functions.R")
 
 
 
