@@ -1,4 +1,4 @@
-# Abandonment trajectories: investigating the timing, duration, and persistence of cropland abandonment, and its implications for the environment
+# Abandonment trajectories: investigating the persistence of cropland abandonment and its implications for biodiversity and carbon sequestration
 
 This repository houses analysis scripts and documentation for:
 
@@ -9,7 +9,7 @@ This repository houses analysis scripts and documentation for:
 In this project, we tracked cropland abandonment and recultivation at 11 sites using annual land cover maps produced by [Yin et al. 2020](https://doi.org/10.1016/j.rse.2020.111873) at a 30-meter spatial resolution, based on publicly available satellite imagery from the Landsat archive (1987-2017). 
 
 The annual land cover maps (1987-2017, 30-meter resolution) that underlie our analysis were developed on Google Earth Engine using publicly available Landsat satellite imagery ([Yin et al. 2020, *Remote Sensing of Environment*](https://doi.org/10.1016/j.rse.2020.111873)).
-These data are archived and publicly available at Zenodo ([URL TBD]()), along with other datasets produced during the analysis.
+These data are archived and publicly available at Zenodo ([DOI: 10.5281/zenodo.5348287](http://doi.org/10.5281/zenodo.5348287)), along with other datasets produced during the analysis.
 Primary derived data products include maps of abandonment age and datasets describing the area abandoned (in hectares) at each site in a given year, separated by year of initial abandonment ("cohort"). 
 
 This is a living repository. 
