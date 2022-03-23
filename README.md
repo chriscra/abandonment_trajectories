@@ -1,13 +1,23 @@
-# Abandonment trajectories: the environmental implications of short-lived cropland abandonment
-## Investigating the timing, duration, and persistence of cropland abandonment
+# Abandonment trajectories: investigating the timing, duration, and persistence of cropland abandonment, and its implications for the environment
 
 This repository houses analysis scripts and documentation for:
 
-> Crawford C.L.\*, Yin, H., Radeloff, V.C., and Wilcove, D.S. 2021. Rural cropland abandonment is too ephemeral to benefit carbon sequestration or biodiversity conservation. *Submitted.*
+> Crawford C.L.\*, Yin, H., Radeloff, V.C., and Wilcove, D.S. 2021. Rural cropland abandonment is too ephemeral to benefit carbon sequestration or biodiversity conservation. *In Review.*
 
 \*@chriscra, ccrawford@princeton.edu, Robertson Hall, Princeton University, Princeton, NJ
 
 In this project, we tracked cropland abandonment and recultivation at 11 sites using annual land cover maps produced by [Yin et al. 2020](https://doi.org/10.1016/j.rse.2020.111873) at a 30-meter spatial resolution, based on publicly available satellite imagery from the Landsat archive (1987-2017). 
+
+The annual land cover maps (1987-2017, 30-meter resolution) that underlie our analysis were developed on Google Earth Engine using publicly available Landsat satellite imagery ([Yin et al. 2020, *Remote Sensing of Environment*](https://doi.org/10.1016/j.rse.2020.111873)).
+These data are archived and publicly available at Zenodo ([URL TBD]()), along with other datasets produced during the analysis.
+Primary derived data products include maps of abandonment age and datasets describing the area abandoned (in hectares) at each site in a given year, separated by year of initial abandonment ("cohort"). 
+
+This is a living repository. 
+An archive of this repository is available at Zenodo: ([URL TBD]()).
+Please refer to this archive and the public release for the code used at time of publication.
+
+## Overview
+
 This project involved three broad groups of analyses:  
 
 1. Processing annual land cover maps in order to identify and map abandoned croplands, and their duration of abandonment ("age"), in each year of the time series. Time series data were analyzed in the form of rasters (via the [`raster`](https://rspatial.github.io/raster/reference/raster-package.html) and [`terra`](https://rspatial.github.io/terra/reference/terra-package.html) packages) and data.tables (via [`data.table`](http://r-datatable.com)).
@@ -16,12 +26,6 @@ This project involved three broad groups of analyses:
 
 In addition to observed abandonment, we also developed a simple scenario assuming that no recultivation took place during our time series, and that all abandoned croplands remained abandoned from their initial abandonment through the end of the time series. 
 This allowed us to directly quantify the effects of recultivation by comparing the observed abandonment area, age distribution, and carbon accumulation to their corresponding potential values.
-
-The annual land cover maps (1987-2017, 30 meter resolution) that underlie our analysis were developed on Google Earth Engine using publicly available Landsat satellite imagery ([Yin et al. 2020, *Remote Sensing of Environment*](https://doi.org/10.1016/j.rse.2020.111873)).
-These data are archived and publicly available at Zenodo ([URL TBD]()), along with other datasets produced during the analysis.
-Primary derived data products include maps of abandonment age and datasets describing the area abandoned (in hectares) at each site in a given year, separated by year of initial abandonment ("cohort"). 
-
-This is a living repository. See the public release and Zenodo archive for the code used at time of publication. 
 
 ## Components of this repository
 
@@ -60,7 +64,7 @@ Scripts are as follows:
 - **4_potential_age_without_recultivation.R** calculates the duration of *potential* abandonment, for a scenario in which no recultivation took place and abandoned croplands were left abandoned through the end of the time series. This script produces similar duration stats as those produced for observed abandonment in "2_analyze_abn.R" and "3_calc_recult_age.R" above in 
 - **5_distill_lengths.R** takes raw data.tables of the length of each abandonment period (for each pixel) observed during the time series at each site, and distills these tens of millions of pixels down to the frequency of each length (i.e., abandonment duration) at each site. 
 - **6_lc_of_abn.R** calculates the proportion of abandoned cropland (as of 2017) that is classified as woody vegetation vs. grassy (herbaceous) vegetation. This results in summary files "abn_lc_count_2017" & "abn_prop_lc_2017," along with a figure "abn_prop_lc_2017."
-- **7_carbon.R**
+- **7_carbon.R** calculates carbon accumulation in abandoned croplands based on the duration of abandonment and biome. This script is based on a custom function ("cc_calc_carbon_accumulation()"), which calculates total carbon accumulation for each year of the time series, using SpatRasters and data.tables.
 
 
 ### util scripts
