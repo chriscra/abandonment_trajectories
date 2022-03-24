@@ -198,9 +198,12 @@ names(age_t_bins) <- site_df$site
 # --- max_age of abandonment --- #
 # ----------------------- #
 
-max_age_t <- lapply(list.files(paste0(p_dat_derived, "max_age/", run_label), full.names = TRUE) %>% 
-                      grep(".tif", ., value = TRUE), 
-                    function(i) {terra::rast(i)})
+max_age_t <- lapply(1:11, function(i) {
+  terra::rast(
+    paste0(p_dat_derived, "max_age/", run_label, "/",
+           site_df$site[i], "_max_age", run_label, ".tif")
+  )
+})
 names(max_age_t) <- site_df$site
 for (i in seq_along(max_age_t)) {names(max_age_t[[i]]) <- "max_age"} # remember: these are just 1987:2017
 
