@@ -203,6 +203,7 @@ potential_persistence_dat <- read_csv(file = paste0(p_derived2, "potential_persi
 site_carbon_df <- read_csv(file = paste0(p_derived2, "/carbon_df", run_label,".csv")) %>%
   left_join(site_labels)
 
+read_csv(file = paste0(p_derived2, "/soc_mean.csv"))
 
 ```
 
@@ -1396,8 +1397,8 @@ The authors declare no competing interests.
 
 ## Data and code availability {.unnumbered}
 
-The annual land cover maps that underlie our analysis are archived at Zenodo (URL TBD), along with other datasets generated and analyzed for this article (including maps of abandonment age and datasets summarizing area, persistence, and turnover). 
-Code to replicate these analyses is available on GitHub at <https://github.com/chriscra/abandonment_trajectories>, and is archived at Zenodo (URL TBD).
+The annual land cover maps that underlie our analysis are archived at Zenodo (<https://doi.org/10.5281/zenodo.5348287>), along with other datasets generated and analyzed for this article (including maps of abandonment age and datasets summarizing area, persistence, and turnover). 
+Code to replicate these analyses is available on GitHub at <https://github.com/chriscra/abandonment_trajectories>, and is archived at Zenodo (<https://doi.org/10.5281/zenodo.6383127>).
 Forest carbon accumulation rates are freely available from Global Forest Watch (http://www.globalforestwatch.org; Ref. @Cook-Patton2020), and soil carbon accumulation rates are available from Soils Revealed (https://doi.org/10.7910/DVN/HA17D3; Ref. @Sanderman2020).
 
 <!-- # Supplementary information {.unnumbered} -->

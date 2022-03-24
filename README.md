@@ -1,5 +1,8 @@
 # Abandonment trajectories: investigating the persistence of cropland abandonment and its implications for biodiversity and carbon sequestration
 
+Code archive: [![DOI](https://zenodo.org/badge/278699632.svg)](https://zenodo.org/badge/latestdoi/278699632)
+Data archive: [DOI: 10.5281/zenodo.5348287](http://doi.org/10.5281/zenodo.5348287)
+
 This repository houses analysis scripts and documentation for:
 
 > Crawford C.L.\*, Yin, H., Radeloff, V.C., and Wilcove, D.S. 2021. Rural cropland abandonment is too ephemeral to benefit carbon sequestration or biodiversity conservation. *In Review.*
