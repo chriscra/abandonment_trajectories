@@ -2287,6 +2287,16 @@ save(lm_mega_lin_log_lin_l,
      time_to_combo,
      file = paste0(p_derived2, "/decay_mod_files", run_label, ".rds"))
 
+save(lm_mega_lin_log_lin_l, 
+     coef_l3_mega,
+     mean_coef_l3_mega, 
+     half_lives_all_cohorts_l3, 
+     half_life_mean_coefs_l3, 
+     mod_AIC_mega, 
+     fitted_combo, 
+     time_to_combo,
+     file = paste0(p_derived2, "/decay_mod_archive", run_label, ".rds"))
+
 save(common_endpoint_dat, 
      endpoint_n,
      coef_l3_endpoints,
