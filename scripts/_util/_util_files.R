@@ -19,11 +19,6 @@ run_label # check "_util_main.R"
 # -------------------- Derived results data.frames -----------
 # ------------------------------------------------------------ # 
 
-
-# set run: 
-run_label # check. See "_util_main.R"
-
-
 # load all distilled and mean length datasets
 length_distill_df <- read_csv(file = paste0(p_derived2, "length_distill_df", run_label, ".csv"))
 mean_length_df <- read_csv(file = paste0(p_derived2, "mean_length_df", run_label, ".csv"))
@@ -319,11 +314,19 @@ names(abn_mask) <- site_df$site
 # ----------------------- #
 # --- land cover class of abandoned land --- #
 # ----------------------- #
+
 abn_lcc <- lapply(1:11, function(i) {
   rast(paste0(p_derived, "abn_lcc/",
-              site_df$site[i], "_abn_lcc.tif"))
+              site_df$site[i], "_abn_lcc", run_label, ".tif"))
 })
 names(abn_lcc) <- site_df$site
+
+
+max_abn_lcc <- lapply(1:11, function(i) {
+  rast(paste0(p_derived, "abn_lcc/",
+              site_df$site[i], "_max_abn_lcc", run_label, ".tif"))
+})
+names(max_abn_lcc) <- site_df$site
 
 # ----------------------- #
 # --- land cover class of abandoned land in 2017 only --- #
