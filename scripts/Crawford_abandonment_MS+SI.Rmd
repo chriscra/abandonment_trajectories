@@ -1094,7 +1094,7 @@ Shaanxi/Shanxi, China, also showed relatively more durable abandonment than othe
 
 In modeling recultivation for each abandonment cohort, we also investigated whether recultivation of abandoned cropland accelerated.
 Many sites showed recultivation trajectories growing steeper over time (Fig. \@ref(fig:decay-model-grid)), indicating that abandoned croplands were being recultivated more quickly in more recent years.
-This is also apparent in Fig. \@ref(fig:endpoint-half-lives), which shows the half-live declining for shorter endpoints, which incorporate more recent cohorts to a greater extent.
+This is also apparent in Fig. \@ref(fig:endpoint-half-lives), which shows the half-lives declining for shorter endpoints, which incorporate more recent cohorts to a greater extent.
 This pattern was strongest in Bosnia & Herzegovina, and a linear regression on the half-life confirmed this to be the only site to have a statistically significant and negative rate of change in half-life, whereas more recent cohorts were recultivated more quickly (Fig. \@ref(fig:decay-rate-of-change)).
 
 # Discussion {.unnumbered}
@@ -1419,7 +1419,7 @@ knitr::include_graphics(path = paste0(p_plots, "fig0.pdf"))
 
 \newpage
 
-(ref:caption-maps-abn-duration) Spatial patterns of abandonment duration. Observed duration of cropland abandonment (in years) as of 2017 in our eleven study sites. Site locations are shown in Fig. \@ref(fig:global-map), and maps of maximum abandonment duration are shown in Fig. \@ref(fig:maps-max-abn-duration).
+(ref:caption-maps-abn-duration) Spatial patterns of abandonment duration. Observed duration of cropland abandonment (in years) as of 2017 in our eleven study sites. X axes show degrees longitude relative to the prime meridian (negative indicating west and positive indicating east), and y axes show degrees latitude relative to equator (negative indicating south and positive indicating north). Site locations are shown in Fig. \@ref(fig:global-map) and maps of maximum abandonment duration are shown in Fig. \@ref(fig:maps-max-abn-duration).
 
 ```{r maps-abn-duration, fig.cap = '(ref:caption-maps-abn-duration)', fig.pos = "ht"}
 knitr::include_graphics(path = paste0(p_plots, "fig1_filled", run_label, ".pdf"))
@@ -1435,7 +1435,7 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/abn_area_by_age_grid
 
 \newpage
 
-(ref:caption-mean-abn-duration) Distribution of abandonment duration during time series. The distribution of observed abandonment duration (in years) for all periods of abandonment from 1987 to 2017. The y-scale shows the proportion of abandonment periods of a given duration at each site. The red points represent the mean abandonment duration (in years) at each site, and the red vertical dashed line represents the mean of these site-level mean duration values across all sites. Note that these distributions include multiple periods of abandonment for those pixels that experienced abandonment and recultivation multiple times during the time series. See SI for distributions of the maximum abandonment duration for each pixel (Fig. \@ref(fig:mean-abn-duration-w-max)), the potential abandonment duration without recultivation (Fig. \@ref(fig:mean-potential-abn-duration)), and the duration of recultivation (Fig. \@ref(fig:mean-recult-duration)).
+(ref:caption-mean-abn-duration) Distribution of abandonment duration during time series. The distribution of observed abandonment duration (in years) for all periods of abandonment from 1987 to 2017. The y axes shows the proportion of abandonment periods of a given duration at each site. The red points represent the mean abandonment duration (in years) at each site, and the red vertical dashed line represents the mean of these site-level mean duration values across all sites. Note that these distributions include multiple periods of abandonment for those pixels that experienced abandonment and recultivation multiple times during the time series. See SI for distributions of the maximum abandonment duration for each pixel (Fig. \@ref(fig:mean-abn-duration-w-max)), the potential abandonment duration without recultivation (Fig. \@ref(fig:mean-potential-abn-duration)), and the duration of recultivation (Fig. \@ref(fig:mean-recult-duration)).
 
 ```{r mean-abn-duration, fig.cap = '(ref:caption-mean-abn-duration)', fig.pos = "ht", out.width = "11cm", echo=FALSE}
 knitr::include_graphics(path = paste0(p_plots, "fig2", run_label, ".pdf"))
@@ -1443,7 +1443,7 @@ knitr::include_graphics(path = paste0(p_plots, "fig2", run_label, ".pdf"))
 
 \newpage
 
-(ref:caption-carbon-over-time) Carbon accumulation following abandonment. Cumulative carbon accumulation in abandoned croplands over time, in terms of millions of Mg C ($10^6$ tC). Cumulative area abandoned at each site through time, according to age class (in years). The solid black line represents the total observed area abandoned at each site, and the dashed black line represents the potential area abandoned, assuming a scenario without recultivation.
+(ref:caption-carbon-over-time) Carbon accumulation following abandonment. Cumulative carbon accumulation in abandoned croplands over time, in terms of millions of Mg C ($10^6$ tC). The solid green line represents the total observed carbon accumulation at each site, and the dashed green line represents the potential carbon accumulation, assuming a scenario without recultivation.
 
 ```{r carbon-over-time, fig.cap = '(ref:caption-carbon-over-time)'}
 knitr::include_graphics(path = paste0(p_plots, run_label, "/carbon/carbon_accumulated_over_time.pdf"))
@@ -1520,7 +1520,7 @@ In Mato Grosso, agricultural expansion is undoubtedly the dominant force affecti
 ## Biomes {#section-biomes}
 
 <!-- Some ecosystems and biomes seem to recover more quickly than others, namely in relatively higher latitudes, relatively colder climates, and in relatively more humid biomes [@Prach2018]. -->
-Our sites cover a range of biomes (Fig. \@ref(fig:site-biomes)), as delineated by the Ecoregions2017 (RESOLVE) layer [@Dinerstein2017], including:
+Our sites cover a range of biomes (Fig. \@ref(fig:site-biomes)), as delineated by the Ecoregions2017 map [@Dinerstein2017], including:
 
 - Temperate Broadleaf and Mixed Forests (Vitebsk Belarus/Smolensk, Russia; Bosnia & Herzegovina; Wisconsin, USA),
 - Temperate Grasslands, Savannas, and Shrublands (Nebraska/Wyoming, USA; Orenburg, Russia/Uralsk, Kazakhstan; Volgograd, Russia),
@@ -1967,7 +1967,7 @@ abn_2yr_overestimation_char %>%
 
 # Supplementary figures
 
-(ref:caption-maps-max-abn-duration) Maximum duration of cropland abandonment (in years) observed at each pixel between 1987 and 2017 in our eleven study sites. This serves as a companion to maps of the abandonment duration as of 2017 shown in Fig. \@ref(fig:maps-abn-duration). Site locations are shown in Fig. \@ref(fig:global-map).
+(ref:caption-maps-max-abn-duration) Maximum duration of cropland abandonment (in years) observed at each pixel between 1987 and 2017 in our eleven study sites. X axes show degrees longitude relative to the prime meridian (negative indicating west and positive indicating east), and y axes show degrees latitude relative to equator (negative indicating south and positive indicating north). This serves as a companion to maps of the abandonment duration as of 2017 shown in Fig. \@ref(fig:maps-abn-duration). Site locations are shown in Fig. \@ref(fig:global-map).
 
 ```{r maps-max-abn-duration, fig.cap = '(ref:caption-maps-max-abn-duration)', echo=FALSE}
 knitr::include_graphics(path = paste0(p_plots, "fig1_max", run_label, ".pdf"))
@@ -2023,7 +2023,7 @@ knitr::include_graphics(path = paste0(p_plots, "fig2_recult", run_label, ".pdf")
 
 \newpage
 
-(ref:caption-carbon-map-2017-observed) Cumulative carbon accumulation in abandoned croplands as of 2017. This cumulative value incorporates both carbon accumulated in forested biomes (including aboveground biomass, belowground biomass, and soil organic carbon; [@Cook-Patton2020]) and soil organic carbon accumulated in non-forested biomes [@Sanderman2020]. Forested biomes were delineated using Ecoregions2017 (RESOLVE) [@Dinerstein2017].
+(ref:caption-carbon-map-2017-observed) Cumulative carbon accumulation in abandoned croplands as of 2017, in terms of Mg C per pixel (30-m resolution). This cumulative value incorporates both carbon accumulated in forested biomes (including aboveground biomass, belowground biomass, and soil organic carbon; [@Cook-Patton2020]) and soil organic carbon accumulated in non-forested biomes [@Sanderman2020]. Forested biomes were delineated using Ecoregions2017 [@Dinerstein2017]. X axes show degrees longitude relative to the prime meridian (negative indicating west and positive indicating east), and y axes show degrees latitude relative to equator (negative indicating south and positive indicating north).
 
 ```{r carbon-map-2017-observed, fig.cap = '(ref:caption-carbon-map-2017-observed)'}
 knitr::include_graphics(path = paste0(p_output, "plots/", run_label, 
@@ -2033,7 +2033,7 @@ knitr::include_graphics(path = paste0(p_output, "plots/", run_label,
 
 \newpage
 
-(ref:caption-carbon-map-2017-potential) Potential carbon accumulation in abandoned croplands as of 2017, assuming no recultivation of abandoned croplands. Calculated using identical carbon accumulation rates as Fig. \@ref(fig:carbon-map-2017-observed), but assuming no recultivation.
+(ref:caption-carbon-map-2017-potential) Potential carbon accumulation in abandoned croplands as of 2017, assuming no recultivation of abandoned croplands, in terms of Mg C per pixel (30-m resolution). Calculated using identical carbon accumulation rates as Fig. \@ref(fig:carbon-map-2017-observed), but assuming no recultivation. X axes show degrees longitude relative to the prime meridian (negative indicating west and positive indicating east), and y axes show degrees latitude relative to equator (negative indicating south and positive indicating north).
 
 ```{r carbon-map-2017-potential, fig.cap = '(ref:caption-carbon-map-2017-potential)'}
 knitr::include_graphics(path = paste0(p_output, "plots/", run_label, 
@@ -2042,25 +2042,25 @@ knitr::include_graphics(path = paste0(p_output, "plots/", run_label,
 ```
 
 
-(ref:caption-site-biomes) Biomes at each site, derived from Ecoregions2017 (RESOLVE) [@Dinerstein2017].
+(ref:caption-site-biomes) Biomes at each site, derived from Ecoregions2017 [@Dinerstein2017].
 
 ```{r site-biomes, fig.cap = '(ref:caption-site-biomes)', echo=FALSE}
 knitr::include_graphics(path = paste0(p_plots, "biomes2017_by_site.pdf"))
 ```
 
-(ref:caption-site-biomes-for-nonfor) Biomes at each site, separated into forest and non-forest, derived from Ecoregions2017 (RESOLVE) [@Dinerstein2017].
+(ref:caption-site-biomes-for-nonfor) Biomes at each site, separated into forest and non-forest, derived from Ecoregions2017 [@Dinerstein2017].
 
 ```{r site-biomes-for-nonfor, fig.cap = '(ref:caption-site-biomes-for-nonfor)', echo=FALSE}
-knitr::include_graphics(path = paste0(p_plots, "biomes2017_for_nonfor.pdf"))
+knitr::include_graphics(path = paste0(p_plots, "biomes2017_forest_nonforest.pdf"))
 ```
 
-(ref:caption-site-ecoregions) Ecoregions at each site, from Ecoregions2017 (RESOLVE) [@Dinerstein2017].
+(ref:caption-site-ecoregions) Ecoregions at each site, from Ecoregions2017 [@Dinerstein2017].
 
 ```{r site-ecoregions, fig.cap = '(ref:caption-site-ecoregions)', echo=FALSE}
 knitr::include_graphics(path = paste0(p_plots, "ecoregions2017_by_site_tall.pdf"))
 ```
 
-(ref:caption-carbon-map-Y20-rate) Annual carbon sequestration rates for the first 20 years of secondary succession, in terms of Mg C per hectare. Forest carbon sequestration rates are drawn from @Cook-Patton2020, and include aboveground biomass, belowground biomass, and soil organic carbon, and apply for the first 30 years of secondary succession. Soil organic carbon sequestration rates in non-forest biomes are drawn from @Sanderman2020, and apply for the first 20 years of secondary succession. Forested biomes were delineated using Ecoregions2017 (RESOLVE) [@Dinerstein2017]. See Fig. \@ref(fig:site-biomes-for-nonfor).
+(ref:caption-carbon-map-Y20-rate) Annual carbon sequestration rates for the first 20 years of secondary succession, in terms of Mg C per hectare. Forest carbon sequestration rates are drawn from @Cook-Patton2020, and include aboveground biomass, belowground biomass, and soil organic carbon, and apply for the first 30 years of secondary succession. Soil organic carbon sequestration rates in non-forest biomes are drawn from @Sanderman2020, and apply for the first 20 years of secondary succession. Forested biomes were delineated using Ecoregions2017 [@Dinerstein2017]. See Fig. \@ref(fig:site-biomes-for-nonfor). X axes show degrees longitude relative to the prime meridian (negative indicating west and positive indicating east), and y axes show degrees latitude relative to equator (negative indicating south and positive indicating north).
 
 ```{r carbon-map-Y20-rate, fig.cap = '(ref:caption-carbon-map-Y20-rate)'}
 knitr::include_graphics(path = paste0(p_output, "plots/", run_label, 
@@ -2070,7 +2070,7 @@ knitr::include_graphics(path = paste0(p_output, "plots/", run_label,
                                       run_label, ".pdf"))
 ```
 
-(ref:caption-carbon-map-YSS-rate) Annual carbon sequestration rates for the third decade of secondary succession (years 21 through 30), in terms of Mg C per hectare. Forest carbon sequestration rates are drawn from @Cook-Patton2020, and include aboveground biomass, belowground biomass, and soil organic carbon, and apply for the first 30 years of secondary succession. Soil organic carbon sequestration rates in non-forest biomes are drawn from @Sanderman2020, and are calculated from estimated "steady state" values after 80 years of succession. Forested biomes were delineated using Ecoregions2017 (RESOLVE) [@Dinerstein2017]. See Fig. \@ref(fig:site-biomes-for-nonfor).
+(ref:caption-carbon-map-YSS-rate) Annual carbon sequestration rates for the third decade of secondary succession (years 21 through 30), in terms of Mg C per hectare. Forest carbon sequestration rates are drawn from @Cook-Patton2020, and include aboveground biomass, belowground biomass, and soil organic carbon, and apply for the first 30 years of secondary succession. Soil organic carbon sequestration rates in non-forest biomes are drawn from @Sanderman2020, and are calculated from estimated "steady state" values after 80 years of succession. Forested biomes were delineated using Ecoregions2017 [@Dinerstein2017]. See Fig. \@ref(fig:site-biomes-for-nonfor). X axes show degrees longitude relative to the prime meridian (negative indicating west and positive indicating east), and y axes show degrees latitude relative to equator (negative indicating south and positive indicating north).
 
 ```{r carbon-map-YSS-rate, fig.cap = '(ref:caption-carbon-map-YSS-rate)'}
 knitr::include_graphics(path = paste0(p_output, "plots/", run_label, 
@@ -2171,7 +2171,7 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/",
                                       "mod_coef_uncertainty_mega", run_label, ".pdf"))
 ```
 
-(ref:caption-endpoint-panel-a) Recultivation ("decay") of abandoned croplands through time, modeled from subsets based on common endpoints, developed in order to make fair comparisons across cohorts. Observations are shown as points, and model decay trends are shown as dashed lines. Mean decay trajectories are shown in red for site across four common endpoints (10, 15, 20, and 25 years in columns left to right), alongside the full dataset shown in the rightmost column for comparison (corresponding to Fig. \@ref(fig:decay-model-grid)). These site mean decay trends were used to calculate the endpoint half-lives shown in Figs. \@ref(fig:endpoint-half-lives) and \@ref(fig:endpoint-half-lives-all). This figure shows our first five sites; the final six sites are shown in Fig. \@ref(fig:endpoint-panel-b).
+(ref:caption-endpoint-panel-a) Recultivation ("decay") of abandoned croplands through time, modeled from subsets based on common endpoints, developed in order to make fair comparisons across cohorts. Observations are shown as points, and model decay trends are shown as dashed lines. Mean decay trajectories (shown in red) are calculated across selections of our data subset to four common endpoints (10, 15, 20, and 25 years in columns left to right) at each site, and the full dataset is shown in the rightmost column for comparison (corresponding to Fig. \@ref(fig:decay-model-grid)). These site mean decay trends were used to calculate the endpoint half-lives shown in Figs. \@ref(fig:endpoint-half-lives) and \@ref(fig:endpoint-half-lives-all). This figure shows our first five sites; the final six sites are shown in Fig. \@ref(fig:endpoint-panel-b).
 
 ```{r endpoint-panel-a, fig.cap = '(ref:caption-endpoint-panel-a)', fig.width = 7.5}
 knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/",
