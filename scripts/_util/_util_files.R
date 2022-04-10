@@ -118,15 +118,6 @@ biomes2017_simple <- st_read(paste0(p_dat_derived, "sf/biomes2017_simple.shp"))
 # plot(site_sf %>% filter(site == "shaanxi") %>% st_geometry())
 
 
-# ----------------------- #
-# --- pixel area (ha) --- #
-# ----------------------- #
-site_area_ha <- lapply(
-  list.files(paste0(p_derived, "site_area_ha"), full.names = TRUE), 
-  function(i) rast(i)
-)
-names(site_area_ha) <- site_df$site
-
 
 # ------------------------------------------------------------ # 
 # -------------------- Raster data --------------------
@@ -204,8 +195,11 @@ for (i in seq_along(max_age_t)) {names(max_age_t[[i]]) <- "max_age"} # remember:
 
 
 # max age bins
-max_age_t_bins <- lapply(list.files(paste0(p_dat_derived, "max_age/", run_label, "/bins"), full.names = TRUE), 
-                         function(i) {rast(i)})
+max_age_t_bins <- lapply(1:11, function(i) {
+  rast(paste0(p_dat_derived, "max_age/", run_label, "/bins/", 
+              site_df$site[i], "_max_age_bins", run_label, ".tif"))
+})
+
 names(max_age_t_bins) <- site_df$site
 
 
@@ -349,10 +343,11 @@ if(load_habitats_aoh) {
 # ----------------------- #
 # -------- PNV ---------- #
 # ----------------------- #
-site_pnv_30 <- lapply(
-  list.files(paste0(p_derived, "site_pnv"), full.names = TRUE) %>% grep("_30.tif", ., value = TRUE), 
-  function(i) rast(i)
-)
+site_pnv_30 <- lapply(1:11, function(i) {
+  rast(paste0(p_derived, "site_pnv/",  
+              site_df$site[i], "_pnv_30.tif"))
+})
+
 names(site_pnv_30) <- site_df$site
 
 
@@ -360,27 +355,26 @@ names(site_pnv_30) <- site_df$site
 # ----------------------- #
 # -------- Jung IUCN Habitat Types ---------- #
 # ----------------------- #
+# ----------------------- #
+# -------- Jung IUCN Habitat Types ---------- #
+# ----------------------- #
 # level 2, at ~ 100m resolution (i.e., not resampled to 30m)
-site_jung_l2 <- lapply(
-  list.files(paste0(p_derived, "site_jung"), full.names = TRUE) %>%
-    grep("_l2_buff", ., value = TRUE), 
-  function(i) rast(i)
-)
+site_jung_l2 <- lapply(1:11, function(i) {
+  rast(paste0(p_derived, "site_jung/", site_df$site[i], "_jung_l2_buff.tif"))
+})
 names(site_jung_l2) <- site_df$site
 
 # resampled to ~30 m resolution
 # level 1
-site_jung_l1_30 <- lapply(
-  list.files(paste0(p_derived, "site_jung"), full.names = TRUE) %>% grep("l1_30.tif", ., value = TRUE), 
-  function(i) rast(i)
-)
+site_jung_l1_30 <- lapply(1:11, function(i) {
+  rast(paste0(p_derived, "site_jung/", site_df$site[i], "_jung_l1_30.tif"))
+})
 names(site_jung_l1_30) <- site_df$site
 
 # level 2
-site_jung_l2_30 <- lapply(
-  list.files(paste0(p_derived, "site_jung"), full.names = TRUE) %>% grep("l2_30.tif", ., value = TRUE), 
-  function(i) rast(i)
-)
+site_jung_l2_30 <- lapply(1:11, function(i) {
+  rast(paste0(p_derived, "site_jung/", site_df$site[i], "_jung_l2_30.tif"))
+})
 names(site_jung_l2_30) <- site_df$site
 
 
@@ -396,20 +390,21 @@ site_habitats <- jung_hab_type_area_df %>%
 # ----------------------- #
 # ---- forest carbon ---- #
 # ----------------------- #
-site_forest_c_30 <- lapply(
-  list.files(paste0(p_derived, "site_forest_carbon"), full.names = TRUE) %>% grep("_forest_c_30.tif", ., value = TRUE), 
-  function(i) rast(i)
-)
-names(site_forest_c_30) <- site_df$site
+# 
+# needs updating
+# site_forest_c_30 <- lapply(
+#   list.files(paste0(p_derived, "site_forest_carbon"), full.names = TRUE) %>% grep("_forest_c_30.tif", ., value = TRUE), 
+#   function(i) rast(i)
+# )
+# names(site_forest_c_30) <- site_df$site
 
 
 # ----------------------- #
 # --- pixel area (ha) --- #
 # ----------------------- #
-site_area_ha <- lapply(
-  list.files(paste0(p_derived, "site_area_ha"), full.names = TRUE), 
-  function(i) rast(i)
-)
+site_area_ha <- lapply(1:11, function(i) {
+  rast(paste0(p_derived, "site_area_ha/", site_df$site[i], "_area_ha.tif"))
+})
 names(site_area_ha) <- site_df$site
 
 # ----------------------- #
