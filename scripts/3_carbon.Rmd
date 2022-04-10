@@ -210,7 +210,9 @@ gg_ecoregions_by_site_2017 <-
       geom_sf() + 
       labs(fill = NULL) +
       theme(legend.position = "right",
-            axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) + 
+            plot.margin = margin(2, 0, 2, 4, unit = "pt"),
+            axis.text = element_text(size = 7.5),
+            axis.text.x = element_text(angle = (360-320), vjust = 1, hjust = 1)) + 
       guides(fill = guide_legend(ncol = 1)) + 
       # scale_fill_manual(labels = str_wrap(names(biome_pal), 24)) +
       # scale_fill_manual(values = biome_pal) + 
@@ -232,7 +234,7 @@ ggsave(plot =
              plotlist = gg_ecoregions_by_site_2017, 
              ncol = 3, nrow = 4),
        filename = paste0(p_plots, "ecoregions2017_by_site_tall.pdf"), 
-    width = 9.5, height = 9.5, units = "in"
+    width = 9.5, height = 9, units = "in"
 )
 
 # save biomes
@@ -253,7 +255,9 @@ gg_biomes2017_by_site <-
       geom_sf() + 
       labs(fill = NULL) +
       theme(legend.position = "none",
-            axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) + 
+            plot.margin = margin(2, 4, 2, 4, unit = "pt"),
+            axis.text = element_text(size = 7.5),
+            axis.text.x = element_text(angle = (360-320), vjust = 1, hjust = 1)) + 
       guides(fill = guide_legend(ncol = 1)) + 
       scale_fill_manual(values = biome2017_pal) + 
       facet_wrap(vars(site), labeller = as_labeller(cap_update_labels))
@@ -281,7 +285,7 @@ ggsave(plot =
            plot_grid(plotlist = gg_biomes2017_by_site, ncol = 4, nrow = 3),
            as_ggplot(biome2017_legend),
            nrow = 2, rel_heights = c(2, 0.2)),
-       filename = paste0(p_plots, "biomes2017_by_site2.pdf"), 
+       filename = paste0(p_plots, "biomes2017_by_site.pdf"), 
     width = 7.5, height = 6.75, units = "in"
 )
 
@@ -309,7 +313,10 @@ gg_biomes2017_for_nonfor <-
       geom_sf() + 
       labs(fill = NULL) +
       theme(legend.position = "none",
-            axis.text.x = element_text(angle = 320, vjust = 1, hjust = 0)) + 
+            # plot.margin = margin(2, 10, 2, 4, unit = "pt"),
+            axis.text = element_text(size = 7.5),
+            axis.text.x = element_text(angle = (360-320), vjust = 1, hjust = 1),
+            legend.background = element_blank()) + 
       guides(fill = guide_legend(ncol = 1)) + 
       scale_fill_manual(
         values = c("Forest" = "#276419",
@@ -1491,14 +1498,17 @@ for (input in c(
   dev.off()
 }
 
-
+input <- "site_forest_soc_combined"
+i <- 5
 for (input in c(
-  "site_forest_soc_combined",   "site_forest_soc_combined_per_pixel"
+  "site_forest_soc_combined"#, "site_forest_soc_combined_per_pixel"
   )) {
+  for(x in 1:2) {
+  layer_index <- x # change here to do Y20 and YSS
+  
   pdf(file = paste0(p_output, "plots/", run_label, "/carbon/",
                     gsub("site_", "", input), 
-                    # "_Y20",
-                    "_YSS",
+                    if(layer_index == 1) "_Y20" else "_YSS",
                     run_label, ".pdf"),
       width = 7, height = 6)
   
@@ -1509,8 +1519,13 @@ for (input in c(
   
   for (i in 1:11) {
     terra::plot(
-      get(eval(input))[[i]][[2]],
+      if (i %in% c(5, 8, 10)) { # rounding iraq, orenburg, and volgograd to prettify the legend
+        round(get(eval(input))[[i]][[layer_index]], digits = 2) 
+        } else  {
+          get(eval(input))[[i]][[layer_index]]
+          },
       type = ifelse(input == "site_savanna_mask", "classes", "continuous"),
+      # type = "continuous",
       col = viridis(n = 10, direction = -1), 
       colNA = "gray95",
       main = new_titles[i],
@@ -1519,9 +1534,11 @@ for (input in c(
       mar = c(1, 1.5, 3, 3)
        )
   
-  }
+  } # end of 11 site loop
   dev.off()
-}
+  } # end of layer index loop
+  } # end of input loop
+
 
 
 for (input in c(
