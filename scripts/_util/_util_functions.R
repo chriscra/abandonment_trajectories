@@ -1023,10 +1023,10 @@ cc_calc_potential_age <- function(dt) {
   
   for (i in start:ncol(dt) - 1) {
     
-    # subset rows that are greater than 0 (i.e. 1, for noncrop), and
+    # subset rows that are greater than or equal to 5 (i.e., abandoned), and...
     dt[get(names(dt)[i]) >= 5, 
        
-       # set them equal to the previous column's value in that row, plus 1.
+       # set the value of the next year equal to this year's value in that row, plus 1.
        names(dt)[i+1] := get(names(dt)[i]) + 1] 
   }
 }
@@ -1097,6 +1097,101 @@ cc_calc_recult_age <- function(dt, dt_age, dt_diff,
   
   # ---- 4. Filter and return resulting data.table. ----- #
   dt <- dt * (dt > -flag)
+}
+
+
+# -------------------------------------------------------------------------- #
+# Extrapolate the last year of abandonment periods through the end of the time series
+# creating a potential abandonment land cover map
+# -------------------------------------------------------------------------- #
+# Not used yet... in favor of max_potential_abn_lcc_iucn_habitat that was created by 
+# cover(x = potential_abn_lcc_iucn_habitat[[site_index]], y = max_abn_lcc_iucn_habitat[[site_index]])
+cc_potential_lc <- function(dt,
+                            dt_age, dt_diff, 
+                            flag = 100,
+                            abn_threshold = 5) {
+  # This function should be run as follows:
+  # dt <- cc_potential_lc(dt)
+  # Keep in mind, however, that this directly modifies the input dt.
+  
+  stopifnot("All input data.tables must start with x and y columns" = names(dt)[1:2] == c("x", "y"),
+            names(dt_age)[1:2] == c("x", "y"),
+            names(dt_diff)[1:2] == c("x", "y")
+  )
+  
+  if (length(grep("[xy]$", names(dt))) > 0) {
+    if (!identical(names(dt)[1:2], c("x", "y"))) {
+      stop("x and y must be the first two columns in the data.table")
+    }
+    start <- 4
+  } else {
+    start <- 2
+  }
+  
+  
+  # ----- 0. Merge by x and y. ----- #
+  round_digits1 <- 11
+  
+  while(merge(x = dt_age[, .(x, y)], y = dt, 
+              all.x = TRUE, by = c("x", "y"), sort = FALSE
+  )[!is.na(y2017), .N] < dt[!is.na(y2017), .N]) {
+    round_digits1 <- round_digits1 - 1
+    dt_age[, ':='(x = round(x, round_digits1), y = round(y, round_digits1))]
+    dt[, ':='(x = round(x, round_digits1), y = round(y, round_digits1))]
+  }
+  cat(fill = TRUE, "Note: abn_age_dt x and y columns rounded to", round_digits1, "digits to facilitate merge.")
+  
+  # merge area to abn_age_dt and land_cover_dt, based on the x and y coordinates, 
+  # saving only those rows in area_dt that match abn_age_dt and land_cover_dt, respectively:
+  dt <- merge(x = dt_age[, .(x, y)], y = dt, 
+              all.x = TRUE, by = c("x", "y"), sort = FALSE#, allow.cartesian=TRUE
+  )
+  
+  # ----- 1. Identifying periods of abandonment that last at least 5 years. ----- #
+  # This data.table extracts the final year of those abandonment periods that last >= 5 years, 
+  # i.e., the year right before recultivation.
+  # This works because dt_diff is the lagged difference for each pixel from one year to the next. 
+  # The difference between a period of abandonment (>=5 years) and recultivation (0) is 
+  # always the negative age. 
+  # Where this is less than or equal to -5, the cell in the column before is the last year
+  # of a qualifying period of abandonment. 
+  # This also works because the dt_diff is shifted one column to the right (the first column
+  # is V2, the last column is a bonus column, "end"). This one year "mismatch" here is key. 
+  # "Mismatch" is in quotes because it's just a function of how I structured the diff.
+  
+  dt_final_year <- dt_age * (dt_diff <= -abn_threshold) 
+  
+  # ----- 2. Flag the final year of qualifying periods of abandonment. ----- #
+  # Subset rows containing the final year of abandonment that passes the threshold, and flag them by adding 100 to the final year of qualifying periods of abandonment. 
+  for (i in (start-1):ncol(dt)) {
+    dt[dt_final_year[get(names(dt)[i]) > 0, which = TRUE], # this returns the row indices in that year that have values that are > 0
+       names(dt)[i] := get(names(dt)[i]) + flag] # add a flag value to them (i.e., 100)
+  }
+  
+  
+  # ----- 3. Filter to pixels with values > 0, and set the value of the next pixel equal to the previous value. ----- #
+  # This is the key step - extending the land cover in the last year of the first abandonment period through the
+  # remainder of the time series.
+  for (i in (start-1):(ncol(dt)-1)) {
+    
+    # subset rows that are greater than 0 (i.e., the land cover in the final year)
+    dt[get(names(dt)[i]) > flag, 
+       
+       # set the next year equal to the previous year's value
+       names(dt)[i + 1] := get(names(dt)[i])] 
+  }
+  
+  # ---- 4. Subtract the flag value. ----- #
+  for (i in (start-1):ncol(dt)) {
+    
+    # subset rows that are greater than 0 (i.e., the land cover in the final year)
+    dt[get(names(dt)[i]) > flag, 
+       
+       # set the next year equal to the previous year's value
+       names(dt)[i] := get(names(dt)[i]) - flag] 
+  }
+  
+  dt # return data.table
 }
 
 
