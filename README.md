@@ -6,7 +6,7 @@ Data archive: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5348287.svg)](
 
 This repository houses analysis scripts and documentation for:
 
-> Crawford C.L.\*, Yin, H., Radeloff, V.C., and Wilcove, D.S. 2021. Rural cropland abandonment is too ephemeral to benefit carbon sequestration or biodiversity conservation. *In Review.*
+> Crawford C.L.\*, Yin, H., Radeloff, V.C., and Wilcove, D.S. *In press*. Rural cropland abandonment is too ephemeral to benefit carbon sequestration or biodiversity conservation. *Science Advances* [doi.org/10.1126/sciadv.abm8999](https://doi.org/10.1126/sciadv.abm8999)
 
 \*@chriscra, ccrawford@princeton.edu, Robertson Hall, Princeton University, Princeton, NJ
 
