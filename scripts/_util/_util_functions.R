@@ -98,40 +98,58 @@ cc_merge_rasters_terra <- function(site, site_df,
 
 
 # -------------------------------------------------------------------------- #
-# save processed data.tables showing age of abandonment as rasters*
+# save processed data.tables showing age of abandonment as SpatRasters
 # -------------------------------------------------------------------------- #
-cc_save_dt_as_raster <- function(site, type, 
+cc_save_dt_as_raster <- function(site_, type, 
                                  input_path = p_dat_derived,
-                                 output_path = p_dat_derived) {
-  # load dt
-  dt <- fread(file = paste0(input_path, site, type, ".csv"))
+                                 output_path = p_dat_derived,
+                                 input_file_ext = ".parquet") {
   
-  # merge the data_table back to the original land cover data.table, if necessary
-  if (grepl("age", type)){
+  # load dt
+  
+  if (input_file_ext == ".csv") {
+    dt <- fread(file = paste0(input_path, site_, type, input_file_ext))
+  }
+  
+  if (input_file_ext == ".parquet") {
+    dt <- read_parquet(paste0(input_path, site_, type, input_file_ext))
+  }
+  
+  
+  # If the input data.table is missing some rows (i.e., is less than the number of cells listed in site_df)
+  # If the input data.table lacks x and y columns, add those by merging with the "_clean" file.
+  # This should not cause any issues with mismatched x and y value, because they are the dts without (x,y)
+  # are derived from this "_clean" file.
+  # merge the input data_table back to the original land cover data.table ("_clean"), if necessary.
+  if (dt[,.N] != filter(site_df, site == site_)$ncell){
     cat("Joining age data.table to input land cover data.table, filling non-abandonment pixels with NA", fill = TRUE)
-    cat("Land cover data.table location:", paste0(input_path, site, "_clean.csv"), fill = TRUE)
-    lc_dt <- fread(file = paste0(input_path, site, "_clean.csv"))
+    cat("Land cover data.table location:", paste0(input_path, site_, "_clean", input_file_ext), fill = TRUE)
+    
+    if (input_file_ext == ".parquet") {
+      lc_dt <- read_parquet(paste0(input_path, site_, "_clean", input_file_ext))
+    } else {
+      lc_dt <- fread(file = paste0(input_path, site_, "_clean", input_file_ext))
+    }
+    
+    stopifnot(lc_dt[dt[, .(x, y)], on = c("x", "y"), .N] == dt[,.N]) 
+    # check to make sure the merge works correctly
+    
     dt <- merge(lc_dt[, .(x, y)], dt, all = TRUE, by = c("x", "y"), sort = FALSE)
   }
   
   # convert age dt to raster
   r <- dt_to_raster(dt, crs("+proj=longlat +datum=WGS84 +no_defs"))
+  r <- rast(r) # convert to SpatRaster
   
-  # write raster
-  raster::writeRaster(r, filename = paste0(output_path, site, type, ".tif"), overwrite = TRUE)
+  # write Raster
+  # raster::writeRaster(r, filename = paste0(output_path, site_, type, ".tif"), overwrite = TRUE)
   
-  cat("Saved data.table as raster at:", paste0(output_path, site, type, ".tif"), fill = TRUE)
+  # write SpatRaster, with layer names
+  terra::writeRaster(r, paste0(output_path, site_, type, ".tif"), overwrite = TRUE,
+                     names = names(r))
   
-  
-  # reload, and assign
-  # brick(paste0(directory, name, "_age.tif"))
+  cat("Saved data.table as SpatRaster at:", paste0(output_path, site_, type, ".tif"), fill = TRUE)
 }
-
-# I need to write some code to bind the original x and y columns from 
-# the first raster to the age csv, so that even the non-abandonment rows 
-# with NAs are included. 
-# sp::points2grid()
-# sp::coordinates()
 
 
 
@@ -1218,6 +1236,28 @@ cc_erase_non_abn_periods <- function(dt) {
   for (i in seq_len(length(dt) - adjustment)) {
     dt[get(names(dt)[i + adjustment]) == i,  # filter rows with values equal to column number
        names(dt)[i + adjustment] := 0] # set value to 0
+  }
+}
+
+# -------------------------------------------------------------------------- #
+# Modified version of cc_erase_non_abn_periods(), for producing a mask of 
+# the noncrop periods that start the time series, before cultivation.
+# -------------------------------------------------------------------------- #
+cc_extract_noncrop_precrop <- function(dt) {
+  
+  if (length(grep("[xy]$", names(dt))) > 0) {
+    if (!identical(names(dt)[1:2], c("x", "y"))) {
+      stop("x and y must be the first two columns in the data.table")
+    }
+    adjustment <- 2
+  } else {
+    adjustment <- 0
+  }
+  
+  # iterate across columns
+  for (i in seq_len(length(dt) - adjustment)) {
+    dt[get(names(dt)[i + adjustment]) != i,  # filter rows with values NOT equal to column number
+       names(dt)[i + adjustment] := NA] # set value to NA
   }
 }
 
