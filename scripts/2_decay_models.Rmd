@@ -1923,6 +1923,8 @@ ggsave(plot = gg_half_life_endpoints,
 # ------------------------------------------------------------------------- #
 endpoint_half_lives$total_obs %>% unique() %>% sort()
 
+library(ggtext)  # remotes::install_github("clauswilke/ggtext")
+
 
 gg_half_life_endpoints_by_obs <-
   ggplot(data = endpoint_half_lives %>% 
@@ -1941,16 +1943,17 @@ gg_half_life_endpoints_by_obs <-
                         ) + 
   scale_x_continuous(breaks = seq(from = 10, to = 240, by = 20)) +
   scale_y_discrete(labels = fancy_labels) + 
-  labs(x = "Half-life (Years)", y = "Site", 
-       color = "Endpoint\n(Years)", size = "Observations\n(n)",
-       fill = "Cohorts\n(n)",) +
+  labs(x = "Half-life (years)", y = "Site", 
+       color = "Endpoint<br>(years)", size = "Observations<br>(*n*)",
+       fill = "Cohorts<br>(*n*)",) +
   
   theme_classic() +
   theme(legend.position = c(0.725, 0.2),
         legend.spacing = unit(1, units = "mm"),
         legend.background = element_blank(),
         legend.box.background = element_rect(colour = "black"),
-        legend.box = "horizontal"
+        legend.box = "horizontal",
+        legend.title = element_markdown()
         ) + 
   guides(color = guide_colorbar(order = 1), 
          size = guide_legend(order = 3#, override.aes = list(alpha = 1)
@@ -1999,7 +2002,7 @@ ggplot(data = endpoint_half_lives %>%
                         ) + 
   scale_x_continuous(breaks = seq(from = 10, to = 240, by = 20)) +
   scale_y_discrete(labels = fancy_labels) + 
-  labs(x = "Half-life (Years)", y = "Site", 
+  labs(x = "Half-life (years)", y = "Site", 
        color = "Endpoint\n(n cohorts)", size = "Observations\n(n)",
        fill = "Cohorts\n(n)",) +
   
@@ -2025,7 +2028,7 @@ ggsave(plot = gg_half_life_endpoints_by_obs %+%
                legend.background = element_blank(),
                legend.box.background = element_rect(colour = "black"),
                legend.box = "horizontal"),
-       filename = paste0(p_plots, run_label, "/decay/", "half_lives_endpoints_by_obs_10_25", run_label, ".pdf"), 
+       filename = paste0(p_plots, run_label, "/decay/", "half_lives_endpoints_by_obs_10_25", run_label, "x.pdf"), 
        width = 5, height = 4.5, units = "in")
 
 
