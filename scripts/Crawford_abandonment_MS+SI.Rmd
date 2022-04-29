@@ -1046,7 +1046,7 @@ Collectively, our results reveal the temporal nature of cropland abandonment and
 ## Abandonment duration {.unnumbered}
 
 Cropland abandonment was widespread across our 11 study sites (Fig. \@ref(fig:maps-abn-duration)).
-We found that `r area_abn_stats$total_area_ever_abn_Mha_all_sites` Mha of croplands were abandoned at least once between 1987 and 2017 across our 11 sites (Figs. \@ref(fig:area-abn-by-age-class) and \@ref(fig:maps-max-abn-duration)^[Note: these figure numbers will be updated in final version to read "Fig. S..."]).
+We found that `r area_abn_stats$total_area_ever_abn_Mha_all_sites` Mha of croplands were abandoned at least once between 1987 and 2017 across our 11 sites (Figs. \@ref(fig:area-abn-by-age-class) and \@ref(fig:maps-max-abn-duration)).
 (To exclude normal fallow periods, we classify croplands as "abandoned" only when they have not been cultivated for at least 5 years in a row; see Materials and Methods.)
 This corresponds to `r area_abn_stats$total_area_ever_abn_as_percent_of_total_crop_extent`% of the total cropland extent (`r area_abn_stats$total_crop_extent_area_Mha_2017_all_sites` Mha) of our sites (i.e., all lands that were cultivated at some point during the time series; see Table \@ref(tab:abn-panel-table)).
 At individual sites, the area of cropland abandoned at least once ranged from `r area_abn_stats$min_area_ever_abn_as_prop_total_crop`% (`r area_abn_stats$min_area_ever_abn_as_prop_total_crop_site`) to `r area_abn_stats$max_area_ever_abn_as_prop_total_crop`% (`r area_abn_stats$max_area_ever_abn_as_prop_total_crop_site`) of the total cropland extent (Figs. \@ref(fig:area-abn-by-age-class) and \@ref(fig:area-abn-panel), Table \@ref(tab:abn-panel-table)), except for Mato Grosso, Brazil, where only `r area_abn_stats$mg_ever_abn_as_percent_total_crop`% was abandoned at least once.
@@ -1411,7 +1411,7 @@ Forest carbon accumulation rates are freely available from Global Forest Watch (
 
 # Figures and Tables {.unnumbered}
 
-(ref:caption-global-map) Site locations. The locations of our 11 sites, from Yin et al. [@Yin2020]. Sites are labeled as follows: (b) Vitebsk, Belarus / Smolensk, Russia; (bh) Bosnia & Herzegovina; (c) Chongqing, China; (g) Goiás, Brazil; (i) Iraq; (mg) Mato Grosso, Brazil; (n) Nebraska/Wyoming, USA; (o) Orenburg, Russia / Uralsk, Kazakhstan; (s) Shaanxi/Shanxi, China; (v) Volgograd, Russia; (w) Wisconsin, USA.
+(ref:caption-global-map) *Site locations.* The locations of our 11 sites, from Yin et al. [@Yin2020]. Sites are labeled as follows: (b) Vitebsk, Belarus / Smolensk, Russia; (bh) Bosnia & Herzegovina; (c) Chongqing, China; (g) Goiás, Brazil; (i) Iraq; (mg) Mato Grosso, Brazil; (n) Nebraska/Wyoming, USA; (o) Orenburg, Russia / Uralsk, Kazakhstan; (s) Shaanxi/Shanxi, China; (v) Volgograd, Russia; (w) Wisconsin, USA.
 
 ```{r global-map, fig.cap = '(ref:caption-global-map)'}
 # just plain site locations
@@ -1420,7 +1420,7 @@ knitr::include_graphics(path = paste0(p_plots, "fig0.pdf"))
 
 \newpage
 
-(ref:caption-maps-abn-duration) Spatial patterns of abandonment duration. Observed duration of cropland abandonment (in years) as of 2017 in our 11 study sites. X axes show degrees longitude relative to the prime meridian (negative indicating west and positive indicating east), and y axes show degrees latitude relative to equator (negative indicating south and positive indicating north). Site locations are shown in Fig. \@ref(fig:global-map) and maps of maximum abandonment duration are shown in Fig. \@ref(fig:maps-max-abn-duration).
+(ref:caption-maps-abn-duration) *Spatial patterns of abandonment duration.* Observed duration of cropland abandonment (in years) as of 2017 in our 11 study sites. X axes show degrees longitude relative to the prime meridian (negative indicating west and positive indicating east), and y axes show degrees latitude relative to equator (negative indicating south and positive indicating north). Site locations are shown in Fig. \@ref(fig:global-map) and maps of maximum abandonment duration are shown in Fig. \@ref(fig:maps-max-abn-duration).
 
 ```{r maps-abn-duration, fig.cap = '(ref:caption-maps-abn-duration)', fig.pos = "ht"}
 knitr::include_graphics(path = paste0(p_plots, "fig1_filled", run_label, ".pdf"))
@@ -1428,7 +1428,7 @@ knitr::include_graphics(path = paste0(p_plots, "fig1_filled", run_label, ".pdf")
 
 \newpage
 
-(ref:caption-area-abn-by-age-class) Abandonment through time. Cumulative area abandoned at each site through time, according to age class (in years). The solid black line represents the total observed area abandoned at each site, and the dashed black line represents the potential area abandoned, assuming a scenario without recultivation. The corresponding area of potential abandonment by age class is shown in Fig. \@ref(fig:potential-area-bins).
+(ref:caption-area-abn-by-age-class) *Abandonment through time. *Cumulative area abandoned at each site through time, according to age class (in years). The solid black line represents the total observed area abandoned at each site, and the dashed black line represents the potential area abandoned, assuming a scenario without recultivation. The corresponding area of potential abandonment by age class is shown in Fig. \@ref(fig:potential-area-bins).
 
 ```{r area-abn-by-age-class, fig.cap = '(ref:caption-area-abn-by-age-class)'}
 knitr::include_graphics(path = paste0(p_plots, run_label, "/abn_area_by_age_grid_w_potential", run_label, ".pdf"))
@@ -1436,7 +1436,7 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/abn_area_by_age_grid
 
 \newpage
 
-(ref:caption-mean-abn-duration) Distribution of abandonment duration during time series. The distribution of observed abandonment duration (in years) for all periods of abandonment from 1987 to 2017. The y axes shows the proportion of abandonment periods of a given duration at each site. The red points represent the mean abandonment duration (in years) at each site, and the red vertical dashed line represents the mean of these site-level mean duration values across all sites. Note that these distributions include multiple periods of abandonment for those pixels that experienced abandonment and recultivation multiple times during the time series. See Supplementary Materials for distributions of the maximum abandonment duration for each pixel (Fig. \@ref(fig:mean-abn-duration-w-max)), the potential abandonment duration without recultivation (Fig. \@ref(fig:mean-potential-abn-duration)), and the duration of recultivation (Fig. \@ref(fig:mean-recult-duration)).
+(ref:caption-mean-abn-duration) *Distribution of abandonment duration during time series.* The distribution of observed abandonment duration (in years) for all periods of abandonment from 1987 to 2017. The y axes shows the proportion of abandonment periods of a given duration at each site. The red points represent the mean abandonment duration (in years) at each site, and the red vertical dashed line represents the mean of these site-level mean duration values across all sites. Note that these distributions include multiple periods of abandonment for those pixels that experienced abandonment and recultivation multiple times during the time series. See Supplementary Materials for distributions of the maximum abandonment duration for each pixel (Fig. \@ref(fig:mean-abn-duration-w-max)), the potential abandonment duration without recultivation (Fig. \@ref(fig:mean-potential-abn-duration)), and the duration of recultivation (Fig. \@ref(fig:mean-recult-duration)).
 
 ```{r mean-abn-duration, fig.cap = '(ref:caption-mean-abn-duration)', fig.pos = "ht", out.width = "11cm", echo=FALSE}
 knitr::include_graphics(path = paste0(p_plots, "fig2", run_label, ".pdf"))
@@ -1444,7 +1444,7 @@ knitr::include_graphics(path = paste0(p_plots, "fig2", run_label, ".pdf"))
 
 \newpage
 
-(ref:caption-carbon-over-time) Carbon accumulation following abandonment. Cumulative carbon accumulation in abandoned croplands over time, in terms of millions of Mg C ($10^6$ tC). The solid green line represents the total observed carbon accumulation at each site, and the dashed green line represents the potential carbon accumulation, assuming a scenario without recultivation.
+(ref:caption-carbon-over-time) *Carbon accumulation following abandonment.* Cumulative carbon accumulation in abandoned croplands over time, in terms of millions of Mg C ($10^6$ tons C). The solid green line represents the total observed carbon accumulation at each site, and the dashed green line represents the potential carbon accumulation, assuming a scenario without recultivation.
 
 ```{r carbon-over-time, fig.cap = '(ref:caption-carbon-over-time)'}
 knitr::include_graphics(path = paste0(p_plots, run_label, "/carbon/carbon_accumulated_over_time.pdf"))
@@ -1452,7 +1452,7 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/carbon/carbon_accumu
 
 \newpage
 
-(ref:caption-decay-model-grid) Recultivation of abandoned croplands. Modeled recultivation ("decay") trajectories showing the proportion of each cohort of abandoned land (i.e., all pixels abandoned in a given year) remaining abandoned over time for each of our 11 sites. Points represent actual observations by cohort and dashed lines represent linear model predictions for each cohort as a function of time (including a linear and logarithmic term of time). Colors of both points and dashed lines correspond to roughly five-year group of cohorts, ranging from dark purple (oldest cohorts) to green and yellow (most recent cohorts). The horizontal black dashed line shows a proportion of 0.5, indicating the point where half of a cohort has been recultivated. Model diagnostic plots are shown in Fig. \@ref(fig:diag-combo).
+(ref:caption-decay-model-grid) *Recultivation of abandoned croplands.* Modeled recultivation ("decay") trajectories showing the proportion of each cohort of abandoned land (i.e., all pixels abandoned in a given year) remaining abandoned over time for each of our 11 sites. Points represent actual observations by cohort and dashed lines represent linear model predictions for each cohort as a function of time (including a linear and logarithmic term of time). Colors of both points and dashed lines correspond to roughly five-year group of cohorts, ranging from dark purple (oldest cohorts) to green and yellow (most recent cohorts). The horizontal black dashed line shows a proportion of 0.5, indicating the point where half of a cohort has been recultivated. Model diagnostic plots are shown in Fig. \@ref(fig:diag-combo).
 
 ```{r decay-model-grid, fig.cap = '(ref:caption-decay-model-grid)', echo = FALSE}
 knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "decay_mod_grid", run_label, ".pdf"))
@@ -1460,7 +1460,7 @@ knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "decay_mod_
 
 \newpage
 
-(ref:caption-endpoint-half-lives) Half-life of abandonment. Mean half-lives of abandoned croplands at each site, calculated across a range of common endpoints. In order to make fair comparisons across cohorts with varying numbers of observations, we subset our data to a range of common endpoints (e.g., 15 years), restricting cohorts to the same number of observations. For each endpoint, we then calculated the mean trajectory across cohorts that meet the endpoint threshold, and used these mean trajectories to calculate the half-life (i.e., the time required for half of a cohort to be recultivated; see Materials and Methods). See Fig. \@ref(fig:endpoint-half-lives-all) to see half-lives for the full range of endpoints.
+(ref:caption-endpoint-half-lives) *Half-life of abandonment.* Mean half-lives of abandoned croplands at each site, calculated across a range of common endpoints. In order to make fair comparisons across cohorts with varying numbers of observations, we subset our data to a range of common endpoints (e.g., 15 years), restricting cohorts to the same number of observations. For each endpoint, we then calculated the mean trajectory across cohorts that meet the endpoint threshold, and used these mean trajectories to calculate the half-life (i.e., the time required for half of a cohort to be recultivated; see Materials and Methods). See Fig. \@ref(fig:endpoint-half-lives-all) to see half-lives for the full range of endpoints.
 
 ```{r endpoint-half-lives, fig.cap = '(ref:caption-endpoint-half-lives)', echo=FALSE}
 knitr::include_graphics(path = paste0(p_plots, run_label, "/decay/", "half_lives_endpoints_by_obs_10_25", run_label, ".pdf"))
