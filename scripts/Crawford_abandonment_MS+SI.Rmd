@@ -1030,7 +1030,7 @@ Moreover, by failing to capture the dynamic patterns of abandonment and recultiv
 
 Recent advances in remote sensing have made it possible to produce maps of cropland abandonment at both high spatial and temporal resolution.
 Yin et al. [-@Yin2020] used a trajectory-based approach to produce accurate maps of annual cropland abandonment at 30-m resolution from 1987 to 2017 with an average overall mapping accuracy of 85 $\pm$ 4% (see Materials and Methods).
-Importantly, their approach did not rely on woody revegetation as a proxy of abandonment, thereby allowing for a direct measurement of abandonment at earlier stages of regeneration and across both forest and non-forest biomes.
+Notably, their approach did not rely on woody revegetation as a proxy for abandonment, thereby allowing for a direct measurement of abandonment at earlier stages of regeneration and across both forest and non-forest biomes.
 
 Here, we utilize these time-series data [@Yin2020] to quantify the magnitude and persistence of abandonment at 11 sites across four continents (Fig. \@ref(fig:global-map)).
 We address four questions: 
@@ -1113,7 +1113,8 @@ By modeling recultivation as a function of the time since initial abandonment, w
 These modeled decay rates portray a dynamic process, where abandonment is rarely a final stage but rather part of a cycle of turnover on decadal timescales [@Munroe2013], with strong implications for the biodiversity and climate opportunity of abandonment.
 
 The impermanence of abandonment that we observed generally matches the findings of the small number of comparable case studies that have considered this issue [@Chazdon2016a].
-To the best of our knowledge, only other study used an annual time series to investigate agricultural abandonment [in this case, in a grassland region of northern Kazakhstan between 1991 and 2017; @Dara2018], observed abandonment of about 40.5% of cultivated areas, and the subsequent recultivation of about 20.0% of that abandonment.
+To the best of our knowledge, only one other study used an annual time series to investigate agricultural abandonment [@Dara2018].
+That 1991–2017 study of a grassland region of northern Kazakhstan observed abandonment of about 40.5% of cultivated areas, and subsequent recultivation of about 20.0% of that abandonment.
 This recultivation rate was similar to our most persistent site (`r recult_stats$min_5_site`, `r recult_stats$min_5`%), but was much lower than our average recultivation rate across sites (`r recult_stats$mean_thr_5`%), and lower still than our two sites closest to the region of Kazakhstan studied by ref. @Dara2018: `r site_labels$site_long[8]` and `r site_labels$site_long[10]`, which had higher recultivation rates of `r area_recult_threshold %>% filter(abn_threshold == 5, site == "orenburg") %>% .$proportion_recultivated %>% round(digits = 4) * 100` and `r area_recult_threshold %>% filter(abn_threshold == 5, site == "volgograd") %>% .$proportion_recultivated %>% round(digits = 4) * 100`% respectively (Fig. \@ref(fig:recult-by-threshold)).
 
 Our projected half-lives were similar to those found in a study from Costa Rica [$\leq20$ years, @Reid2019], but longer than in other parts of the Neotropics, where empirical evidence indicates that secondary forest regeneration is often very short-lived [@Chazdon2016a; @Nunes2020; @Smith2020; @Schwartz2020].
@@ -1319,7 +1320,7 @@ We estimated carbon sequestration in abandoned croplands using recently publishe
 For forest biomes (delineated using the Ecoregions2017 map [@Dinerstein2017]; see Fig. \@ref(fig:site-biomes) and Section \@ref(section-biomes)), we applied rates from @Cook-Patton2020, which provides annual carbon accumulation rates for the first 30 years of natural forest regrowth in terms of aboveground biomass, belowground biomass, and soil carbon (which we subsequently combined).
 For non-forest biomes (e.g., grasslands and savannas; see Fig. \@ref(fig:site-biomes)), we conservatively assumed that most of the ecosystem carbon is stored in soils [@Bossio2020], and therefore used soil organic carbon (SOC) sequestration as a proxy for potential carbon sequestration.
 We applied annual SOC sequestration rates estimated from the recently published Soils Revealed database [@Sanderman2020], which includes estimates of potential SOC stocks in former agricultural lands as they return to native vegetation after 20 and 80 years.
-We extracted only pixels representing transitions from cropland to native vegetation, and calculated the mean SOC stock for former croplands at each of our sites after 20 and 80 years of regeneration (see more details in Section \@ref(section-soc-si).
+We extracted only pixels representing transitions from cropland to native vegetation, and calculated the mean SOC stock for former croplands at each of our sites after 20 and 80 years of regeneration (see more details in Section \@ref(section-soc-si)).
 We used these two mean SOC stock estimates to calculate annual SOC sequestration rates for years 1 to 20 and 21 to 80 of regeneration.
 These SOC sequestration rates were then combined with our forest carbon accumulation rate layer and applied to our abandonment age data to calculate potential forest and soil carbon accumulation during the duration of abandonment.
 
@@ -1374,16 +1375,16 @@ Trends were considered statistically significant when the 95% confidence interva
 
 We thank the following researchers at the University of Wisconsin-Madison, whose land cover maps made our analysis possible, and who generously shared their data: Amintas Brandão, Johanna Buchner, David Helmers, Benjamin G. Iuliano, Niwaeli E. Kimambo, Katarzyna E. Lewińska, Elena Razenkova, Afag Rizayeva, Natalia Rogova, Seth A. Spawn-Lee, and Yanhua Xie.
 We thank J. Leighton Reid, three anonymous reviewers, and editor Shahid Naeem, whose helpful reviews greatly strengthened our manuscript.
-We are deeply indebted to Alex Wiebe, whose statistical advice significantly improved our models of abandonment recultivation.
+We are deeply indebted to R. Alex Wiebe, whose statistical advice significantly improved our models of abandonment recultivation.
 We also thank the Drongos research group for advice and companionship.
 Analyses were performed using Princeton Research Computing resources at Princeton University.
 This research contributes to the Global Land Programme (<https://glp.earth/>).
-This publication was supported by the Princeton University Library Open Access Fund.
 
 ## Funding {.unnumbered}
 
-High Meadows Foundation (DSW)
-NASA Land Cover and Land Use Change Program (Grant no. 80NSSC18K0343) (VCR, HY)
+High Meadows Foundation (DSW).
+NASA Land Cover and Land Use Change Program (Grant no. 80NSSC18K0343) (VCR, HY).
+Publication of this article was supported by the Princeton University Library Open Access Fund.
 
 ## Author contributions {.unnumbered}
 
