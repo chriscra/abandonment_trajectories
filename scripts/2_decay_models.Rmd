@@ -5114,6 +5114,56 @@ ggsave(plot = gg_decay_grid_w_mean_traj_ci_trim,
 
 ## Presentation figures
 
+```{r fpo-shaanxi-plots}
+
+gg_base_s <-
+  ggplot(data = persistence_dat %>% filter(site == "shaanxi"), 
+         mapping = aes(x = age, y = proportion, 
+                       group = year_abn, 
+                     color = year_abn
+                     # color = cut(year_abn, 
+                     #               breaks = c(1988, 1990, 1995, 2000, 2005, 2010, 2013),
+                     #               labels = c("1988-1990", "1991-1995", "1996-2000",
+                     #                          "2001-2005", "2006-2010", "2011-2013"),
+                     #               include.lowest = TRUE)
+                     )) + 
+    theme_classic() + 
+    scale_x_continuous(n.breaks = 6) +
+    geom_hline(yintercept = 0.5, linetype = "dashed") + 
+    labs(x = "Time since initial abandonment (years)", 
+         y = "Proportion of abandoned land remaining",
+         color = "Cohort \n(Year Abandoned)",
+         linetype = "") + 
+  scale_alpha_manual(name = NULL, values = c(1), guide = guide_legend(order = 2)) +
+  facet_wrap(vars(site), nrow = 3,
+             labeller = as_labeller(long_labels)) 
+
+gg_s_ppt1 <- gg_base_s + geom_line(size = 1.3) + scale_color_viridis()
+gg_s_ppt2 <- gg_base_s + geom_point(size = 1.3) + scale_color_viridis()
+gg_s_ppt3 <- gg_base_s + geom_point(size = 1.3) + scale_color_viridis() +
+    geom_line(data = mutate(augment(lm_mega_lin_log_lin_l, se_fit = TRUE),
+                            time = round(exp(`log(time + 1)`), digits = 0) - 1,
+                            age = time + 5,
+                            proportion = .fitted + 1,
+                            year_abn = as.numeric(levels(cohort))[cohort]) %>% 
+                filter(site == "shaanxi"),
+              linetype = 5, aes(alpha = "Fitted"))
+
+
+# save basic plot
+ggsave(plot = gg_s_ppt1, width = 5.5, height = 4, units = "in",
+       filename = paste0(p_plots, run_label, "/decay/ppt/", 
+                         "decay_mod_ex_shaanxi_lines", run_label, ".pdf"))
+ggsave(plot = gg_s_ppt2, width = 5.5, height = 4, units = "in",
+       filename = paste0(p_plots, run_label, "/decay/ppt/", 
+                         "decay_mod_ex_shaanxi_points", run_label, ".pdf"))
+ggsave(plot = gg_s_ppt3, width = 5.5, height = 4, units = "in",
+       filename = paste0(p_plots, run_label, "/decay/ppt/", 
+                         "decay_mod_ex_shaanxi_fitted", run_label, ".pdf"))
+
+```
+
+
 ```{r shaanxi-basic-plots}
 # ---------------------------------------------------- #
 # just Shaanxi

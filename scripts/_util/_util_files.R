@@ -138,10 +138,10 @@ biomes2017_simple <- st_read(paste0(p_dat_derived, "sf/biomes2017_simple.shp"))
 # ------------------------------- load land cover maps --------------------------------------- #
 # prepared input rasters (derived by Chris)
 
-# lc <- lapply(1:11, function(i) {
-#   terra::rast(paste0(p_dat_derived, "input_rasters/", site_df$site[i], ".tif"))
-#   })
-# names(lc) <- site_df$site
+lc <- lapply(1:11, function(i) {
+  terra::rast(paste0(p_dat_derived, "input_rasters/", site_df$site[i], ".tif"))
+  })
+names(lc) <- site_df$site
 
 # ------------------------------- load cleaned land cover maps --------------------------------------- #
 # prepared input rasters, passed through temporal filter
@@ -150,20 +150,31 @@ lcc <- lapply(1:11, function(i) {
   })
 names(lcc) <- site_df$site
 
+lcr <- lapply(1:11, function(i) {
+  raster::brick(paste0(p_dat_derived, "input_rasters/", site_df$site[i], "_clean.tif"))
+})
+names(lcr) <- site_df$site
+
 
 # ----------------------------- load abandonment age rasters ---------------------------- #
 
 # abandonment age maps (produced by Chris)
 age_t <- lapply(1:11, function(i) {
-  terra::rast(
-  # raster::brick(
-      paste0(p_dat_derived, "age_rasters/", run_label, "/",
-           site_df$site[i], "_age", run_label, ".tif")
-    )
+  terra::rast(paste0(p_dat_derived, "age_rasters/", run_label, "/",
+                     site_df$site[i], "_age", run_label, ".tif"))
   })
 
 names(age_t) <- site_df$site
 for (i in seq_along(age_t)) {names(age_t[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
+
+
+age_r <- lapply(1:11, function(i) {
+  raster::brick(paste0(p_dat_derived, "age_rasters/", run_label, "/",
+                       site_df$site[i], "_age", run_label, ".tif"))
+  })
+
+names(age_r) <- site_df$site
+for (i in seq_along(age_r)) {names(age_r[[i]]) <- paste0("y", 1987:2017)} # remember: these are just 1987:2017
 
 
 

@@ -3649,13 +3649,21 @@ cc_save_map_lc_age_rasters <- function(maxpixels, width = 9, height = 5.5) {
 # ------------------------------------------------------------------------------------ #
 
 cc_save_gif <- function(raster, 
-                        titles = names(raster), 
+                        titles, 
                         file_out, 
                         npixels = 5000,
                         frames_per_second = 5) {
   
   # use animation::saveGIF() to save raster::animate()
-  saveGIF(animate(raster, main = titles, maxpixels = npixels, n = 1), 
+  saveGIF(
+    raster::animate(
+    raster, main = titles, maxpixels = npixels,
+    n = 1,
+    # range = c(5, 30),
+    # breaks = 5:30,
+    col = c("gray95", viridis(n = 25, direction = -1)),
+    colNA = "gray95"
+    ), 
           movie.name = file_out)
   
   gif <- image_animate(image_read(file_out), fps = frames_per_second)

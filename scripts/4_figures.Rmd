@@ -260,53 +260,119 @@ animate(bt, pause = 0.5, zlim = c(1, 4), maxpixels=5000, n=1,
 
 
 ```{r animations}
+site_index <- 9
 
-terra::animate(lc$shaanxi, 
-     levels = plot_cols1$name, # see "util/_util_misc.R"
-     col = plot_cols1$color,
+lc_plot_cols
+terra::animate(lcc$shaanxi, 
+     levels = lc_plot_cols$name, # see "_util/_util_misc.R"
+     col = lc_plot_cols$color,
      type = "classes",
      maxcell = 500000,
+     colNA = "gray95",
      n = 1)
 
+# ------------------------------------------- #
+# save as gif: age of abandonment
+# ------------------------------------------- #
+lapply(1:11, function(site_index) {
+  file_out_tmp <- paste0(p_plots, "animations/", "abn_age",
+                       site_df$label[site_index], ".gif")
+  saveGIF(
+    terra::animate(age_t[[site_index]][[c(2,2:31)]], 
+                   # levels = rcl_df$labels %>% unique() %>% .[-1],
+                   main = paste0(inset_map_titles[site_index], ", Abandonment Age, ", 1987:2017),
+                   type = "continuous",
+                   maxcell = 500000,
+                   range = c(5, 30),
+                   col = viridis(n = 25, direction = -1),
+                   colNA = "gray95",
+                   # legend = FALSE,
+                   # plg=list(title.cex=1.25),
+                   mar = c(mval+0.5, mval, mval + 0.2, mval+1.5),
+                   n = 1),
+    movie.name = file_out_tmp,
+    # ani.height = 350, ani.width = 350
+)
+  
+  # Reload:
+  tmp_gif <- image_animate(image_read(file_out_tmp), fps = 5)
+  image_write(tmp_gif, file_out_tmp)
+})
 
 
 
-site_index <- 1
+# ------------------------------------------- #
+# now for land cover:
+# ------------------------------------------- #
+lapply(3, function(site_index) {
+  file_out_tmp <- paste0(p_plots, "animations/", "land_cover",
+                       site_df$label[site_index], "3.gif")
+  saveGIF(
+    terra::animate(lcc[[site_index]], 
+                   levels = lc_plot_cols$name, # see "_util/_util_misc.R"
+                   col = lc_plot_cols$color,
+                   type = "classes",
+                   main = paste0(inset_map_titles[site_index], ", ",
+                                 # "Land Cover, ",
+                                 1987:2017),
+                   maxcell = 500000,
+                   colNA = "gray95",
+                   legend = FALSE,
+                   mar = c(mval+0.5, mval, mval, mval-0.1),
+                   n = 1),
+    movie.name = file_out_tmp,
+    # ani.dev = "pdf", ani.type = "pdf", 
+    # ani.height = 350, ani.width = 350,
+    # ani.res = 100 #units = "px"
+    )
+  
+  # Reload:
+  tmp_gif <- image_animate(image_read(file_out_tmp), fps = 5)
+  image_write(tmp_gif, file_out_tmp)
+})
 
-tic()
-cc_save_gif(raster = age_r[[site_index]], 
+
+
+# ------------------------------------------- #
+# old
+# ------------------------------------------- #
+
+lapply(c(1,3,9), function(site_index) {
+  tic()
+  cc_save_gif(raster = age_r[[site_index]], 
             npixels = 500000, 
             titles = paste0("Abandonment Age, ", 
                             capwords(site_df$site[site_index]), " ", 1987:2017),
             frames_per_second = 5,
-            file_out = paste0(p_plots, "/", run_label, "/", "animation_abn_age",
+            file_out = paste0(p_plots, "/", run_label, "/", "animations/age",
                               site_df$label[site_index], ".gif"))
 toc()
-
-
+})
 
 
 # ----------------------------------------------- #
-# use animation::saveGIF() to save raster::animate()
+# Land cover alone
+# ------------------------------------------- #
 
-file_out <- paste0(p_plots, "/", run_label, "/", "animation_land_cover",
+lapply(c(1,3,9), function(site_index) {
+  file_out_tmp <- paste0(p_plots, "/", run_label, "/", "animations/lcr",
                               site_df$label[site_index], ".gif")
-
-saveGIF(animate(site_r[[site_index]], main = paste0("Land Cover, ", 
-                            capwords(site_df$site[site_index]), " ", 1987:2017), 
-                maxpixels = 500000, n = 1,
-                breaks = c(0, plot_cols1$breaks), col = plot_cols1$color), 
-          movie.name = file_out)
-
-gif <- image_animate(image_read(file_out), fps = 5)
-image_write(gif, file_out)
-
-
-dev.off()
-plot(site_r$shaanxi$y1987, main = "Shaanxi 1987", breaks = c(0, plot_cols1$breaks), col = plot_cols1$color, maxpixels = 10000)
-legend("bottomleft", cex = 2, inset = 0,
-       legend = plot_cols1$name, 
-       fill = plot_cols1$color)  
+  saveGIF(
+    raster::animate(lcr[[site_index]], 
+                   # levels = lc_plot_cols$name, # see "_util/_util_misc.R"
+                   col = lc_plot_cols$color,
+                   main = paste0(inset_map_titles[site_index], ", ", 1987:2017),
+                   # main = paste0("Land Cover, ", capwords(site_df$site[site_index]), " ", 1987:2017),
+                   maxpixels = 500000,
+                   colNA = "gray95",
+                   legend = TRUE, n = 1),
+    movie.name = file_out_tmp
+    )
+  
+  # Reload:
+  tmp_gif <- image_animate(image_read(file_out_tmp), fps = 5)
+  image_write(tmp_gif, file_out_tmp)
+})
 
 ```
 
@@ -523,15 +589,40 @@ ggsave(plot = gg_age_class_bins_grid +
 # FINAL VERSION: save a version of the above, with the total area abandoned (>= 5) and the potential area abandoned
 ggsave(plot = gg_age_class_bins_grid + 
          geom_line(data = 
-                     bind_rows(area_dat %>% mutate(type = "Observed"),
-                     potential_area_dat %>% mutate(type = "Potential")) %>%
+                     bind_rows(
+                       area_dat %>% mutate(type = "Observed"),
+                       potential_area_dat %>% mutate(type = "Potential")
+                       ) %>%
                      filter(lc %in% c("Abandoned (>=5)")),
                    mapping = aes(x = year, y = area_ha / (10^3),
                                  group = type, linetype = type), 
                    size = 1.5) + 
          labs(linetype = "Scenario", fill = "Observed age (years)") + theme(legend.position = c(0.88, 0.11)),
        filename = paste0(p_plots, run_label,
-                         "/abn_area_by_age_grid_w_potential", run_label, ".pdf"),
+                         "/abn_area_by_age_grid_w_potential", run_label, "2.pdf"),
+       width = 7.2, height = 5.5, units = "in", dpi = 400
+)
+
+
+
+
+# version for ppt, with just the observed area:
+ggsave(plot =
+         gg_age_class_bins_grid + 
+         geom_line(data = 
+                     bind_rows(
+                       area_dat %>% mutate(type = "Observed"),
+                       potential_area_dat %>% mutate(type = "Potential")
+                       ) %>%
+                     filter(lc %in% c("Abandoned (>=5)")),
+                   mapping = aes(x = year, y = area_ha / (10^3),
+                                 group = type, alpha = type), 
+                   size = 1.5) + 
+         labs(alpha = "Scenario", fill = "Observed age (years)") + 
+           scale_alpha_discrete(range = c(1, 0)) + 
+         theme(legend.position = c(0.88, 0.11)),
+       filename = paste0(p_plots, run_label,
+                         "/abn_area_by_age_grid_w_obs_area_line", run_label, ".pdf"),
        width = 7.2, height = 5.5, units = "in", dpi = 400
 )
 
