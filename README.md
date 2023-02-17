@@ -17,7 +17,7 @@ These data are archived and publicly available at Zenodo ([DOI: 10.5281/zenodo.5
 Primary derived data products include maps of abandonment age and datasets describing the area abandoned (in hectares) at each site in a given year, separated by year of initial abandonment ("cohort"). 
 
 This is a living repository. 
-An archive of this repository is available at Zenodo: ([URL TBD]()).
+An archive of this repository is available at Zenodo: ([DOI 10.5281/zenodo.6383127](https://zenodo.org/badge/latestdoi/278699632)).
 Please refer to this archive and the public release for the code used at time of publication.
 
 ## Overview
