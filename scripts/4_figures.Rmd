@@ -599,7 +599,7 @@ ggsave(plot = gg_age_class_bins_grid +
                    size = 1.5) + 
          labs(linetype = "Scenario", fill = "Observed age (years)") + theme(legend.position = c(0.88, 0.11)),
        filename = paste0(p_plots, run_label,
-                         "/abn_area_by_age_grid_w_potential", run_label, "2.pdf"),
+                         "/abn_area_by_age_grid_w_obs_pot_lines", run_label, ".pdf"),
        width = 7.2, height = 5.5, units = "in", dpi = 400
 )
 
@@ -607,6 +607,75 @@ ggsave(plot = gg_age_class_bins_grid +
 
 
 # version for ppt, with just the observed area:
+ggsave(plot =
+         ggplot(data = persistence_dat) + 
+           theme_classic() +
+           labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
+                x = "Year", fill = "Age (years)") +
+           theme(legend.title = element_text(size = 10)) +
+           scale_fill_brewer(palette = "Greens", direction = 1) +
+           facet_wrap(vars(site), scales = "free_y", labeller =
+                        as_labeller(cap_update_labels)) +
+           theme(legend.position = c(0.885, 0.12), 
+                 legend.spacing = unit(2, units = "mm"),
+                 legend.margin = margin(t = 0, r = 0, b = 0, l = 0),
+                 strip.text.x = element_text(size = 8)) + 
+           guides(fill = guide_legend(nrow = 3, ncol = 2)) + 
+           geom_line(data = 
+                       bind_rows(
+                       area_dat %>% mutate(type = "Observed"),
+                       potential_area_dat %>% mutate(type = "Potential")
+                       ) %>%
+                     filter(lc %in% c("Abandoned (>=5)")),
+                   mapping = aes(x = year, y = area_ha / (10^3),
+                                 group = type, 
+                                 alpha = type,
+                                 linetype = type
+                                 ), 
+                   size = 1.5
+                   ) + 
+         labs(linetype = "Scenario", 
+              fill = "Observed age (years)",
+              alpha = "Scenario") + 
+           scale_alpha_discrete(range = c(0, 1)) +
+         theme(legend.position = c(0.88, 0.11)),
+       filename = paste0(p_plots, run_label,
+                         "/abn_area_by_age_grid_w_pot_area_line_only", run_label, ".pdf"),
+       width = 7.2, height = 5.5, units = "in", dpi = 400
+)
+
+ggsave(plot =
+         ggplot(data = persistence_dat) + 
+           theme_classic() +
+           labs(y = expression("Area abandoned (10"^{3}*" ha)") , 
+                x = "Year", fill = "Age (years)") +
+           theme(legend.title = element_text(size = 10)) +
+           scale_fill_brewer(palette = "Greens", direction = 1) +
+           facet_wrap(vars(site), scales = "free_y", labeller =
+                        as_labeller(cap_update_labels)) +
+           theme(legend.position = c(0.885, 0.12), 
+                 legend.spacing = unit(2, units = "mm"),
+                 legend.margin = margin(t = 0, r = 0, b = 0, l = 0),
+                 strip.text.x = element_text(size = 8)) + 
+           guides(fill = guide_legend(nrow = 3, ncol = 2)) + 
+           geom_line(data = 
+                       bind_rows(
+                       area_dat %>% mutate(type = "Observed"),
+                       potential_area_dat %>% mutate(type = "Potential")
+                       ) %>%
+                     filter(lc %in% c("Abandoned (>=5)")),
+                   mapping = aes(x = year, y = area_ha / (10^3),
+                                 group = type, linetype = type), 
+                   size = 1.5) + 
+         labs(linetype = "Scenario", 
+              fill = "Observed age (years)",
+              alpha = "Scenario") + 
+         theme(legend.position = c(0.88, 0.11)),
+       filename = paste0(p_plots, run_label,
+                         "/abn_area_by_age_grid_w_obs_area_line_only", run_label, ".pdf"),
+       width = 7.2, height = 5.5, units = "in", dpi = 400
+)
+
 ggsave(plot =
          gg_age_class_bins_grid + 
          geom_line(data = 
@@ -761,15 +830,41 @@ gg_total_c <-
   guides(linetype = guide_legend(ncol = 1)) +
     facet_wrap(vars(site), scales = "free_y", labeller = as_labeller(cap_update_labels))
 
-
-
+# figure for MS:
 ggsave(gg_total_c,
        file = paste0(p_plots, run_label, "/carbon/carbon_accumulated_over_time.pdf"), 
        width = 6.5, height = 5, units = "in", dpi = 400)
 
+# figure for PPT:
+# just potential, to be shown before both lines together
+gg_total_c_pot <-
+  ggplot(data = site_carbon_df %>% filter(threshold == 5), 
+         mapping = aes(x = year, y = total_C_Mg / 10^6,
+                       linetype = type, alpha = type
+                       )) +
+  geom_line(size = 1.5, 
+            col = brewer_pal(palette = "Greens")(7)[6]) + 
+  labs(x = "Year", 
+       y = expression("Carbon Accumulated (10"^{6}*" Mg C)"),
+       linetype = "Scenario", alpha = "Scenario"
+       ) +
+  theme_classic() + 
+    theme(
+      legend.position = c(0.88, 0.11),
+        legend.title = element_text(size = 9),
+        legend.spacing = unit(-1, units = "mm"),
+        legend.background = element_blank(),
+    strip.text.x = element_text(size = 8)
+        ) +
+    scale_alpha_discrete(range = c(0, 1)) +
+    guides(linetype = guide_legend(ncol = 1)) +
+    facet_wrap(vars(site), scales = "free_y", labeller = as_labeller(cap_update_labels))
 
+ggsave(gg_total_c_pot,
+       file = paste0(p_plots, run_label, "/carbon/carbon_accumulated_over_time_pot_only.pdf"), 
+       width = 6.5, height = 5, units = "in", dpi = 400)
 
-
+# ---------- #
 site_carbon_tmp <- 
   site_carbon_df %>% 
   filter(#type == "Observed", 
